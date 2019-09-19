@@ -22,6 +22,27 @@ func (s *Subdivider) Add(p1, p2 Coord3D) {
 	s.lines[unorderedSegment(p1, p2)] = true
 }
 
+// AddFiltered adds line segments for which f returns
+// true.
+func (s *Subdivider) AddFiltered(m *Mesh, f func(p1, p2 Coord3D) bool) {
+	visited := map[[2]Coord3D]bool{}
+	m.Iterate(func(t *Triangle) {
+		segs := [3][2]Coord3D{
+			unorderedSegment(t[0], t[1]),
+			unorderedSegment(t[1], t[2]),
+			unorderedSegment(t[2], t[0]),
+		}
+		for _, seg := range segs {
+			if !visited[seg] {
+				visited[seg] = true
+				if f(seg[0], seg[1]) {
+					s.Add(seg[0], seg[1])
+				}
+			}
+		}
+	})
+}
+
 // Subdivide modifies the mesh by replacing triangles
 // whose sides are affected by subdivision.
 //
