@@ -67,7 +67,7 @@ func CreateRoundMesh(h *HeightFunc, radius float64) *model3d.Mesh {
 			nextTheta = 0
 		}
 		m.Add(&model3d.Triangle{
-			model3d.Coord3D{X: 0, Y: midHeight, Z: 0},
+			model3d.Coord3D{X: 0, Y: 0, Z: midHeight},
 			h.Coord(nextTheta, 1, radius),
 			h.Coord(theta, 1, radius),
 		})
@@ -82,9 +82,9 @@ func Subdivide(m *model3d.Mesh, h *HeightFunc, radius float64) {
 	})
 	subdivider.Subdivide(m, func(p1, p2 model3d.Coord3D) model3d.Coord3D {
 		x := (p1.X + p2.X) / 2
-		z := (p1.Z + p2.Z) / 2
-		theta := math.Atan2(z, x)
-		r := math.Sqrt(x*x+z*z) / radius
+		y := (p1.Y + p2.Y) / 2
+		theta := math.Atan2(y, x)
+		r := math.Sqrt(x*x+y*y) / radius
 		return h.Coord(theta, r, radius)
 	})
 }
@@ -93,7 +93,7 @@ func FillVolume(m *model3d.Mesh) {
 	m.Iterate(func(t *model3d.Triangle) {
 		t1 := *t
 		for i := range t1 {
-			t1[i].Y = 0
+			t1[i].Z = 0
 		}
 
 		// Create sides for edge triangles.
@@ -131,13 +131,13 @@ func (h *HeightFunc) Height(theta, radius float64) float64 {
 func (h *HeightFunc) Coord(theta, radius, radiusScale float64) model3d.Coord3D {
 	return model3d.Coord3D{
 		X: radiusScale * radius * math.Cos(theta),
-		Y: h.Height(theta, radius),
-		Z: radiusScale * radius * math.Sin(theta),
+		Y: radiusScale * radius * math.Sin(theta),
+		Z: h.Height(theta, radius),
 	}
 }
 
 func (h *HeightFunc) IsFlat(p1, p2 model3d.Coord3D, radius float64) bool {
-	if p1.Y != p2.Y {
+	if p1.Z != p2.Z {
 		return false
 	}
 
@@ -146,10 +146,10 @@ func (h *HeightFunc) IsFlat(p1, p2 model3d.Coord3D, radius float64) bool {
 	for t := 0.0; t < totalDist; t += radius / NumStops {
 		frac := t / totalDist
 		x := p1.X*(1-frac) + p2.X*frac
-		z := p1.Z*(1-frac) + p2.Z*frac
-		theta := math.Atan2(z, x)
-		r := math.Sqrt(x*x+z*z) / radius
-		if h.Height(theta, r) != p1.Y {
+		y := p1.Y*(1-frac) + p2.Y*frac
+		theta := math.Atan2(y, x)
+		r := math.Sqrt(x*x+y*y) / radius
+		if h.Height(theta, r) != p1.Z {
 			return false
 		}
 	}
