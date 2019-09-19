@@ -51,7 +51,7 @@ func NewMesh() *Mesh {
 }
 
 // NewMeshPolar creates a mesh with a 3D polar function.
-func NewMeshSpherical(radius func(g GeoCoord) float64, stops int) *Mesh {
+func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 	res := NewMesh()
 	lonStep := math.Pi * 2 / float64(stops)
 	latStep := math.Pi / float64(stops)
