@@ -191,10 +191,10 @@ func (m *Mesh) Neighbors(t *Triangle) []*Triangle {
 //
 // For example, to find all triangles containing a line
 // from p1 to p2, you could do m.Find(p1, p2).
-func (m *Mesh) Find(ps ...*Coord3D) []*Triangle {
+func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 	resSet := map[*Triangle]int{}
 	for _, p := range ps {
-		for _, t1 := range m.vertexToTriangle[*p] {
+		for _, t1 := range m.vertexToTriangle[p] {
 			resSet[t1]++
 		}
 	}
