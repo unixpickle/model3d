@@ -83,9 +83,6 @@ func (c Coord3D) Geo() GeoCoord {
 	p := c.Scale(1 / c.Norm())
 	g := GeoCoord{}
 	g.Lat = math.Asin(p.Y)
-	cosLat := math.Cos(g.Lat)
-	if cosLat != 0 {
-		g.Lon = math.Atan2(p.X/cosLat, p.Z/cosLat)
-	}
+	g.Lon = math.Atan2(p.X, p.Z)
 	return g
 }
