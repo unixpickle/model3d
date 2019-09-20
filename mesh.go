@@ -7,25 +7,6 @@ import (
 	"github.com/unixpickle/essentials"
 )
 
-// A Triangle is a triangle in 3D Euclidean space.
-type Triangle [3]Coord3D
-
-// Normal computes a normal vector for the triangle using
-// the right-hand rule.
-func (t *Triangle) Normal() Coord3D {
-	x1, y1, z1 := t[1].X-t[0].X, t[1].Y-t[0].Y, t[1].Z-t[0].Z
-	x2, y2, z2 := t[2].X-t[0].X, t[2].Y-t[0].Y, t[2].Z-t[0].Z
-
-	// The standard cross product formula.
-	result := Coord3D{
-		X: y1*z2 - z1*y2,
-		Y: z1*x2 - x1*z2,
-		Z: x1*y2 - y1*x2,
-	}
-
-	return result.Scale(1 / result.Norm())
-}
-
 // A Mesh is a collection of triangles.
 //
 // The triangles are uniquely identified as pointers, not
