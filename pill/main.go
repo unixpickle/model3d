@@ -16,11 +16,13 @@ import (
 )
 
 func main() {
+	var outFile string
 	var patternFile string
 	var color1 string
 	var color2 string
 	var radius float64
 	var length float64
+	flag.StringVar(&outFile, "out", "pill.zip", "output file name")
 	flag.StringVar(&patternFile, "pattern", "heart.png", "image to put on ends")
 	flag.StringVar(&color1, "color1", "1.0,1.0,1.0", "color for half of pill")
 	flag.StringVar(&color2, "coolr2", "1.0,0.0,0.0", "color for other half of pill")
@@ -42,7 +44,7 @@ func main() {
 		return radius
 	}, 150)
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		subdiv := model3d.NewSubdivider()
 		subdiv.AddFiltered(mesh, func(p1, p2 model3d.Coord3D) bool {
 			return imprinter.AlphaAt(p1.Y, p1.Z) != imprinter.AlphaAt(p2.Y, p2.Z)
@@ -118,7 +120,7 @@ func main() {
 		}
 	}
 
-	ioutil.WriteFile("mesh.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+	ioutil.WriteFile(outFile, mesh.EncodeMaterialOBJ(colorFunc), 0755)
 }
 
 func ParseColor(color string) [3]float64 {
