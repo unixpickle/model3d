@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
@@ -26,12 +28,15 @@ func main() {
 	flag.Float64Var(&length, "length", 1.0, "length of pill")
 	flag.Parse()
 
+	parsedColor1 := ParseColor(color1)
+	parsedColor2 := ParseColor(color2)
+
 	r, err := os.Open(patternFile)
 	essentials.Must(err)
 	img, _, err := image.Decode(r)
 	r.Close()
 	essentials.Must(err)
-	imprinter := &Imprinter{Img: img, Radius: radius}
+	imprinter := &Imprinter{Img: img, Radius: radius / 2}
 
 	mesh := model3d.NewMeshPolar(func(g model3d.GeoCoord) float64 {
 		return radius
@@ -61,6 +66,7 @@ func main() {
 				t1[i].X -= length/2 - radius
 				t2[i].X = -t1[i].X
 			}
+			t2[0], t2[1] = t2[1], t2[0]
 			mesh.Add(&t1)
 			mesh.Add(&t2)
 		}
@@ -75,22 +81,60 @@ func main() {
 			if len(mesh.Find(t[i], t[i1])) == 1 {
 				p1 := t[i]
 				p2 := t[i1]
-				p1.X *= -1
-				p2.X *= -1
-				// TODO: create four triangles here so the color
-				// can change right in the middle.
+				p3 := p1
+				p4 := p2
+				p1.X = 0
+				p2.X = 0
+				p3.X *= -1
+				p4.X *= -1
 				mesh.Add(&model3d.Triangle{t[i], p1, t[i1]})
 				mesh.Add(&model3d.Triangle{p1, p2, t[i1]})
+				mesh.Add(&model3d.Triangle{p1, p3, p2})
+				mesh.Add(&model3d.Triangle{p3, p4, p2})
 			}
 		}
 	})
 
 	colorFunc := func(t *model3d.Triangle) [3]float64 {
-		// TODO: look at pattern here.
-		return [3]float64{1, 1, 1}
+		var alpha bool
+		for _, p := range t {
+			if imprinter.AlphaAt(p.Y, p.Z) {
+				alpha = true
+				break
+			}
+		}
+		if t[0].X < 0 || t[1].X < 0 || t[2].X < 0 {
+			if alpha {
+				return parsedColor2
+			} else {
+				return parsedColor1
+			}
+		} else {
+			if alpha {
+				return parsedColor1
+			} else {
+				return parsedColor2
+			}
+		}
 	}
 
 	ioutil.WriteFile("mesh.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+}
+
+func ParseColor(color string) [3]float64 {
+	parts := strings.Split(color, ",")
+	if len(parts) != 3 {
+		essentials.Die("invalid color string: " + color)
+	}
+	var res [3]float64
+	for i, p := range parts {
+		x, err := strconv.ParseFloat(p, 64)
+		if err != nil {
+			essentials.Die("invalid color string: " + color)
+		}
+		res[i] = x
+	}
+	return res
 }
 
 type Imprinter struct {
@@ -99,6 +143,9 @@ type Imprinter struct {
 }
 
 func (i *Imprinter) AlphaAt(y, z float64) bool {
+	if y <= -i.Radius || y >= i.Radius || z <= -i.Radius || z >= i.Radius {
+		return false
+	}
 	imgX := int(math.Round(float64(i.Img.Bounds().Dx()) * (y + i.Radius) / (i.Radius * 2)))
 	imgY := int(math.Round(float64(i.Img.Bounds().Dy()) * (z + i.Radius) / (i.Radius * 2)))
 	_, _, _, a := i.Img.At(imgX, imgY).RGBA()
