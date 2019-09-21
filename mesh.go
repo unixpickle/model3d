@@ -67,11 +67,11 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 				// p[0] and p[1] are technically equivalent,
 				// but they are numerically slightly different,
 				// so we must make it perfect.
-				p[0] = Coord3D{X: 0, Y: -1, Z: 0}
+				p[0] = Coord3D{X: 0, Y: -radius(GeoCoord{Lat: latitude, Lon: 0}), Z: 0}
 			} else if latIdx == stops-1 {
 				// p[2] and p[3] are technically equivalent,
 				// but see note above.
-				p[2] = Coord3D{X: 0, Y: 1, Z: 0}
+				p[2] = Coord3D{X: 0, Y: radius(GeoCoord{Lat: latitude, Lon: 0}), Z: 0}
 			}
 			if latIdx != 0 {
 				res.Add(&Triangle{p[0], p[1], p[2]})
