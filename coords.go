@@ -95,3 +95,7 @@ func (c Coord3D) Geo() GeoCoord {
 	g.Lon = math.Atan2(p.X, p.Z)
 	return g
 }
+
+func (c Coord3D) array() [3]float64 {
+	return [3]float64{c.X, c.Y, c.Z}
+}
