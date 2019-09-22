@@ -66,7 +66,7 @@ func NewRectScanner(s Solid, delta float64) *RectScanner {
 				if k > 0 {
 					piece.Neighbors[pieces[idx-len(xs)*len(ys)]] = true
 				}
-				piece.countInteriorCorners(s)
+				piece.CountInteriorCorners(s)
 				if piece.NumInteriorCorners == 0 {
 					piece.Deleted = true
 				} else if piece.NumInteriorCorners == 8 {
@@ -95,6 +95,70 @@ func (r *RectScanner) Subdivide() {
 	}
 	for _, p := range pieces {
 		r.splitBorder(p)
+	}
+}
+
+// BorderRects calls f with every rectangle on the outside
+// of the border.
+//
+// Each rectangle is passed in clockwise order, so that
+// using the right-hand rule gives a normal pointing out
+// of the solid.
+func (r *RectScanner) BorderRects(f func(points [4]Coord3D)) {
+	for p := range r.border {
+		// Left and right sides.
+		if p.IsSideBorder(0, false) {
+			p1, p2, p3 := p.Min, p.Min, p.Min
+			p1.Y = p.Max.Y
+			p2.Y = p.Max.Y
+			p2.Z = p.Max.Z
+			p3.Z = p.Max.Z
+			f([4]Coord3D{p.Min, p1, p2, p3})
+		}
+		if p.IsSideBorder(0, true) {
+			p1, p2, p3 := p.Max, p.Max, p.Max
+			p1.Z = p.Min.Z
+			p2.Z = p.Min.Z
+			p2.Y = p.Min.Y
+			p3.Y = p.Min.Y
+			f([4]Coord3D{p.Max, p1, p2, p3})
+		}
+
+		// Top and bottom sides.
+		if p.IsSideBorder(1, false) {
+			p1, p2, p3 := p.Min, p.Min, p.Min
+			p1.Z = p.Max.Z
+			p2.Z = p.Max.Z
+			p2.X = p.Max.X
+			p3.X = p.Max.X
+			f([4]Coord3D{p.Min, p1, p2, p3})
+		}
+		if p.IsSideBorder(1, true) {
+			p1, p2, p3 := p.Max, p.Max, p.Max
+			p1.X = p.Min.X
+			p2.X = p.Min.X
+			p2.Z = p.Min.Z
+			p3.Z = p.Min.Z
+			f([4]Coord3D{p.Max, p1, p2, p3})
+		}
+
+		// Front and back sides.
+		if p.IsSideBorder(2, false) {
+			p1, p2, p3 := p.Min, p.Min, p.Min
+			p1.X = p.Max.X
+			p2.X = p.Max.X
+			p2.Y = p.Max.Y
+			p3.Y = p.Max.Y
+			f([4]Coord3D{p.Min, p1, p2, p3})
+		}
+		if p.IsSideBorder(2, true) {
+			p1, p2, p3 := p.Max, p.Max, p.Max
+			p1.Y = p.Min.Y
+			p2.Y = p.Min.Y
+			p2.X = p.Min.X
+			p3.X = p.Min.X
+			f([4]Coord3D{p.Max, p1, p2, p3})
+		}
 	}
 }
 
@@ -137,8 +201,8 @@ func (r *RectScanner) splitBorder(rp *rectPiece) {
 					Max:       Coord3D{X: maxX, Y: maxY, Z: maxZ},
 					Neighbors: map[*rectPiece]bool{},
 				}
-				newPiece.countInteriorCorners(r.solid)
-				newPiece.updateNeighbors(rp.Neighbors)
+				newPiece.CountInteriorCorners(r.solid)
+				newPiece.UpdateNeighbors(rp.Neighbors)
 				rp.Neighbors[newPiece] = true
 				newPieces = append(newPieces, newPiece)
 			}
@@ -147,13 +211,13 @@ func (r *RectScanner) splitBorder(rp *rectPiece) {
 
 	for _, p := range newPieces {
 		if p.NumInteriorCorners == 0 {
-			if p.touchingLocked() {
+			if p.TouchingLocked() {
 				r.border[p] = true
 			} else {
 				p.Deleted = true
 			}
 		} else if p.NumInteriorCorners == 8 {
-			if p.touchingDeleted() {
+			if p.TouchingDeleted() {
 				r.border[p] = true
 			} else {
 				p.Locked = true
@@ -185,7 +249,7 @@ func (r *rectPiece) CheckNeighbor(r1 *rectPiece) bool {
 	return false
 }
 
-func (r *rectPiece) countInteriorCorners(s Solid) {
+func (r *rectPiece) CountInteriorCorners(s Solid) {
 	for _, x := range []float64{r.Min.X, r.Max.X} {
 		for _, y := range []float64{r.Min.Y, r.Max.Y} {
 			for _, z := range []float64{r.Min.Z, r.Max.Z} {
@@ -197,7 +261,7 @@ func (r *rectPiece) countInteriorCorners(s Solid) {
 	}
 }
 
-func (r *rectPiece) updateNeighbors(possible map[*rectPiece]bool) {
+func (r *rectPiece) UpdateNeighbors(possible map[*rectPiece]bool) {
 	for n := range possible {
 		if n.CheckNeighbor(r) {
 			r.Neighbors[n] = true
@@ -206,7 +270,7 @@ func (r *rectPiece) updateNeighbors(possible map[*rectPiece]bool) {
 	}
 }
 
-func (r *rectPiece) touchingLocked() bool {
+func (r *rectPiece) TouchingLocked() bool {
 	for n := range r.Neighbors {
 		if n.Locked {
 			return true
@@ -215,11 +279,29 @@ func (r *rectPiece) touchingLocked() bool {
 	return false
 }
 
-func (r *rectPiece) touchingDeleted() bool {
+func (r *rectPiece) TouchingDeleted() bool {
 	for n := range r.Neighbors {
 		if n.Deleted {
 			return true
 		}
 	}
 	return false
+}
+
+func (r *rectPiece) IsSideBorder(axis int, max bool) bool {
+	for n := range r.Neighbors {
+		if n.Deleted {
+			continue
+		}
+		if max {
+			if n.Min.array()[axis] == r.Max.array()[axis] {
+				return false
+			}
+		} else {
+			if n.Max.array()[axis] == r.Min.array()[axis] {
+				return false
+			}
+		}
+	}
+	return true
 }
