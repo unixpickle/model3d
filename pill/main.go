@@ -50,12 +50,7 @@ func main() {
 			return imprinter.AlphaAt(p1.Y, p1.Z) != imprinter.AlphaAt(p2.Y, p2.Z)
 		})
 		subdiv.Subdivide(mesh, func(p1, p2 model3d.Coord3D) model3d.Coord3D {
-			midpoint := model3d.Coord3D{
-				X: (p1.X + p2.X) / 2,
-				Y: (p1.Y + p2.Y) / 2,
-				Z: (p1.Z + p2.Z) / 2,
-			}
-			return midpoint.Geo().Coord3D().Scale(radius)
+			return p1.Mid(p2).Geo().Coord3D().Scale(radius)
 		})
 	}
 

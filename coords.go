@@ -51,6 +51,15 @@ type Coord3D struct {
 	Z float64
 }
 
+// Mid computes the midpoint between c and c1.
+func (c Coord3D) Mid(c1 Coord3D) Coord3D {
+	return Coord3D{
+		X: (c.X + c1.X) / 2,
+		Y: (c.Y + c1.Y) / 2,
+		Z: (c.Z + c1.Z) / 2,
+	}
+}
+
 // Norm computes the vector L2 norm.
 func (c Coord3D) Norm() float64 {
 	return math.Sqrt(c.X*c.X + c.Y*c.Y + c.Z*c.Z)
