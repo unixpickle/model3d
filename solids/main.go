@@ -15,13 +15,6 @@ func main() {
 			Radius: 0.2,
 		},
 	}
-	scanner := model3d.NewRectScanner(solid, 0.05)
-	for i := 0; i < 3; i++ {
-		scanner.Subdivide()
-	}
-	mesh := scanner.Mesh()
-	for i := 0; i < 7; i++ {
-		mesh = mesh.Blur(0.8)
-	}
+	mesh := model3d.SolidToMesh(solid, 0.5, 3, 0.8, 7)
 	ioutil.WriteFile("output.stl", mesh.EncodeSTL(), 0755)
 }

@@ -1,6 +1,8 @@
 package model3d
 
-import "math"
+import (
+	"math"
+)
 
 // A Solid is a boolean function in 3D where a value of
 // true indicates that a point is part of the solid, and
@@ -103,6 +105,29 @@ func (j JoinedSolid) Contains(c Coord3D) bool {
 		}
 	}
 	return false
+}
+
+// SolidToMesh approximates the solid s as a triangle mesh
+// by blurring the result of a RectScanner.
+//
+// The delta argument specifies the initial spacing
+// between sampled cubes, and subdivisions indicates the
+// maximum number of times these cubes can be cut in half.
+//
+// The blurFrac argument specifies how much each vertex is
+// moved towards its neighbors, between 0 and 1.
+// The blurIters argument specifies how many times the
+// resulting mesh is blurred before being returned.
+func SolidToMesh(s Solid, delta float64, subdivisions int, blurFrac float64, blurIters int) *Mesh {
+	scanner := NewRectScanner(s, delta)
+	for i := 0; i < subdivisions; i++ {
+		scanner.Subdivide()
+	}
+	mesh := scanner.Mesh()
+	for i := 0; i < blurIters; i++ {
+		mesh = mesh.Blur(blurFrac)
+	}
+	return mesh
 }
 
 // A RectScanner maps out the edges of a solid using

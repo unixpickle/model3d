@@ -18,15 +18,7 @@ func main() {
 }
 
 func CreateLock() *model3d.Mesh {
-	scanner := model3d.NewRectScanner(LockSolid{}, 0.05)
-	for i := 0; i < 3; i++ {
-		scanner.Subdivide()
-	}
-	m := scanner.Mesh()
-	for i := 0; i < 3; i++ {
-		m = m.Blur(0.8)
-	}
-	return m
+	return model3d.SolidToMesh(LockSolid{}, 0.5, 3, 0.8, 3)
 }
 
 type LockSolid struct{}
@@ -63,15 +55,7 @@ func (l LockSolid) Contains(c model3d.Coord3D) bool {
 }
 
 func CreateBagel() *model3d.Mesh {
-	scanner := model3d.NewRectScanner(BagelSolid{}, 0.05)
-	for i := 0; i < 3; i++ {
-		scanner.Subdivide()
-	}
-	m := scanner.Mesh()
-	for i := 0; i < 3; i++ {
-		m = m.Blur(0.8)
-	}
-	return m
+	return model3d.SolidToMesh(BagelSolid{}, 0.05, 3, 0.8, 3)
 }
 
 type BagelSolid struct{}
