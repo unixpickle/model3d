@@ -13,6 +13,25 @@ type Solid interface {
 	Contains(p Coord3D) bool
 }
 
+// A SphereSolid is a Solid that yields values for a
+// sphere.
+type SphereSolid struct {
+	Center Coord3D
+	Radius float64
+}
+
+func (s *SphereSolid) Min() Coord3D {
+	return Coord3D{X: s.Center.X - s.Radius, Y: s.Center.Y - s.Radius, Z: s.Center.Z - s.Radius}
+}
+
+func (s *SphereSolid) Max() Coord3D {
+	return Coord3D{X: s.Center.X + s.Radius, Y: s.Center.Y + s.Radius, Z: s.Center.Z + s.Radius}
+}
+
+func (s *SphereSolid) Contains(p Coord3D) bool {
+	return p.Dist(s.Center) < s.Radius
+}
+
 // A RectScanner maps out the edges of a solid using
 // axis-aligned cubes.
 type RectScanner struct {
@@ -101,9 +120,9 @@ func (r *RectScanner) Subdivide() {
 // BorderRects calls f with every rectangle on the outside
 // of the border.
 //
-// Each rectangle is passed in clockwise order, so that
-// using the right-hand rule gives a normal pointing out
-// of the solid.
+// Each rectangle is passed in counter-clockwise order, so
+// using the right-hand rule will yield normals facing the
+// inside of the solid.
 func (r *RectScanner) BorderRects(f func(points [4]Coord3D)) {
 	for p := range r.border {
 		// Left and right sides.
@@ -160,6 +179,16 @@ func (r *RectScanner) BorderRects(f func(points [4]Coord3D)) {
 			f([4]Coord3D{p.Max, p1, p2, p3})
 		}
 	}
+}
+
+// Mesh creates a mesh for the border.
+func (r *RectScanner) Mesh() *Mesh {
+	m := NewMesh()
+	r.BorderRects(func(points [4]Coord3D) {
+		m.Add(&Triangle{points[0], points[2], points[1]})
+		m.Add(&Triangle{points[0], points[3], points[2]})
+	})
+	return m
 }
 
 func (r *RectScanner) splitBorder(rp *rectPiece) {
@@ -240,6 +269,14 @@ type rectPiece struct {
 
 func (r *rectPiece) CheckNeighbor(r1 *rectPiece) bool {
 	for i := 0; i < 3; i++ {
+		i1 := (i + 1) % 3
+		i2 := (i + 2) % 3
+		if r.Min.array()[i1] >= r1.Max.array()[i1] ||
+			r.Min.array()[i2] >= r1.Max.array()[i2] ||
+			r.Max.array()[i1] <= r1.Min.array()[i1] ||
+			r.Max.array()[i2] <= r1.Min.array()[i2] {
+			continue
+		}
 		if r.Min.array()[i] == r1.Max.array()[i] {
 			return true
 		} else if r.Max.array()[i] == r1.Min.array()[i] {
