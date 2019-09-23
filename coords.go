@@ -53,11 +53,7 @@ type Coord3D struct {
 
 // Mid computes the midpoint between c and c1.
 func (c Coord3D) Mid(c1 Coord3D) Coord3D {
-	return Coord3D{
-		X: (c.X + c1.X) / 2,
-		Y: (c.Y + c1.Y) / 2,
-		Z: (c.Z + c1.Z) / 2,
-	}
+	return c.Add(c1).Scale(0.5)
 }
 
 // Norm computes the vector L2 norm.
@@ -77,6 +73,15 @@ func (c Coord3D) Scale(s float64) Coord3D {
 	c.Y *= s
 	c.Z *= s
 	return c
+}
+
+// Add computes the sum of c and c1.
+func (c Coord3D) Add(c1 Coord3D) Coord3D {
+	return Coord3D{
+		X: c.X + c1.X,
+		Y: c.Y + c1.Y,
+		Z: c.Z + c1.Z,
+	}
 }
 
 // Dist computes the Euclidean distance to c1.

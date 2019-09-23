@@ -214,3 +214,52 @@ func (m *Mesh) TriangleSlice() []*Triangle {
 	}
 	return ts
 }
+
+// Blur creates a new mesh by moving every vertex closer
+// to its connected vertices.
+//
+// The rate argument specifies how much the vertex should
+// be moved, 0 being no movement and 1 being the most.
+func (m *Mesh) Blur(rate float64) *Mesh {
+	coordToIdx := map[Coord3D]int{}
+	coords := []Coord3D{}
+	neighbors := []map[int]bool{}
+	m.Iterate(func(t *Triangle) {
+		for _, c := range t {
+			if _, ok := coordToIdx[c]; !ok {
+				coordToIdx[c] = len(coords)
+				coords = append(coords, c)
+				neighbors = append(neighbors, map[int]bool{})
+			}
+		}
+	})
+	m.Iterate(func(t *Triangle) {
+		for _, c := range t {
+			for _, c1 := range t {
+				if c1 != c {
+					neighbors[coordToIdx[c]][coordToIdx[c1]] = true
+				}
+			}
+		}
+	})
+	newCoords := make([]Coord3D, len(coords))
+	for i, c := range coords {
+		neighborAvg := Coord3D{}
+		for c1 := range neighbors[i] {
+			neighborAvg = neighborAvg.Add(coords[c1])
+		}
+		neighborAvg = neighborAvg.Scale(1 / float64(len(neighbors[i])))
+		newPoint := neighborAvg.Scale(rate).Add(c.Scale(1 - rate))
+		newCoords[i] = newPoint
+	}
+
+	m1 := NewMesh()
+	m.Iterate(func(t *Triangle) {
+		t1 := *t
+		for i, c := range t1 {
+			t1[i] = newCoords[coordToIdx[c]]
+		}
+		m1.Add(&t1)
+	})
+	return m1
+}

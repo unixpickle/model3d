@@ -8,10 +8,13 @@ import (
 
 func main() {
 	solid := &model3d.SphereSolid{Radius: 0.5}
-	scanner := model3d.NewRectScanner(solid, 0.1)
+	scanner := model3d.NewRectScanner(solid, 0.05)
 	for i := 0; i < 3; i++ {
 		scanner.Subdivide()
 	}
 	mesh := scanner.Mesh()
+	for i := 0; i < 7; i++ {
+		mesh = mesh.Blur(0.8)
+	}
 	ioutil.WriteFile("output.stl", mesh.EncodeSTL(), 0755)
 }
