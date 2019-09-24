@@ -140,66 +140,82 @@ type RectScanner struct {
 // NewRectScanner creates a RectScanner by uniformly
 // scanning the solid with a spacing of delta units.
 func NewRectScanner(s Solid, delta float64) *RectScanner {
-	var xs, ys, zs []float64
-	for x := s.Min().X - delta; x <= s.Max().X; x += delta {
-		xs = append(xs, x)
-	}
-	for y := s.Min().Y - delta; y <= s.Max().Y; y += delta {
-		ys = append(ys, y)
-	}
-	for z := s.Min().Z - delta; z <= s.Max().Z; z += delta {
-		zs = append(zs, z)
-	}
-	pieces := make([]*rectPiece, len(xs)*len(ys)*len(zs))
-	for i := range pieces {
-		pieces[i] = &rectPiece{Neighbors: map[*rectPiece]bool{}}
-	}
+	spacer := newSquareSpacer(s, delta)
+	cache := newSolidCache(s, spacer)
+
+	pieces := map[int]*rectPiece{}
 	res := &RectScanner{
 		border: map[*rectPiece]bool{},
 		solid:  s,
 	}
-	for k, z := range zs {
-		for j, y := range ys {
-			for i, x := range xs {
-				idx := i + j*len(xs) + k*len(xs)*len(ys)
-				piece := pieces[idx]
-				piece.Min = Coord3D{X: x, Y: y, Z: z}
-				piece.Max = Coord3D{X: x + delta, Y: y + delta, Z: z + delta}
-				if i+1 < len(xs) {
-					piece.Neighbors[pieces[idx+1]] = true
-				}
-				if i > 0 {
-					piece.Neighbors[pieces[idx-1]] = true
-				}
-				if j+1 < len(ys) {
-					piece.Neighbors[pieces[idx+len(xs)]] = true
-				}
-				if j > 0 {
-					piece.Neighbors[pieces[idx-len(xs)]] = true
-				}
-				if k+1 < len(zs) {
-					piece.Neighbors[pieces[idx+len(xs)*len(ys)]] = true
-				}
-				if k > 0 {
-					piece.Neighbors[pieces[idx-len(xs)*len(ys)]] = true
-				}
-				piece.CountInteriorCorners(s)
-				if piece.NumInteriorCorners == 0 {
-					piece.Deleted = true
-				} else if piece.NumInteriorCorners == 8 {
-					piece.Locked = true
-					if i == 0 || i+1 == len(xs) || j == 0 || j+1 == len(ys) || k == 0 ||
-						k+1 == len(zs) {
-						// We cannot lock a piece if it is not surrounded by
-						// unlocked, non-deleted pieces.
-						panic("solid is true outside of bounds")
-					}
-				} else {
-					res.border[piece] = true
-				}
+
+	// First, create all border pieces so that we can
+	// create all the empty and locked pieces next to them
+	// without creating unneeded ones.
+	spacer.IterateSquares(func(x, y, z int) {
+		piece := &rectPiece{
+			Min: spacer.CornerCoord(x, y, z),
+			Max: spacer.CornerCoord(x+1, y+1, z+1),
+
+			NumInteriorCorners: cache.NumInteriorCorners(x, y, z),
+		}
+		if piece.NumInteriorCorners != 0 && piece.NumInteriorCorners != 8 {
+			piece.Neighbors = map[*rectPiece]bool{}
+			pieces[spacer.SquareIndex(x, y, z)] = piece
+			res.border[piece] = true
+		} else if piece.NumInteriorCorners == 8 {
+			if x == 0 || x == len(spacer.Xs)-2 || y == 0 || y == len(spacer.Ys)-2 ||
+				z == 0 || z == len(spacer.Zs)-2 {
+				panic("solid is true outside of bounds")
 			}
 		}
-	}
+	})
+
+	// Create all neighbors of the border pieces while
+	// discarding pieces with no border neighbors.
+	// This can save considerable amounts of memory.
+	spacer.IterateSquares(func(x, y, z int) {
+		var piece *rectPiece
+		if p, ok := pieces[spacer.SquareIndex(x, y, z)]; ok {
+			piece = p
+		} else {
+			piece = &rectPiece{
+				Min: spacer.CornerCoord(x, y, z),
+				Max: spacer.CornerCoord(x+1, y+1, z+1),
+
+				NumInteriorCorners: cache.NumInteriorCorners(x, y, z),
+			}
+			if piece.NumInteriorCorners == 0 {
+				piece.Deleted = true
+			} else if piece.NumInteriorCorners == 8 {
+				piece.Locked = true
+			}
+		}
+		addNeighbor := func(x, y, z int) {
+			if p1, ok := pieces[spacer.SquareIndex(x, y, z)]; ok {
+				p1.Neighbors[piece] = true
+			}
+		}
+		if x > 0 {
+			addNeighbor(x-1, y, z)
+		}
+		if x+2 < len(spacer.Xs) {
+			addNeighbor(x+1, y, z)
+		}
+		if y > 0 {
+			addNeighbor(x, y-1, z)
+		}
+		if y+2 < len(spacer.Ys) {
+			addNeighbor(x, y+1, z)
+		}
+		if z > 0 {
+			addNeighbor(x, y, z-1)
+		}
+		if z+2 < len(spacer.Zs) {
+			addNeighbor(x, y, z+1)
+		}
+	})
+
 	return res
 }
 
@@ -341,12 +357,14 @@ func (r *RectScanner) splitBorder(rp *rectPiece) {
 			if p.TouchingLocked() {
 				r.border[p] = true
 			} else {
+				p.Neighbors = nil
 				p.Deleted = true
 			}
 		} else if p.NumInteriorCorners == 8 {
 			if p.TouchingDeleted() {
 				r.border[p] = true
 			} else {
+				p.Neighbors = nil
 				p.Locked = true
 			}
 		} else {
@@ -356,13 +374,27 @@ func (r *RectScanner) splitBorder(rp *rectPiece) {
 }
 
 type rectPiece struct {
-	Min       Coord3D
-	Max       Coord3D
+	Min Coord3D
+	Max Coord3D
+
+	// A set of adjacent pieces.
+	//
+	// May be nil for locked or deleted pieces.
 	Neighbors map[*rectPiece]bool
 
+	// The number of corners inside the solid.
 	NumInteriorCorners int
-	Locked             bool
-	Deleted            bool
+
+	// If true, this piece is definitely inside the solid
+	// and is not allowed to be on the border.
+	// It will not be subdivided any more, and no pieces
+	// touching it may be deleted.
+	Locked bool
+
+	// If true, this piece is definitely outside the
+	// solid.
+	// Therefore, no pieces touching it may be locked.
+	Deleted bool
 }
 
 func (r *rectPiece) CheckNeighbor(r1 *rectPiece) bool {
@@ -399,8 +431,12 @@ func (r *rectPiece) CountInteriorCorners(s Solid) {
 func (r *rectPiece) UpdateNeighbors(possible map[*rectPiece]bool) {
 	for n := range possible {
 		if n.CheckNeighbor(r) {
-			r.Neighbors[n] = true
-			n.Neighbors[r] = true
+			if r.Neighbors != nil {
+				r.Neighbors[n] = true
+			}
+			if n.Neighbors != nil {
+				n.Neighbors[r] = true
+			}
 		}
 	}
 }
@@ -439,4 +475,91 @@ func (r *rectPiece) IsSideBorder(axis int, max bool) bool {
 		}
 	}
 	return true
+}
+
+type squareSpacer struct {
+	Xs []float64
+	Ys []float64
+	Zs []float64
+}
+
+func newSquareSpacer(s Solid, delta float64) *squareSpacer {
+	var xs, ys, zs []float64
+	for x := s.Min().X - delta; x <= s.Max().X+delta; x += delta {
+		xs = append(xs, x)
+	}
+	for y := s.Min().Y - delta; y <= s.Max().Y+delta; y += delta {
+		ys = append(ys, y)
+	}
+	for z := s.Min().Z - delta; z <= s.Max().Z+delta; z += delta {
+		zs = append(zs, z)
+	}
+	return &squareSpacer{Xs: xs, Ys: ys, Zs: zs}
+}
+
+func (s *squareSpacer) IterateSquares(f func(x, y, z int)) {
+	for z := 0; z < len(s.Zs)-1; z++ {
+		for y := 0; y < len(s.Ys)-1; y++ {
+			for x := 0; x < len(s.Xs)-1; x++ {
+				f(x, y, z)
+			}
+		}
+	}
+}
+
+func (s *squareSpacer) NumSquares() int {
+	return (len(s.Xs) - 1) * (len(s.Ys) - 1) * (len(s.Zs) - 1)
+}
+
+func (s *squareSpacer) SquareIndex(x, y, z int) int {
+	return x + y*(len(s.Xs)-1) + z*(len(s.Xs)-1)*(len(s.Ys)-1)
+}
+
+func (s *squareSpacer) CornerCoord(x, y, z int) Coord3D {
+	return Coord3D{X: s.Xs[x], Y: s.Ys[y], Z: s.Zs[z]}
+}
+
+func (s *squareSpacer) IterateCorners(f func(x, y, z int)) {
+	for z := range s.Zs {
+		for y := range s.Ys {
+			for x := range s.Xs {
+				f(x, y, z)
+			}
+		}
+	}
+}
+
+func (s *squareSpacer) NumCorners() int {
+	return len(s.Xs) * len(s.Ys) * len(s.Zs)
+}
+
+func (s *squareSpacer) CornerIndex(x, y, z int) int {
+	return x + y*len(s.Xs) + z*len(s.Xs)*len(s.Ys)
+}
+
+type solidCache struct {
+	spacer *squareSpacer
+	values []bool
+}
+
+func newSolidCache(s Solid, spacer *squareSpacer) *solidCache {
+	values := make([]bool, spacer.NumCorners())
+	spacer.IterateCorners(func(x, y, z int) {
+		values[spacer.CornerIndex(x, y, z)] = s.Contains(spacer.CornerCoord(x, y, z))
+	})
+	return &solidCache{spacer: spacer, values: values}
+}
+
+func (s *solidCache) NumInteriorCorners(x, y, z int) int {
+	var res int
+	for k := z; k < z+2; k++ {
+		for j := y; j < y+2; j++ {
+			for i := x; i < x+2; i++ {
+				if s.values[s.spacer.CornerIndex(i, j, k)] {
+					res++
+				}
+			}
+		}
+	}
+	return res
 }
