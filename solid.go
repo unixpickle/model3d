@@ -73,6 +73,70 @@ func (c *CylinderSolid) Contains(p Coord3D) bool {
 	return projection.Dist(p) <= c.Radius
 }
 
+// A TorusSolid is a Solid that yields values for a torus.
+// The torus is defined by revolving a circle with a
+// radius InnerRadius around the point Center and around
+// the axis Axis, at a distance of OuterRadius from
+// Center.
+type TorusSolid struct {
+	Center      Coord3D
+	Axis        Coord3D
+	OuterRadius float64
+	InnerRadius float64
+}
+
+func (t *TorusSolid) Min() Coord3D {
+	maxSize := t.InnerRadius + t.OuterRadius
+	return t.Center.Add(Coord3D{X: -maxSize, Y: -maxSize, Z: -maxSize})
+}
+
+func (t *TorusSolid) Max() Coord3D {
+	maxSize := t.InnerRadius + t.OuterRadius
+	return t.Center.Add(Coord3D{X: maxSize, Y: maxSize, Z: maxSize})
+}
+
+func (t *TorusSolid) Contains(c Coord3D) bool {
+	b1, b2 := t.planarBasis()
+	centered := c.Add(t.Center.Scale(-1))
+
+	// Compute the closest point on the ring around
+	// the center of the torus.
+	x := b1.Dot(centered)
+	y := b2.Dot(centered)
+	scale := t.OuterRadius / math.Sqrt(x*x+y*y)
+	x *= scale
+	y *= scale
+	ringPoint := b1.Scale(x).Add(b2.Scale(y))
+
+	return ringPoint.Dist(centered) <= t.InnerRadius
+}
+
+func (t *TorusSolid) planarBasis() (Coord3D, Coord3D) {
+	// Create the first basis vector by swapping two
+	// coordinates and negating one of them.
+	// For numerical stability, we involve the component
+	// with the largest absolute value.
+	var basis1 Coord3D
+	if math.Abs(t.Axis.X) > math.Abs(t.Axis.Y) && math.Abs(t.Axis.X) > math.Abs(t.Axis.Z) {
+		basis1.X = t.Axis.Y
+		basis1.Y = -t.Axis.X
+	} else {
+		basis1.Y = t.Axis.Z
+		basis1.Z = -t.Axis.Y
+	}
+
+	// Create the second basis vector using a cross product.
+	basis2 := Coord3D{
+		basis1.Y*t.Axis.Z - basis1.Z*t.Axis.Y,
+		basis1.Z*t.Axis.X - basis1.X*t.Axis.Z,
+		basis1.X*t.Axis.Y - basis1.Y*t.Axis.X,
+	}
+
+	basis1 = basis1.Scale(1 / basis1.Norm())
+	basis2 = basis2.Scale(1 / basis2.Norm())
+	return basis1, basis2
+}
+
 // A JoinedSolid is a Solid composed of other solids.
 type JoinedSolid []Solid
 

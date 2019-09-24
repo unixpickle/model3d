@@ -51,6 +51,10 @@ type Coord3D struct {
 	Z float64
 }
 
+func newCoord3DArray(a [3]float64) Coord3D {
+	return Coord3D{a[0], a[1], a[2]}
+}
+
 // Mid computes the midpoint between c and c1.
 func (c Coord3D) Mid(c1 Coord3D) Coord3D {
 	return c.Add(c1).Scale(0.5)
