@@ -2,23 +2,47 @@ package main
 
 import (
 	"io/ioutil"
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d"
 )
 
+const BagelInnerRadius = 0.2
+
 func main() {
+	log.Println("Creating lock...")
 	m1 := CreateLock()
+	log.Println("Creating bagel...")
 	m2 := CreateBagel()
+
+	log.Println("Creating colors...")
+	triToColor := map[*model3d.Triangle][3]float64{}
+	m1.Iterate(func(t *model3d.Triangle) {
+		triToColor[t] = [3]float64{207 / 255, 144 / 255, 8 / 255}
+	})
 	m2.Iterate(func(t *model3d.Triangle) {
+		var outside bool
+		for _, p := range t {
+			if (BagelSolid{}).InnerRadiusAt(p) > BagelInnerRadius {
+				outside = true
+				break
+			}
+		}
+		if outside {
+			triToColor[t] = [3]float64{1, 1, 1}
+		} else {
+			triToColor[t] = [3]float64{1, 234 / 255, 189 / 255}
+		}
 		m1.Add(t)
 	})
 
+	log.Println("Exporting model...")
 	ioutil.WriteFile("mesh.stl", m1.EncodeSTL(), 0755)
 }
 
 func CreateLock() *model3d.Mesh {
-	return model3d.SolidToMesh(LockSolid{}, 0.5, 3, 0.8, 3)
+	return model3d.SolidToMesh(LockSolid{}, 0.05, 3, 0.8, 3)
 }
 
 type LockSolid struct{}
@@ -55,7 +79,7 @@ func (l LockSolid) Contains(c model3d.Coord3D) bool {
 }
 
 func CreateBagel() *model3d.Mesh {
-	return model3d.SolidToMesh(BagelSolid{}, 0.05, 3, 0.8, 3)
+	return model3d.SolidToMesh(BagelSolid{}, 0.025, 2, 0.8, 3)
 }
 
 type BagelSolid struct{}
@@ -69,7 +93,23 @@ func (b BagelSolid) Max() model3d.Coord3D {
 }
 
 func (b BagelSolid) Contains(c model3d.Coord3D) bool {
+	return b.InnerRadiusAt(c) < BagelInnerRadius
+}
+
+func (b BagelSolid) InnerRadiusAt(c model3d.Coord3D) float64 {
 	theta := math.Atan2(c.Z, c.Y+0.85)
 	p := model3d.Coord3D{X: 0, Y: math.Cos(theta)*0.5 - 0.85, Z: math.Sin(theta) * 0.5}
-	return p.Dist(c) < 0.2
+	return p.Dist(c)
+}
+
+func (b BagelSolid) At(outerTheta, innerTheta, radius float64) model3d.Coord3D {
+	result := model3d.Coord3D{
+		X: 0,
+		Y: math.Cos(outerTheta)*0.5 - 0.85,
+		Z: math.Sin(outerTheta) * 0.5,
+	}
+	result.X = math.Cos(innerTheta) * radius
+	result.Y += math.Sin(innerTheta) * math.Cos(outerTheta) * radius
+	result.Z += math.Sin(innerTheta) * math.Sin(outerTheta) * radius
+	return result
 }
