@@ -183,9 +183,12 @@ type ColliderSolid struct {
 // NewColliderSolid creates a ColliderSolid.
 func NewColliderSolid(min, max Coord3D, collider Collider) *ColliderSolid {
 	return &ColliderSolid{
-		min:       min,
-		max:       max,
-		collider:  collider,
+		min:      min,
+		max:      max,
+		collider: collider,
+
+		// Random direction; any direction should work, but we
+		// want to avoid edge cases and rounding errors.
 		direction: Coord3D{0.5224892708603626, 0.10494477243214506, 0.43558938446126527},
 	}
 }
