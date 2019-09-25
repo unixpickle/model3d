@@ -19,6 +19,16 @@ func (t *Triangle) Normal() Coord3D {
 	return result.Scale(1 / result.Norm())
 }
 
+// Min gets the element-wise minimum of all the points.
+func (t *Triangle) Min() Coord3D {
+	return t[0].Min(t[1]).Min(t[2])
+}
+
+// Max gets the element-wise maximum of all the points.
+func (t *Triangle) Max() Coord3D {
+	return t[0].Max(t[1]).Max(t[2])
+}
+
 // A Segment is a line segment in a canonical ordering,
 // such that segments can be compared via the == operator
 // even if they were created with their points in the

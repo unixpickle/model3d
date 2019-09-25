@@ -105,6 +105,16 @@ func (c Coord3D) Geo() GeoCoord {
 	return g
 }
 
+// Min gets the element-wise minimum of c and c1.
+func (c Coord3D) Min(c1 Coord3D) Coord3D {
+	return Coord3D{math.Min(c.X, c1.X), math.Min(c.Y, c1.Y), math.Min(c.Z, c1.Z)}
+}
+
+// Max gets the element-wise maximum of c and c1.
+func (c Coord3D) Max(c1 Coord3D) Coord3D {
+	return Coord3D{math.Max(c.X, c1.X), math.Max(c.Y, c1.Y), math.Max(c.Z, c1.Z)}
+}
+
 func (c Coord3D) array() [3]float64 {
 	return [3]float64{c.X, c.Y, c.Z}
 }
