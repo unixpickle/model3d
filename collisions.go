@@ -8,8 +8,6 @@ import (
 
 // A Ray is a line originating at a point and extending
 // infinitely in some direction.
-//
-// The direction should be a unit vector.
 type Ray struct {
 	Origin    Coord3D
 	Direction Coord3D
@@ -52,12 +50,9 @@ type Collider interface {
 	SphereCollision(c Coord3D, r float64) bool
 }
 
-// ColliderForMesh creates an efficient Collider out of a
+// MeshToCollider creates an efficient Collider out of a
 // mesh.
-//
-// The axis argument is 0, 1, or 2, and it indicates which
-// axis to start off with.
-func ColliderForMesh(m *Mesh, axis int) Collider {
+func MeshToCollider(m *Mesh) Collider {
 	return colliderForTriangles(m.TriangleSlice(), 0)
 }
 
@@ -139,12 +134,13 @@ func (b *BoundedCollider) RayCollisions(r *Ray) int {
 		origin := r.Origin.array()[axis]
 		rate := r.Direction.array()[axis]
 		if rate == 0 {
-			// Deal with case where ray is parallel to
-			// cube in some direction.
-			rate = 1e-8
+			if origin < b.Min.array()[axis] || origin > b.Max.array()[axis] {
+				return 0
+			}
+			continue
 		}
 		t1 := (b.Min.array()[axis] - origin) / rate
-		t2 := (b.Min.array()[axis] - origin) / rate
+		t2 := (b.Max.array()[axis] - origin) / rate
 		if t1 > t2 {
 			t1, t2 = t2, t1
 		}
