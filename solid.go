@@ -170,3 +170,37 @@ func (j JoinedSolid) Contains(c Coord3D) bool {
 	}
 	return false
 }
+
+// A ColliderSolid is a Solid that uses a Collider to
+// check if points are in the solid.
+type ColliderSolid struct {
+	min       Coord3D
+	max       Coord3D
+	collider  Collider
+	direction Coord3D
+}
+
+// NewColliderSolid creates a ColliderSolid.
+func NewColliderSolid(min, max Coord3D, collider Collider) *ColliderSolid {
+	return &ColliderSolid{
+		min:       min,
+		max:       max,
+		collider:  collider,
+		direction: Coord3D{0.5224892708603626, 0.10494477243214506, 0.43558938446126527},
+	}
+}
+
+func (c *ColliderSolid) Min() Coord3D {
+	return c.min
+}
+
+func (c *ColliderSolid) Max() Coord3D {
+	return c.max
+}
+
+func (c *ColliderSolid) Contains(p Coord3D) bool {
+	return c.collider.RayCollisions(&Ray{
+		Origin:    p,
+		Direction: c.direction,
+	})%2 == 1
+}
