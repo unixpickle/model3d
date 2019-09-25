@@ -31,6 +31,6 @@ func (r *Ray) Collision(t *Triangle) (bool, float64) {
 	if math.Abs(matrix.Det()) < 1e-8 {
 		return false, 0
 	}
-	result := matrix.Inverse().ApplyColumn(r.Origin.Add(t[0].Scale(-1)))
+	result := matrix.Inverse().MulColumn(r.Origin.Add(t[0].Scale(-1)))
 	return result.X >= 0 && result.Y >= 0 && result.X+result.Y <= 1, -result.Z
 }
