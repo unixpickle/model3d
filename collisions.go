@@ -71,11 +71,20 @@ func colliderForTriangles(tris []*Triangle, axis int) Collider {
 	})
 	c1 := colliderForTriangles(tris[:len(tris)/2], (axis+1)%3)
 	c2 := colliderForTriangles(tris[len(tris)/2:], (axis+1)%3)
-	min := tris[0].Min()
-	max := tris[0].Max()
-	for _, t := range tris[1:] {
-		min = t.Min().Min(min)
-		max = t.Max().Max(max)
+	var min, max Coord3D
+	if b, ok := c1.(*BoundedCollider); ok {
+		min = b.Min
+		max = b.Max
+	} else {
+		min = c1.(*Triangle).Min()
+		max = c1.(*Triangle).Max()
+	}
+	if b, ok := c2.(*BoundedCollider); ok {
+		min = b.Min.Min(min)
+		max = b.Max.Max(max)
+	} else {
+		min = c2.(*Triangle).Min().Min(min)
+		max = c2.(*Triangle).Max().Max(max)
 	}
 	return &BoundedCollider{
 		Min:       min,
