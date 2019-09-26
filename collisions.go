@@ -61,7 +61,13 @@ func colliderForTriangles(tris []*Triangle, axis int) Collider {
 		return tris[0]
 	}
 	essentials.VoodooSort(tris, func(i, j int) bool {
-		return tris[i].Min().array()[axis] < tris[j].Min().array()[axis]
+		min1 := tris[i][0].array()[axis]
+		min2 := tris[j][0].array()[axis]
+		for k := 1; k < 3; k++ {
+			min1 = math.Min(min1, tris[i][k].array()[axis])
+			min2 = math.Min(min2, tris[j][k].array()[axis])
+		}
+		return min1 < min2
 	})
 	c1 := colliderForTriangles(tris[:len(tris)/2], (axis+1)%3)
 	c2 := colliderForTriangles(tris[len(tris)/2:], (axis+1)%3)
