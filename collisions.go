@@ -167,9 +167,9 @@ func (b *BoundedCollider) SphereCollision(center Coord3D, r float64) bool {
 		max := b.Max.array()[axis]
 		value := center.array()[axis]
 		if value < min {
-			distSquared += math.Pow(min-value, 2)
+			distSquared += (min - value) * (min - value)
 		} else if value > max {
-			distSquared += math.Pow(max-value, 2)
+			distSquared += (max - value) * (max - value)
 		}
 	}
 	if distSquared > r*r {
