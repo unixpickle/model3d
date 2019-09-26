@@ -1,6 +1,7 @@
 package model3d
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/unixpickle/essentials"
@@ -13,6 +14,7 @@ import (
 // The first point is re-used as the ending point, so no
 // ending should be explicitly specified.
 func Triangulate(polygon []Coord2D) [][3]Coord2D {
+	fmt.Println(polygon)
 	polygon = removeColinearPoints(polygon)
 
 	if len(polygon) == 3 {
@@ -53,13 +55,14 @@ func TriangulateFace(polygon []Coord3D) []*Triangle {
 
 	coords2D := make([]Coord2D, len(polygon))
 	for i, p := range polygon {
-		p = p.Add(polygon[0].Scale(-1))
-		coords2D[i] = Coord2D{X: basis1.Dot(p), Y: basis2.Dot(p)}
+		p1 := p.Add(polygon[0].Scale(-1))
+		coords2D[i] = Coord2D{X: basis1.Dot(p1), Y: basis2.Dot(p1)}
 	}
 	triangles2D := Triangulate(coords2D)
 
-	triangles := make([]*Triangle, len(coords2D))
+	triangles := make([]*Triangle, len(triangles2D))
 	for i, tri := range triangles2D {
+		triangles[i] = &Triangle{}
 		for j, p := range tri {
 			triangles[i][j] = basis1.Scale(p.X).Add(basis2.Scale(p.Y)).Add(polygon[0])
 		}
