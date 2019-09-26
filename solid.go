@@ -173,11 +173,22 @@ func (j JoinedSolid) Contains(c Coord3D) bool {
 
 // A ColliderSolid is a Solid that uses a Collider to
 // check if points are in the solid.
+//
+// There are two modes for a ColliderSolid. In the first,
+// points are inside the solid if a ray passes through the
+// surface of the Collider an odd number of times.
+// In the second, points are inside the solid if a sphere
+// of a pre-determined radius touches the surface of the
+// Collider from the point.
+// The second modality is equivalent to creating a thick
+// but hollow solid.
 type ColliderSolid struct {
 	min       Coord3D
 	max       Coord3D
 	collider  Collider
 	direction Coord3D
+
+	hollowRadius float64
 }
 
 // NewColliderSolid creates a ColliderSolid.
@@ -193,6 +204,17 @@ func NewColliderSolid(min, max Coord3D, collider Collider) *ColliderSolid {
 	}
 }
 
+// NewColliderSolidHollow creates a ColliderSolid which
+// includes all points within r distance from the surface
+// of the Collider.
+//
+// The radius r must be greater than zero.
+func NewColliderSolidHollow(min, max Coord3D, collider Collider, r float64) *ColliderSolid {
+	res := NewColliderSolid(min, max, collider)
+	res.hollowRadius = r
+	return res
+}
+
 func (c *ColliderSolid) Min() Coord3D {
 	return c.min
 }
@@ -202,6 +224,9 @@ func (c *ColliderSolid) Max() Coord3D {
 }
 
 func (c *ColliderSolid) Contains(p Coord3D) bool {
+	if c.hollowRadius > 0 {
+		return c.collider.SphereCollision(p, c.hollowRadius)
+	}
 	return c.collider.RayCollisions(&Ray{
 		Origin:    p,
 		Direction: c.direction,
