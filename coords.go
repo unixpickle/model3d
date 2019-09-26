@@ -126,7 +126,10 @@ func (c Coord3D) Add(c1 Coord3D) Coord3D {
 
 // Dist computes the Euclidean distance to c1.
 func (c Coord3D) Dist(c1 Coord3D) float64 {
-	return math.Sqrt(math.Pow(c.X-c1.X, 2) + math.Pow(c.Y-c1.Y, 2) + math.Pow(c.Z-c1.Z, 2))
+	d1 := c.X - c1.X
+	d2 := c.Y - c1.Y
+	d3 := c.Z - c1.Z
+	return math.Sqrt(d1*d1 + d2*d2 + d3*d3)
 }
 
 // Geo computes a normalized geo coordinate.
