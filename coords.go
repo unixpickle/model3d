@@ -44,6 +44,42 @@ type Coord2D struct {
 	Y float64
 }
 
+// Mid computes the midpoint between c and c1.
+func (c Coord2D) Mid(c1 Coord2D) Coord2D {
+	return c.Add(c1).Scale(0.5)
+}
+
+// Norm computes the vector L2 norm.
+func (c Coord2D) Norm() float64 {
+	return math.Sqrt(c.X*c.X + c.Y*c.Y)
+}
+
+// Dot computes the dot product of c and c1.
+func (c Coord2D) Dot(c1 Coord2D) float64 {
+	return c.X*c1.X + c.Y*c1.Y
+}
+
+// Scale scales all the coordinates by s and returns the
+// new coordinate.
+func (c Coord2D) Scale(s float64) Coord2D {
+	c.X *= s
+	c.Y *= s
+	return c
+}
+
+// Add computes the sum of c and c1.
+func (c Coord2D) Add(c1 Coord2D) Coord2D {
+	return Coord2D{
+		X: c.X + c1.X,
+		Y: c.Y + c1.Y,
+	}
+}
+
+// Dist computes the Euclidean distance to c1.
+func (c Coord2D) Dist(c1 Coord2D) float64 {
+	return math.Sqrt(math.Pow(c.X-c1.X, 2) + math.Pow(c.Y-c1.Y, 2))
+}
+
 // A Coord3D is a coordinate in 3-D Euclidean space.
 type Coord3D struct {
 	X float64
