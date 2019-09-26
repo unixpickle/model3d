@@ -62,6 +62,16 @@ func TestSegmentEntersSphere(t *testing.T) {
 	}
 }
 
+func BenchmarkMeshToCollider(b *testing.B) {
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1
+	}, 50)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		MeshToCollider(mesh)
+	}
+}
+
 func BenchmarkMeshSphereCollisions(b *testing.B) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1
