@@ -263,3 +263,45 @@ func (m *Mesh) Blur(rate float64) *Mesh {
 	})
 	return m1
 }
+
+// Min gets the component-wise minimum across all the
+// vertices in the mesh.
+func (m *Mesh) Min() Coord3D {
+	if len(m.triangles) == 0 {
+		return Coord3D{}
+	}
+	var result Coord3D
+	var firstFlag bool
+	for t := range m.triangles {
+		for _, c := range t {
+			if !firstFlag {
+				result = c
+				firstFlag = true
+			} else {
+				result = result.Min(c)
+			}
+		}
+	}
+	return result
+}
+
+// Max gets the component-wise maximum across all the
+// vertices in the mesh.
+func (m *Mesh) Max() Coord3D {
+	if len(m.triangles) == 0 {
+		return Coord3D{}
+	}
+	var result Coord3D
+	var firstFlag bool
+	for t := range m.triangles {
+		for _, c := range t {
+			if !firstFlag {
+				result = c
+				firstFlag = true
+			} else {
+				result = result.Max(c)
+			}
+		}
+	}
+	return result
+}
