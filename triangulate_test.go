@@ -1,7 +1,6 @@
 package model3d
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/unixpickle/essentials"
@@ -71,7 +70,6 @@ func TestTriangulateFace(t *testing.T) {
 	}
 	triangles := TriangulateFace(rect)
 	if len(triangles) != 2 {
-		fmt.Println(triangles)
 		t.Fatalf("unexpected triangle count: %d", len(triangles))
 	}
 	expected := []*Triangle{

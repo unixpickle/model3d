@@ -1,7 +1,6 @@
 package model3d
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/unixpickle/essentials"
@@ -14,7 +13,6 @@ import (
 // The first point is re-used as the ending point, so no
 // ending should be explicitly specified.
 func Triangulate(polygon []Coord2D) [][3]Coord2D {
-	fmt.Println(polygon)
 	polygon = removeColinearPoints(polygon)
 
 	if len(polygon) == 3 {
