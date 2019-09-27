@@ -22,17 +22,26 @@ func ReadOFF(r io.Reader) (*Mesh, error) {
 
 func readOFF(r io.Reader) (*Mesh, error) {
 	reader := bufio.NewReader(r)
+	headerLines := 1
 	line1, err := reader.ReadString('\n')
 	if err != nil {
 		return nil, err
 	}
-	if line1 != "OFF\n" {
+	if !strings.HasPrefix(line1, "OFF") {
 		return nil, errors.New("line 1: expected 'OFF' as first line")
 	}
-	line2, err := reader.ReadString('\n')
-	if err != nil {
-		return nil, err
+
+	var line2 string
+	if len(line1) > 4 {
+		line2 = line1[3:]
+	} else {
+		line2, err = reader.ReadString('\n')
+		if err != nil {
+			return nil, err
+		}
+		headerLines++
 	}
+
 	parts := strings.Fields(line2)
 	if len(parts) != 3 {
 		return nil, errors.New("line 2: unexpected number of tokens")
@@ -48,19 +57,20 @@ func readOFF(r io.Reader) (*Mesh, error) {
 
 	vertices := make([]Coord3D, numVerts)
 	for i := 0; i < numVerts; i++ {
+		lineIdx := i + headerLines + 1
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			return nil, errors.Wrapf(err, "line %d", i+3)
+			return nil, errors.Wrapf(err, "line %d", lineIdx)
 		}
 		parts := strings.Fields(line)
 		if len(parts) != 3 {
-			return nil, fmt.Errorf("line %d: unexpected number of tokens", i+3)
+			return nil, fmt.Errorf("line %d: unexpected number of tokens", lineIdx)
 		}
 		var numbers [3]float64
 		for i, part := range parts {
 			num, err := strconv.ParseFloat(part, 64)
 			if err != nil {
-				return nil, fmt.Errorf("line %d: invalid vector component", i+3)
+				return nil, fmt.Errorf("line %d: invalid vector component", lineIdx)
 			}
 			numbers[i] = num
 		}
@@ -69,7 +79,7 @@ func readOFF(r io.Reader) (*Mesh, error) {
 
 	m := NewMesh()
 	for i := 0; i < numFaces; i++ {
-		lineIdx := i + numVerts + 3
+		lineIdx := i + numVerts + headerLines + 1
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			return nil, errors.Wrapf(err, "line %d", lineIdx)
