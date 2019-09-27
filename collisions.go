@@ -53,24 +53,71 @@ type Collider interface {
 // MeshToCollider creates an efficient Collider out of a
 // mesh.
 func MeshToCollider(m *Mesh) Collider {
-	return colliderForTriangles(m.TriangleSlice(), 0)
+	return colliderForTriangles(sortTriangles(m.TriangleSlice()), 0)
 }
 
-func colliderForTriangles(tris []*Triangle, axis int) Collider {
-	if len(tris) == 1 {
-		return tris[0]
+func sortTriangles(tris []*Triangle) [3][]*Triangle {
+	var result [3][]*Triangle
+	for axis := range result {
+		ts := append([]*Triangle{}, tris...)
+		essentials.VoodooSort(ts, func(i, j int) bool {
+			min1 := ts[i][0].array()[axis]
+			min2 := ts[j][0].array()[axis]
+			for k := 1; k < 3; k++ {
+				min1 = math.Min(min1, ts[i][k].array()[axis])
+				min2 = math.Min(min2, ts[j][k].array()[axis])
+			}
+			return min1 < min2
+		})
+		result[axis] = ts
 	}
-	essentials.VoodooSort(tris, func(i, j int) bool {
-		min1 := tris[i][0].array()[axis]
-		min2 := tris[j][0].array()[axis]
-		for k := 1; k < 3; k++ {
-			min1 = math.Min(min1, tris[i][k].array()[axis])
-			min2 = math.Min(min2, tris[j][k].array()[axis])
+	return result
+}
+
+func colliderForTriangles(sortedTris [3][]*Triangle, axis int) Collider {
+	numTris := len(sortedTris[axis])
+	if numTris == 1 {
+		return sortedTris[axis][0]
+	}
+
+	inFirst := map[*Triangle]bool{}
+	for _, t := range sortedTris[axis][:numTris/2] {
+		inFirst[t] = true
+	}
+
+	separated := [3][]*Triangle{}
+	separated[axis] = sortedTris[axis]
+
+	for newAxis := 0; newAxis < 3; newAxis++ {
+		if newAxis == axis {
+			continue
 		}
-		return min1 < min2
-	})
-	c1 := colliderForTriangles(tris[:len(tris)/2], (axis+1)%3)
-	c2 := colliderForTriangles(tris[len(tris)/2:], (axis+1)%3)
+		sep := make([]*Triangle, numTris)
+		idx0 := 0
+		idx1 := numTris / 2
+		for _, t := range sortedTris[newAxis] {
+			if inFirst[t] {
+				sep[idx0] = t
+				idx0++
+			} else {
+				sep[idx1] = t
+				idx1++
+			}
+		}
+		separated[newAxis] = sep
+	}
+
+	c1 := colliderForTriangles([3][]*Triangle{
+		separated[0][:numTris/2],
+		separated[1][:numTris/2],
+		separated[2][:numTris/2],
+	}, (axis+1)%3)
+	c2 := colliderForTriangles([3][]*Triangle{
+		separated[0][numTris/2:],
+		separated[1][numTris/2:],
+		separated[2][numTris/2:],
+	}, (axis+1)%3)
+
 	var min, max Coord3D
 	if b, ok := c1.(*BoundedCollider); ok {
 		min = b.Min
