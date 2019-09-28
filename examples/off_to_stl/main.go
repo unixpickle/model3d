@@ -19,8 +19,8 @@ func main() {
 	essentials.Must(err)
 	defer f.Close()
 
-	mesh, err := model3d.ReadOFF(f)
+	triangles, err := model3d.ReadOFF(f)
 	essentials.Must(err)
 
-	essentials.Must(ioutil.WriteFile(stlFile, mesh.EncodeSTL(), 0755))
+	essentials.Must(ioutil.WriteFile(stlFile, model3d.EncodeSTL(triangles), 0755))
 }

@@ -10,9 +10,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ReadSTL decodes a file in the STL file format.
+
 // ReadOFF decodes a file in the object file format.
 // See http://segeval.cs.princeton.edu/public/off_format.html.
-func ReadOFF(r io.Reader) (*Mesh, error) {
+func ReadOFF(r io.Reader) ([]*Triangle, error) {
 	mesh, err := readOFF(r)
 	if err != nil {
 		return nil, errors.Wrap(err, "read OFF")
@@ -20,7 +22,7 @@ func ReadOFF(r io.Reader) (*Mesh, error) {
 	return mesh, err
 }
 
-func readOFF(r io.Reader) (*Mesh, error) {
+func readOFF(r io.Reader) ([]*Triangle, error) {
 	reader := bufio.NewReader(r)
 	headerLines := 1
 	line1, err := reader.ReadString('\n')
@@ -77,7 +79,7 @@ func readOFF(r io.Reader) (*Mesh, error) {
 		vertices[i] = newCoord3DArray(numbers)
 	}
 
-	m := NewMesh()
+	triangles := make([]*Triangle, 0, numFaces)
 	for i := 0; i < numFaces; i++ {
 		lineIdx := i + numVerts + headerLines + 1
 		line, err := reader.ReadString('\n')
@@ -103,10 +105,7 @@ func readOFF(r io.Reader) (*Mesh, error) {
 			}
 			poly[i] = vertices[idx]
 		}
-		for _, triangle := range TriangulateFace(poly) {
-			m.Add(triangle)
-		}
+		triangles = append(triangles, TriangulateFace(poly)...)
 	}
-
-	return m, nil
+	return triangles, nil
 }
