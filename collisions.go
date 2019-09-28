@@ -41,6 +41,10 @@ func (r *Ray) Collision(t *Triangle) (bool, float64) {
 // times it intersects a ray, and check if any part of it
 // is inside of a sphere.
 type Collider interface {
+	// Bounding box for the surface.
+	Min() Coord3D
+	Max() Coord3D
+
 	// RayCollisions counts the number of collisions with
 	// a ray.
 	RayCollisions(r *Ray) int
@@ -149,33 +153,10 @@ func GroupedTrianglesToCollider(tris []*Triangle) Collider {
 	if len(tris) == 1 {
 		return tris[0]
 	}
-
 	midIdx := len(tris) / 2
-
 	c1 := GroupedTrianglesToCollider(tris[:midIdx])
 	c2 := GroupedTrianglesToCollider(tris[midIdx:])
-
-	var min, max Coord3D
-	if b, ok := c1.(*BoundedCollider); ok {
-		min = b.Min
-		max = b.Max
-	} else {
-		min = c1.(*Triangle).Min()
-		max = c1.(*Triangle).Max()
-	}
-	if b, ok := c2.(*BoundedCollider); ok {
-		min = b.Min.Min(min)
-		max = b.Max.Max(max)
-	} else {
-		min = c2.(*Triangle).Min().Min(min)
-		max = c2.(*Triangle).Max().Max(max)
-	}
-
-	return &BoundedCollider{
-		Min:       min,
-		Max:       max,
-		Colliders: []Collider{c1, c2},
-	}
+	return NewJoinedCollider([]Collider{c1, c2})
 }
 
 // RayCollisions returns 1 if the ray intersects the
@@ -219,28 +200,50 @@ func segmentEntersSphere(p1, p2, c Coord3D, r float64) bool {
 	return frac >= 0 && frac <= 1 && closest.Dist(c) < r
 }
 
-// A BoundedCollider wraps multiple other Colliders and
-// only passes along rays and spheres that enter a cube.
-type BoundedCollider struct {
-	Min       Coord3D
-	Max       Coord3D
-	Colliders []Collider
+// A JoinedCollider wraps multiple other Colliders and
+// only passes along rays and spheres that enter their
+// combined bounding box.
+type JoinedCollider struct {
+	min       Coord3D
+	max       Coord3D
+	colliders []Collider
 }
 
-func (b *BoundedCollider) RayCollisions(r *Ray) int {
+func NewJoinedCollider(other []Collider) *JoinedCollider {
+	res := &JoinedCollider{
+		colliders: other,
+		min:       other[0].Min(),
+		max:       other[0].Max(),
+	}
+	for _, c := range other[1:] {
+		res.min = res.min.Min(c.Min())
+		res.max = res.max.Max(c.Max())
+	}
+	return res
+}
+
+func (j *JoinedCollider) Min() Coord3D {
+	return j.min
+}
+
+func (j *JoinedCollider) Max() Coord3D {
+	return j.max
+}
+
+func (j *JoinedCollider) RayCollisions(r *Ray) int {
 	minFrac := math.Inf(-1)
 	maxFrac := math.Inf(1)
 	for axis := 0; axis < 3; axis++ {
 		origin := r.Origin.array()[axis]
 		rate := r.Direction.array()[axis]
 		if rate == 0 {
-			if origin < b.Min.array()[axis] || origin > b.Max.array()[axis] {
+			if origin < j.min.array()[axis] || origin > j.max.array()[axis] {
 				return 0
 			}
 			continue
 		}
-		t1 := (b.Min.array()[axis] - origin) / rate
-		t2 := (b.Max.array()[axis] - origin) / rate
+		t1 := (j.min.array()[axis] - origin) / rate
+		t2 := (j.max.array()[axis] - origin) / rate
 		if t1 > t2 {
 			t1, t2 = t2, t1
 		}
@@ -253,18 +256,18 @@ func (b *BoundedCollider) RayCollisions(r *Ray) int {
 	}
 
 	var count int
-	for _, c := range b.Colliders {
+	for _, c := range j.colliders {
 		count += c.RayCollisions(r)
 	}
 	return count
 }
 
-func (b *BoundedCollider) SphereCollision(center Coord3D, r float64) bool {
+func (j *JoinedCollider) SphereCollision(center Coord3D, r float64) bool {
 	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
 	distSquared := 0.0
 	for axis := 0; axis < 3; axis++ {
-		min := b.Min.array()[axis]
-		max := b.Max.array()[axis]
+		min := j.min.array()[axis]
+		max := j.max.array()[axis]
 		value := center.array()[axis]
 		if value < min {
 			distSquared += (min - value) * (min - value)
@@ -276,7 +279,7 @@ func (b *BoundedCollider) SphereCollision(center Coord3D, r float64) bool {
 		return false
 	}
 
-	for _, c := range b.Colliders {
+	for _, c := range j.colliders {
 		if c.SphereCollision(center, r) {
 			return true
 		}

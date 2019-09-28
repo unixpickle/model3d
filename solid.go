@@ -192,10 +192,10 @@ type ColliderSolid struct {
 }
 
 // NewColliderSolid creates a ColliderSolid.
-func NewColliderSolid(min, max Coord3D, collider Collider) *ColliderSolid {
+func NewColliderSolid(collider Collider) *ColliderSolid {
 	return &ColliderSolid{
-		min:      min,
-		max:      max,
+		min:      collider.Min(),
+		max:      collider.Max(),
 		collider: collider,
 
 		// Random direction; any direction should work, but we
@@ -209,8 +209,11 @@ func NewColliderSolid(min, max Coord3D, collider Collider) *ColliderSolid {
 // of the Collider.
 //
 // The radius r must be greater than zero.
-func NewColliderSolidHollow(min, max Coord3D, collider Collider, r float64) *ColliderSolid {
-	res := NewColliderSolid(min, max, collider)
+func NewColliderSolidHollow(collider Collider, r float64) *ColliderSolid {
+	res := NewColliderSolid(collider)
+	p := Coord3D{r, r, r}
+	res.min = res.min.Add(p.Scale(-1))
+	res.max = res.max.Add(p)
 	res.hollowRadius = r
 	return res
 }

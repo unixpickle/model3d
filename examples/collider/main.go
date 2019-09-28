@@ -11,8 +11,7 @@ func main() {
 		return 1.0
 	}, 50)
 	collider := model3d.MeshToCollider(m)
-	solid := model3d.NewColliderSolid(model3d.Coord3D{X: -1, Y: -1, Z: -1},
-		model3d.Coord3D{X: 1, Y: 1, Z: 1}, collider)
+	solid := model3d.NewColliderSolid(collider)
 	m1 := model3d.SolidToMesh(solid, 0.1, 2, 0.8, 2)
 	ioutil.WriteFile("sphere.stl", m1.EncodeSTL(), 0755)
 }
