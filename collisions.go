@@ -65,15 +65,19 @@ func sortTriangles(tris []*Triangle) [3][]*FlaggedTriangle {
 	var result [3][]*FlaggedTriangle
 	for axis := range result {
 		tsCopy := append([]*FlaggedTriangle{}, ts...)
-		essentials.VoodooSort(tsCopy, func(i, j int) bool {
-			min1 := tsCopy[i].T[0].array()[axis]
-			min2 := tsCopy[j].T[0].array()[axis]
-			for k := 1; k < 3; k++ {
-				min1 = math.Min(min1, tsCopy[i].T[k].array()[axis])
-				min2 = math.Min(min2, tsCopy[j].T[k].array()[axis])
-			}
-			return min1 < min2
-		})
+		if axis == 0 {
+			essentials.VoodooSort(tsCopy, func(i, j int) bool {
+				return tsCopy[i].T[0].X < tsCopy[j].T[0].X
+			})
+		} else if axis == 1 {
+			essentials.VoodooSort(tsCopy, func(i, j int) bool {
+				return tsCopy[i].T[0].Y < tsCopy[j].T[0].Y
+			})
+		} else {
+			essentials.VoodooSort(tsCopy, func(i, j int) bool {
+				return tsCopy[i].T[0].Z < tsCopy[j].T[0].Z
+			})
+		}
 		result[axis] = tsCopy
 	}
 	return result
