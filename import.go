@@ -2,6 +2,8 @@ package model3d
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
@@ -11,15 +13,59 @@ import (
 )
 
 // ReadSTL decodes a file in the STL file format.
+func ReadSTL(r io.Reader) ([]*Triangle, error) {
+	tris, err := readSTL(r)
+	if err != nil {
+		return nil, errors.Wrap(err, "read STL")
+	}
+	return tris, nil
+}
+
+func readSTL(r io.Reader) ([]*Triangle, error) {
+	header := make([]byte, 80)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return nil, err
+	}
+	var numTris uint32
+	if err := binary.Read(r, binary.LittleEndian, &numTris); err != nil {
+		return nil, err
+	}
+	data := make([]byte, numTris*(4*4*3+2))
+	if _, err := io.ReadFull(r, data); err != nil {
+		return nil, err
+	}
+	vertexData := make([]byte, 0, numTris*4*3*3)
+	for i := 0; i < int(numTris); i++ {
+		idx := i*(4*4*3+2) + 4*3
+		vertexData = append(vertexData, data[idx:idx+4*3*3]...)
+	}
+	vertices := make([]float32, numTris*3*3)
+	if err := binary.Read(bytes.NewReader(vertexData), binary.LittleEndian, vertices); err != nil {
+		return nil, err
+	}
+	triangles := make([]*Triangle, numTris)
+	for i := range triangles {
+		verts := make([]float64, 9)
+		for j := range verts {
+			verts[j] = float64(vertices[i*3*3+j])
+		}
+		triangles[i] = &Triangle{
+			Coord3D{verts[0], verts[1], verts[2]},
+			Coord3D{verts[3], verts[4], verts[5]},
+			Coord3D{verts[6], verts[7], verts[8]},
+		}
+	}
+	return triangles, nil
+}
 
 // ReadOFF decodes a file in the object file format.
 // See http://segeval.cs.princeton.edu/public/off_format.html.
 func ReadOFF(r io.Reader) ([]*Triangle, error) {
-	mesh, err := readOFF(r)
+	tris, err := readOFF(r)
 	if err != nil {
 		return nil, errors.Wrap(err, "read OFF")
 	}
-	return mesh, err
+	return tris, nil
 }
 
 func readOFF(r io.Reader) ([]*Triangle, error) {
