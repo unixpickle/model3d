@@ -53,40 +53,24 @@ type Collider interface {
 // MeshToCollider creates an efficient Collider out of a
 // mesh.
 func MeshToCollider(m *Mesh) Collider {
-	return colliderForTriangles(sortTriangles(m.TriangleSlice()), 0)
+	tris := m.TriangleSlice()
+	GroupTriangles(tris)
+	return GroupedTrianglesToCollider(tris)
 }
 
-func sortTriangles(tris []*Triangle) [3][]*FlaggedTriangle {
-	ts := make([]*FlaggedTriangle, len(tris))
-	for i, t := range tris {
-		ts[i] = &FlaggedTriangle{T: t}
-	}
-
-	var result [3][]*FlaggedTriangle
-	for axis := range result {
-		tsCopy := append([]*FlaggedTriangle{}, ts...)
-		if axis == 0 {
-			essentials.VoodooSort(tsCopy, func(i, j int) bool {
-				return tsCopy[i].T[0].X < tsCopy[j].T[0].X
-			})
-		} else if axis == 1 {
-			essentials.VoodooSort(tsCopy, func(i, j int) bool {
-				return tsCopy[i].T[0].Y < tsCopy[j].T[0].Y
-			})
-		} else {
-			essentials.VoodooSort(tsCopy, func(i, j int) bool {
-				return tsCopy[i].T[0].Z < tsCopy[j].T[0].Z
-			})
-		}
-		result[axis] = tsCopy
-	}
-	return result
+// GroupTriangles sorts the triangle slice in a special
+// way for GroupedTrianglesToCollider().
+// This can be used to prepare models for being turned
+// into a collider efficiently.
+func GroupTriangles(tris []*Triangle) {
+	groupTriangles(sortTriangles(tris), 0, tris)
 }
 
-func colliderForTriangles(sortedTris [3][]*FlaggedTriangle, axis int) Collider {
+func groupTriangles(sortedTris [3][]*FlaggedTriangle, axis int, output []*Triangle) {
 	numTris := len(sortedTris[axis])
 	if numTris == 1 {
-		return sortedTris[axis][0].T
+		output[0] = sortedTris[axis][0].T
+		return
 	}
 
 	midIdx := numTris / 2
@@ -116,16 +100,60 @@ func colliderForTriangles(sortedTris [3][]*FlaggedTriangle, axis int) Collider {
 		separated[newAxis] = sep
 	}
 
-	c1 := colliderForTriangles([3][]*FlaggedTriangle{
+	groupTriangles([3][]*FlaggedTriangle{
 		separated[0][:midIdx],
 		separated[1][:midIdx],
 		separated[2][:midIdx],
-	}, (axis+1)%3)
-	c2 := colliderForTriangles([3][]*FlaggedTriangle{
+	}, (axis+1)%3, output[:midIdx])
+
+	groupTriangles([3][]*FlaggedTriangle{
 		separated[0][midIdx:],
 		separated[1][midIdx:],
 		separated[2][midIdx:],
-	}, (axis+1)%3)
+	}, (axis+1)%3, output[midIdx:])
+}
+
+func sortTriangles(tris []*Triangle) [3][]*FlaggedTriangle {
+	ts := make([]*FlaggedTriangle, len(tris))
+	for i, t := range tris {
+		ts[i] = &FlaggedTriangle{T: t}
+	}
+
+	var result [3][]*FlaggedTriangle
+	for axis := range result {
+		tsCopy := append([]*FlaggedTriangle{}, ts...)
+		if axis == 0 {
+			essentials.VoodooSort(tsCopy, func(i, j int) bool {
+				return tsCopy[i].T[0].X < tsCopy[j].T[0].X
+			})
+		} else if axis == 1 {
+			essentials.VoodooSort(tsCopy, func(i, j int) bool {
+				return tsCopy[i].T[0].Y < tsCopy[j].T[0].Y
+			})
+		} else {
+			essentials.VoodooSort(tsCopy, func(i, j int) bool {
+				return tsCopy[i].T[0].Z < tsCopy[j].T[0].Z
+			})
+		}
+		result[axis] = tsCopy
+	}
+	return result
+}
+
+// GroupedTrianglesToCollider converts a mesh of triangles
+// into a Collider.
+//
+// The triangles should be sorted by GroupTriangles.
+// Otherwise, the resulting Collider may not be efficient.
+func GroupedTrianglesToCollider(tris []*Triangle) Collider {
+	if len(tris) == 1 {
+		return tris[0]
+	}
+
+	midIdx := len(tris) / 2
+
+	c1 := GroupedTrianglesToCollider(tris[:midIdx])
+	c2 := GroupedTrianglesToCollider(tris[midIdx:])
 
 	var min, max Coord3D
 	if b, ok := c1.(*BoundedCollider); ok {
@@ -142,6 +170,7 @@ func colliderForTriangles(sortedTris [3][]*FlaggedTriangle, axis int) Collider {
 		min = c2.(*Triangle).Min().Min(min)
 		max = c2.(*Triangle).Max().Max(max)
 	}
+
 	return &BoundedCollider{
 		Min:       min,
 		Max:       max,
