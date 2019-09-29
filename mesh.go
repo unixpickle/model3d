@@ -116,6 +116,11 @@ func (m *Mesh) Remove(t *Triangle) {
 	}
 }
 
+// AddMesh adds all the triangles from m1 to m.
+func (m *Mesh) AddMesh(m1 *Mesh) {
+	m1.Iterate(m.Add)
+}
+
 // Iterate calls f for every triangle in m in an arbitrary
 // order.
 //
@@ -186,6 +191,24 @@ func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 		}
 	}
 	return res
+}
+
+// MapCoords creates a new mesh by transforming all of the
+// coordinates according to the function f.
+func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
+	mapping := map[Coord3D]Coord3D{}
+	for c := range m.vertexToTriangle {
+		mapping[c] = f(c)
+	}
+	m1 := NewMesh()
+	m.Iterate(func(t *Triangle) {
+		t1 := *t
+		for i, p := range t {
+			t1[i] = mapping[p]
+		}
+		m1.Add(&t1)
+	})
+	return m1
 }
 
 // EncodeSTL encodes the mesh as STL data.

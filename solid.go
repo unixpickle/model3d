@@ -171,6 +171,25 @@ func (j JoinedSolid) Contains(c Coord3D) bool {
 	return false
 }
 
+// SubtractedSolid is a Solid consisting of all the points
+// in Positive which are not in Negative.
+type SubtractedSolid struct {
+	Positive Solid
+	Negative Solid
+}
+
+func (s *SubtractedSolid) Min() Coord3D {
+	return s.Positive.Min()
+}
+
+func (s *SubtractedSolid) Max() Coord3D {
+	return s.Positive.Max()
+}
+
+func (s *SubtractedSolid) Contains(c Coord3D) bool {
+	return s.Positive.Contains(c) && !s.Negative.Contains(c)
+}
+
 // A ColliderSolid is a Solid that uses a Collider to
 // check if points are in the solid.
 //
