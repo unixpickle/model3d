@@ -246,23 +246,35 @@ func (m *Mesh) TriangleSlice() []*Triangle {
 // If multiple rates are passed, then multiple iterations
 // of the algorithm are performed in succession.
 func (m *Mesh) Blur(rates ...float64) *Mesh {
-	coordToIdx := map[Coord3D]int{}
-	coords := []Coord3D{}
-	neighbors := []map[int]bool{}
+	coordToIdx := make(map[Coord3D]int, len(m.vertexToTriangle))
+	coords := make([]Coord3D, 0, len(m.vertexToTriangle))
+	neighbors := make([][]int, 0, len(m.vertexToTriangle))
 	m.Iterate(func(t *Triangle) {
-		for _, c := range t {
-			if _, ok := coordToIdx[c]; !ok {
+		var indices [3]int
+		for i, c := range t {
+			if idx, ok := coordToIdx[c]; !ok {
+				indices[i] = len(coords)
 				coordToIdx[c] = len(coords)
 				coords = append(coords, c)
-				neighbors = append(neighbors, map[int]bool{})
+				neighbors = append(neighbors, []int{})
+			} else {
+				indices[i] = idx
 			}
 		}
-	})
-	m.Iterate(func(t *Triangle) {
-		for _, c := range t {
-			for _, c1 := range t {
-				if c1 != c {
-					neighbors[coordToIdx[c]][coordToIdx[c1]] = true
+		for _, idx1 := range indices {
+			for _, idx2 := range indices {
+				if idx1 == idx2 {
+					continue
+				}
+				var found bool
+				for _, n := range neighbors[idx1] {
+					if n == idx2 {
+						found = true
+						break
+					}
+				}
+				if !found {
+					neighbors[idx1] = append(neighbors[idx1], idx2)
 				}
 			}
 		}
@@ -272,7 +284,7 @@ func (m *Mesh) Blur(rates ...float64) *Mesh {
 		newCoords := make([]Coord3D, len(coords))
 		for i, c := range coords {
 			neighborAvg := Coord3D{}
-			for c1 := range neighbors[i] {
+			for _, c1 := range neighbors[i] {
 				neighborAvg = neighborAvg.Add(coords[c1])
 			}
 			neighborAvg = neighborAvg.Scale(1 / float64(len(neighbors[i])))
