@@ -11,8 +11,6 @@ func BenchmarkMeshBlur(b *testing.B) {
 	}, 100)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for i := 0; i < 7; i++ {
-			m.Blur(0.8)
-		}
+		m.Blur(0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8)
 	}
 }

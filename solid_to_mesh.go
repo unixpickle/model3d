@@ -17,9 +17,14 @@ func SolidToMesh(s Solid, delta float64, subdivisions int, blurFrac float64, blu
 		scanner.Subdivide()
 	}
 	mesh := scanner.Mesh()
-	for i := 0; i < blurIters; i++ {
-		mesh = mesh.Blur(blurFrac)
+	if blurIters == 0 {
+		return mesh
 	}
+	blurRates := make([]float64, blurIters)
+	for i := range blurRates {
+		blurRates[i] = blurFrac
+	}
+	mesh = mesh.Blur(blurRates...)
 	return mesh
 }
 

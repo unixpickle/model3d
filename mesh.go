@@ -243,7 +243,9 @@ func (m *Mesh) TriangleSlice() []*Triangle {
 //
 // The rate argument specifies how much the vertex should
 // be moved, 0 being no movement and 1 being the most.
-func (m *Mesh) Blur(rate float64) *Mesh {
+// If multiple rates are passed, then multiple iterations
+// of the algorithm are performed in succession.
+func (m *Mesh) Blur(rates ...float64) *Mesh {
 	coordToIdx := map[Coord3D]int{}
 	coords := []Coord3D{}
 	neighbors := []map[int]bool{}
@@ -265,22 +267,26 @@ func (m *Mesh) Blur(rate float64) *Mesh {
 			}
 		}
 	})
-	newCoords := make([]Coord3D, len(coords))
-	for i, c := range coords {
-		neighborAvg := Coord3D{}
-		for c1 := range neighbors[i] {
-			neighborAvg = neighborAvg.Add(coords[c1])
+
+	for _, rate := range rates {
+		newCoords := make([]Coord3D, len(coords))
+		for i, c := range coords {
+			neighborAvg := Coord3D{}
+			for c1 := range neighbors[i] {
+				neighborAvg = neighborAvg.Add(coords[c1])
+			}
+			neighborAvg = neighborAvg.Scale(1 / float64(len(neighbors[i])))
+			newPoint := neighborAvg.Scale(rate).Add(c.Scale(1 - rate))
+			newCoords[i] = newPoint
 		}
-		neighborAvg = neighborAvg.Scale(1 / float64(len(neighbors[i])))
-		newPoint := neighborAvg.Scale(rate).Add(c.Scale(1 - rate))
-		newCoords[i] = newPoint
+		coords = newCoords
 	}
 
 	m1 := NewMesh()
 	m.Iterate(func(t *Triangle) {
 		t1 := *t
 		for i, c := range t1 {
-			t1[i] = newCoords[coordToIdx[c]]
+			t1[i] = coords[coordToIdx[c]]
 		}
 		m1.Add(&t1)
 	})
