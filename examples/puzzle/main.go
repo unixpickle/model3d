@@ -1,9 +1,13 @@
 package main
 
 import (
+	"image"
+	_ "image/gif"
 	"io/ioutil"
 	"math"
+	"os"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
 
@@ -25,9 +29,21 @@ const (
 	BoardPoleSpace      = SquarePoleRadius + 0.02
 )
 
+const MinSpacing = 0.012
+
+var DefaultColor = [3]float64{0.039, 0.729, 0.71}
+
 func main() {
 	puzzle := CreateBoard()
 	square := CreateSquare()
+
+	borderCollider := model3d.MeshToCollider(puzzle)
+
+	r, err := os.Open("image.gif")
+	essentials.Must(err)
+	image, _, err := image.Decode(r)
+	r.Close()
+	essentials.Must(err)
 
 	for i := 0; i < 4; i++ {
 		xDelta := float64(i+1)*BoardSpacing + float64(i)*SquareSize
@@ -38,11 +54,41 @@ func main() {
 			yDelta := float64(j+1)*BoardSpacing + float64(j)*SquareSize
 			delta := model3d.Coord3D{X: xDelta, Y: yDelta, Z: SquarePoleLength/2 + SquareDepth}
 			piece := square.MapCoords(delta.Add)
+
+			// Make sure the piece isn't too close to the border
+			// or it might fuse with it during printing.
+			piece.Iterate(func(t *model3d.Triangle) {
+				for _, p := range t {
+					ray := &model3d.Ray{
+						Origin:    p,
+						Direction: model3d.Coord3D{X: 1.1, Y: 2.3, Z: 3.2},
+					}
+					if borderCollider.RayCollisions(ray)%2 == 1 ||
+						borderCollider.SphereCollision(p, MinSpacing) {
+						essentials.Die("undesired collision")
+					}
+				}
+			})
+
 			puzzle.AddMesh(piece)
 		}
 	}
 
-	ioutil.WriteFile("puzzle.stl", puzzle.EncodeSTL(), 0755)
+	colorFunc := func(t *model3d.Triangle) [3]float64 {
+		if t[0].Z > SquarePoleLength/2 {
+			size := SquareSize*4 + BoardSpacing*3
+			x := int(math.Round(float64(image.Bounds().Dx()) * (t[0].X - BoardSpacing) / size))
+			y := int(math.Round(float64(image.Bounds().Dy()) * (t[0].Y - BoardSpacing) / size))
+			if x < 0 || y < 0 || x >= image.Bounds().Dx() || y >= image.Bounds().Dy() {
+				return DefaultColor
+			}
+			r, g, b, _ := image.At(x, y).RGBA()
+			return [3]float64{float64(r) / 0xffff, float64(g) / 0xffff, float64(b) / 0xffff}
+		}
+		return DefaultColor
+	}
+
+	ioutil.WriteFile("puzzle.zip", puzzle.EncodeMaterialOBJ(colorFunc), 0755)
 }
 
 func CreateSquare() *model3d.Mesh {
