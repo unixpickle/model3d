@@ -147,6 +147,10 @@ func CreateSquare() *model3d.Mesh {
 			// to the pole.
 			polePoint := func(p model3d.Coord3D) model3d.Coord3D {
 				angle := math.Atan2(p.Y-SquareSize/2, p.X-SquareSize/2)
+				// Hack to fix rounding errors and make all the
+				// vertices from the top and the bottom line up
+				// perfectly.
+				angle = math.Round(angle*123456.0) / 123456.0
 				return model3d.Coord3D{
 					X: math.Cos(angle)*SquarePoleRadius + SquareSize/2,
 					Y: math.Sin(angle)*SquarePoleRadius + SquareSize/2,
