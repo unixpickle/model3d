@@ -18,6 +18,9 @@ import (
 // exactly identical points. Thus, small rounding errors
 // can cause triangles to incorrectly be disassociated
 // with each other.
+//
+// It is not safe to access a Mesh from multiple
+// Goroutines at once, even for reading.
 type Mesh struct {
 	triangles        map[*Triangle]bool
 	vertexToTriangle map[Coord3D][]*Triangle
@@ -26,8 +29,7 @@ type Mesh struct {
 // NewMesh creates an empty mesh.
 func NewMesh() *Mesh {
 	return &Mesh{
-		triangles:        map[*Triangle]bool{},
-		vertexToTriangle: map[Coord3D][]*Triangle{},
+		triangles: map[*Triangle]bool{},
 	}
 }
 
@@ -86,7 +88,10 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 
 // Add adds the triangle t to the mesh.
 func (m *Mesh) Add(t *Triangle) {
-	if m.triangles[t] {
+	if m.vertexToTriangle == nil {
+		m.triangles[t] = true
+		return
+	} else if m.triangles[t] {
 		return
 	}
 	for _, p := range t {
@@ -104,6 +109,9 @@ func (m *Mesh) Remove(t *Triangle) {
 		return
 	}
 	delete(m.triangles, t)
+	if m.vertexToTriangle == nil {
+		return
+	}
 	for _, p := range t {
 		s := m.vertexToTriangle[p]
 		for i, t1 := range s {
@@ -157,7 +165,7 @@ func (m *Mesh) IterateSorted(f func(t *Triangle), cmp func(t1, t2 *Triangle) boo
 func (m *Mesh) Neighbors(t *Triangle) []*Triangle {
 	resSet := map[*Triangle]int{}
 	for _, p := range t {
-		for _, t1 := range m.vertexToTriangle[p] {
+		for _, t1 := range m.getVertexToTriangle()[p] {
 			if t1 != t {
 				resSet[t1]++
 			}
@@ -180,7 +188,7 @@ func (m *Mesh) Neighbors(t *Triangle) []*Triangle {
 func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 	resSet := map[*Triangle]int{}
 	for _, p := range ps {
-		for _, t1 := range m.vertexToTriangle[p] {
+		for _, t1 := range m.getVertexToTriangle()[p] {
 			resSet[t1]++
 		}
 	}
@@ -197,8 +205,18 @@ func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
 	mapping := map[Coord3D]Coord3D{}
-	for c := range m.vertexToTriangle {
-		mapping[c] = f(c)
+	if m.vertexToTriangle != nil {
+		for c := range m.vertexToTriangle {
+			mapping[c] = f(c)
+		}
+	} else {
+		for t := range m.triangles {
+			for _, c := range t {
+				if _, ok := mapping[c]; !ok {
+					mapping[c] = f(c)
+				}
+			}
+		}
 	}
 	m1 := NewMesh()
 	m.Iterate(func(t *Triangle) {
@@ -246,9 +264,13 @@ func (m *Mesh) TriangleSlice() []*Triangle {
 // If multiple rates are passed, then multiple iterations
 // of the algorithm are performed in succession.
 func (m *Mesh) Blur(rates ...float64) *Mesh {
-	coordToIdx := make(map[Coord3D]int, len(m.vertexToTriangle))
-	coords := make([]Coord3D, 0, len(m.vertexToTriangle))
-	neighbors := make([][]int, 0, len(m.vertexToTriangle))
+	capacity := len(m.triangles) * 3
+	if m.vertexToTriangle != nil {
+		capacity = len(m.vertexToTriangle)
+	}
+	coordToIdx := make(map[Coord3D]int, capacity)
+	coords := make([]Coord3D, 0, capacity)
+	neighbors := make([][]int, 0, capacity)
 	m.Iterate(func(t *Triangle) {
 		var indices [3]int
 		for i, c := range t {
@@ -345,4 +367,17 @@ func (m *Mesh) Max() Coord3D {
 		}
 	}
 	return result
+}
+
+func (m *Mesh) getVertexToTriangle() map[Coord3D][]*Triangle {
+	if m.vertexToTriangle != nil {
+		return m.vertexToTriangle
+	}
+	m.vertexToTriangle = map[Coord3D][]*Triangle{}
+	for t := range m.triangles {
+		for _, p := range t {
+			m.vertexToTriangle[p] = append(m.vertexToTriangle[p], t)
+		}
+	}
+	return m.vertexToTriangle
 }
