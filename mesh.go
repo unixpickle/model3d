@@ -339,9 +339,9 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 	for c := range m.getVertexToTriangle() {
 		hashes := make([]Coord3D, 0, 9)
 		classes := make(map[*equivalenceClass]bool, 9)
-		for i := -1.0; i <= 1.0; i += 1.0 {
-			for j := -1.0; j <= 1.0; j += 1.0 {
-				for k := -1.0; k <= 1.0; k += 1.0 {
+		for i := 0.0; i <= 1.0; i += 1.0 {
+			for j := 0.0; j <= 1.0; j += 1.0 {
+				for k := 0.0; k <= 1.0; k += 1.0 {
 					hash := Coord3D{
 						X: math.Round(c.X/epsilon) + i,
 						Y: math.Round(c.Y/epsilon) + j,
