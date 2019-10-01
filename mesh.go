@@ -334,8 +334,11 @@ func (m *Mesh) Blur(rates ...float64) *Mesh {
 // be. In particular, it sets the approximate maximum
 // distance across all dimensions.
 func (m *Mesh) Repair(epsilon float64) *Mesh {
-	hashes := map[Coord3D][]Coord3D{}
+	hashToClass := map[Coord3D]*equivalenceClass{}
+	allClasses := map[*equivalenceClass]bool{}
 	for c := range m.getVertexToTriangle() {
+		hashes := make([]Coord3D, 0, 9)
+		classes := make(map[*equivalenceClass]bool, 9)
 		for i := -1.0; i <= 1.0; i += 1.0 {
 			for j := -1.0; j <= 1.0; j += 1.0 {
 				for k := -1.0; k <= 1.0; k += 1.0 {
@@ -344,42 +347,61 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 						Y: math.Round(c.Y/epsilon) + j,
 						Z: math.Round(c.Z/epsilon) + k,
 					}
-					hashes[hash] = append(hashes[hash], c)
+					hashes = append(hashes, hash)
+					if class, ok := hashToClass[hash]; ok {
+						classes[class] = true
+					}
 				}
 			}
 		}
-	}
-
-	// Maps every coordinate to its equivalence class.
-	equivClasses := map[Coord3D]*equivalenceClass{}
-
-	for _, coords := range hashes {
+		if len(classes) == 0 {
+			class := &equivalenceClass{
+				Elements:  []Coord3D{c},
+				Hashes:    hashes,
+				Canonical: c,
+			}
+			for _, hash := range hashes {
+				hashToClass[hash] = class
+			}
+			allClasses[class] = true
+			continue
+		}
 		newClass := &equivalenceClass{
-			Elements: map[Coord3D]bool{},
+			Elements:  []Coord3D{c},
+			Hashes:    hashes,
+			Canonical: c,
 		}
-		for _, c := range coords {
-			if class, ok := equivClasses[c]; ok && class != newClass {
-				if class.Visited {
-					continue
+		for class := range classes {
+			delete(allClasses, class)
+			newClass.Elements = append(newClass.Elements, class.Elements...)
+			for _, hash := range class.Hashes {
+				var found bool
+				for _, hash1 := range newClass.Hashes {
+					if hash1 == hash {
+						found = true
+						break
+					}
 				}
-				class.Visited = true
-				for c1 := range class.Elements {
-					newClass.Elements[c1] = true
-					equivClasses[c1] = newClass
+				if !found {
+					newClass.Hashes = append(newClass.Hashes, hash)
 				}
-			} else if class != newClass {
-				newClass.Elements[c] = true
-				equivClasses[c] = newClass
 			}
 		}
+		for _, hash := range newClass.Hashes {
+			hashToClass[hash] = newClass
+		}
+		allClasses[newClass] = true
 	}
 
-	for c, class := range equivClasses {
-		class.Canonical = class.Canonical.Add(c.Scale(1.0 / float64(len(class.Elements))))
+	coordToClass := map[Coord3D]*equivalenceClass{}
+	for class := range allClasses {
+		for _, c := range class.Elements {
+			coordToClass[c] = class
+		}
 	}
 
 	return m.MapCoords(func(c Coord3D) Coord3D {
-		return equivClasses[c].Canonical
+		return coordToClass[c].Canonical
 	})
 }
 
@@ -454,7 +476,7 @@ func (m *Mesh) getVertexToTriangle() map[Coord3D][]*Triangle {
 }
 
 type equivalenceClass struct {
-	Elements  map[Coord3D]bool
+	Elements  []Coord3D
+	Hashes    []Coord3D
 	Canonical Coord3D
-	Visited   bool
 }
