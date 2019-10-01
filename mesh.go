@@ -327,6 +327,77 @@ func (m *Mesh) Blur(rates ...float64) *Mesh {
 	return m1
 }
 
+// Repair finds vertices that are close together and
+// combines them into one.
+//
+// The epsilon argument controls how close points have to
+// be. In particular, it sets the approximate maximum
+// distance across all dimensions.
+func (m *Mesh) Repair(epsilon float64) *Mesh {
+	hashes := map[Coord3D][]Coord3D{}
+	for c := range m.getVertexToTriangle() {
+		for i := -1.0; i <= 1.0; i += 1.0 {
+			for j := -1.0; j <= 1.0; j += 1.0 {
+				for k := -1.0; k <= 1.0; k += 1.0 {
+					hash := Coord3D{
+						X: math.Round(c.X/epsilon) + i,
+						Y: math.Round(c.Y/epsilon) + j,
+						Z: math.Round(c.Z/epsilon) + k,
+					}
+					hashes[hash] = append(hashes[hash], c)
+				}
+			}
+		}
+	}
+
+	// Maps every coordinate to its equivalence class.
+	equivClasses := map[Coord3D]*equivalenceClass{}
+
+	for _, coords := range hashes {
+		newClass := &equivalenceClass{
+			Elements: map[Coord3D]bool{},
+		}
+		for _, c := range coords {
+			if class, ok := equivClasses[c]; ok {
+				if class.Visited {
+					continue
+				}
+				class.Visited = true
+				for c1 := range class.Elements {
+					newClass.Elements[c1] = true
+					equivClasses[c1] = newClass
+				}
+			} else {
+				newClass.Elements[c] = true
+				equivClasses[c] = newClass
+			}
+		}
+	}
+
+	for c, class := range equivClasses {
+		class.Canonical = class.Canonical.Add(c.Scale(1.0 / float64(len(class.Elements))))
+	}
+
+	return m.MapCoords(func(c Coord3D) Coord3D {
+		return equivClasses[c].Canonical
+	})
+}
+
+// NeedsRepair checks if every edge touches exactly two
+// triangles. If not, NeedsRepair returns true.
+func (m *Mesh) NeedsRepair() bool {
+	for t := range m.triangles {
+		for i := 0; i < 3; i++ {
+			p1 := t[i]
+			p2 := t[(i+1)%3]
+			if len(m.Find(p1, p2)) != 2 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Min gets the component-wise minimum across all the
 // vertices in the mesh.
 func (m *Mesh) Min() Coord3D {
@@ -380,4 +451,10 @@ func (m *Mesh) getVertexToTriangle() map[Coord3D][]*Triangle {
 		}
 	}
 	return m.vertexToTriangle
+}
+
+type equivalenceClass struct {
+	Elements  map[Coord3D]bool
+	Canonical Coord3D
+	Visited   bool
 }
