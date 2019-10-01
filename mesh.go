@@ -358,7 +358,7 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 			Elements: map[Coord3D]bool{},
 		}
 		for _, c := range coords {
-			if class, ok := equivClasses[c]; ok {
+			if class, ok := equivClasses[c]; ok && class != newClass {
 				if class.Visited {
 					continue
 				}
@@ -367,7 +367,7 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 					newClass.Elements[c1] = true
 					equivClasses[c1] = newClass
 				}
-			} else {
+			} else if class != newClass {
 				newClass.Elements[c] = true
 				equivClasses[c] = newClass
 			}
