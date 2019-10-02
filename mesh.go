@@ -33,6 +33,16 @@ func NewMesh() *Mesh {
 	}
 }
 
+// NewMeshTriangles creates a mesh with the given
+// collection of triangles.
+func NewMeshTriangles(ts []*Triangle) *Mesh {
+	m := NewMesh()
+	for _, t := range ts {
+		m.Add(t)
+	}
+	return m
+}
+
 // NewMeshPolar creates a mesh with a 3D polar function.
 func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 	res := NewMesh()
@@ -100,6 +110,11 @@ func (m *Mesh) Add(t *Triangle) {
 	m.triangles[t] = true
 }
 
+// AddMesh adds all the triangles from m1 to m.
+func (m *Mesh) AddMesh(m1 *Mesh) {
+	m1.Iterate(m.Add)
+}
+
 // Remove removes the triangle t from the mesh.
 //
 // It looks at t as a pointer, so the pointer must be
@@ -122,11 +137,6 @@ func (m *Mesh) Remove(t *Triangle) {
 		}
 		m.vertexToTriangle[p] = s
 	}
-}
-
-// AddMesh adds all the triangles from m1 to m.
-func (m *Mesh) AddMesh(m1 *Mesh) {
-	m1.Iterate(m.Add)
 }
 
 // Iterate calls f for every triangle in m in an arbitrary
