@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"image"
 	_ "image/jpeg"
-	_ "image/png"
+	"image/png"
 	"io/ioutil"
+	"log"
 	"math"
 	"os"
 
@@ -130,6 +131,24 @@ func main() {
 	mesh.AddMesh(model3d.SolidToMesh(body, 0.05, 4, 1.0, 5))
 
 	ioutil.WriteFile("spinner.stl", mesh.EncodeSTL(), 0755)
+
+	RenderMesh(mesh)
+}
+
+func RenderMesh(m *model3d.Mesh) {
+	log.Println("Saving rendering of mesh...")
+	image := image.NewGray(image.Rect(0, 0, 400, 300))
+	model3d.RenderRayCast(model3d.MeshToCollider(m), image,
+		model3d.Coord3D{X: 0, Y: 1.5, Z: 1.5},
+		model3d.Coord3D{X: 1},
+		model3d.Coord3D{Y: 1, Z: -1},
+		model3d.Coord3D{Y: -1, Z: -1},
+		math.Pi/3,
+	)
+	w, err := os.Create("rendering.png")
+	essentials.Must(err)
+	defer w.Close()
+	essentials.Must(png.Encode(w, image))
 }
 
 type EtchedImage struct {
