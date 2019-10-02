@@ -33,8 +33,9 @@ func RenderRayCast(c Collider, output *image.Gray, origin, x, y, z Coord3D, fov 
 			ray := &Ray{Origin: origin, Direction: scaledX.Add(scaledY).Add(z)}
 			collides, _, normal := c.FirstRayCollision(ray)
 			if collides {
-				// Light source comes from camera.
-				brightness := math.Max(0, -normal.Dot(ray.Direction)/ray.Direction.Norm())
+				// Light source goes in the direction the camera is
+				// looking at, but it is not a point-light.
+				brightness := math.Max(0, -normal.Dot(z)/z.Norm())
 				grayness := uint8(math.Round(brightness * 0xff))
 				output.SetGray(j+bounds.Min.X, i+bounds.Min.Y, color.Gray{Y: grayness})
 			} else {
