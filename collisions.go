@@ -81,6 +81,8 @@ func groupTriangles(sortedTris [3][]*FlaggedTriangle, axis int, output []*Triang
 	if numTris == 1 {
 		output[0] = sortedTris[axis][0].T
 		return
+	} else if numTris == 0 {
+		return
 	}
 
 	midIdx := numTris / 2
@@ -158,6 +160,8 @@ func sortTriangles(tris []*Triangle) [3][]*FlaggedTriangle {
 func GroupedTrianglesToCollider(tris []*Triangle) Collider {
 	if len(tris) == 1 {
 		return tris[0]
+	} else if len(tris) == 0 {
+		return nullCollider{}
 	}
 	midIdx := len(tris) / 2
 	c1 := GroupedTrianglesToCollider(tris[:midIdx])
@@ -222,6 +226,8 @@ type JoinedCollider struct {
 	colliders []Collider
 }
 
+// NewJoinedCollider creates a JoinedCollider which
+// combines one or more other colliders.
 func NewJoinedCollider(other []Collider) *JoinedCollider {
 	res := &JoinedCollider{
 		colliders: other,
@@ -326,4 +332,26 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 type FlaggedTriangle struct {
 	T    *Triangle
 	Flag bool
+}
+
+type nullCollider struct{}
+
+func (n nullCollider) Min() Coord3D {
+	return Coord3D{}
+}
+
+func (n nullCollider) Max() Coord3D {
+	return Coord3D{}
+}
+
+func (n nullCollider) RayCollisions(r *Ray) int {
+	return 0
+}
+
+func (n nullCollider) FirstRayCollision(r *Ray) (collides bool, distance float64, normal Coord3D) {
+	return false, 0, Coord3D{}
+}
+
+func (n nullCollider) SphereCollision(c Coord3D, r float64) bool {
+	return false
 }

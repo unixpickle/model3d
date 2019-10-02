@@ -6,6 +6,15 @@ import (
 	"testing"
 )
 
+func TestEmptyColliders(t *testing.T) {
+	// Make sure we don't get a crash from this.
+	GroupTriangles(nil)
+
+	if MeshToCollider(NewMesh()).SphereCollision(Coord3D{}, 1000) {
+		t.Error("unexpected collision")
+	}
+}
+
 func TestSegmentEntersSphere(t *testing.T) {
 	center := Coord3D{X: 1, Y: 2, Z: 3}
 	radius := 0.5
