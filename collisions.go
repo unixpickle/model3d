@@ -76,7 +76,7 @@ func GroupTriangles(tris []*Triangle) {
 	groupTriangles(sortTriangles(tris), 0, tris)
 }
 
-func groupTriangles(sortedTris [3][]*FlaggedTriangle, axis int, output []*Triangle) {
+func groupTriangles(sortedTris [3][]*flaggedTriangle, axis int, output []*Triangle) {
 	numTris := len(sortedTris[axis])
 	if numTris == 1 {
 		output[0] = sortedTris[axis][0].T
@@ -90,14 +90,14 @@ func groupTriangles(sortedTris [3][]*FlaggedTriangle, axis int, output []*Triang
 		t.Flag = i < midIdx
 	}
 
-	separated := [3][]*FlaggedTriangle{}
+	separated := [3][]*flaggedTriangle{}
 	separated[axis] = sortedTris[axis]
 
 	for newAxis := 0; newAxis < 3; newAxis++ {
 		if newAxis == axis {
 			continue
 		}
-		sep := make([]*FlaggedTriangle, numTris)
+		sep := make([]*flaggedTriangle, numTris)
 		idx0 := 0
 		idx1 := numTris / 2
 		for _, t := range sortedTris[newAxis] {
@@ -112,28 +112,28 @@ func groupTriangles(sortedTris [3][]*FlaggedTriangle, axis int, output []*Triang
 		separated[newAxis] = sep
 	}
 
-	groupTriangles([3][]*FlaggedTriangle{
+	groupTriangles([3][]*flaggedTriangle{
 		separated[0][:midIdx],
 		separated[1][:midIdx],
 		separated[2][:midIdx],
 	}, (axis+1)%3, output[:midIdx])
 
-	groupTriangles([3][]*FlaggedTriangle{
+	groupTriangles([3][]*flaggedTriangle{
 		separated[0][midIdx:],
 		separated[1][midIdx:],
 		separated[2][midIdx:],
 	}, (axis+1)%3, output[midIdx:])
 }
 
-func sortTriangles(tris []*Triangle) [3][]*FlaggedTriangle {
-	ts := make([]*FlaggedTriangle, len(tris))
+func sortTriangles(tris []*Triangle) [3][]*flaggedTriangle {
+	ts := make([]*flaggedTriangle, len(tris))
 	for i, t := range tris {
-		ts[i] = &FlaggedTriangle{T: t}
+		ts[i] = &flaggedTriangle{T: t}
 	}
 
-	var result [3][]*FlaggedTriangle
+	var result [3][]*flaggedTriangle
 	for axis := range result {
-		tsCopy := append([]*FlaggedTriangle{}, ts...)
+		tsCopy := append([]*flaggedTriangle{}, ts...)
 		if axis == 0 {
 			essentials.VoodooSort(tsCopy, func(i, j int) bool {
 				return tsCopy[i].T[0].X < tsCopy[j].T[0].X
@@ -329,7 +329,7 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 	return minFrac <= maxFrac && maxFrac >= 0
 }
 
-type FlaggedTriangle struct {
+type flaggedTriangle struct {
 	T    *Triangle
 	Flag bool
 }
