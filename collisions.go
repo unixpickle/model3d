@@ -49,6 +49,12 @@ type Collider interface {
 	// a ray.
 	RayCollisions(r *Ray) int
 
+	// FirstRayCollision gets the ray collision with the
+	// lowest non-negative distance.
+	// It also yields the normal from the surface where
+	// the collision took place.
+	FirstRayCollision(r *Ray) (collides bool, distance float64, normal Coord3D)
+
 	// SphereCollision checks if the collider touches a
 	// sphere with origin c and radius r.
 	SphereCollision(c Coord3D, r float64) bool
@@ -170,6 +176,13 @@ func (t *Triangle) RayCollisions(r *Ray) int {
 	}
 }
 
+// FirstRayCollision returns information about the
+// triangle collision.
+func (t *Triangle) FirstRayCollision(r *Ray) (collides bool, distance float64, normal Coord3D) {
+	collides, frac := r.Collision(t)
+	return collides && frac >= 0, frac, t.Normal()
+}
+
 // SphereCollision checks if any part of the triangle is
 // within the sphere.
 func (t *Triangle) SphereCollision(c Coord3D, r float64) bool {
@@ -231,27 +244,7 @@ func (j *JoinedCollider) Max() Coord3D {
 }
 
 func (j *JoinedCollider) RayCollisions(r *Ray) int {
-	minFrac := math.Inf(-1)
-	maxFrac := math.Inf(1)
-	for axis := 0; axis < 3; axis++ {
-		origin := r.Origin.array()[axis]
-		rate := r.Direction.array()[axis]
-		if rate == 0 {
-			if origin < j.min.array()[axis] || origin > j.max.array()[axis] {
-				return 0
-			}
-			continue
-		}
-		t1 := (j.min.array()[axis] - origin) / rate
-		t2 := (j.max.array()[axis] - origin) / rate
-		if t1 > t2 {
-			t1, t2 = t2, t1
-		}
-		minFrac = math.Max(minFrac, t1)
-		maxFrac = math.Min(maxFrac, t2)
-	}
-
-	if minFrac > maxFrac || maxFrac < 0 {
+	if !j.rayCollidesWithBounds(r) {
 		return 0
 	}
 
@@ -260,6 +253,25 @@ func (j *JoinedCollider) RayCollisions(r *Ray) int {
 		count += c.RayCollisions(r)
 	}
 	return count
+}
+
+func (j *JoinedCollider) FirstRayCollision(r *Ray) (bool, float64, Coord3D) {
+	if !j.rayCollidesWithBounds(r) {
+		return false, 0, Coord3D{}
+	}
+	var anyCollides bool
+	var closestDistance float64
+	var closestNormal Coord3D
+	for _, c := range j.colliders {
+		if collides, dist, normal := c.FirstRayCollision(r); collides {
+			if dist < closestDistance || !anyCollides {
+				closestDistance = dist
+				closestNormal = normal
+				anyCollides = true
+			}
+		}
+	}
+	return anyCollides, closestDistance, closestNormal
 }
 
 func (j *JoinedCollider) SphereCollision(center Coord3D, r float64) bool {
@@ -285,6 +297,30 @@ func (j *JoinedCollider) SphereCollision(center Coord3D, r float64) bool {
 		}
 	}
 	return false
+}
+
+func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
+	minFrac := math.Inf(-1)
+	maxFrac := math.Inf(1)
+	for axis := 0; axis < 3; axis++ {
+		origin := r.Origin.array()[axis]
+		rate := r.Direction.array()[axis]
+		if rate == 0 {
+			if origin < j.min.array()[axis] || origin > j.max.array()[axis] {
+				return false
+			}
+			continue
+		}
+		t1 := (j.min.array()[axis] - origin) / rate
+		t2 := (j.max.array()[axis] - origin) / rate
+		if t1 > t2 {
+			t1, t2 = t2, t1
+		}
+		minFrac = math.Max(minFrac, t1)
+		maxFrac = math.Min(maxFrac, t2)
+	}
+
+	return minFrac <= maxFrac && maxFrac >= 0
 }
 
 type FlaggedTriangle struct {
