@@ -63,7 +63,7 @@ func RenderRandomGrid(c Collider, rows, cols, thumbWidth, thumbHeight int) *imag
 				Y: rand.NormFloat64(),
 				Z: rand.NormFloat64(),
 			}).Normalize()
-			origin := center.Add(z.Scale(-radius * 2))
+			origin := center.Add(z.Scale(-radius * math.Sqrt2))
 
 			// Use the derivatives with respect to lat/lon
 			// as the y and x axis.
