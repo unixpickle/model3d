@@ -173,21 +173,26 @@ func (m *Mesh) IterateSorted(f func(t *Triangle), cmp func(t1, t2 *Triangle) boo
 // is not in the mesh, but an equivalent triangle is, then
 // said equivalent triangle will be in the results.
 func (m *Mesh) Neighbors(t *Triangle) []*Triangle {
-	resSet := map[*Triangle]int{}
-	for _, p := range t {
-		for _, t1 := range m.getVertexToTriangle()[p] {
-			if t1 != t {
-				resSet[t1]++
-			}
-		}
-	}
-	res := make([]*Triangle, 0, len(resSet))
-	for t1, count := range resSet {
+	counts := m.neighborsWithCounts(t)
+	res := make([]*Triangle, 0, len(counts))
+	for t1, count := range counts {
 		if count > 1 {
 			res = append(res, t1)
 		}
 	}
 	return res
+}
+
+func (m *Mesh) neighborsWithCounts(t *Triangle) map[*Triangle]int {
+	counts := map[*Triangle]int{}
+	for _, p := range t {
+		for _, t1 := range m.getVertexToTriangle()[p] {
+			if t1 != t {
+				counts[t1]++
+			}
+		}
+	}
+	return counts
 }
 
 // Find gets all the triangles that contain all of the
