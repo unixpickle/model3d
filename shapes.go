@@ -29,6 +29,15 @@ func (t *Triangle) Max() Coord3D {
 	return t[0].Max(t[1]).Max(t[2])
 }
 
+// Segments gets all three line segments in the triangle.
+func (t *Triangle) Segments() [3]Segment {
+	var res [3]Segment
+	for i := 0; i < 3; i++ {
+		res[i] = NewSegment(t[i], t[(i+1)%3])
+	}
+	return res
+}
+
 // A Segment is a line segment in a canonical ordering,
 // such that segments can be compared via the == operator
 // even if they were created with their points in the
@@ -43,6 +52,11 @@ func NewSegment(p1, p2 Coord3D) Segment {
 	} else {
 		return Segment{p2, p1}
 	}
+}
+
+// Mid gets the midpoint of the segment.
+func (s Segment) Mid() Coord3D {
+	return s[0].Mid(s[1])
 }
 
 // union finds the point that s and s1 have in common,

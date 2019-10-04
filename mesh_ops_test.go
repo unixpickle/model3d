@@ -51,6 +51,36 @@ func TestMeshRepair(t *testing.T) {
 	})
 }
 
+func TestMeshEliminateCoplanar(t *testing.T) {
+	cyl := &CylinderSolid{
+		P1:     Coord3D{0, 0, -1},
+		P2:     Coord3D{0, 0, 1},
+		Radius: 0.5,
+	}
+	m1 := SolidToMesh(cyl, 0.1, 2, 0.8, 1)
+	m2 := m1.EliminateCoplanar(1e-5)
+	if len(m2.triangles) >= len(m1.triangles) {
+		t.Fatal("reduction failed")
+	}
+
+	// Make sure the meshes have the same geometries.
+	c1 := MeshToCollider(m1)
+	c2 := MeshToCollider(m2)
+	for i := 0; i < 1000; i++ {
+		ray := &Ray{
+			Origin:    Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
+			Direction: Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
+		}
+		if c1.RayCollisions(ray) != c2.RayCollisions(ray) {
+			t.Fatal("mismatched ray collisions", c1.RayCollisions(ray), c2.RayCollisions(ray))
+		}
+		r := rand.Float64()
+		if c1.SphereCollision(ray.Origin, r) != c2.SphereCollision(ray.Origin, r) {
+			t.Fatal("mismatched sphere collision")
+		}
+	}
+}
+
 func BenchmarkMeshBlur(b *testing.B) {
 	m := NewMeshPolar(func(g GeoCoord) float64 {
 		return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
@@ -74,5 +104,18 @@ func BenchmarkMeshRepair(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		m.Repair(1e-5)
+	}
+}
+
+func BenchmarkEliminateCoplanar(b *testing.B) {
+	cyl := &CylinderSolid{
+		P1:     Coord3D{0, 1, -1},
+		P2:     Coord3D{0, 1, 1},
+		Radius: 0.5,
+	}
+	mesh := SolidToMesh(cyl, 0.1, 2, 0.8, 1)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mesh.EliminateCoplanar(1e-5)
 	}
 }

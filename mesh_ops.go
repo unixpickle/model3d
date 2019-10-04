@@ -173,3 +173,111 @@ type equivalenceClass struct {
 	Hashes    []Coord3D
 	Canonical Coord3D
 }
+
+// EliminateEdges creates a new mesh by iteratively
+// removing edges according to the function f.
+//
+// The f function takes the current new mesh and a line
+// segment, and returns true if the segment should be
+// removed.
+func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
+	result := NewMesh()
+	remainingSegments := map[Segment]bool{}
+	m.Iterate(func(t *Triangle) {
+		t1 := *t
+		result.Add(&t1)
+		for _, seg := range t.Segments() {
+			remainingSegments[seg] = true
+		}
+	})
+	changed := true
+	for changed && len(remainingSegments) > 0 {
+		changed = false
+		segments := make([]Segment, 0, len(remainingSegments))
+		for segment := range remainingSegments {
+			segments = append(segments, segment)
+		}
+		for _, segment := range segments {
+			if !remainingSegments[segment] {
+				continue
+			}
+			neighbors := map[*Triangle]int{}
+			for _, p := range segment {
+				for _, neighbor := range result.getVertexToTriangle()[p] {
+					neighbors[neighbor]++
+				}
+			}
+
+			if !canEliminate(segment, neighbors) || !f(result, segment) {
+				continue
+			}
+
+			changed = true
+
+			mp := segment.Mid()
+
+			for neighbor, count := range neighbors {
+				result.Remove(neighbor)
+				for _, seg := range neighbor.Segments() {
+					delete(remainingSegments, seg)
+				}
+				if count != 1 {
+					continue
+				}
+				for i, p := range neighbor {
+					if p == segment[0] || p == segment[1] {
+						neighbor[i] = mp
+					}
+				}
+				result.Add(neighbor)
+				for _, seg := range neighbor.Segments() {
+					remainingSegments[seg] = true
+				}
+			}
+		}
+	}
+	return result
+}
+
+// EliminateCoplanar eliminates line segments which are
+// touching a collection of coplanar triangles.
+//
+// The epsilon argument controls how close two normals
+// must be for the triangles to be considered coplanar.
+func (m *Mesh) EliminateCoplanar(epsilon float64) *Mesh {
+	return m.EliminateEdges(func(m *Mesh, s Segment) bool {
+		isFirst := true
+		var normal Coord3D
+		for _, p := range s {
+			for _, neighbor := range m.getVertexToTriangle()[p] {
+				if isFirst {
+					normal = neighbor.Normal()
+					isFirst = false
+				} else if math.Abs(neighbor.Normal().Dot(normal)-1) > epsilon {
+					return false
+				}
+			}
+		}
+		return true
+	})
+}
+
+func canEliminate(seg Segment, tris map[*Triangle]int) bool {
+	for t, count := range tris {
+		if count != 1 {
+			continue
+		}
+		t1 := *t
+		for i, p := range t {
+			if p == seg[0] {
+				t1[i] = seg[1]
+			} else if p == seg[1] {
+				t1[i] = seg[0]
+			}
+		}
+		if t1.Normal().Dot(t.Normal()) < 0 {
+			return false
+		}
+	}
+	return true
+}
