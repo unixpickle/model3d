@@ -51,6 +51,40 @@ func TestMeshRepair(t *testing.T) {
 	})
 }
 
+func TestMeshEliminateMinimal(t *testing.T) {
+	m := NewMesh()
+	m.Add(&Triangle{
+		Coord3D{0, 0, 1},
+		Coord3D{1, 0, 0},
+		Coord3D{0, 1, 0},
+	})
+	m.Add(&Triangle{
+		Coord3D{0, 0, 0},
+		Coord3D{1, 0, 0},
+		Coord3D{0, 1, 0},
+	})
+	m.Add(&Triangle{
+		Coord3D{0, 0, 0},
+		Coord3D{0, 0, 1},
+		Coord3D{0, 1, 0},
+	})
+	m.Add(&Triangle{
+		Coord3D{0, 0, 0},
+		Coord3D{1, 0, 0},
+		Coord3D{0, 0, 1},
+	})
+	if m.NeedsRepair() {
+		t.Fatal("invalid initial mesh")
+	}
+
+	elim := m.EliminateEdges(func(m *Mesh, s Segment) bool {
+		return true
+	})
+	if len(elim.triangles) != len(m.triangles) {
+		t.Error("invalid reduction")
+	}
+}
+
 func TestMeshEliminateCoplanar(t *testing.T) {
 	cyl := &CylinderSolid{
 		P1:     Coord3D{0, 0, -1},

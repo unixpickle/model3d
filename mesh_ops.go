@@ -246,6 +246,7 @@ func neighborsForSegment(m *Mesh, segment Segment) map[*Triangle]int {
 }
 
 func canEliminate(seg Segment, tris map[*Triangle]int) bool {
+	otherSegs := map[Segment]bool{}
 	for t, count := range tris {
 		if count != 1 {
 			continue
@@ -258,6 +259,17 @@ func canEliminate(seg Segment, tris map[*Triangle]int) bool {
 				t1[i] = seg[0]
 			}
 		}
+		p1, p2 := t[0], t[1]
+		if p1 == seg[0] || p1 == seg[1] {
+			p1 = t[2]
+		} else if p2 == seg[0] || p2 == seg[1] {
+			p2 = t[2]
+		}
+		otherSeg := NewSegment(p1, p2)
+		if otherSegs[otherSeg] {
+			return false
+		}
+		otherSegs[otherSeg] = true
 		if t1.Normal().Dot(t.Normal()) < 0 {
 			return false
 		}
