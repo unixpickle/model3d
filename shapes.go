@@ -3,20 +3,26 @@ package model3d
 // A Triangle is a triangle in 3D Euclidean space.
 type Triangle [3]Coord3D
 
+// Area computes the area of the triangle.
+func (t *Triangle) Area() float64 {
+	return t.crossProduct().Norm() / 2
+}
+
 // Normal computes a normal vector for the triangle using
 // the right-hand rule.
 func (t *Triangle) Normal() Coord3D {
+	result := t.crossProduct()
+	return result.Scale(1 / result.Norm())
+}
+
+func (t *Triangle) crossProduct() Coord3D {
 	x1, y1, z1 := t[1].X-t[0].X, t[1].Y-t[0].Y, t[1].Z-t[0].Z
 	x2, y2, z2 := t[2].X-t[0].X, t[2].Y-t[0].Y, t[2].Z-t[0].Z
-
-	// The standard cross product formula.
-	result := Coord3D{
+	return Coord3D{
 		X: y1*z2 - z1*y2,
 		Y: z1*x2 - x1*z2,
 		Z: x1*y2 - y1*x2,
 	}
-
-	return result.Scale(1 / result.Norm())
 }
 
 // Min gets the element-wise minimum of all the points.

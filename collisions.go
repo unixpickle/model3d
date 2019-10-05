@@ -32,7 +32,7 @@ func (r *Ray) Collision(t *Triangle) (bool, float64) {
 		v1.Y, v2.Y, r.Direction.Y,
 		v1.Z, v2.Z, r.Direction.Z,
 	}
-	if math.Abs(matrix.Det()) < 1e-8*v1.Norm()*v2.Norm()*r.Direction.Norm() {
+	if math.Abs(matrix.Det()) < 1e-8*t.Area()*r.Direction.Norm() {
 		return false, 0
 	}
 	result := matrix.Inverse().MulColumn(r.Origin.Add(t[0].Scale(-1)))
