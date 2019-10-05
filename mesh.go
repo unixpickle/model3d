@@ -128,15 +128,19 @@ func (m *Mesh) Remove(t *Triangle) {
 		return
 	}
 	for _, p := range t {
-		s := m.vertexToTriangle[p]
-		for i, t1 := range s {
-			if t1 == t {
-				essentials.UnorderedDelete(&s, i)
-				break
-			}
-		}
-		m.vertexToTriangle[p] = s
+		m.removeTriangleFromVertex(t, p)
 	}
+}
+
+func (m *Mesh) removeTriangleFromVertex(t *Triangle, p Coord3D) {
+	s := m.vertexToTriangle[p]
+	for i, t1 := range s {
+		if t1 == t {
+			essentials.UnorderedDelete(&s, i)
+			break
+		}
+	}
+	m.vertexToTriangle[p] = s
 }
 
 // Iterate calls f for every triangle in m in an arbitrary

@@ -1,6 +1,8 @@
 package model3d
 
-import "math"
+import (
+	"math"
+)
 
 // Blur creates a new mesh by moving every vertex closer
 // to its connected vertices.
@@ -205,8 +207,7 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 			if !canEliminateSegment(result, segment) || !f(result, segment) {
 				continue
 			}
-			neighbors := neighborsForSegment(result, segment)
-			eliminateSegment(result, segment, neighbors, remainingSegments, &segments)
+			eliminateSegment(result, segment, remainingSegments, &segments)
 			changed = true
 		}
 	}
@@ -236,21 +237,13 @@ func (m *Mesh) EliminateCoplanar(epsilon float64) *Mesh {
 	})
 }
 
-func neighborsForSegment(m *Mesh, segment Segment) map[*Triangle]int {
-	v2t := m.getVertexToTriangle()
-	neighbors1 := v2t[segment[0]]
-	neighbors2 := v2t[segment[1]]
-	neighbors := make(map[*Triangle]int, len(neighbors1)+len(neighbors2))
-	for _, neighbor := range neighbors1 {
-		neighbors[neighbor]++
-	}
-	for _, neighbor := range neighbors2 {
-		neighbors[neighbor]++
-	}
-	return neighbors
-}
-
 func canEliminateSegment(m *Mesh, seg Segment) bool {
+	// Segment removal must not leave either point
+	// from the segment in the mesh.
+	if seg[0] == seg[1] {
+		return false
+	}
+
 	v2t := m.getVertexToTriangle()
 	neighbors1 := v2t[seg[0]]
 	neighbors2 := v2t[seg[1]]
@@ -287,30 +280,52 @@ func canEliminateSegment(m *Mesh, seg Segment) bool {
 	return true
 }
 
-func eliminateSegment(m *Mesh, segment Segment, neighbors map[*Triangle]int,
-	remaining map[Segment]bool, allSegments *[]Segment) {
+func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool,
+	allSegments *[]Segment) {
 	mp := segment.Mid()
-	for neighbor, count := range neighbors {
-		m.Remove(neighbor)
-		for _, seg := range neighbor.Segments() {
-			if seg[0] == segment[0] || seg[0] == segment[1] || seg[1] == segment[0] ||
-				seg[1] == segment[1] {
-				delete(remaining, seg)
+	v2t := m.getVertexToTriangle()
+	newNeighbors := []*Triangle{}
+	for i, segmentPoint := range segment {
+		for _, neighbor := range v2t[segmentPoint] {
+			var removedSegs int
+			for _, seg := range neighbor.Segments() {
+				if seg[0] == segment[0] || seg[0] == segment[1] || seg[1] == segment[0] ||
+					seg[1] == segment[1] {
+					delete(remaining, seg)
+					removedSegs++
+				}
 			}
-		}
-		if count != 1 {
-			continue
-		}
-		for i, p := range neighbor {
-			if p == segment[0] || p == segment[1] {
-				neighbor[i] = mp
-				seg1 := NewSegment(mp, neighbor[(i+1)%3])
-				seg2 := NewSegment(mp, neighbor[(i+2)%3])
-				remaining[seg1] = true
-				remaining[seg2] = true
-				*allSegments = append(*allSegments, seg1, seg2)
+
+			if removedSegs == 3 {
+				if i == 0 {
+					// This triangle contains the segment,
+					// so it must be fully removed.
+					delete(m.triangles, neighbor)
+					for _, p := range neighbor {
+						if p != segment[0] && p != segment[1] {
+							m.removeTriangleFromVertex(neighbor, p)
+							break
+						}
+					}
+				}
+				continue
 			}
+
+			for i, p := range neighbor {
+				if p == segment[0] || p == segment[1] {
+					neighbor[i] = mp
+					seg1 := NewSegment(mp, neighbor[(i+1)%3])
+					seg2 := NewSegment(mp, neighbor[(i+2)%3])
+					remaining[seg1] = true
+					remaining[seg2] = true
+					*allSegments = append(*allSegments, seg1, seg2)
+					break
+				}
+			}
+
+			newNeighbors = append(newNeighbors, neighbor)
+			delete(v2t, segmentPoint)
 		}
-		m.Add(neighbor)
 	}
+	v2t[mp] = newNeighbors
 }
