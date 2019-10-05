@@ -1,49 +1,42 @@
 package main
 
 import (
-	"image"
 	_ "image/gif"
 	"io/ioutil"
+	"log"
 	"math"
-	"os"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
 
 const (
-	SquareSize           = 0.5
-	SquareDepth          = 0.1
-	SquarePoleLength     = 0.15
-	SquarePoleRadius     = 0.05
-	SquareHolderFraction = 0.7
+	SquareSize       = 0.5
+	SquareDepth      = 0.1
+	SquarePoleLength = 0.18
+	SquarePoleRadius = 0.05
+	SquareHolderSize = 0.25
+	SquareResolution = 10
 
-	SquareResolution = 100
-)
-
-const (
 	BoardBorder         = 0.3
-	BoardThickness      = SquareDepth*2 + SquarePoleLength + 0.3
 	BoardInnerThickness = 0.1
-	BoardSpacing        = 0.025
-	BoardPoleSpace      = SquarePoleRadius + 0.02
+	BoardSpacing        = 0.04
+
+	PartSpacing = 0.04
 )
 
-const MinSpacing = 0.012
+const MinSpacing = 0.03
 
 var DefaultColor = [3]float64{0.039, 0.729, 0.71}
 
 func main() {
+	log.Println("Creating board mesh...")
 	puzzle := CreateBoard()
+	log.Println("Creating piece mesh...")
 	square := CreateSquare()
 
+	log.Println("Combining meshes...")
 	borderCollider := model3d.MeshToCollider(puzzle)
-
-	r, err := os.Open("image.gif")
-	essentials.Must(err)
-	image, _, err := image.Decode(r)
-	r.Close()
-	essentials.Must(err)
 
 	for i := 0; i < 4; i++ {
 		xDelta := float64(i+1)*BoardSpacing + float64(i)*SquareSize
@@ -56,7 +49,7 @@ func main() {
 			piece := square.MapCoords(delta.Add)
 
 			// Make sure the piece isn't too close to the border
-			// or it might fuse with it during printing.
+			// or they might fuse together during printing.
 			piece.Iterate(func(t *model3d.Triangle) {
 				for _, p := range t {
 					ray := &model3d.Ray{
@@ -74,21 +67,7 @@ func main() {
 		}
 	}
 
-	colorFunc := func(t *model3d.Triangle) [3]float64 {
-		if t[0].Z > SquarePoleLength/2 {
-			size := SquareSize*4 + BoardSpacing*3
-			x := int(math.Round(float64(image.Bounds().Dx()) * (t[0].X - BoardSpacing) / size))
-			y := int(math.Round(float64(image.Bounds().Dy()) * (t[0].Y - BoardSpacing) / size))
-			if x < 0 || y < 0 || x >= image.Bounds().Dx() || y >= image.Bounds().Dy() {
-				return DefaultColor
-			}
-			r, g, b, _ := image.At(x, y).RGBA()
-			return [3]float64{float64(r) / 0xffff, float64(g) / 0xffff, float64(b) / 0xffff}
-		}
-		return DefaultColor
-	}
-
-	ioutil.WriteFile("puzzle.zip", puzzle.EncodeMaterialOBJ(colorFunc), 0755)
+	ioutil.WriteFile("puzzle.stl", puzzle.EncodeSTL(), 0755)
 }
 
 func CreateSquare() *model3d.Mesh {
@@ -113,8 +92,9 @@ func CreateSquare() *model3d.Mesh {
 			// Create bottom face as well.
 			for _, p := range []*model3d.Coord3D{&p1, &p2, &p3, &p4} {
 				p.Z -= SquareDepth*2 + SquarePoleLength
-				p.X = SquareSize/2 + (p.X-SquareSize/2)*SquareHolderFraction
-				p.Y = SquareSize/2 + (p.Y-SquareSize/2)*SquareHolderFraction
+				frac := SquareHolderSize / SquareSize
+				p.X = SquareSize/2 + (p.X-SquareSize/2)*frac
+				p.Y = SquareSize/2 + (p.Y-SquareSize/2)*frac
 			}
 			m.Add(&model3d.Triangle{p1, p3, p2})
 			m.Add(&model3d.Triangle{p1, p4, p3})
@@ -185,20 +165,24 @@ func CreateSquare() *model3d.Mesh {
 }
 
 func CreateBoard() *model3d.Mesh {
-	return model3d.SolidToMesh(BoardSolid{}, 0.05, 2, 0, 0)
+	return model3d.SolidToMesh(BoardSolid{}, 0.05, 3, 0, 0).EliminateCoplanar(1e-8)
 }
 
 type BoardSolid struct{}
 
 func (b BoardSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -BoardBorder, Y: -BoardBorder, Z: -BoardThickness / 2}
+	return model3d.Coord3D{
+		X: -BoardBorder,
+		Y: -BoardBorder,
+		Z: -(SquarePoleLength/2 + SquareDepth + PartSpacing + BoardInnerThickness),
+	}
 }
 
 func (b BoardSolid) Max() model3d.Coord3D {
 	return model3d.Coord3D{
 		X: BoardBorder + BoardSpacing*5 + SquareSize*4,
 		Y: BoardBorder + BoardSpacing*5 + SquareSize*4,
-		Z: SquareDepth + SquarePoleLength,
+		Z: SquareDepth + SquarePoleLength/2,
 	}
 }
 
@@ -213,15 +197,15 @@ func (b BoardSolid) Contains(p model3d.Coord3D) bool {
 		return true
 	}
 
-	if p.Z < -BoardThickness/2+BoardInnerThickness {
+	if p.Z < min.Z+BoardInnerThickness {
 		return true
 	}
 
 	for i := 0; i < 4; i++ {
 		x := float64(i)*SquareSize + float64(i+1)*BoardSpacing + SquareSize/2
-		radius := BoardPoleSpace
+		radius := SquarePoleRadius + PartSpacing
 		if p.Z < -BoardInnerThickness/2 {
-			radius = (BoardPoleSpace+SquareSize)/2 - 0.05
+			radius += (SquareSize - SquareHolderSize) / 2
 		}
 		if p.X > x-radius && p.X < x+radius {
 			return false
