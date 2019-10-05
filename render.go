@@ -3,8 +3,12 @@ package model3d
 import (
 	"image"
 	"image/color"
+	"image/png"
 	"math"
 	"math/rand"
+	"os"
+
+	"github.com/pkg/errors"
 )
 
 // RenderRayCast renders a Collider as a grayscale image
@@ -88,4 +92,19 @@ func RenderRandomGrid(c Collider, rows, cols, thumbWidth, thumbHeight int) *imag
 	}
 
 	return output
+}
+
+// SaveRandomGrid is like RenderRandomGrid, except that it
+// saves the result to a PNG file.
+func SaveRandomGrid(outFile string, c Collider, rows, cols, thumbWidth, thumbHeight int) error {
+	img := RenderRandomGrid(c, rows, cols, thumbWidth, thumbHeight)
+	f, err := os.Create(outFile)
+	if err != nil {
+		return errors.Wrap(err, "save random grid")
+	}
+	defer f.Close()
+	if err := png.Encode(f, img); err != nil {
+		return errors.Wrap(err, "save random grid")
+	}
+	return nil
 }
