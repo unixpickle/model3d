@@ -21,12 +21,14 @@ const (
 
 func main() {
 	var outFile string
+	var renderFile string
 	var minHeight float64
 	var maxHeight float64
 	var radius float64
 	var template string
 
 	flag.StringVar(&outFile, "out", "coin.stl", "output file name")
+	flag.StringVar(&renderFile, "render", "rendering.png", "rendered output file name")
 	flag.Float64Var(&minHeight, "min-height", 0.1, "minimum height")
 	flag.Float64Var(&maxHeight, "max-height", 0.13, "maximum height")
 	flag.Float64Var(&radius, "radius", 0.5, "radius of coin")
@@ -53,6 +55,7 @@ func main() {
 	FillVolume(m)
 
 	essentials.Must(ioutil.WriteFile(outFile, m.EncodeSTL(), 0755))
+	essentials.Must(model3d.SaveRandomGrid(renderFile, model3d.MeshToCollider(m), 4, 4, 200, 200))
 }
 
 func CreateRoundMesh(h *HeightFunc, radius float64) *model3d.Mesh {
@@ -63,8 +66,8 @@ func CreateRoundMesh(h *HeightFunc, radius float64) *model3d.Mesh {
 		nextTheta := 2 * math.Pi * float64((i+1)%NumSlices) / NumSlices
 		m.Add(&model3d.Triangle{
 			model3d.Coord3D{X: 0, Y: 0, Z: midHeight},
-			h.Coord(nextTheta, 1, radius),
 			h.Coord(theta, 1, radius),
+			h.Coord(nextTheta, 1, radius),
 		})
 	}
 	return m
