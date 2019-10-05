@@ -248,7 +248,7 @@ func canEliminateSegment(m *Mesh, seg Segment) bool {
 	neighbors1 := v2t[seg[0]]
 	neighbors2 := v2t[seg[1]]
 	otherSegs := make([]Segment, 0, len(neighbors1)+len(neighbors2))
-	for _, neighbors := range [][]*Triangle{neighbors1, neighbors2} {
+	for i, neighbors := range [][]*Triangle{neighbors1, neighbors2} {
 		for _, t := range neighbors {
 			p1, p2 := t[0], t[1]
 			if p1 == seg[0] || p1 == seg[1] {
@@ -262,10 +262,12 @@ func canEliminateSegment(m *Mesh, seg Segment) bool {
 				continue
 			}
 			otherSeg := NewSegment(p1, p2)
-			for _, s := range otherSegs {
-				if s == otherSeg {
-					// Two triangles will become duplicates.
-					return false
+			if i == 1 {
+				for _, s := range otherSegs {
+					if s == otherSeg {
+						// Two triangles will become duplicates.
+						return false
+					}
 				}
 			}
 			otherSegs = append(otherSegs, otherSeg)
