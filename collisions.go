@@ -25,12 +25,14 @@ type Ray struct {
 // If it is negative, it means the triangle is behind the
 // ray.
 func (r *Ray) Collision(t *Triangle) (bool, float64) {
+	v1 := t[1].Add(t[0].Scale(-1))
+	v2 := t[2].Add(t[0].Scale(-1))
 	matrix := Matrix3{
-		t[1].X - t[0].X, t[2].X - t[0].X, r.Direction.X,
-		t[1].Y - t[0].Y, t[2].Y - t[0].Y, r.Direction.Y,
-		t[1].Z - t[0].Z, t[2].Z - t[0].Z, r.Direction.Z,
+		v1.X, v2.X, r.Direction.X,
+		v1.Y, v2.Y, r.Direction.Y,
+		v1.Z, v2.Z, r.Direction.Z,
 	}
-	if math.Abs(matrix.Det()) < 1e-8 {
+	if math.Abs(matrix.Det()) < 1e-8*v1.Norm()*v2.Norm()*r.Direction.Norm() {
 		return false, 0
 	}
 	result := matrix.Inverse().MulColumn(r.Origin.Add(t[0].Scale(-1)))
