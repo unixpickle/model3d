@@ -97,8 +97,9 @@ func subdivideSingle(mesh *Mesh, t *Triangle, splitSeg Segment, midpoint Coord3D
 			p3 = t[2]
 		}
 	}
-	replaceTriangle(mesh, t, &Triangle{splitSeg[0], midpoint, p3},
-		&Triangle{p3, midpoint, splitSeg[1]})
+	replaceTriangle(mesh, t,
+		&Triangle{splitSeg[0], splitSeg.Mid(), p3}, &Triangle{splitSeg[0], midpoint, p3},
+		&Triangle{p3, splitSeg.Mid(), splitSeg[1]}, &Triangle{p3, midpoint, splitSeg[1]})
 }
 
 func subdivideDouble(mesh *Mesh, t *Triangle, seg1, seg2 Segment,
@@ -107,28 +108,37 @@ func subdivideDouble(mesh *Mesh, t *Triangle, seg1, seg2 Segment,
 	mp2 := midpoints[seg2]
 	shared := seg1.union(seg2)
 	unshared1, unshared2 := seg1.inverseUnion(seg2)
-	replaceTriangle(mesh, t, &Triangle{shared, mp1, mp2},
-		&Triangle{mp1, mp2, unshared1},
-		&Triangle{unshared1, unshared2, mp2})
+	replaceTriangle(mesh, t,
+		&Triangle{shared, seg1.Mid(), seg2.Mid()}, &Triangle{shared, mp1, mp2},
+		&Triangle{seg1.Mid(), seg2.Mid(), unshared1}, &Triangle{mp1, mp2, unshared1},
+		&Triangle{unshared1, unshared2, seg2.Mid()}, &Triangle{unshared1, unshared2, mp2})
 }
 
 func subdivideTriple(mesh *Mesh, t *Triangle, midpoints map[Segment]Coord3D) {
-	mp1 := midpoints[NewSegment(t[0], t[1])]
-	mp2 := midpoints[NewSegment(t[1], t[2])]
-	mp3 := midpoints[NewSegment(t[2], t[0])]
-	replaceTriangle(mesh, t, &Triangle{mp1, t[1], mp2},
-		&Triangle{mp2, t[2], mp3},
-		&Triangle{mp3, t[0], mp1},
-		&Triangle{mp1, mp2, mp3})
+	seg1 := NewSegment(t[0], t[1])
+	seg2 := NewSegment(t[1], t[2])
+	seg3 := NewSegment(t[2], t[0])
+	mp1 := midpoints[seg1]
+	mp2 := midpoints[seg2]
+	mp3 := midpoints[seg3]
+	replaceTriangle(mesh, t,
+		&Triangle{seg1.Mid(), t[1], seg3.Mid()}, &Triangle{mp1, t[1], mp2},
+		&Triangle{seg2.Mid(), t[2], seg3.Mid()}, &Triangle{mp2, t[2], mp3},
+		&Triangle{seg3.Mid(), t[0], seg1.Mid()}, &Triangle{mp3, t[0], mp1},
+		&Triangle{seg1.Mid(), seg2.Mid(), seg3.Mid()}, &Triangle{mp1, mp2, mp3})
 }
 
 func replaceTriangle(mesh *Mesh, original *Triangle, ts ...*Triangle) {
+	if len(ts)%2 != 0 {
+		panic("must pass each sub-divided triangle followed by the new triangle")
+	}
 	mesh.Remove(original)
 
 	norm := original.Normal()
-	for _, t := range ts {
+	for i := 0; i < len(ts); i += 2 {
+		t := ts[i+1]
 		// Make sure the triangle is facing the same way.
-		if t.Normal().Dot(norm) < 0 {
+		if ts[i].Normal().Dot(norm) < 0 {
 			t[1], t[2] = t[2], t[1]
 		}
 		mesh.Add(t)
