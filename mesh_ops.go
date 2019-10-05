@@ -197,7 +197,8 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 		for segment := range remainingSegments {
 			segments = append(segments, segment)
 		}
-		for _, segment := range segments {
+		for i := 0; i < len(segments); i++ {
+			segment := segments[i]
 			if !remainingSegments[segment] {
 				continue
 			}
@@ -205,7 +206,7 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 			if !canEliminate(segment, neighbors) || !f(result, segment) {
 				continue
 			}
-			eliminateSegment(result, segment, neighbors, remainingSegments)
+			eliminateSegment(result, segment, neighbors, remainingSegments, &segments)
 			changed = true
 		}
 	}
@@ -278,12 +279,15 @@ func canEliminate(seg Segment, tris map[*Triangle]int) bool {
 }
 
 func eliminateSegment(m *Mesh, segment Segment, neighbors map[*Triangle]int,
-	remaining map[Segment]bool) {
+	remaining map[Segment]bool, allSegments *[]Segment) {
 	mp := segment.Mid()
 	for neighbor, count := range neighbors {
 		m.Remove(neighbor)
 		for _, seg := range neighbor.Segments() {
-			delete(remaining, seg)
+			if seg[0] == segment[0] || seg[0] == segment[1] || seg[1] == segment[0] ||
+				seg[1] == segment[1] {
+				delete(remaining, seg)
+			}
 		}
 		if count != 1 {
 			continue
@@ -291,11 +295,13 @@ func eliminateSegment(m *Mesh, segment Segment, neighbors map[*Triangle]int,
 		for i, p := range neighbor {
 			if p == segment[0] || p == segment[1] {
 				neighbor[i] = mp
+				seg1 := NewSegment(mp, neighbor[(i+1)%3])
+				seg2 := NewSegment(mp, neighbor[(i+2)%3])
+				remaining[seg1] = true
+				remaining[seg2] = true
+				*allSegments = append(*allSegments, seg1, seg2)
 			}
 		}
 		m.Add(neighbor)
-		for _, seg := range neighbor.Segments() {
-			remaining[seg] = true
-		}
 	}
 }
