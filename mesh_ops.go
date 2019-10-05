@@ -202,10 +202,10 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 			if !remainingSegments[segment] {
 				continue
 			}
-			neighbors := neighborsForSegment(result, segment)
-			if !canEliminate(segment, neighbors) || !f(result, segment) {
+			if !canEliminateSegment(result, segment) || !f(result, segment) {
 				continue
 			}
+			neighbors := neighborsForSegment(result, segment)
 			eliminateSegment(result, segment, neighbors, remainingSegments, &segments)
 			changed = true
 		}
@@ -237,42 +237,51 @@ func (m *Mesh) EliminateCoplanar(epsilon float64) *Mesh {
 }
 
 func neighborsForSegment(m *Mesh, segment Segment) map[*Triangle]int {
-	neighbors := map[*Triangle]int{}
-	for _, p := range segment {
-		for _, neighbor := range m.getVertexToTriangle()[p] {
-			neighbors[neighbor]++
-		}
+	v2t := m.getVertexToTriangle()
+	neighbors1 := v2t[segment[0]]
+	neighbors2 := v2t[segment[1]]
+	neighbors := make(map[*Triangle]int, len(neighbors1)+len(neighbors2))
+	for _, neighbor := range neighbors1 {
+		neighbors[neighbor]++
+	}
+	for _, neighbor := range neighbors2 {
+		neighbors[neighbor]++
 	}
 	return neighbors
 }
 
-func canEliminate(seg Segment, tris map[*Triangle]int) bool {
-	otherSegs := map[Segment]bool{}
-	for t, count := range tris {
-		if count != 1 {
-			continue
-		}
-		t1 := *t
-		for i, p := range t {
-			if p == seg[0] {
-				t1[i] = seg[1]
-			} else if p == seg[1] {
-				t1[i] = seg[0]
+func canEliminateSegment(m *Mesh, seg Segment) bool {
+	v2t := m.getVertexToTriangle()
+	neighbors1 := v2t[seg[0]]
+	neighbors2 := v2t[seg[1]]
+	otherSegs := make([]Segment, 0, len(neighbors1)+len(neighbors2))
+	for _, neighbors := range [][]*Triangle{neighbors1, neighbors2} {
+		for _, t := range neighbors {
+			p1, p2 := t[0], t[1]
+			if p1 == seg[0] || p1 == seg[1] {
+				p1, p2 = p2, t[2]
+			} else if p2 == seg[0] || p2 == seg[1] {
+				p2 = t[2]
 			}
-		}
-		p1, p2 := t[0], t[1]
-		if p1 == seg[0] || p1 == seg[1] {
-			p1 = t[2]
-		} else if p2 == seg[0] || p2 == seg[1] {
-			p2 = t[2]
-		}
-		otherSeg := NewSegment(p1, p2)
-		if otherSegs[otherSeg] {
-			return false
-		}
-		otherSegs[otherSeg] = true
-		if t1.Normal().Dot(t.Normal()) < 0 {
-			return false
+			if p2 == seg[0] || p2 == seg[1] {
+				// This triangle contains the segment and
+				// will definitely be eliminated.
+				continue
+			}
+			otherSeg := NewSegment(p1, p2)
+			for _, s := range otherSegs {
+				if s == otherSeg {
+					// Two triangles will become duplicates.
+					return false
+				}
+			}
+			otherSegs = append(otherSegs, otherSeg)
+
+			t1 := Triangle{p1, p2, seg[0]}
+			t2 := Triangle{p1, p2, seg[1]}
+			if t1.Normal().Dot(t2.Normal()) < 0 {
+				return false
+			}
 		}
 	}
 	return true
