@@ -60,12 +60,7 @@ func CreateRoundMesh(h *HeightFunc, radius float64) *model3d.Mesh {
 	midHeight := h.Height(0, 0)
 	for i := 0; i < NumSlices; i++ {
 		theta := 2 * math.Pi * float64(i) / NumSlices
-		nextTheta := 2 * math.Pi * float64(i+1) / NumSlices
-		if i+1 == NumSlices {
-			// To ensure that the final slice meets up
-			// with the first slice, despite rounding.
-			nextTheta = 0
-		}
+		nextTheta := 2 * math.Pi * float64((i+1)%NumSlices) / NumSlices
 		m.Add(&model3d.Triangle{
 			model3d.Coord3D{X: 0, Y: 0, Z: midHeight},
 			h.Coord(nextTheta, 1, radius),
