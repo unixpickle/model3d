@@ -201,39 +201,12 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 			if !remainingSegments[segment] {
 				continue
 			}
-			neighbors := map[*Triangle]int{}
-			for _, p := range segment {
-				for _, neighbor := range result.getVertexToTriangle()[p] {
-					neighbors[neighbor]++
-				}
-			}
-
+			neighbors := neighborsForSegment(result, segment)
 			if !canEliminate(segment, neighbors) || !f(result, segment) {
 				continue
 			}
-
+			eliminateSegment(result, segment, neighbors, remainingSegments)
 			changed = true
-
-			mp := segment.Mid()
-
-			for neighbor, count := range neighbors {
-				result.Remove(neighbor)
-				for _, seg := range neighbor.Segments() {
-					delete(remainingSegments, seg)
-				}
-				if count != 1 {
-					continue
-				}
-				for i, p := range neighbor {
-					if p == segment[0] || p == segment[1] {
-						neighbor[i] = mp
-					}
-				}
-				result.Add(neighbor)
-				for _, seg := range neighbor.Segments() {
-					remainingSegments[seg] = true
-				}
-			}
 		}
 	}
 	return result
@@ -262,6 +235,16 @@ func (m *Mesh) EliminateCoplanar(epsilon float64) *Mesh {
 	})
 }
 
+func neighborsForSegment(m *Mesh, segment Segment) map[*Triangle]int {
+	neighbors := map[*Triangle]int{}
+	for _, p := range segment {
+		for _, neighbor := range m.getVertexToTriangle()[p] {
+			neighbors[neighbor]++
+		}
+	}
+	return neighbors
+}
+
 func canEliminate(seg Segment, tris map[*Triangle]int) bool {
 	for t, count := range tris {
 		if count != 1 {
@@ -280,4 +263,27 @@ func canEliminate(seg Segment, tris map[*Triangle]int) bool {
 		}
 	}
 	return true
+}
+
+func eliminateSegment(m *Mesh, segment Segment, neighbors map[*Triangle]int,
+	remaining map[Segment]bool) {
+	mp := segment.Mid()
+	for neighbor, count := range neighbors {
+		m.Remove(neighbor)
+		for _, seg := range neighbor.Segments() {
+			delete(remaining, seg)
+		}
+		if count != 1 {
+			continue
+		}
+		for i, p := range neighbor {
+			if p == segment[0] || p == segment[1] {
+				neighbor[i] = mp
+			}
+		}
+		m.Add(neighbor)
+		for _, seg := range neighbor.Segments() {
+			remaining[seg] = true
+		}
+	}
 }
