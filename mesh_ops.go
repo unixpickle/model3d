@@ -195,19 +195,16 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 	changed := true
 	for changed && len(remainingSegments) > 0 {
 		changed = false
-		segments := make([]Segment, 0, len(remainingSegments))
-		for segment := range remainingSegments {
-			segments = append(segments, segment)
-		}
-		for i := 0; i < len(segments); i++ {
-			segment := segments[i]
+		queue := newSegmentRingQueue(remainingSegments)
+		for !queue.Empty() {
+			segment := queue.Pop()
 			if !remainingSegments[segment] {
 				continue
 			}
 			if !canEliminateSegment(result, segment) || !f(result, segment) {
 				continue
 			}
-			eliminateSegment(result, segment, remainingSegments, &segments)
+			eliminateSegment(result, segment, remainingSegments, queue)
 			changed = true
 		}
 	}
@@ -283,7 +280,7 @@ func canEliminateSegment(m *Mesh, seg Segment) bool {
 }
 
 func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool,
-	allSegments *[]Segment) {
+	allSegments *segmentRingQueue) {
 	mp := segment.Mid()
 	v2t := m.getVertexToTriangle()
 	newNeighbors := []*Triangle{}
@@ -320,7 +317,8 @@ func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool,
 					seg2 := NewSegment(mp, neighbor[(i+2)%3])
 					remaining[seg1] = true
 					remaining[seg2] = true
-					*allSegments = append(*allSegments, seg1, seg2)
+					allSegments.Push(seg1)
+					allSegments.Push(seg2)
 					break
 				}
 			}
@@ -330,4 +328,54 @@ func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool,
 		}
 	}
 	v2t[mp] = newNeighbors
+}
+
+type segmentRingQueue struct {
+	segments []Segment
+	index    int
+	length   int
+}
+
+func newSegmentRingQueue(set map[Segment]bool) *segmentRingQueue {
+	res := &segmentRingQueue{
+		segments: make([]Segment, 0, len(set)),
+		length:   len(set),
+	}
+	for x := range set {
+		res.segments = append(res.segments, x)
+	}
+	return res
+}
+
+func (s *segmentRingQueue) Empty() bool {
+	return s.length == 0
+}
+
+func (s *segmentRingQueue) Pop() Segment {
+	if s.length == 0 {
+		panic("pop from empty queue")
+	}
+	result := s.segments[s.index]
+	s.length -= 1
+	s.index++
+	if s.index == len(s.segments) {
+		s.index = 0
+	}
+	return result
+}
+
+func (s *segmentRingQueue) Push(seg Segment) {
+	if s.length == len(s.segments) {
+		newSegs := make([]Segment, s.length*2)
+		copy(newSegs, s.segments[s.index:])
+		copy(newSegs[s.length-s.index:], s.segments[:s.index])
+		s.segments = newSegs
+	}
+
+	endIdx := s.index + s.length
+	if endIdx >= len(s.segments) {
+		endIdx -= len(s.segments)
+	}
+	s.segments[endIdx] = seg
+	s.length++
 }
