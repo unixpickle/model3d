@@ -184,27 +184,30 @@ type equivalenceClass struct {
 // removed.
 func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 	result := NewMesh()
-	remainingSegments := map[Segment]bool{}
 	m.Iterate(func(t *Triangle) {
 		t1 := *t
 		result.Add(&t1)
-		for _, seg := range t.Segments() {
-			remainingSegments[seg] = true
-		}
 	})
 	changed := true
-	for changed && len(remainingSegments) > 0 {
+	for changed {
 		changed = false
-		queue := newSegmentRingQueue(remainingSegments)
-		for !queue.Empty() {
-			segment := queue.Pop()
-			if !remainingSegments[segment] {
-				continue
+		remainingSegments := map[Segment]bool{}
+		result.Iterate(func(t *Triangle) {
+			for _, seg := range t.Segments() {
+				remainingSegments[seg] = true
+			}
+		})
+		for len(remainingSegments) > 0 {
+			var segment Segment
+			for seg := range remainingSegments {
+				segment = seg
+				delete(remainingSegments, seg)
+				break
 			}
 			if !canEliminateSegment(result, segment) || !f(result, segment) {
 				continue
 			}
-			eliminateSegment(result, segment, remainingSegments, queue)
+			eliminateSegment(result, segment, remainingSegments)
 			changed = true
 		}
 	}
@@ -279,8 +282,7 @@ func canEliminateSegment(m *Mesh, seg Segment) bool {
 	return true
 }
 
-func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool,
-	allSegments *segmentRingQueue) {
+func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool) {
 	mp := segment.Mid()
 	v2t := m.getVertexToTriangle()
 	newNeighbors := []*Triangle{}
@@ -317,8 +319,6 @@ func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool,
 					seg2 := NewSegment(mp, neighbor[(i+2)%3])
 					remaining[seg1] = true
 					remaining[seg2] = true
-					allSegments.Push(seg1)
-					allSegments.Push(seg2)
 					break
 				}
 			}
@@ -328,54 +328,4 @@ func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool,
 		}
 	}
 	v2t[mp] = newNeighbors
-}
-
-type segmentRingQueue struct {
-	segments []Segment
-	index    int
-	length   int
-}
-
-func newSegmentRingQueue(set map[Segment]bool) *segmentRingQueue {
-	res := &segmentRingQueue{
-		segments: make([]Segment, 0, len(set)),
-		length:   len(set),
-	}
-	for x := range set {
-		res.segments = append(res.segments, x)
-	}
-	return res
-}
-
-func (s *segmentRingQueue) Empty() bool {
-	return s.length == 0
-}
-
-func (s *segmentRingQueue) Pop() Segment {
-	if s.length == 0 {
-		panic("pop from empty queue")
-	}
-	result := s.segments[s.index]
-	s.length -= 1
-	s.index++
-	if s.index == len(s.segments) {
-		s.index = 0
-	}
-	return result
-}
-
-func (s *segmentRingQueue) Push(seg Segment) {
-	if s.length == len(s.segments) {
-		newSegs := make([]Segment, s.length*2)
-		copy(newSegs, s.segments[s.index:])
-		copy(newSegs[s.length-s.index:], s.segments[:s.index])
-		s.segments = newSegs
-	}
-
-	endIdx := s.index + s.length
-	if endIdx >= len(s.segments) {
-		endIdx -= len(s.segments)
-	}
-	s.segments[endIdx] = seg
-	s.length++
 }
