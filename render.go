@@ -55,7 +55,7 @@ func RenderRandomGrid(c Collider, rows, cols, thumbWidth, thumbHeight int) *imag
 	min := c.Min()
 	max := c.Max()
 	center := max.Add(min).Scale(0.5)
-	diff := max.Add(min.Scale(-1))
+	diff := max.Sub(min)
 	radius := math.Sqrt(3) * math.Max(diff.X, math.Max(diff.Y, diff.Z)) / 2
 
 	output := image.NewGray(image.Rect(0, 0, cols*thumbWidth, rows*thumbHeight))
@@ -73,7 +73,7 @@ func RenderRandomGrid(c Collider, rows, cols, thumbWidth, thumbHeight int) *imag
 			// as the y and x axis.
 			geo := z.Scale(-1).Geo()
 			x := (GeoCoord{Lat: geo.Lat, Lon: geo.Lon + 1e-4}).Coord3D().Add(z)
-			y := (GeoCoord{Lat: geo.Lat + 1e-4, Lon: geo.Lon}).Coord3D().Add(z)
+			y := (GeoCoord{Lat: geo.Lat - 1e-4, Lon: geo.Lon}).Coord3D().Add(z)
 
 			// Ensure that we get non-nan axes which are
 			// truly orthogonal, even for the poles.
