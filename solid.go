@@ -63,9 +63,9 @@ func (c *CylinderSolid) Max() Coord3D {
 }
 
 func (c *CylinderSolid) Contains(p Coord3D) bool {
-	diff := c.P1.Add(c.P2.Scale(-1))
+	diff := c.P1.Sub(c.P2)
 	direction := diff.Scale(1 / diff.Norm())
-	frac := p.Add(c.P2.Scale(-1)).Dot(direction)
+	frac := p.Sub(c.P2).Dot(direction)
 	if frac < 0 || frac > diff.Norm() {
 		return false
 	}
@@ -97,7 +97,7 @@ func (t *TorusSolid) Max() Coord3D {
 
 func (t *TorusSolid) Contains(c Coord3D) bool {
 	b1, b2 := t.planarBasis()
-	centered := c.Add(t.Center.Scale(-1))
+	centered := c.Sub(t.Center)
 
 	// Compute the closest point on the ring around
 	// the center of the torus.
@@ -231,7 +231,7 @@ func NewColliderSolid(collider Collider) *ColliderSolid {
 func NewColliderSolidHollow(collider Collider, r float64) *ColliderSolid {
 	res := NewColliderSolid(collider)
 	p := Coord3D{r, r, r}
-	res.min = res.min.Add(p.Scale(-1))
+	res.min = res.min.Sub(p)
 	res.max = res.max.Add(p)
 	res.hollowRadius = r
 	return res

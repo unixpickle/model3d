@@ -75,6 +75,11 @@ func (c Coord2D) Add(c1 Coord2D) Coord2D {
 	}
 }
 
+// Sub computes c - c1.
+func (c Coord2D) Sub(c1 Coord2D) Coord2D {
+	return c.Add(c1.Scale(-1))
+}
+
 // Dist computes the Euclidean distance to c1.
 func (c Coord2D) Dist(c1 Coord2D) float64 {
 	return math.Sqrt(math.Pow(c.X-c1.X, 2) + math.Pow(c.Y-c1.Y, 2))
@@ -122,6 +127,11 @@ func (c Coord3D) Add(c1 Coord3D) Coord3D {
 		Y: c.Y + c1.Y,
 		Z: c.Z + c1.Z,
 	}
+}
+
+// Sub computes c - c1.
+func (c Coord3D) Sub(c1 Coord3D) Coord3D {
+	return c.Add(c1.Scale(-1))
 }
 
 // Dist computes the Euclidean distance to c1.

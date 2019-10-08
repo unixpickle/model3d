@@ -45,15 +45,15 @@ func TriangulateFace(polygon []Coord3D) []*Triangle {
 		panic("polygon needs at least three points")
 	}
 
-	basis1 := polygon[1].Add(polygon[0].Scale(-1))
+	basis1 := polygon[1].Sub(polygon[0])
 	basis1 = basis1.Scale(1 / basis1.Norm())
-	basis2 := polygon[2].Add(polygon[0].Scale(-1))
+	basis2 := polygon[2].Sub(polygon[0])
 	basis2 = basis2.Add(basis1.Scale(-basis1.Dot(basis2)))
 	basis2 = basis2.Scale(1 / basis2.Norm())
 
 	coords2D := make([]Coord2D, len(polygon))
 	for i, p := range polygon {
-		p1 := p.Add(polygon[0].Scale(-1))
+		p1 := p.Sub(polygon[0])
 		coords2D[i] = Coord2D{X: basis1.Dot(p1), Y: basis2.Dot(p1)}
 	}
 	triangles2D := Triangulate(coords2D)
@@ -90,7 +90,7 @@ func isVertexEar(polygon []Coord2D, vertex int) bool {
 		if i == idx1 || i == vertex || i == idx3 {
 			continue
 		}
-		coords := inverseMat.MulColumn(p.Add(p2.Scale(-1)))
+		coords := inverseMat.MulColumn(p.Sub(p2))
 		if coords.X > 0 && coords.Y > 0 && coords.X+coords.Y < 1 {
 			// Another point lies inside this triangle.
 			return false
@@ -114,8 +114,8 @@ func isPolygonClockwise(polygon []Coord2D) bool {
 }
 
 func clockwiseAngle(p1, p2, p3 Coord2D) float64 {
-	v1 := p1.Add(p2.Scale(-1))
-	v2 := p3.Add(p2.Scale(-1))
+	v1 := p1.Sub(p2)
+	v2 := p3.Sub(p2)
 	n1 := v1.Scale(1 / v1.Norm())
 	n2 := v2.Scale(1 / v2.Norm())
 	theta := math.Acos(n1.Dot(n2))

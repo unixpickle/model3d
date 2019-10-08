@@ -25,8 +25,8 @@ type Ray struct {
 // If it is negative, it means the triangle is behind the
 // ray.
 func (r *Ray) Collision(t *Triangle) (bool, float64) {
-	v1 := t[1].Add(t[0].Scale(-1))
-	v2 := t[2].Add(t[0].Scale(-1))
+	v1 := t[1].Sub(t[0])
+	v2 := t[2].Sub(t[0])
 	matrix := Matrix3{
 		v1.X, v2.X, r.Direction.X,
 		v1.Y, v2.Y, r.Direction.Y,
@@ -35,7 +35,7 @@ func (r *Ray) Collision(t *Triangle) (bool, float64) {
 	if math.Abs(matrix.Det()) < 1e-8*t.Area()*r.Direction.Norm() {
 		return false, 0
 	}
-	result := matrix.Inverse().MulColumn(r.Origin.Add(t[0].Scale(-1)))
+	result := matrix.Inverse().MulColumn(r.Origin.Sub(t[0]))
 	return result.X >= 0 && result.Y >= 0 && result.X+result.Y <= 1, -result.Z
 }
 
@@ -213,7 +213,7 @@ func (t *Triangle) SphereCollision(c Coord3D, r float64) bool {
 }
 
 func segmentEntersSphere(p1, p2, c Coord3D, r float64) bool {
-	v := p2.Add(p1.Scale(-1))
+	v := p2.Sub(p1)
 	frac := (c.Dot(v) - p1.Dot(v)) / v.Dot(v)
 	closest := p1.Add(v.Scale(frac))
 	return frac >= 0 && frac <= 1 && closest.Dist(c) < r

@@ -88,9 +88,9 @@ func TestTriangulateFace(t *testing.T) {
 }
 
 func triangle2DContains(tri [3]Coord2D, p Coord2D) bool {
-	v1 := tri[0].Add(tri[1].Scale(-1))
-	v2 := tri[2].Add(tri[1].Scale(-1))
+	v1 := tri[0].Sub(tri[1])
+	v2 := tri[2].Sub(tri[1])
 	mat := (&Matrix2{v1.X, v2.X, v1.Y, v2.Y}).Inverse()
-	coords := mat.MulColumn(p.Add(tri[1].Scale(-1)))
+	coords := mat.MulColumn(p.Sub(tri[1]))
 	return coords.X >= 0 && coords.Y >= 0 && coords.X+coords.Y <= 1
 }
