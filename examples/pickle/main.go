@@ -78,7 +78,21 @@ func (p *PickleFunction) CenterAt(y float64) float64 {
 
 func (p *PickleFunction) minMaxAt(y float64) (float64, float64) {
 	scale := float64(p.image.Bounds().Dy()) / PickleLength
-	idx := p.image.Bounds().Dy() - (int(math.Round(y*scale)) + 1)
+
+	// Perform linear interpolation between two y values.
+	idx1 := p.image.Bounds().Dy() - (int(math.Floor(y*scale)) + 1)
+	idx2 := p.image.Bounds().Dy() - (int(math.Ceil(y*scale)) + 1)
+	frac1 := math.Ceil(y*scale) - y*scale
+	frac2 := 1 - frac1
+	min1, max1 := p.getCache(idx1)
+	min2, max2 := p.getCache(idx2)
+	return min1*frac1 + min2*frac2, max1*frac1 + max2*frac2
+}
+
+func (p *PickleFunction) getCache(idx int) (float64, float64) {
+	if idx < 0 || idx >= p.image.Bounds().Dy() {
+		return 0, 0
+	}
 	if val, ok := p.cache[idx]; ok {
 		return val[0], val[1]
 	}
@@ -95,12 +109,13 @@ func (p *PickleFunction) minMaxAt(y float64) (float64, float64) {
 		}
 	}
 
+	scale := float64(p.image.Bounds().Dy()) / PickleLength
 	p.cache[idx] = [2]float64{
 		float64(min) / scale,
 		float64(max) / scale,
 	}
 
-	return p.minMaxAt(y)
+	return p.cache[idx][0], p.cache[idx][1]
 }
 
 type Inscription struct {
