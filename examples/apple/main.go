@@ -11,7 +11,7 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
-const AppleHeight = 1
+const AppleHeight = 1.0
 
 func main() {
 	r, err := os.Open("half_apple.png")
@@ -20,8 +20,29 @@ func main() {
 	img, err := png.Decode(r)
 	essentials.Must(err)
 
-	mesh := model3d.SolidToMesh(&AppleSolid{Image: img}, 0.025, 2, 0.8, 5)
-	ioutil.WriteFile("apple.stl", mesh.EncodeSTL(), 0755)
+	bite := &model3d.TorusSolid{
+		Center:      model3d.Coord3D{X: -1.5, Y: 0, Z: AppleHeight / 2},
+		Axis:        model3d.Coord3D{Z: 1},
+		OuterRadius: 1.0,
+		InnerRadius: 0.2,
+	}
+	biggerBite := *bite
+	biggerBite.InnerRadius = 0.21
+
+	solid := &model3d.SubtractedSolid{
+		Positive: &AppleSolid{Image: img},
+		Negative: bite,
+	}
+
+	mesh := model3d.SolidToMesh(solid, 0.025, 2, 0.8, 5)
+	colorFunc := func(t *model3d.Triangle) [3]float64 {
+		if biggerBite.Contains(t[0]) {
+			return [3]float64{1, 1, 0.5}
+		} else {
+			return [3]float64{1, 0, 0}
+		}
+	}
+	ioutil.WriteFile("apple.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
 }
 
 type AppleSolid struct {
