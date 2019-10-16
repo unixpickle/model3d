@@ -14,17 +14,11 @@ import (
 const AppleHeight = 1.0
 
 func main() {
-	r, err := os.Open("half_apple.png")
-	essentials.Must(err)
-	defer r.Close()
-	img, err := png.Decode(r)
-	essentials.Must(err)
-
 	bite := &model3d.TorusSolid{
-		Center:      model3d.Coord3D{X: -1.5, Y: 0, Z: AppleHeight / 2},
+		Center:      model3d.Coord3D{X: -1.7, Y: 0, Z: AppleHeight / 2},
 		Axis:        model3d.Coord3D{Z: 1},
 		OuterRadius: 1.0,
-		InnerRadius: 0.2,
+		InnerRadius: 0.3,
 	}
 	biggerBite := *bite
 	biggerBite.InnerRadius += 0.01
@@ -35,32 +29,48 @@ func main() {
 		Radius: AppleHeight / 30,
 	}
 	biggerStem := *stem
-	biggerStem.Radius += 0.01
-	biggerStem.P2.Z += 0.01
+	biggerStem.Radius += 0.005
+	biggerStem.P2.Z += 0.005
 
 	solid := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
-			&AppleSolid{Image: img},
+			NewAppleSolid(),
 			stem,
 		},
 		Negative: bite,
 	}
 
-	mesh := model3d.SolidToMesh(solid, 0.025, 2, 0.8, 5)
-	colorFunc := func(t *model3d.Triangle) [3]float64 {
-		if biggerBite.Contains(t[0]) {
+	mesh := model3d.SolidToMesh(solid, 0.025, 3, 0.8, 5)
+
+	sig := NewSignature()
+	vertexColor := func(c model3d.Coord3D) [3]float64 {
+		if biggerBite.Contains(c) {
+			if sig.Contains(c) {
+				return [3]float64{0, 0, 0}
+			}
 			return [3]float64{1, 1, 0.5}
-		} else if biggerStem.Contains(t[0]) {
-			return [3]float64{0.65, 0.2, 0.2}
+		} else if biggerStem.Contains(c) {
+			return [3]float64{0.27, 0.21, 0}
 		} else {
 			return [3]float64{1, 0, 0}
 		}
 	}
+	colorFunc := model3d.VertexColorsToTriangle(vertexColor)
+
 	ioutil.WriteFile("apple.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
 }
 
 type AppleSolid struct {
 	Image image.Image
+}
+
+func NewAppleSolid() *AppleSolid {
+	r, err := os.Open("half_apple.png")
+	essentials.Must(err)
+	defer r.Close()
+	img, err := png.Decode(r)
+	essentials.Must(err)
+	return &AppleSolid{Image: img}
 }
 
 func (a *AppleSolid) Min() model3d.Coord3D {
@@ -92,4 +102,32 @@ func (a *AppleSolid) scale() float64 {
 
 func (a *AppleSolid) width() float64 {
 	return AppleHeight * float64(a.Image.Bounds().Dx()) / float64(a.Image.Bounds().Dy())
+}
+
+type Signature struct {
+	Image image.Image
+}
+
+func NewSignature() *Signature {
+	r, err := os.Open("turing_signature.png")
+	essentials.Must(err)
+	defer r.Close()
+	img, err := png.Decode(r)
+	essentials.Must(err)
+	return &Signature{Image: img}
+}
+
+func (s *Signature) Contains(c model3d.Coord3D) bool {
+	if c.X > 0 {
+		return false
+	}
+	scale := float64(s.Image.Bounds().Dx()) / 0.5
+	imageX := s.Image.Bounds().Dx()/2 - int(math.Round(c.Y*scale))
+	imageY := s.Image.Bounds().Dy()/2 - int(math.Round((c.Z-AppleHeight/2-0.05)*scale))
+	if imageX < 0 || imageY < 0 || imageX >= s.Image.Bounds().Dx() ||
+		imageY >= s.Image.Bounds().Dy() {
+		return false
+	}
+	_, _, _, a := s.Image.At(imageX, imageY).RGBA()
+	return a > 0xffff/2
 }
