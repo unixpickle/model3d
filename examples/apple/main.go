@@ -27,10 +27,22 @@ func main() {
 		InnerRadius: 0.2,
 	}
 	biggerBite := *bite
-	biggerBite.InnerRadius = 0.21
+	biggerBite.InnerRadius += 0.01
+
+	stem := &model3d.CylinderSolid{
+		P1:     model3d.Coord3D{Z: AppleHeight / 2},
+		P2:     model3d.Coord3D{Z: AppleHeight * 1.1},
+		Radius: AppleHeight / 30,
+	}
+	biggerStem := *stem
+	biggerStem.Radius += 0.01
+	biggerStem.P2.Z += 0.01
 
 	solid := &model3d.SubtractedSolid{
-		Positive: &AppleSolid{Image: img},
+		Positive: model3d.JoinedSolid{
+			&AppleSolid{Image: img},
+			stem,
+		},
 		Negative: bite,
 	}
 
@@ -38,6 +50,8 @@ func main() {
 	colorFunc := func(t *model3d.Triangle) [3]float64 {
 		if biggerBite.Contains(t[0]) {
 			return [3]float64{1, 1, 0.5}
+		} else if biggerStem.Contains(t[0]) {
+			return [3]float64{0.65, 0.2, 0.2}
 		} else {
 			return [3]float64{1, 0, 0}
 		}
