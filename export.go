@@ -130,3 +130,19 @@ func EncodeMaterialOBJ(triangles []*Triangle, colorFunc func(t *Triangle) [3]flo
 	writer.Close()
 	return fullBuffer.Bytes()
 }
+
+// VertexColorsToTriangle creates a per-triangle color
+// function that averages the colors at each of the
+// vertices.
+func VertexColorsToTriangle(f func(c Coord3D) [3]float64) func(t *Triangle) [3]float64 {
+	return func(t *Triangle) [3]float64 {
+		var sum [3]float64
+		for _, c := range t {
+			color := f(c)
+			for i, x := range color {
+				sum[i] += x / 3
+			}
+		}
+		return sum
+	}
+}
