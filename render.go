@@ -17,8 +17,39 @@ import (
 // They go up to fov radians along the x and y directions
 // to produce the final image.
 func RenderRayCast(c Collider, output *image.Gray, origin, x, y, z Coord3D, fov float64) {
-	bounds := output.Bounds()
+	rayCastBounds(c, output.Bounds(), origin, x, y, z, fov,
+		func(x, y int, brightness float64, c Coord3D) {
+			if brightness == 0 {
+				output.SetGray(x, y, color.Gray{Y: 0})
+			} else {
+				grayness := uint8(math.Round(brightness * 0xff))
+				output.SetGray(x, y, color.Gray{Y: grayness})
+			}
+		})
+}
 
+// RenderRayCastColor is like RenderRayCast, but it uses a
+// color function to decide the color of each pixel.
+func RenderRayCastColor(c Collider, output *image.RGBA, origin, x, y, z Coord3D, fov float64,
+	f func(c Coord3D) [3]float64) {
+	rayCastBounds(c, output.Bounds(), origin, x, y, z, fov,
+		func(x, y int, brightness float64, c Coord3D) {
+			if brightness == 0 {
+				output.SetRGBA(x, y, color.RGBA{A: 0xff})
+			} else {
+				rgb := f(c)
+				output.SetRGBA(x, y, color.RGBA{
+					R: uint8(math.Round(rgb[0] * brightness * 0xff)),
+					G: uint8(math.Round(rgb[1] * brightness * 0xff)),
+					B: uint8(math.Round(rgb[2] * brightness * 0xff)),
+					A: 0xff,
+				})
+			}
+		})
+}
+
+func rayCastBounds(c Collider, bounds image.Rectangle, origin, x, y, z Coord3D, fov float64,
+	f func(x, y int, brightness float64, c Coord3D)) {
 	planeDistance := 1 / math.Tan(fov/2)
 
 	x = x.Scale(1 / x.Norm())
@@ -35,15 +66,13 @@ func RenderRayCast(c Collider, output *image.Gray, origin, x, y, z Coord3D, fov 
 		for j := 0; j < bounds.Dx(); j++ {
 			scaledX := x.Scale(float64(2*j)/float64((bounds.Dx()-1)) - 1)
 			ray := &Ray{Origin: origin, Direction: scaledX.Add(scaledY).Add(z)}
-			collides, _, normal := c.FirstRayCollision(ray)
+			collides, dist, normal := c.FirstRayCollision(ray)
 			if collides {
-				// Light source goes in the direction the camera is
-				// looking at, but it is not a point-light.
 				brightness := math.Max(0, -normal.Dot(z)/z.Norm())
-				grayness := uint8(math.Round(brightness * 0xff))
-				output.SetGray(j+bounds.Min.X, i+bounds.Min.Y, color.Gray{Y: grayness})
+				p := ray.Origin.Add(ray.Direction.Scale(dist))
+				f(j+bounds.Min.X, i+bounds.Min.Y, brightness, p)
 			} else {
-				output.SetGray(j+bounds.Min.X, i+bounds.Min.Y, color.Gray{Y: 0})
+				f(j+bounds.Min.X, i+bounds.Min.Y, 0, Coord3D{})
 			}
 		}
 	}
@@ -52,13 +81,35 @@ func RenderRayCast(c Collider, output *image.Gray, origin, x, y, z Coord3D, fov 
 // RenderRandomGrid renders a collider from various random
 // angles and saves the images into a grid.
 func RenderRandomGrid(c Collider, rows, cols, thumbWidth, thumbHeight int) *image.Gray {
+	output := image.NewGray(image.Rect(0, 0, cols*thumbWidth, rows*thumbHeight))
+	iterateRandomGrid(c, rows, cols, thumbWidth, thumbHeight,
+		func(rect image.Rectangle, origin, x, y, z Coord3D) {
+			RenderRayCast(c, output.SubImage(rect).(*image.Gray), origin, x, y, z, math.Pi/2)
+		})
+	return output
+}
+
+// RenderRandomGridColor is like RenderRandomGrid, but it
+// uses a color function to decide the color of each
+// pixel.
+func RenderRandomGridColor(c Collider, rows, cols, thumbWidth, thumbHeight int,
+	f func(c Coord3D) [3]float64) *image.RGBA {
+	output := image.NewRGBA(image.Rect(0, 0, cols*thumbWidth, rows*thumbHeight))
+	iterateRandomGrid(c, rows, cols, thumbWidth, thumbHeight,
+		func(rect image.Rectangle, origin, x, y, z Coord3D) {
+			subImage := output.SubImage(rect).(*image.RGBA)
+			RenderRayCastColor(c, subImage, origin, x, y, z, math.Pi/2, f)
+		})
+	return output
+}
+
+func iterateRandomGrid(c Collider, rows, cols, thumbWidth, thumbHeight int,
+	f func(rect image.Rectangle, origin, x, y, z Coord3D)) {
 	min := c.Min()
 	max := c.Max()
 	center := max.Add(min).Scale(0.5)
 	diff := max.Sub(min)
 	radius := math.Sqrt(3) * math.Max(diff.X, math.Max(diff.Y, diff.Z)) / 2
-
-	output := image.NewGray(image.Rect(0, 0, cols*thumbWidth, rows*thumbHeight))
 
 	for i := 0; i < rows; i++ {
 		for j := 0; j < cols; j++ {
@@ -87,17 +138,25 @@ func RenderRandomGrid(c Collider, rows, cols, thumbWidth, thumbHeight int) *imag
 			y = y.Add(x.Scale(-y.Dot(x)))
 
 			rect := image.Rect(j*thumbWidth, i*thumbHeight, (j+1)*thumbWidth, (i+1)*thumbHeight)
-			RenderRayCast(c, output.SubImage(rect).(*image.Gray), origin, x, y, z, math.Pi/2)
+			f(rect, origin, x, y, z)
 		}
 	}
-
-	return output
 }
 
 // SaveRandomGrid is like RenderRandomGrid, except that it
 // saves the result to a PNG file.
 func SaveRandomGrid(outFile string, c Collider, rows, cols, thumbWidth, thumbHeight int) error {
-	img := RenderRandomGrid(c, rows, cols, thumbWidth, thumbHeight)
+	return saveRandomGrid(outFile, RenderRandomGrid(c, rows, cols, thumbWidth, thumbHeight))
+}
+
+// SaveRandomGridColor is like RenderRandomGridColor,
+// except that it saves the result to a PNG file.
+func SaveRandomGridColor(outFile string, c Collider, rows, cols, thumbWidth, thumbHeight int,
+	f func(c Coord3D) [3]float64) error {
+	return saveRandomGrid(outFile, RenderRandomGridColor(c, rows, cols, thumbWidth, thumbHeight, f))
+}
+
+func saveRandomGrid(outFile string, img image.Image) error {
 	f, err := os.Create(outFile)
 	if err != nil {
 		return errors.Wrap(err, "save random grid")
