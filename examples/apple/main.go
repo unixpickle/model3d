@@ -58,6 +58,8 @@ func main() {
 	colorFunc := model3d.VertexColorsToTriangle(vertexColor)
 
 	ioutil.WriteFile("apple.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+	model3d.SaveRandomGridColor("rendering.png", model3d.MeshToCollider(mesh),
+		3, 3, 200, 200, vertexColor)
 }
 
 type AppleSolid struct {
