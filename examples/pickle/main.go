@@ -117,9 +117,9 @@ func (p *PickleFunction) getCache(idx int) (float64, float64) {
 	min := 0.0
 	max := 0.0
 	for x := 0; x < p.image.Bounds().Dx(); x++ {
-		_, _, _, alpha := p.image.At(x, idx).RGBA()
-		if alpha > 0 {
-			offset := float64(alpha) / 0xffff
+		_, g, _, alpha := p.image.At(x, idx).RGBA()
+		if g < 0xffff && alpha == 0xffff {
+			offset := math.Min(1, (1-float64(g)/0xffff)/(1-Green[1]))
 			if min == 0 {
 				min = float64(x) + 1 - offset
 			}
