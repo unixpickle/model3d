@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"image/png"
 	"io/ioutil"
 	"math"
@@ -22,12 +23,28 @@ const (
 	PickleWidth  = PickleLength / 2
 )
 
-func main() {
-	solid := &PickleSolid{F: NewPickleFunction()}
-	mesh := model3d.SolidToMesh(solid, 0.1, 4, 0.8, 8)
+const Color = false
 
-	colorFunc := NewInscription().ColorAt
-	ioutil.WriteFile("pickle.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+func main() {
+	var solid model3d.Solid
+	solid = &PickleSolid{F: NewPickleFunction()}
+	inscription := NewInscription()
+
+	if !Color {
+		solid = &model3d.SubtractedSolid{
+			Positive: solid,
+			Negative: inscription,
+		}
+	}
+
+	mesh := model3d.SolidToMesh(solid, 0.025, 2, 0.8, 8)
+
+	if !Color {
+		ioutil.WriteFile("pickle.stl", mesh.EncodeSTL(), 0755)
+	} else {
+		colorFunc := model3d.VertexColorsToTriangle(inscription.ColorAt)
+		ioutil.WriteFile("pickle.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+	}
 }
 
 type PickleSolid struct {
@@ -131,17 +148,36 @@ func NewInscription() *Inscription {
 	return &Inscription{image: img}
 }
 
-func (i *Inscription) ColorAt(t *model3d.Triangle) [3]float64 {
-	c := t[0].Add(t[1]).Add(t[2]).Scale(1.0 / 3.0)
+func (i *Inscription) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: -PickleLength, Y: -PickleLength, Z: -PickleLength}
+}
+
+func (i *Inscription) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: PickleLength, Y: PickleLength, Z: PickleLength}
+}
+
+func (i *Inscription) Contains(c model3d.Coord3D) bool {
+	if i.Max().Max(c) != i.Max() || i.Min().Min(c) != i.Min() {
+		return false
+	}
+	_, _, _, a := i.projectedColor(c).RGBA()
+	return a >= 0xffff/2
+}
+
+func (i *Inscription) ColorAt(c model3d.Coord3D) [3]float64 {
 	if c.Z < 0 {
 		return Green
 	}
-	scale := float64(i.image.Bounds().Dy()) / PickleLength
-	x := int(math.Round(c.X * scale))
-	y := i.image.Bounds().Dy() - (int(math.Round(c.Y*scale)) + 1)
-	r, g, b, a := i.image.At(x, y).RGBA()
+	r, g, b, a := i.projectedColor(c).RGBA()
 	if a < 0xffff/2 {
 		return Green
 	}
 	return [3]float64{float64(r) / 0xffff, float64(g) / 0xffff, float64(b) / 0xffff}
+}
+
+func (i *Inscription) projectedColor(c model3d.Coord3D) color.Color {
+	scale := float64(i.image.Bounds().Dy()) / PickleLength
+	x := int(math.Round(c.X * scale))
+	y := i.image.Bounds().Dy() - (int(math.Round(c.Y*scale)) + 1)
+	return i.image.At(x, y)
 }
