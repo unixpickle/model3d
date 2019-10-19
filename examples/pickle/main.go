@@ -114,22 +114,23 @@ func (p *PickleFunction) getCache(idx int) (float64, float64) {
 		return val[0], val[1]
 	}
 
-	min := 0
-	max := 0
+	min := 0.0
+	max := 0.0
 	for x := 0; x < p.image.Bounds().Dx(); x++ {
 		_, _, _, alpha := p.image.At(x, idx).RGBA()
-		if alpha > 0xffff/2 {
+		if alpha > 0 {
+			offset := float64(alpha) / 0xffff
 			if min == 0 {
-				min = x
+				min = float64(x) + 1 - offset
 			}
-			max = x
+			max = float64(x) - 1 + offset
 		}
 	}
 
 	scale := float64(p.image.Bounds().Dy()) / PickleLength
 	p.cache[idx] = [2]float64{
-		float64(min) / scale,
-		float64(max) / scale,
+		min / scale,
+		max / scale,
 	}
 
 	return p.cache[idx][0], p.cache[idx][1]
