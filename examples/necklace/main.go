@@ -12,7 +12,11 @@ const (
 	RingInnerRadius = 0.05
 	RingSpacing     = 0.12
 
-	NumRows  = 10
+	ClaspRingRadius  = 0.4
+	ClaspBarLength   = 1.0
+	ClaspBarDistance = 0.2
+
+	NumRows  = 6
 	RowCount = 5
 )
 
@@ -22,7 +26,14 @@ func main() {
 	direction := 1.0
 	for i := 0; i < NumRows; i++ {
 		for j := 0; j < RowCount; j++ {
-			AddRing(mesh, center, 2)
+			if i == 0 && j == 0 {
+				offset := (ClaspRingRadius - RingOuterRadius) / math.Sqrt2
+				AddClaspRing(mesh, center.Sub(model3d.Coord3D{X: offset, Y: offset}), 2)
+			} else if i+1 == NumRows && j+1 == RowCount {
+				AddBarRing(mesh, center)
+			} else {
+				AddRing(mesh, center, 2)
+			}
 			if j+1 < RowCount {
 				center.Y += direction * (RingOuterRadius + RingSpacing)
 				AddRing(mesh, center, 0)
@@ -40,7 +51,40 @@ func main() {
 	ioutil.WriteFile("model.stl", mesh.EncodeSTL(), 0755)
 }
 
+func AddBarRing(m *model3d.Mesh, center model3d.Coord3D) {
+	barLeft := center
+	barLeft.Y -= RingOuterRadius + ClaspBarDistance
+	barLeft.X -= ClaspBarLength / 2
+	solid := model3d.JoinedSolid{
+		&model3d.TorusSolid{
+			Axis:        model3d.Coord3D{Z: 1},
+			Center:      center,
+			InnerRadius: RingInnerRadius,
+			OuterRadius: RingOuterRadius,
+		},
+		&model3d.CylinderSolid{
+			P1:     center.Sub(model3d.Coord3D{Y: RingOuterRadius}),
+			P2:     center.Sub(model3d.Coord3D{Y: RingOuterRadius + ClaspBarDistance}),
+			Radius: RingInnerRadius,
+		},
+		&model3d.CylinderSolid{
+			P1:     barLeft,
+			P2:     barLeft.Add(model3d.Coord3D{X: ClaspBarLength}),
+			Radius: RingInnerRadius,
+		},
+	}
+	m.AddMesh(model3d.SolidToMesh(solid, 0.01, 0, 0.8, 5))
+}
+
 func AddRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int) {
+	addRing(m, center, normalDim, RingOuterRadius)
+}
+
+func AddClaspRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int) {
+	addRing(m, center, normalDim, ClaspRingRadius)
+}
+
+func addRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int, outerRadius float64) {
 	torusPoint := func(outer, inner float64) model3d.Coord3D {
 		outerDirection := model3d.Coord3D{
 			X: math.Cos(outer),
@@ -49,7 +93,7 @@ func AddRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int) {
 		d1 := outerDirection
 		d2 := model3d.Coord3D{Z: 1}
 
-		p := outerDirection.Scale(RingOuterRadius)
+		p := outerDirection.Scale(outerRadius)
 		p = p.Add(d1.Scale(RingInnerRadius * math.Cos(inner)))
 		p = p.Add(d2.Scale(RingInnerRadius * math.Sin(inner)))
 
