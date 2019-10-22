@@ -13,11 +13,11 @@ const (
 	RingSpacing     = 0.12
 
 	ClaspRingRadius  = 0.4
-	ClaspBarLength   = 1.0
+	ClaspBarLength   = 1.2
 	ClaspBarDistance = 0.2
 
-	NumRows  = 6
-	RowCount = 5
+	NumRows = 7
+	NumCols = 5
 )
 
 func main() {
@@ -25,21 +25,14 @@ func main() {
 	center := model3d.Coord3D{}
 	direction := 1.0
 	for i := 0; i < NumRows; i++ {
-		for j := 0; j < RowCount; j++ {
-			if i == 0 && j == 0 {
-				offset := (ClaspRingRadius - RingOuterRadius) / math.Sqrt2
-				AddClaspRing(mesh, center.Sub(model3d.Coord3D{X: offset, Y: offset}), 2)
-			} else if i+1 == NumRows && j+1 == RowCount {
-				AddBarRing(mesh, center)
-			} else {
-				AddRing(mesh, center, 2)
-			}
-			if j+1 < RowCount {
-				center.Y += direction * (RingOuterRadius + RingSpacing)
-				AddRing(mesh, center, 0)
-				center.Y += direction * (RingOuterRadius + RingSpacing)
-			}
+		endCenter := center
+		endCenter.Y += direction * (RingOuterRadius) * (NumCols*2 + 1)
+		if i == NumRows/2 {
+			AddMiddleRow(mesh, center, direction)
+		} else {
+			AddNormalRow(mesh, center, direction, i)
 		}
+		center = endCenter
 		if i+1 < NumRows {
 			center.X += RingOuterRadius + RingSpacing
 			AddRing(mesh, center, 1)
@@ -49,6 +42,29 @@ func main() {
 	}
 
 	ioutil.WriteFile("model.stl", mesh.EncodeSTL(), 0755)
+}
+
+func AddMiddleRow(m *model3d.Mesh, center model3d.Coord3D, direction float64) {
+	// TODO: custom jewelry here.
+	AddNormalRow(m, center, direction, 1)
+}
+
+func AddNormalRow(m *model3d.Mesh, center model3d.Coord3D, direction float64, i int) {
+	for j := 0; j < NumCols; j++ {
+		if i == 0 && j == 0 {
+			offset := (ClaspRingRadius - RingOuterRadius) / math.Sqrt2
+			AddClaspRing(m, center.Sub(model3d.Coord3D{X: offset, Y: offset}), 2)
+		} else if i+1 == NumRows && j+1 == NumCols {
+			AddBarRing(m, center)
+		} else {
+			AddRing(m, center, 2)
+		}
+		if j+1 < NumCols {
+			center.Y += direction * (RingOuterRadius + RingSpacing)
+			AddRing(m, center, 0)
+			center.Y += direction * (RingOuterRadius + RingSpacing)
+		}
+	}
 }
 
 func AddBarRing(m *model3d.Mesh, center model3d.Coord3D) {
@@ -73,7 +89,7 @@ func AddBarRing(m *model3d.Mesh, center model3d.Coord3D) {
 			Radius: RingInnerRadius,
 		},
 	}
-	m.AddMesh(model3d.SolidToMesh(solid, 0.01, 0, 0.8, 5))
+	m.AddMesh(model3d.SolidToMesh(solid, 0.01, 1, 0.8, 5))
 }
 
 func AddRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int) {
@@ -109,7 +125,7 @@ func addRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int, outerRadius
 	}
 
 	outerAngles := circleAngles(50.0)
-	innerAngles := circleAngles(10.0)
+	innerAngles := circleAngles(20.0)
 	for i, outer := range outerAngles {
 		outer1 := outerAngles[(i+1)%len(outerAngles)]
 		for j, inner := range innerAngles {
