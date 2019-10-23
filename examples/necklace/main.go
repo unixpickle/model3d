@@ -45,8 +45,37 @@ func main() {
 }
 
 func AddMiddleRow(m *model3d.Mesh, center model3d.Coord3D, direction float64) {
-	// TODO: custom jewelry here.
-	AddNormalRow(m, center, direction, 1)
+	var solid model3d.JoinedSolid
+	for j := 0; j < NumCols; j++ {
+		if j%2 == 1 {
+			p1, p2 := center, center
+			p1.Y -= direction * RingSpacing
+			p2.Y += direction * (RingOuterRadius + RingSpacing*2)
+			if p1.Y > p2.Y {
+				p1, p2 = p2, p1
+			}
+			solid = append(solid, JewelryPiece(j/2, p1, p2))
+			center.Y += 2 * direction * (RingOuterRadius + RingSpacing)
+			continue
+		}
+		solid = append(solid, &model3d.TorusSolid{
+			Axis:        model3d.Coord3D{Z: 1},
+			Center:      center,
+			InnerRadius: RingInnerRadius,
+			OuterRadius: RingOuterRadius,
+		})
+		if j+1 < NumCols {
+			center.Y += direction * (RingOuterRadius + RingSpacing)
+			solid = append(solid, &model3d.TorusSolid{
+				Axis:        model3d.Coord3D{X: 1},
+				Center:      center,
+				InnerRadius: RingInnerRadius,
+				OuterRadius: RingOuterRadius,
+			})
+			center.Y += direction * (RingOuterRadius + RingSpacing)
+		}
+	}
+	m.AddMesh(model3d.SolidToMesh(solid, 0.01, 1, 0.8, 5))
 }
 
 func AddNormalRow(m *model3d.Mesh, center model3d.Coord3D, direction float64, i int) {
@@ -55,7 +84,7 @@ func AddNormalRow(m *model3d.Mesh, center model3d.Coord3D, direction float64, i 
 			offset := (ClaspRingRadius - RingOuterRadius) / math.Sqrt2
 			AddClaspRing(m, center.Sub(model3d.Coord3D{X: offset, Y: offset}), 2)
 		} else if i+1 == NumRows && j+1 == NumCols {
-			AddBarRing(m, center)
+			AddBarRing(m, center, direction)
 		} else {
 			AddRing(m, center, 2)
 		}
@@ -67,9 +96,9 @@ func AddNormalRow(m *model3d.Mesh, center model3d.Coord3D, direction float64, i 
 	}
 }
 
-func AddBarRing(m *model3d.Mesh, center model3d.Coord3D) {
+func AddBarRing(m *model3d.Mesh, center model3d.Coord3D, dir float64) {
 	barLeft := center
-	barLeft.Y -= RingOuterRadius + ClaspBarDistance
+	barLeft.Y += dir * (RingOuterRadius + ClaspBarDistance)
 	barLeft.X -= ClaspBarLength / 2
 	solid := model3d.JoinedSolid{
 		&model3d.TorusSolid{
@@ -79,8 +108,8 @@ func AddBarRing(m *model3d.Mesh, center model3d.Coord3D) {
 			OuterRadius: RingOuterRadius,
 		},
 		&model3d.CylinderSolid{
-			P1:     center.Sub(model3d.Coord3D{Y: RingOuterRadius}),
-			P2:     center.Sub(model3d.Coord3D{Y: RingOuterRadius + ClaspBarDistance}),
+			P1:     center.Add(model3d.Coord3D{Y: dir * RingOuterRadius}),
+			P2:     center.Add(model3d.Coord3D{Y: dir * (RingOuterRadius + ClaspBarDistance)}),
 			Radius: RingInnerRadius,
 		},
 		&model3d.CylinderSolid{
