@@ -201,6 +201,7 @@ func (r *RectScanner) Mesh() *Mesh {
 		m.Add(&Triangle{points[0], points[3], points[2]})
 	})
 	fixSingularEdges(m)
+	fixSingularVertices(m)
 	return m
 }
 
@@ -552,4 +553,87 @@ func fixSingularEdgeTriangle(m *Mesh, seg Segment, mid Coord3D, t *Triangle) {
 	t2[2] = mid
 	m.Add(t1)
 	m.Add(t2)
+}
+
+// fixSingularVertices fixes singular vertices by
+// duplicating them and then moving the duplicates
+// slightly away from each other.
+func fixSingularVertices(m *Mesh) {
+	for _, v := range m.SingularVertices() {
+		for _, family := range singularVertexFamilies(m, v) {
+			// Move the vertex closer to the mean of this
+			// family. Might not work in the general case, but
+			// appears to work for the cube-based grids we
+			// generate here.
+			mean := Coord3D{}
+			count := 0.0
+			for _, t := range family {
+				for _, p := range t {
+					count++
+					mean = mean.Add(p)
+				}
+			}
+			mean = mean.Scale(1 / count)
+			v1 := v.Scale(0.99).Add(mean.Scale(0.01))
+			for _, t := range family {
+				m.Remove(t)
+				for i, p := range t {
+					if p == v {
+						t[i] = v1
+					}
+				}
+				m.Add(t)
+			}
+		}
+	}
+}
+
+func singularVertexFamilies(m *Mesh, v Coord3D) [][]*Triangle {
+	var families [][]*Triangle
+	tris := m.getVertexToTriangle()[v]
+	for len(tris) > 0 {
+		var family []*Triangle
+		family, tris = singularVertexNextFamily(m, tris)
+		families = append(families, family)
+	}
+	return families
+}
+
+func singularVertexNextFamily(m *Mesh, tris []*Triangle) (family, leftover []*Triangle) {
+	// See mesh.SingularVertices() for an explanation of
+	// this algorithm.
+
+	queue := make([]int, len(tris))
+	queue[0] = 1
+	changed := true
+	numVisited := 1
+	for changed {
+		changed = false
+		for i, status := range queue {
+			if status != 1 {
+				continue
+			}
+			t := tris[i]
+			for j, t1 := range tris {
+				if queue[j] == 0 && t.SharesEdge(t1) {
+					queue[j] = 1
+					numVisited++
+					changed = true
+				}
+			}
+			queue[i] = 2
+		}
+	}
+	if numVisited == len(tris) {
+		return tris, nil
+	} else {
+		for i, status := range queue {
+			if status == 0 {
+				leftover = append(leftover, tris[i])
+			} else {
+				family = append(family, tris[i])
+			}
+		}
+		return
+	}
 }

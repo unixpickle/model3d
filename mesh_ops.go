@@ -175,6 +175,10 @@ func (m *Mesh) NeedsRepair() bool {
 func (m *Mesh) SingularVertices() []Coord3D {
 	var res []Coord3D
 	for vertex, tris := range m.getVertexToTriangle() {
+		if len(tris) == 0 {
+			continue
+		}
+
 		// Queue used for a breadth-first search.
 		// One entry per triangle. A 0 means unvisited.
 		// A 1 means visited but not expanded. A 2 means
