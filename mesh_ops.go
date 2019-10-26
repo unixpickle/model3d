@@ -168,6 +168,38 @@ func (m *Mesh) NeedsRepair() bool {
 	return false
 }
 
+// SingularVertices gets the points at which the mesh is
+// squeezed to zero volume. In other words, it gets the
+// points where two pieces of volume are barely touching
+// by a single point.
+func (m *Mesh) SingularVertices() []Coord3D {
+	var res []Coord3D
+	for vertex, tris := range m.getVertexToTriangle() {
+		queue := make([]*Triangle, 1, len(tris))
+		queue[0] = tris[0]
+		visited := make(map[*Triangle]bool, len(tris))
+		visited[tris[0]] = true
+		for len(queue) > 0 {
+			t := queue[0]
+			queue = queue[1:]
+			for _, p := range t {
+				if p != vertex {
+					for _, t1 := range m.Find(vertex, p) {
+						if !visited[t1] {
+							visited[t1] = true
+							queue = append(queue, t1)
+						}
+					}
+				}
+			}
+		}
+		if len(visited) != len(tris) {
+			res = append(res, vertex)
+		}
+	}
+	return res
+}
+
 // An equivalenceClass stores a set of points which share
 // hashes. It is used for Repair to group vertices.
 type equivalenceClass struct {
