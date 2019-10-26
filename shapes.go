@@ -53,7 +53,8 @@ type Segment [2]Coord3D
 // NewSegment creates a segment with the canonical
 // ordering.
 func NewSegment(p1, p2 Coord3D) Segment {
-	if p1.X < p2.X || (p1.X == p2.X && p1.Y < p2.Y) {
+	if p1.X < p2.X || (p1.X == p2.X && p1.Y < p2.Y) ||
+		(p1.X == p2.X && p1.Y == p2.Y && p1.Z < p2.Z) {
 		return Segment{p1, p2}
 	} else {
 		return Segment{p2, p1}
