@@ -143,6 +143,12 @@ func (m *Mesh) removeTriangleFromVertex(t *Triangle, p Coord3D) {
 	m.vertexToTriangle[p] = s
 }
 
+// Contains checks if t has been added to the mesh.
+func (m *Mesh) Contains(t *Triangle) bool {
+	_, ok := m.triangles[t]
+	return ok
+}
+
 // Iterate calls f for every triangle in m in an arbitrary
 // order.
 //

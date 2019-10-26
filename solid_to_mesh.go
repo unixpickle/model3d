@@ -200,6 +200,7 @@ func (r *RectScanner) Mesh() *Mesh {
 		m.Add(&Triangle{points[0], points[2], points[1]})
 		m.Add(&Triangle{points[0], points[3], points[2]})
 	})
+	fixSingularEdges(m)
 	return m
 }
 
@@ -460,4 +461,95 @@ func (s *solidCache) NumInteriorCorners(x, y, z int) int {
 		}
 	}
 	return res
+}
+
+// fixSingularEdges fixes edges of two touching diagonal
+// edge boxes, since these edges belong to four faces at
+// once (which is not allowed).
+// The fix is done by splitting the edge apart and adding
+// a bit of volume to it, producing singular points but no
+// singular edges.
+func fixSingularEdges(m *Mesh) {
+	changed := true
+	for changed {
+		changed = false
+		sideToTriangle := map[Segment][]*Triangle{}
+		m.Iterate(func(t *Triangle) {
+			for _, seg := range t.Segments() {
+				sideToTriangle[seg] = append(sideToTriangle[seg], t)
+			}
+		})
+		for seg, triangles := range sideToTriangle {
+			if len(triangles) == 2 {
+				continue
+			} else if len(triangles) == 4 {
+				fixSingularEdge(m, seg, triangles)
+				changed = true
+			} else {
+				panic("unexpected edge situation")
+			}
+		}
+	}
+}
+
+func fixSingularEdge(m *Mesh, seg Segment, tris []*Triangle) {
+	for _, t := range tris {
+		if !m.Contains(t) {
+			return
+		}
+	}
+	t1 := tris[0]
+	var maxDot float64
+	var t2 *Triangle
+	for _, t := range tris[1:] {
+		dir := seg.other(t).Sub(seg.other(t1))
+		dot := dir.Dot(t1.Normal())
+		if dot > maxDot {
+			maxDot = dot
+			t2 = t
+		}
+	}
+
+	var t3, t4 *Triangle
+	for _, t := range tris[1:] {
+		if t != t2 {
+			if t3 == nil {
+				t3 = t
+			} else {
+				t4 = t
+			}
+		}
+	}
+
+	fixSingularEdgePair(m, seg, t1, t2)
+	fixSingularEdgePair(m, seg, t3, t4)
+}
+
+func fixSingularEdgePair(m *Mesh, seg Segment, t1, t2 *Triangle) {
+	p1 := seg.other(t1)
+	p2 := seg.other(t2)
+
+	// Move the segment's midpoint away from the singular
+	// edge to make non-zero volume connecting the boxes.
+	mp := seg.Mid().Mid(p1.Mid(p2))
+
+	fixSingularEdgeTriangle(m, seg, mp, t1)
+	fixSingularEdgeTriangle(m, seg, mp, t2)
+}
+
+func fixSingularEdgeTriangle(m *Mesh, seg Segment, mid Coord3D, t *Triangle) {
+	m.Remove(t)
+	other := seg.other(t)
+	t1 := &Triangle{other, seg[0], seg.Mid()}
+	t2 := &Triangle{other, seg[1], seg.Mid()}
+	if t1.Normal().Dot(t.Normal()) < 0 {
+		t1[0], t1[1] = t1[1], t1[0]
+	}
+	t1[2] = mid
+	if t2.Normal().Dot(t.Normal()) < 0 {
+		t2[0], t2[1] = t2[1], t2[0]
+	}
+	t2[2] = mid
+	m.Add(t1)
+	m.Add(t2)
 }

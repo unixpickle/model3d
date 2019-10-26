@@ -66,6 +66,18 @@ func (s Segment) Mid() Coord3D {
 	return s[0].Mid(s[1])
 }
 
+// other gets the third point in a triangle for which s is
+// a segment.
+func (s Segment) other(t *Triangle) Coord3D {
+	if t[0] != s[0] && t[0] != s[1] {
+		return t[0]
+	} else if t[1] != s[0] && t[1] != s[1] {
+		return t[1]
+	} else {
+		return t[2]
+	}
+}
+
 // union finds the point that s and s1 have in common,
 // assuming that they have exactly one point in common.
 func (s Segment) union(s1 Segment) Coord3D {

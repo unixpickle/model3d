@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/png"
 	"io/ioutil"
@@ -50,7 +49,6 @@ func main() {
 
 	mesh := model3d.SolidToMesh(base, 0.05, 2, 0.8, 5)
 	mesh.AddMesh(model3d.SolidToMesh(lid, 0.05, 2, 0.8, 5))
-	fmt.Println(mesh.NeedsRepair())
 	ioutil.WriteFile("pumpkin.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
 }
 
