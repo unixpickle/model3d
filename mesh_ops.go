@@ -175,25 +175,35 @@ func (m *Mesh) NeedsRepair() bool {
 func (m *Mesh) SingularVertices() []Coord3D {
 	var res []Coord3D
 	for vertex, tris := range m.getVertexToTriangle() {
-		queue := make([]*Triangle, 1, len(tris))
-		queue[0] = tris[0]
-		visited := make(map[*Triangle]bool, len(tris))
-		visited[tris[0]] = true
-		for len(queue) > 0 {
-			t := queue[0]
-			queue = queue[1:]
-			for _, p := range t {
-				if p != vertex {
-					for _, t1 := range m.Find(vertex, p) {
-						if !visited[t1] {
-							visited[t1] = true
-							queue = append(queue, t1)
-						}
+		// Queue used for a breadth-first search.
+		// One entry per triangle. A 0 means unvisited.
+		// A 1 means visited but not expanded. A 2 means
+		// visited and expanded.
+		queue := make([]int, len(tris))
+
+		// Start at first triangle and check that all
+		// others are connected.
+		queue[0] = 1
+		changed := true
+		numVisited := 1
+		for changed {
+			changed = false
+			for i, status := range queue {
+				if status != 1 {
+					continue
+				}
+				t := tris[i]
+				for j, t1 := range tris {
+					if queue[j] == 0 && t.SharesEdge(t1) {
+						queue[j] = 1
+						numVisited++
+						changed = true
 					}
 				}
+				queue[i] = 2
 			}
 		}
-		if len(visited) != len(tris) {
+		if numVisited != len(tris) {
 			res = append(res, vertex)
 		}
 	}

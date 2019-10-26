@@ -44,6 +44,20 @@ func (t *Triangle) Segments() [3]Segment {
 	return res
 }
 
+// SharesEdge checks if p shares exactly one edge with p1.
+func (t *Triangle) SharesEdge(t1 *Triangle) bool {
+	inCommon := 0
+	for _, p := range t {
+		for _, p1 := range t1 {
+			if p == p1 {
+				inCommon += 1
+				break
+			}
+		}
+	}
+	return inCommon == 2
+}
+
 // A Segment is a line segment in a canonical ordering,
 // such that segments can be compared via the == operator
 // even if they were created with their points in the
