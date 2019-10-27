@@ -4,7 +4,6 @@ import (
 	"image"
 	"image/png"
 	"io/ioutil"
-	"log"
 	"math"
 	"os"
 
@@ -50,8 +49,6 @@ func main() {
 
 	mesh := model3d.SolidToMesh(base, 0.05, 2, 0.8, 5)
 	mesh.AddMesh(model3d.SolidToMesh(lid, 0.05, 2, 0.8, 5))
-	log.Println("checking singularities...")
-	log.Println("found", len(mesh.SingularVertices()), "singular vertices")
 	ioutil.WriteFile("pumpkin.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
 }
 
