@@ -10,6 +10,9 @@ func TestSolidToMeshSingularEdgesSimple(t *testing.T) {
 	if mesh.NeedsRepair() {
 		t.Fatal("mesh needs repair")
 	}
+	if len(mesh.SingularVertices()) > 0 {
+		t.Error("singular vertices detected")
+	}
 }
 
 type simpleSingular struct{}
