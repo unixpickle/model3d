@@ -153,6 +153,14 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 	})
 }
 
+// An equivalenceClass stores a set of points which share
+// hashes. It is used for Repair to group vertices.
+type equivalenceClass struct {
+	Elements  []Coord3D
+	Hashes    []Coord3D
+	Canonical Coord3D
+}
+
 // NeedsRepair checks if every edge touches exactly two
 // triangles. If not, NeedsRepair returns true.
 func (m *Mesh) NeedsRepair() bool {
@@ -214,12 +222,33 @@ func (m *Mesh) SingularVertices() []Coord3D {
 	return res
 }
 
-// An equivalenceClass stores a set of points which share
-// hashes. It is used for Repair to group vertices.
-type equivalenceClass struct {
-	Elements  []Coord3D
-	Hashes    []Coord3D
-	Canonical Coord3D
+// RepairNormals flips normals when they point within the
+// solid defined by the mesh, as determined by the
+// even-odd rule.
+//
+// The repaired mesh is returned, along with the number of
+// modified triangles.
+//
+// The check is performed by adding the normal, scaled by
+// epsilon, to the center of the triangle, and then
+// counting the number of ray collisions from this point
+// in the direction of the normal.
+func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
+	collider := MeshToCollider(m)
+	numFlipped := 0
+	newMesh := NewMesh()
+	m.Iterate(func(t *Triangle) {
+		t1 := *t
+		normal := t.Normal()
+		center := t[0].Add(t[1]).Add(t[2]).Scale(1.0 / 3)
+		origin := center.Add(normal.Scale(epsilon))
+		if collider.RayCollisions(&Ray{Origin: origin, Direction: normal})%2 == 1 {
+			numFlipped++
+			t1[0], t1[1] = t1[1], t1[0]
+		}
+		newMesh.Add(&t1)
+	})
+	return newMesh, numFlipped
 }
 
 // EliminateEdges creates a new mesh by iteratively
