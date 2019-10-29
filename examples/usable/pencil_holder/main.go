@@ -32,6 +32,8 @@ func main() {
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println("Saving mesh...")
 	ioutil.WriteFile("pencil_holder.stl", mesh.EncodeSTL(), 0755)
+	log.Println("Saving rendering...")
+	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 4, 4, 300, 300)
 }
 
 type HeartSolid struct {
