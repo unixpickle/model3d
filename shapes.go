@@ -11,8 +11,7 @@ func (t *Triangle) Area() float64 {
 // Normal computes a normal vector for the triangle using
 // the right-hand rule.
 func (t *Triangle) Normal() Coord3D {
-	result := t.crossProduct()
-	return result.Scale(1 / result.Norm())
+	return t.crossProduct().Normalize()
 }
 
 func (t *Triangle) crossProduct() Coord3D {
