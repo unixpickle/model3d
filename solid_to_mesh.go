@@ -467,9 +467,12 @@ func (s *solidCache) NumInteriorCorners(x, y, z int) int {
 // fixSingularEdges fixes edges of two touching diagonal
 // edge boxes, since these edges belong to four faces at
 // once (which is not allowed).
-// The fix is done by splitting the edge apart and adding
-// a bit of volume to it, producing singular points but no
-// singular edges.
+// The fix is done by splitting the edge apart and pulling
+// the two middle vertices apart, producing singular
+// points but no singular edges. Singular edges really
+// ought not to be touching, since there is only a
+// singularity because the touching vertices are not in
+// the solid.
 func fixSingularEdges(m *Mesh) {
 	changed := true
 	for changed {
@@ -500,13 +503,13 @@ func fixSingularEdge(m *Mesh, seg Segment, tris []*Triangle) {
 		}
 	}
 	t1 := tris[0]
-	var maxDot float64
+	var minDot float64
 	var t2 *Triangle
 	for _, t := range tris[1:] {
 		dir := seg.other(t).Sub(seg.other(t1))
 		dot := dir.Dot(t1.Normal())
-		if dot > maxDot {
-			maxDot = dot
+		if dot < minDot {
+			minDot = dot
 			t2 = t
 		}
 	}
@@ -531,8 +534,8 @@ func fixSingularEdgePair(m *Mesh, seg Segment, t1, t2 *Triangle) {
 	p2 := seg.other(t2)
 
 	// Move the segment's midpoint away from the singular
-	// edge to make non-zero volume connecting the boxes.
-	mp := seg.Mid().Mid(p1.Mid(p2))
+	// edge to make the edges not touch.
+	mp := seg.Mid().Scale(0.9).Add(p1.Mid(p2).Scale(0.1))
 
 	fixSingularEdgeTriangle(m, seg, mp, t1)
 	fixSingularEdgeTriangle(m, seg, mp, t2)
