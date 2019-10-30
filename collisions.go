@@ -219,6 +219,156 @@ func segmentEntersSphere(p1, p2, c Coord3D, r float64) bool {
 	return frac >= 0 && frac <= 1 && closest.Dist(c) < r
 }
 
+// TriangleCollisions finds the segment where t intersects
+// t1. If no segment exists, an empty slice is returned.
+//
+// If t and t1 are (nearly) co-planar, no collisions are
+// reported, since small numerical differences can have a
+// major impact.
+func (t *Triangle) TriangleCollisions(t1 *Triangle) []Segment {
+	// TODO: check if t and t1 share at least two vertices.
+	// If so, no collision shall be detected.
+
+	// Check if the triangles are (nearly) co-planar.
+	n1 := t.Normal()
+	n2 := t1.Normal()
+	if math.Abs(n1.Dot(n2)) > 1-1e-8 {
+		// The triangles are (nearly) co-planar.
+		return nil
+	}
+
+	v1 := t[1].Sub(t[0])
+	v2 := t[2].Sub(t[0])
+	v3 := t1[1].Sub(t1[0])
+	v4 := t1[2].Sub(t1[0])
+
+	// Intersections happen at solutions to this system:
+	//
+	//     a*v1+b*v2+t[0] = c*v3+d*v4+t1[0]
+	//     a, b, c, d >= 0
+	//     a+b <= 1
+	//     c+d <= 1
+	//
+	// We can rewrite the first equation as follows:
+	//
+	//     Ax = t1[0] - t[0]
+	//     where A = [v1 v2 -v3 -v4] (a matrix of columns)
+	//     and x = [a; b; c; d] (a column matrix)
+	//
+	// The solutions to this equation are of the form:
+	//
+	//     o + t*d
+	//
+	// Where o is any solution, t is a scalar, and d is a
+	// vector in the direction of the null-space of A.
+	//
+	// To compute the final intersection, we find the
+	// intervals of t for which the other constraints are
+	// satisfied.
+
+	// Find the first three components of o, a combination
+	// of v1, v2, v3, v4 where the planes intersect.
+	m1 := NewMatrix3Columns(v1, v2, v3.Scale(-1))
+	m2 := NewMatrix3Columns(v1, v2, v4.Scale(-1))
+	matA := m1
+	if math.Abs(m2.Det()) > math.Abs(m1.Det()) {
+		// Using m2 may be more numerically stable.
+		// Helps in the case that either v3 or v4 is on
+		// the plane of triangle t.
+		// Equivalent to a column swap during gaussian
+		// elimination to find any solution.
+		matA = m2
+		v3, v4 = v4, v3
+	}
+	invA := matA.Inverse()
+	o := invA.MulColumn(t1[0].Sub(t[0]))
+
+	// Find the first three components of d, a combination
+	// of v1, v2, v3, v4 that goes along the intersection
+	// of the two planes (i.e. is the null-space of A).
+	// The final component is 1.
+	d := invA.MulColumn(v4)
+
+	// A function which solves for a range of t values
+	// such that o+t*d >= 0 and (o+t*d)*[1; 1] <= 1.
+	// Returns min, max.
+	// Used for finding the interval of t for each of the
+	// two triangles.
+	findContainedRange := func(o1, o2, d1, d2 float64) (float64, float64) {
+		tMin := math.Inf(-1)
+		tMax := math.Inf(1)
+
+		// Rewriting the second constraint, we get
+		// o*[1; 1] + t*d*[1; 1] <= 1.
+		// Let sumO = o*[1; 1] and sumD = d*[1; 1].
+		// Thus,
+		//     t <= (1 - sumO)/sumD  where sumD > 0
+		//     t >= (1 - sumO)/sumD  where sumD < 0
+		sumO := o1 + o2
+		sumD := d1 + d2
+		if sumD != 0 {
+			bound := (1 - sumO) / sumD
+			if sumD > 0 {
+				tMax = bound
+			} else {
+				tMin = bound
+			}
+		} else if sumO > 1 {
+			// There is no way to satisfy the second constraint.
+			return 0, 0
+		}
+
+		updateFirstConstraint := func(o, d float64) {
+			// Given that o+t*d >= 0,
+			//     t >= -o/d  where d > 0
+			//     t <= -o/d  where d < 0
+			if d == 0 {
+				if o < 0 {
+					// Impossible to satisfy.
+					tMin, tMax = 0, 0
+				}
+			} else {
+				bound := -o / d
+				if d < 0 {
+					tMax = math.Min(tMax, bound)
+				} else {
+					tMin = math.Max(tMin, bound)
+				}
+			}
+		}
+		updateFirstConstraint(o1, d1)
+		updateFirstConstraint(o2, d2)
+
+		return tMin, tMax
+	}
+
+	min1, max1 := findContainedRange(o.X, o.Y, d.X, d.Y)
+	if min1 >= max1 {
+		return nil
+	}
+
+	min2, max2 := findContainedRange(o.Z, 0, d.Z, 1)
+	if min2 >= max2 {
+		return nil
+	}
+
+	min := math.Max(min1, min2)
+	max := math.Min(max1, max2)
+	if min >= max {
+		return nil
+	}
+
+	// Get a Euclidean coordinate for a given value of t
+	// in the collision equations.
+	collisionPoint := func(time float64) Coord3D {
+		a := o.X + d.X*time
+		b := o.Y + d.Y*time
+		return t[0].Add(v1.Scale(a)).Add(v2.Scale(b))
+	}
+
+	return []Segment{NewSegment(collisionPoint(min), collisionPoint(max))}
+}
+
 // A JoinedCollider wraps multiple other Colliders and
 // only passes along rays and spheres that enter their
 // combined bounding box.

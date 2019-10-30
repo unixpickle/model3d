@@ -71,6 +71,45 @@ func TestSegmentEntersSphere(t *testing.T) {
 	}
 }
 
+func TestTriangleCollisions(t *testing.T) {
+	t.Run("RandomPairs", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			t1 := randomTriangle()
+			t2 := randomTriangle()
+			intersection := t1.TriangleCollisions(t2)
+			if len(intersection) == 0 {
+				continue
+			}
+			seg := intersection[0]
+			for _, frac := range []float64{-0.1, 0, 0.1, 0.5, 0.9, 1, 1.1} {
+				shouldContain := frac >= 0 && frac <= 1
+				c := seg[0].Scale(frac).Add(seg[1].Scale(1 - frac))
+				contains1 := triangleContains(t1, c)
+				contains2 := triangleContains(t2, c)
+				if (contains1 && contains2) != shouldContain {
+					t.Fatal("incorrect containment for frac", frac)
+				}
+			}
+		}
+	})
+}
+
+func randomTriangle() *Triangle {
+	t := &Triangle{}
+	for i := range t {
+		t[i] = Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()}
+	}
+	return t
+}
+
+func triangleContains(t *Triangle, c Coord3D) bool {
+	v1 := t[1].Sub(t[0])
+	v2 := t[2].Sub(t[0])
+	combo := (NewMatrix3Columns(v1, v2, t.Normal())).Inverse().MulColumn(c.Sub(t[0]))
+	return math.Abs(combo.Z) < 1e-8 && combo.X > -1e-8 && combo.Y > -1e-8 &&
+		combo.X+combo.Y <= 1+1e-8
+}
+
 func BenchmarkMeshToCollider(b *testing.B) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1

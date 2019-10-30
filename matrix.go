@@ -3,6 +3,15 @@ package model3d
 // Matrix2 is a 2x2 matrix, stored in row-major order.
 type Matrix2 [4]float64
 
+// NewMatrix2Columns creates a Matrix2 with the given
+// coordinates as column entries.
+func NewMatrix2Columns(c1, c2 Coord2D) *Matrix2 {
+	return &Matrix2{
+		c1.X, c2.X,
+		c1.Y, c2.Y,
+	}
+}
+
 // Det computes the determinant of the matrix.
 func (m *Matrix2) Det() float64 {
 	return m[0]*m[3] - m[1]*m[2]
@@ -47,6 +56,16 @@ func (m *Matrix2) MulColumn(c Coord2D) Coord2D {
 
 // Matrix3 is a 3x3 matrix, stored in row-major order.
 type Matrix3 [9]float64
+
+// NewMatrix3Columns creates a Matrix3 with the given
+// coordinates as column entries.
+func NewMatrix3Columns(c1, c2, c3 Coord3D) *Matrix3 {
+	return &Matrix3{
+		c1.X, c2.X, c3.X,
+		c1.Y, c2.Y, c3.Y,
+		c1.Z, c2.Z, c3.Z,
+	}
+}
 
 // Det computes the determinant of the matrix.
 func (m *Matrix3) Det() float64 {
