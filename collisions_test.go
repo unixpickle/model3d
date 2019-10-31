@@ -92,6 +92,18 @@ func TestTriangleCollisions(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("SelfIntersections", func(t *testing.T) {
+		mesh := NewMeshPolar(func(g GeoCoord) float64 {
+			return 1
+		}, 50)
+		collider := MeshToCollider(mesh)
+		mesh.Iterate(func(tri *Triangle) {
+			if len(collider.TriangleCollisions(tri)) != 0 {
+				t.Fatal("self collision")
+			}
+		})
+	})
 }
 
 func randomTriangle() *Triangle {

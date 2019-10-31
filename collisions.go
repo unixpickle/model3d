@@ -226,14 +226,15 @@ func segmentEntersSphere(p1, p2, c Coord3D, r float64) bool {
 // reported, since small numerical differences can have a
 // major impact.
 func (t *Triangle) TriangleCollisions(t1 *Triangle) []Segment {
-	// TODO: check if t and t1 share at least two vertices.
-	// If so, no collision shall be detected.
+	if t.inCommon(t1) > 1 {
+		// No way to be intersecting unless we are co-planar.
+		return nil
+	}
 
 	// Check if the triangles are (nearly) co-planar.
 	n1 := t.Normal()
 	n2 := t1.Normal()
 	if math.Abs(n1.Dot(n2)) > 1-1e-8 {
-		// The triangles are (nearly) co-planar.
 		return nil
 	}
 
@@ -366,7 +367,14 @@ func (t *Triangle) TriangleCollisions(t1 *Triangle) []Segment {
 		return t[0].Add(v1.Scale(a)).Add(v2.Scale(b))
 	}
 
-	return []Segment{NewSegment(collisionPoint(min), collisionPoint(max))}
+	p1, p2 := collisionPoint(min), collisionPoint(max)
+	dist := p1.Dist(p2)
+	if dist < v1.Norm()*1e-8 && dist < v2.Norm()*1e-8 {
+		// Don't report collisions at a vertex.
+		// This can happen due to rounding error.
+		return nil
+	}
+	return []Segment{NewSegment(p1, p2)}
 }
 
 // A JoinedCollider wraps multiple other Colliders and
