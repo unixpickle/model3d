@@ -146,3 +146,16 @@ func BenchmarkMeshSphereCollisions(b *testing.B) {
 		}, math.Abs(rand.NormFloat64()))
 	}
 }
+
+func BenchmarkMeshTriangleCollisions(b *testing.B) {
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1
+	}, 50)
+	collider := MeshToCollider(mesh)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mesh.Iterate(func(t *Triangle) {
+			collider.TriangleCollisions(t)
+		})
+	}
+}

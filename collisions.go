@@ -62,9 +62,19 @@ type Collider interface {
 	SphereCollision(c Coord3D, r float64) bool
 }
 
-// MeshToCollider creates an efficient Collider out of a
-// mesh.
-func MeshToCollider(m *Mesh) Collider {
+// A TriangleCollider is like a Collider, but it can also
+// check if a triangle intersects the surface.
+type TriangleCollider interface {
+	Collider
+
+	// TriangleCollisions gets all of the segments on the
+	// surface which intersect the triangle t.
+	TriangleCollisions(t *Triangle) []Segment
+}
+
+// MeshToCollider creates an efficient TriangleCollider
+// out of a mesh.
+func MeshToCollider(m *Mesh) TriangleCollider {
 	tris := m.TriangleSlice()
 	GroupTriangles(tris)
 	return GroupedTrianglesToCollider(tris)
@@ -155,11 +165,11 @@ func sortTriangles(tris []*Triangle) [3][]*flaggedTriangle {
 }
 
 // GroupedTrianglesToCollider converts a mesh of triangles
-// into a Collider.
+// into a TriangleCollider.
 //
 // The triangles should be sorted by GroupTriangles.
 // Otherwise, the resulting Collider may not be efficient.
-func GroupedTrianglesToCollider(tris []*Triangle) Collider {
+func GroupedTrianglesToCollider(tris []*Triangle) TriangleCollider {
 	if len(tris) == 1 {
 		return tris[0]
 	} else if len(tris) == 0 {
@@ -168,7 +178,7 @@ func GroupedTrianglesToCollider(tris []*Triangle) Collider {
 	midIdx := len(tris) / 2
 	c1 := GroupedTrianglesToCollider(tris[:midIdx])
 	c2 := GroupedTrianglesToCollider(tris[midIdx:])
-	return NewJoinedCollider([]Collider{c1, c2})
+	return joinedTriangleCollider{NewJoinedCollider([]Collider{c1, c2})}
 }
 
 // RayCollisions returns 1 if the ray intersects the
@@ -489,6 +499,24 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 	return minFrac <= maxFrac && maxFrac >= 0
 }
 
+type joinedTriangleCollider struct {
+	*JoinedCollider
+}
+
+func (j joinedTriangleCollider) TriangleCollisions(t *Triangle) []Segment {
+	min := t.Min().Max(j.min)
+	max := t.Max().Min(j.max)
+	if min.X >= max.X || min.Y >= max.Y || min.Z >= max.Z {
+		return nil
+	}
+
+	var res []Segment
+	for _, c := range j.colliders {
+		res = append(res, c.(TriangleCollider).TriangleCollisions(t)...)
+	}
+	return res
+}
+
 type flaggedTriangle struct {
 	T    *Triangle
 	Flag bool
@@ -514,4 +542,8 @@ func (n nullCollider) FirstRayCollision(r *Ray) (collides bool, distance float64
 
 func (n nullCollider) SphereCollision(c Coord3D, r float64) bool {
 	return false
+}
+
+func (n nullCollider) TriangleCollisions(t *Triangle) []Segment {
+	return nil
 }
