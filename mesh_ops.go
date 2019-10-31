@@ -222,6 +222,18 @@ func (m *Mesh) SingularVertices() []Coord3D {
 	return res
 }
 
+// SelfIntersections counts the number of times the mesh
+// intersects itself.
+// In an ideal mesh, this would be 0.
+func (m *Mesh) SelfIntersections() int {
+	var res int
+	collider := MeshToCollider(m)
+	m.Iterate(func(t *Triangle) {
+		res += len(collider.TriangleCollisions(t))
+	})
+	return res
+}
+
 // RepairNormals flips normals when they point within the
 // solid defined by the mesh, as determined by the
 // even-odd rule.
