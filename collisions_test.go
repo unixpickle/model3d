@@ -154,8 +154,6 @@ func BenchmarkMeshTriangleCollisions(b *testing.B) {
 	collider := MeshToCollider(mesh)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mesh.Iterate(func(t *Triangle) {
-			collider.TriangleCollisions(t)
-		})
+		collider.TriangleCollisions(randomTriangle())
 	}
 }
