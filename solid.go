@@ -17,6 +17,25 @@ type Solid interface {
 	Contains(p Coord3D) bool
 }
 
+// A RectSolid is a Solid that fills an axis-aligned
+// rectangular volume.
+type RectSolid struct {
+	MinVal Coord3D
+	MaxVal Coord3D
+}
+
+func (r *RectSolid) Min() Coord3D {
+	return r.MinVal
+}
+
+func (r *RectSolid) Max() Coord3D {
+	return r.MaxVal
+}
+
+func (r *RectSolid) Contains(c Coord3D) bool {
+	return c.Min(r.MinVal) == r.MinVal && c.Max(r.MaxVal) == r.MaxVal
+}
+
 // A SphereSolid is a Solid that yields values for a
 // sphere.
 type SphereSolid struct {
