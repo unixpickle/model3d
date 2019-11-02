@@ -1,3 +1,5 @@
+// Command off_to_stl converts OFF files to STL files.
+// This is useful to preprocess the dataset for ModelNet.
 package main
 
 import (
