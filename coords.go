@@ -90,6 +90,12 @@ func (c Coord2D) Normalize() Coord2D {
 	return c.Scale(1 / c.Norm())
 }
 
+// ProjectOut projects the c1 direction out of c.
+func (c Coord2D) ProjectOut(c1 Coord2D) Coord2D {
+	normed := c1.Normalize()
+	return c.Sub(normed.Scale(normed.Dot(c)))
+}
+
 // A Coord3D is a coordinate in 3-D Euclidean space.
 type Coord3D struct {
 	X float64
@@ -198,6 +204,12 @@ func (c Coord3D) OrthoBasis() (Coord3D, Coord3D) {
 	}
 
 	return basis1.Normalize(), basis2.Normalize()
+}
+
+// ProjectOut projects the c1 direction out of c.
+func (c Coord3D) ProjectOut(c1 Coord3D) Coord3D {
+	normed := c1.Normalize()
+	return c.Sub(normed.Scale(normed.Dot(c)))
 }
 
 func (c Coord3D) array() [3]float64 {

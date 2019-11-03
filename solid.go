@@ -66,19 +66,25 @@ type CylinderSolid struct {
 }
 
 func (c *CylinderSolid) Min() Coord3D {
-	return Coord3D{
-		X: math.Min(c.P1.X, c.P2.X) - c.Radius,
-		Y: math.Min(c.P1.Y, c.P2.Y) - c.Radius,
-		Z: math.Min(c.P1.Z, c.P2.Z) - c.Radius,
-	}
+	minCenter := c.P1.Min(c.P2)
+	axis := c.P2.Sub(c.P1)
+	minOffsets := (Coord3D{
+		circleAxisBound(0, axis, -1),
+		circleAxisBound(1, axis, -1),
+		circleAxisBound(2, axis, -1),
+	}).Scale(c.Radius)
+	return minCenter.Add(minOffsets)
 }
 
 func (c *CylinderSolid) Max() Coord3D {
-	return Coord3D{
-		X: math.Max(c.P1.X, c.P2.X) + c.Radius,
-		Y: math.Max(c.P1.Y, c.P2.Y) + c.Radius,
-		Z: math.Max(c.P1.Z, c.P2.Z) + c.Radius,
-	}
+	maxCenter := c.P1.Max(c.P2)
+	axis := c.P2.Sub(c.P1)
+	maxOffsets := (Coord3D{
+		circleAxisBound(0, axis, 1),
+		circleAxisBound(1, axis, 1),
+		circleAxisBound(2, axis, 1),
+	}).Scale(c.Radius)
+	return maxCenter.Add(maxOffsets)
 }
 
 func (c *CylinderSolid) Contains(p Coord3D) bool {
@@ -90,6 +96,21 @@ func (c *CylinderSolid) Contains(p Coord3D) bool {
 	}
 	projection := c.P2.Add(direction.Scale(frac))
 	return projection.Dist(p) <= c.Radius
+}
+
+// circleAxisBound gets the furthest along an axis
+// (x, y, or z) you can move while remaining inside a unit
+// circle which is normal to a given vector.
+// The sign argument indicates if we are moving in the
+// negative or positive direction.
+func circleAxisBound(axis int, normal Coord3D, sign float64) float64 {
+	var arr [3]float64
+	arr[axis] = sign
+	proj := newCoord3DArray(arr).ProjectOut(normal)
+
+	// Care taken to deal with numerical issues.
+	proj = proj.Scale(1 / (proj.Norm() + 1e-8))
+	return sign * (math.Abs(proj.array()[axis]) + 1e-8)
 }
 
 // A TorusSolid is a Solid that yields values for a torus.
