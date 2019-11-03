@@ -46,10 +46,10 @@ func TriangulateFace(polygon []Coord3D) []*Triangle {
 	}
 
 	basis1 := polygon[1].Sub(polygon[0])
-	basis1 = basis1.Scale(1 / basis1.Norm())
+	basis1 = basis1.Normalize()
 	basis2 := polygon[2].Sub(polygon[0])
 	basis2 = basis2.Add(basis1.Scale(-basis1.Dot(basis2)))
-	basis2 = basis2.Scale(1 / basis2.Norm())
+	basis2 = basis2.Normalize()
 
 	coords2D := make([]Coord2D, len(polygon))
 	for i, p := range polygon {
@@ -116,8 +116,8 @@ func isPolygonClockwise(polygon []Coord2D) bool {
 func clockwiseAngle(p1, p2, p3 Coord2D) float64 {
 	v1 := p1.Sub(p2)
 	v2 := p3.Sub(p2)
-	n1 := v1.Scale(1 / v1.Norm())
-	n2 := v2.Scale(1 / v2.Norm())
+	n1 := v1.Normalize()
+	n2 := v2.Normalize()
 	theta := math.Acos(n1.Dot(n2))
 	theta1 := 2*math.Pi - theta
 

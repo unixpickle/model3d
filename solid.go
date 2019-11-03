@@ -83,7 +83,7 @@ func (c *CylinderSolid) Max() Coord3D {
 
 func (c *CylinderSolid) Contains(p Coord3D) bool {
 	diff := c.P1.Sub(c.P2)
-	direction := diff.Scale(1 / diff.Norm())
+	direction := diff.Normalize()
 	frac := p.Sub(c.P2).Dot(direction)
 	if frac < 0 || frac > diff.Norm() {
 		return false
@@ -115,7 +115,7 @@ func (t *TorusSolid) Max() Coord3D {
 }
 
 func (t *TorusSolid) Contains(c Coord3D) bool {
-	b1, b2 := t.planarBasis()
+	b1, b2 := t.Axis.OrthoBasis()
 	centered := c.Sub(t.Center)
 
 	// Compute the closest point on the ring around
@@ -128,32 +128,6 @@ func (t *TorusSolid) Contains(c Coord3D) bool {
 	ringPoint := b1.Scale(x).Add(b2.Scale(y))
 
 	return ringPoint.Dist(centered) <= t.InnerRadius
-}
-
-func (t *TorusSolid) planarBasis() (Coord3D, Coord3D) {
-	// Create the first basis vector by swapping two
-	// coordinates and negating one of them.
-	// For numerical stability, we involve the component
-	// with the largest absolute value.
-	var basis1 Coord3D
-	if math.Abs(t.Axis.X) > math.Abs(t.Axis.Y) && math.Abs(t.Axis.X) > math.Abs(t.Axis.Z) {
-		basis1.X = t.Axis.Y
-		basis1.Y = -t.Axis.X
-	} else {
-		basis1.Y = t.Axis.Z
-		basis1.Z = -t.Axis.Y
-	}
-
-	// Create the second basis vector using a cross product.
-	basis2 := Coord3D{
-		basis1.Y*t.Axis.Z - basis1.Z*t.Axis.Y,
-		basis1.Z*t.Axis.X - basis1.X*t.Axis.Z,
-		basis1.X*t.Axis.Y - basis1.Y*t.Axis.X,
-	}
-
-	basis1 = basis1.Scale(1 / basis1.Norm())
-	basis2 = basis2.Scale(1 / basis2.Norm())
-	return basis1, basis2
 }
 
 // A JoinedSolid is a Solid composed of other solids.

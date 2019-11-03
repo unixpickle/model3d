@@ -85,6 +85,11 @@ func (c Coord2D) Dist(c1 Coord2D) float64 {
 	return math.Sqrt(math.Pow(c.X-c1.X, 2) + math.Pow(c.Y-c1.Y, 2))
 }
 
+// Normalize gets a unit vector from c.
+func (c Coord2D) Normalize() Coord2D {
+	return c.Scale(1 / c.Norm())
+}
+
 // A Coord3D is a coordinate in 3-D Euclidean space.
 type Coord3D struct {
 	X float64
@@ -167,6 +172,32 @@ func (c Coord3D) Max(c1 Coord3D) Coord3D {
 // Normalize gets a unit vector from c.
 func (c Coord3D) Normalize() Coord3D {
 	return c.Scale(1 / c.Norm())
+}
+
+// OrthoBasis creates two unit vectors which are
+// orthogonal to c and to each other.
+func (c Coord3D) OrthoBasis() (Coord3D, Coord3D) {
+	// Create the first basis vector by swapping two
+	// coordinates and negating one of them.
+	// For numerical stability, we involve the component
+	// with the largest absolute value.
+	var basis1 Coord3D
+	if math.Abs(c.X) > math.Abs(c.Y) && math.Abs(c.X) > math.Abs(c.Z) {
+		basis1.X = c.Y
+		basis1.Y = -c.X
+	} else {
+		basis1.Y = c.Z
+		basis1.Z = -c.Y
+	}
+
+	// Create the second basis vector using a cross product.
+	basis2 := Coord3D{
+		basis1.Y*c.Z - basis1.Z*c.Y,
+		basis1.Z*c.X - basis1.X*c.Z,
+		basis1.X*c.Y - basis1.Y*c.X,
+	}
+
+	return basis1.Normalize(), basis2.Normalize()
 }
 
 func (c Coord3D) array() [3]float64 {
