@@ -385,13 +385,15 @@ type squareSpacer struct {
 
 func newSquareSpacer(s Solid, delta float64) *squareSpacer {
 	var xs, ys, zs []float64
-	for x := s.Min().X - delta; x <= s.Max().X+delta; x += delta {
+	min := s.Min()
+	max := s.Max()
+	for x := min.X - delta; x <= max.X+delta; x += delta {
 		xs = append(xs, x)
 	}
-	for y := s.Min().Y - delta; y <= s.Max().Y+delta; y += delta {
+	for y := min.Y - delta; y <= max.Y+delta; y += delta {
 		ys = append(ys, y)
 	}
-	for z := s.Min().Z - delta; z <= s.Max().Z+delta; z += delta {
+	for z := min.Z - delta; z <= max.Z+delta; z += delta {
 		zs = append(zs, z)
 	}
 	return &squareSpacer{Xs: xs, Ys: ys, Zs: zs}
