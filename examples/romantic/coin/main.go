@@ -14,11 +14,6 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
-const (
-	NumSlices = 100
-	NumStops  = 200
-)
-
 func main() {
 	var outFile string
 	var renderFile string
@@ -42,115 +37,48 @@ func main() {
 	f.Close()
 	essentials.Must(err)
 
-	hFunc := &HeightFunc{
+	solid := &CoinSolid{
 		Img:       templateImg,
 		MinHeight: minHeight,
 		MaxHeight: maxHeight,
+		Radius:    radius,
 	}
 
-	m := CreateRoundMesh(hFunc, radius)
-	for i := 0; i < 11; i++ {
-		Subdivide(m, hFunc, radius)
-	}
-	FillVolume(m)
+	m := model3d.SolidToMesh(solid, radius/40, 3, 0.8, 5)
 
 	essentials.Must(ioutil.WriteFile(outFile, m.EncodeSTL(), 0755))
 	essentials.Must(model3d.SaveRandomGrid(renderFile, model3d.MeshToCollider(m), 4, 4, 200, 200))
 }
 
-func CreateRoundMesh(h *HeightFunc, radius float64) *model3d.Mesh {
-	m := model3d.NewMesh()
-	midHeight := h.Height(0, 0)
-	for i := 0; i < NumSlices; i++ {
-		theta := 2 * math.Pi * float64(i) / NumSlices
-		nextTheta := 2 * math.Pi * float64((i+1)%NumSlices) / NumSlices
-		m.Add(&model3d.Triangle{
-			model3d.Coord3D{X: 0, Y: 0, Z: midHeight},
-			h.Coord(theta, 1, radius),
-			h.Coord(nextTheta, 1, radius),
-		})
-	}
-	return m
-}
-
-func Subdivide(m *model3d.Mesh, h *HeightFunc, radius float64) {
-	subdivider := model3d.NewSubdivider()
-	subdivider.AddFiltered(m, func(p1, p2 model3d.Coord3D) bool {
-		return !h.IsFlat(p1, p2, radius)
-	})
-	subdivider.Subdivide(m, func(p1, p2 model3d.Coord3D) model3d.Coord3D {
-		x := (p1.X + p2.X) / 2
-		y := (p1.Y + p2.Y) / 2
-		theta := math.Atan2(y, x)
-		r := math.Sqrt(x*x+y*y) / radius
-		return h.Coord(theta, r, radius)
-	})
-}
-
-func FillVolume(m *model3d.Mesh) {
-	m.Iterate(func(t *model3d.Triangle) {
-		t1 := *t
-		for i := range t1 {
-			t1[i].Z = 0
-		}
-
-		// Create sides for edge triangles.
-		for i := 0; i < 3; i++ {
-			a := i
-			b := (i + 1) % 3
-			if len(m.Find(t[a], t[b])) == 1 {
-				m.Add(&model3d.Triangle{t[b], t[a], t1[a]})
-				m.Add(&model3d.Triangle{t[b], t1[a], t1[b]})
-			}
-		}
-
-		// Flip normal for bottom face.
-		t1[1], t1[2] = t1[2], t1[1]
-
-		m.Add(&t1)
-	})
-}
-
-type HeightFunc struct {
+type CoinSolid struct {
 	Img       image.Image
 	MinHeight float64
 	MaxHeight float64
+	Radius    float64
 }
 
-func (h *HeightFunc) Height(theta, radius float64) float64 {
-	x := math.Round((math.Cos(theta)*radius + 1) * float64(h.Img.Bounds().Dx()) / 2)
-	y := math.Round((1 - math.Sin(theta)*radius) * float64(h.Img.Bounds().Dy()) / 2)
-	c := h.Img.At(int(x), int(y))
-	r, g, b, _ := color.RGBAModel.Convert(c).RGBA()
-	relHeight := 1 - float64(r+g+b)/(3*0xffff)
-	return h.MinHeight + (h.MaxHeight-h.MinHeight)*relHeight
+func (c *CoinSolid) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: -c.Radius, Y: -c.Radius}
 }
 
-func (h *HeightFunc) Coord(theta, radius, radiusScale float64) model3d.Coord3D {
-	return model3d.Coord3D{
-		X: radiusScale * radius * math.Cos(theta),
-		Y: radiusScale * radius * math.Sin(theta),
-		Z: h.Height(theta, radius),
-	}
+func (c *CoinSolid) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: c.Radius, Y: c.Radius, Z: c.MaxHeight}
 }
 
-func (h *HeightFunc) IsFlat(p1, p2 model3d.Coord3D, radius float64) bool {
-	if p1.Z != p2.Z {
+func (c *CoinSolid) Contains(coord model3d.Coord3D) bool {
+	theta := math.Atan2(coord.Y, coord.X)
+	radius := (model3d.Coord2D{X: coord.X, Y: coord.Y}).Norm() / c.Radius
+	if radius > 1 {
 		return false
 	}
+	return coord.Z < c.height(theta, radius) && coord.Z >= 0
+}
 
-	totalDist := p1.Dist(p2)
-
-	for t := 0.0; t < totalDist; t += radius / NumStops {
-		frac := t / totalDist
-		x := p1.X*(1-frac) + p2.X*frac
-		y := p1.Y*(1-frac) + p2.Y*frac
-		theta := math.Atan2(y, x)
-		r := math.Sqrt(x*x+y*y) / radius
-		if h.Height(theta, r) != p1.Z {
-			return false
-		}
-	}
-
-	return true
+func (c *CoinSolid) height(theta, radius float64) float64 {
+	x := math.Round((math.Cos(theta)*radius + 1) * float64(c.Img.Bounds().Dx()) / 2)
+	y := math.Round((1 - math.Sin(theta)*radius) * float64(c.Img.Bounds().Dy()) / 2)
+	rawColor := c.Img.At(int(x), int(y))
+	r, g, b, _ := color.RGBAModel.Convert(rawColor).RGBA()
+	relHeight := 1 - float64(r+g+b)/(3*0xffff)
+	return c.MinHeight + (c.MaxHeight-c.MinHeight)*relHeight
 }
