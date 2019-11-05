@@ -122,6 +122,15 @@ func (c Coord3D) Dot(c1 Coord3D) float64 {
 	return c.X*c1.X + c.Y*c1.Y + c.Z*c1.Z
 }
 
+// Cross computes the cross product of c and c1.
+func (c Coord3D) Cross(c1 Coord3D) Coord3D {
+	return Coord3D{
+		X: c.Y*c1.Z - c.Z*c1.Y,
+		Y: c.Z*c1.X - c.X*c1.Z,
+		Z: c.X*c1.Y - c.Y*c1.X,
+	}
+}
+
 // Scale scales all the coordinates by s and returns the
 // new coordinate.
 func (c Coord3D) Scale(s float64) Coord3D {

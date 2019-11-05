@@ -15,13 +15,7 @@ func (t *Triangle) Normal() Coord3D {
 }
 
 func (t *Triangle) crossProduct() Coord3D {
-	x1, y1, z1 := t[1].X-t[0].X, t[1].Y-t[0].Y, t[1].Z-t[0].Z
-	x2, y2, z2 := t[2].X-t[0].X, t[2].Y-t[0].Y, t[2].Z-t[0].Z
-	return Coord3D{
-		X: y1*z2 - z1*y2,
-		Y: z1*x2 - x1*z2,
-		Z: x1*y2 - y1*x2,
-	}
+	return t[1].Sub(t[0]).Cross(t[2].Sub(t[0]))
 }
 
 // Min gets the element-wise minimum of all the points.
