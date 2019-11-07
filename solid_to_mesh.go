@@ -12,6 +12,9 @@ package model3d
 // The blurIters argument specifies how many times the
 // resulting mesh is blurred before being returned.
 func SolidToMesh(s Solid, delta float64, subdivisions int, blurFrac float64, blurIters int) *Mesh {
+	if delta == 0 {
+		panic("invalid delta argument")
+	}
 	scanner := NewRectScanner(s, delta)
 	for i := 0; i < subdivisions; i++ {
 		scanner.Subdivide()
