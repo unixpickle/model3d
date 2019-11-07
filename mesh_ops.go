@@ -11,7 +11,24 @@ import (
 // be moved, 0 being no movement and 1 being the most.
 // If multiple rates are passed, then multiple iterations
 // of the algorithm are performed in succession.
+// If a rate of -1 is passed, then all of neighbors are
+// averaged together with each point, and the resulting
+// average is used.
 func (m *Mesh) Blur(rates ...float64) *Mesh {
+	return m.BlurFiltered(nil, rates...)
+}
+
+// BlurFiltered is like Blur, but vertices are only
+// considered neighbors if f returns true for their
+// initial coordinates.
+//
+// Once vertices are considered neighbors, they will be
+// treated as such for every blur iteration, even if the
+// coordinates change in such a way that f would no longer
+// consider them neighbors.
+//
+// If f is nil, then this is equivalent to Blur().
+func (m *Mesh) BlurFiltered(f func(c1, c2 Coord3D) bool, rates ...float64) *Mesh {
 	capacity := len(m.triangles) * 3
 	if m.vertexToTriangle != nil {
 		capacity = len(m.vertexToTriangle)
@@ -43,7 +60,7 @@ func (m *Mesh) Blur(rates ...float64) *Mesh {
 						break
 					}
 				}
-				if !found {
+				if !found && (f == nil || f(coords[idx1], coords[idx2])) {
 					neighbors[idx1] = append(neighbors[idx1], idx2)
 				}
 			}
@@ -57,8 +74,13 @@ func (m *Mesh) Blur(rates ...float64) *Mesh {
 			for _, c1 := range neighbors[i] {
 				neighborAvg = neighborAvg.Add(coords[c1])
 			}
-			neighborAvg = neighborAvg.Scale(1 / float64(len(neighbors[i])))
-			newPoint := neighborAvg.Scale(rate).Add(c.Scale(1 - rate))
+			var newPoint Coord3D
+			if rate == -1 {
+				newPoint = neighborAvg.Add(c).Scale(1 / float64(len(neighbors[i])+1))
+			} else {
+				neighborAvg = neighborAvg.Scale(1 / float64(len(neighbors[i])))
+				newPoint = neighborAvg.Scale(rate).Add(c.Scale(1 - rate))
+			}
 			newCoords[i] = newPoint
 		}
 		coords = newCoords

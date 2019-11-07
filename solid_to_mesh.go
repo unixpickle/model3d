@@ -24,7 +24,16 @@ func SolidToMesh(s Solid, delta float64, subdivisions int, blurFrac float64, blu
 	for i := range blurRates {
 		blurRates[i] = blurFrac
 	}
-	mesh = mesh.Blur(blurRates...)
+	// Blur using axis-aligned edges only, that way the
+	// blur happens in the same way regardless of how we
+	// split the faces up.
+	mesh = mesh.BlurFiltered(func(c1, c2 Coord3D) bool {
+		if c1.X == c2.X {
+			return c1.Y == c2.Y || c1.Z == c2.Z
+		} else {
+			return c1.Y == c2.Y && c1.Z == c2.Z
+		}
+	}, blurRates...)
 	return mesh
 }
 
