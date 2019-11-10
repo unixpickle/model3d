@@ -59,19 +59,29 @@ func (b BrushSolid) Contains(c model3d.Coord3D) bool {
 	}
 
 	frac := math.Max(0, (BrushHeight-c.Z)/BrushHeight)
-	radius := frac*HandleTopRadius + (1-frac)*BrushTopRadius - BrushRippleDepth
+	radius := frac*HandleTopRadius + (1-frac)*BrushTopRadius
 	theta := math.Atan2(c.Y, c.X)
-	radius -= BrushRippleDepth * math.Sin(theta*BrushRippleFreq)
+	radius -= BrushRippleDepth * BrushRippleFunc(theta)
 	if c.Z < BrushHeight {
 		return centerDist <= radius
 	}
 
 	// Top of the brush.
-	topRadius := BrushTopRadius - BrushRippleDepth*(1+math.Sin(theta*BrushRippleFreq))
+	topRadius := BrushTopRadius - BrushRippleDepth*BrushRippleFunc(theta)
 	if centerDist >= topRadius {
 		return false
 	}
 	height := math.Sqrt(1-math.Pow((10+centerDist/topRadius)/11, 2)) * topRadius
-	height += BrushTopRippleDepth * math.Abs(math.Cos((centerDist/topRadius)*BrushTopRippleFreq))
+	height += BrushTopRippleDepth * BrushTopRippleFunc((centerDist/topRadius)*BrushTopRippleFreq)
 	return c.Z-BrushHeight < height
+}
+
+func BrushRippleFunc(theta float64) float64 {
+	value := math.Sin(40*theta) + 0.2*math.Cos(54*theta) + 0.3*math.Sin(100*theta)
+	return (value/1.5 + 1.0) / 2
+}
+
+func BrushTopRippleFunc(theta float64) float64 {
+	value := math.Sin(40.0*theta) + 0.3*math.Cos(60*theta)
+	return (value/1.3 + 1.0) / 2
 }
