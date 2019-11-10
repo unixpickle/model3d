@@ -174,6 +174,12 @@ func (c Coord3D) Geo() GeoCoord {
 	return g
 }
 
+// Coord2D projects c onto the x,y plane and drops the Z
+// value.
+func (c Coord3D) Coord2D() Coord2D {
+	return Coord2D{X: c.X, Y: c.Y}
+}
+
 // Min gets the element-wise minimum of c and c1.
 func (c Coord3D) Min(c1 Coord3D) Coord3D {
 	return Coord3D{math.Min(c.X, c1.X), math.Min(c.Y, c1.Y), math.Min(c.Z, c1.Z)}
