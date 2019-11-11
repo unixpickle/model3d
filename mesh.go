@@ -1,9 +1,12 @@
 package model3d
 
 import (
+	"bufio"
 	"math"
+	"os"
 	"sort"
 
+	"github.com/pkg/errors"
 	"github.com/unixpickle/essentials"
 )
 
@@ -268,6 +271,29 @@ func (m *Mesh) EncodePLY(colorFunc func(c Coord3D) [3]uint8) []byte {
 // per-triangle material.
 func (m *Mesh) EncodeMaterialOBJ(colorFunc func(t *Triangle) [3]float64) []byte {
 	return EncodeMaterialOBJ(m.TriangleSlice(), colorFunc)
+}
+
+// SaveGroupedSTL writes the mesh to an STL file with the
+// triangles grouped in such a way that the file can be
+// compressed efficiently.
+func (m *Mesh) SaveGroupedSTL(path string) error {
+	w, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save grouped STL")
+	}
+	defer w.Close()
+
+	bufWriter := bufio.NewWriter(w)
+
+	tris := m.TriangleSlice()
+	GroupTriangles(tris)
+	if err := WriteSTL(bufWriter, tris); err != nil {
+		return errors.Wrap(err, "save grouped STL")
+	}
+	if err := bufWriter.Flush(); err != nil {
+		return errors.Wrap(err, "save grouped STL")
+	}
+	return nil
 }
 
 // TriangleSlice gets a snapshot of all the triangles

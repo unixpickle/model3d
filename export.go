@@ -8,27 +8,45 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // EncodeSTL encodes a list of triangles in the binary STL
 // format for use in 3D printing.
 func EncodeSTL(triangles []*Triangle) []byte {
 	var buf bytes.Buffer
-	buf.Write(make([]byte, 80))
-	binary.Write(&buf, binary.LittleEndian, uint32(len(triangles)))
-	for _, t := range triangles {
-		encodeVector32(&buf, t.Normal())
-		for _, p := range t {
-			encodeVector32(&buf, p)
-		}
-		buf.WriteByte(0)
-		buf.WriteByte(0)
-	}
+	WriteSTL(&buf, triangles)
 	return buf.Bytes()
 }
 
-func encodeVector32(w *bytes.Buffer, v Coord3D) {
-	binary.Write(w, binary.LittleEndian, []float32{float32(v.X), float32(v.Y), float32(v.Z)})
+// WriteSTL writes a list of triangles in the binary STL
+// format to w.
+func WriteSTL(w io.Writer, triangles []*Triangle) error {
+	if _, err := w.Write(make([]byte, 80)); err != nil {
+		return errors.Wrap(err, "write STL")
+	}
+	if err := binary.Write(w, binary.LittleEndian, uint32(len(triangles))); err != nil {
+		return errors.Wrap(err, "write STL")
+	}
+	for _, t := range triangles {
+		if err := encodeVector32(w, t.Normal()); err != nil {
+			return errors.Wrap(err, "write STL")
+		}
+		for _, p := range t {
+			if err := encodeVector32(w, p); err != nil {
+				return errors.Wrap(err, "write STL")
+			}
+		}
+		if _, err := w.Write([]byte{0, 0}); err != nil {
+			return errors.Wrap(err, "write STL")
+		}
+	}
+	return nil
+}
+
+func encodeVector32(w io.Writer, v Coord3D) error {
+	return binary.Write(w, binary.LittleEndian, []float32{float32(v.X), float32(v.Y), float32(v.Z)})
 }
 
 // EncodePLY encodes a 3D model as a PLY file, including

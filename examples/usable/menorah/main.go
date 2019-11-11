@@ -3,7 +3,6 @@ package main
 import (
 	"image"
 	"image/png"
-	"io/ioutil"
 	"math"
 	"os"
 
@@ -44,7 +43,7 @@ func main() {
 		})
 	}
 	mesh := model3d.SolidToMesh(solid, 0.05, 2, -1, 5)
-	ioutil.WriteFile("menorah.stl", mesh.EncodeSTL(), 0755)
+	essentials.Must(mesh.SaveGroupedSTL("menorah.stl"))
 
 	img := image.NewGray(image.Rect(0, 0, 500, 400))
 	model3d.RenderRayCast(model3d.MeshToCollider(mesh), img,
