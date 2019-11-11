@@ -67,23 +67,31 @@ func (m *Mesh) BlurFiltered(f func(c1, c2 Coord3D) bool, rates ...float64) *Mesh
 		}
 	})
 
+	newCoords := make([]Coord3D, len(coords))
 	for _, rate := range rates {
-		newCoords := make([]Coord3D, len(coords))
 		for i, c := range coords {
+			ns := neighbors[i]
+			if len(ns) == 0 {
+				newCoords[i] = c
+				continue
+			}
+
 			neighborAvg := Coord3D{}
-			for _, c1 := range neighbors[i] {
+			for _, c1 := range ns {
 				neighborAvg = neighborAvg.Add(coords[c1])
 			}
+
 			var newPoint Coord3D
 			if rate == -1 {
-				newPoint = neighborAvg.Add(c).Scale(1 / float64(len(neighbors[i])+1))
+				newPoint = neighborAvg.Add(c).Scale(1 / float64(len(ns)+1))
 			} else {
-				neighborAvg = neighborAvg.Scale(1 / float64(len(neighbors[i])))
+				neighborAvg = neighborAvg.Scale(1 / float64(len(ns)))
 				newPoint = neighborAvg.Scale(rate).Add(c.Scale(1 - rate))
 			}
+
 			newCoords[i] = newPoint
 		}
-		coords = newCoords
+		copy(coords, newCoords)
 	}
 
 	m1 := NewMesh()
