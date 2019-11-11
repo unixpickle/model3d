@@ -125,6 +125,16 @@ func BenchmarkMeshBlur(b *testing.B) {
 	}
 }
 
+func BenchmarkMeshSmoothArea(b *testing.B) {
+	m := NewMeshPolar(func(g GeoCoord) float64 {
+		return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
+	}, 100)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m.SmoothAreas(0.1, 7)
+	}
+}
+
 func BenchmarkMeshRepair(b *testing.B) {
 	m := NewMesh()
 	NewMeshPolar(func(g GeoCoord) float64 {
