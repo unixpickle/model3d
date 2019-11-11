@@ -67,7 +67,12 @@ func (t *Triangle) AreaGradient() *Triangle {
 		if baseNorm == 0 {
 			continue
 		}
-		v := p.Sub(p1).ProjectOut(base)
+		// Project the base out of v to get the height
+		// vector of the triangle.
+		normed := base.Scale(1 / baseNorm)
+		v := p.Sub(p1)
+		v = v.Sub(normed.Scale(normed.Dot(v)))
+
 		vNorm := v.Norm()
 		if vNorm == 0 {
 			continue
