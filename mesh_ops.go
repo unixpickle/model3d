@@ -97,6 +97,41 @@ func (m *Mesh) BlurFiltered(f func(c1, c2 Coord3D) bool, rates ...float64) *Mesh
 	return m1
 }
 
+// SmoothAreas uses gradient descent to iteratively smooth
+// out the surface by moving every vertex in the direction
+// that minimizes the area of its adjacent triangles.
+//
+// The stepSize argument specifies how much the vertices
+// are moved at each iteration. Good values depend on the
+// mesh, but a good start is on the order of 0.1.
+//
+// The iters argument specifies how many gradient steps
+// are taken.
+//
+// This algorithm can produce very smooth objects, but it
+// is much less efficient than Blur().
+// Consider Blur() when perfect smoothness is not
+// required.
+func (m *Mesh) SmoothAreas(stepSize float64, iters int) *Mesh {
+	m1 := NewMesh()
+	m1.AddMesh(m)
+
+	for i := 0; i < iters; i++ {
+		grads := map[Coord3D]Coord3D{}
+		m1.Iterate(func(t *Triangle) {
+			for i, g := range t.AreaGradient() {
+				grads[t[i]] = grads[t[i]].Add(g)
+			}
+		})
+		rate := -stepSize
+		m1 = m1.MapCoords(func(c Coord3D) Coord3D {
+			return c.Add(grads[c].Scale(rate))
+		})
+	}
+
+	return m1
+}
+
 // Repair finds vertices that are close together and
 // combines them into one.
 //
