@@ -55,6 +55,28 @@ func (t *Triangle) inCommon(t1 *Triangle) int {
 	return inCommon
 }
 
+// AreaGradient computes the gradient of the triangle's
+// area with respect to every coordinate.
+func (t *Triangle) AreaGradient() *Triangle {
+	var grad Triangle
+	for i, p := range t {
+		p1 := t[(i+1)%3]
+		p2 := t[(i+2)%3]
+		base := p2.Sub(p1)
+		baseNorm := base.Norm()
+		if baseNorm == 0 {
+			continue
+		}
+		v := p.Sub(p1).ProjectOut(base)
+		vNorm := v.Norm()
+		if vNorm == 0 {
+			continue
+		}
+		grad[i] = v.Scale(baseNorm / (2 * vNorm))
+	}
+	return &grad
+}
+
 // A Segment is a line segment in a canonical ordering,
 // such that segments can be compared via the == operator
 // even if they were created with their points in the
