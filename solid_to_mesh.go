@@ -61,7 +61,7 @@ func NewRectScanner(s Solid, delta float64) *RectScanner {
 			NumInteriorCorners: cache.NumInteriorCorners(x, y, z),
 		}
 		if piece.NumInteriorCorners != 0 && piece.NumInteriorCorners != 8 {
-			piece.Neighbors = map[*rectPiece]bool{}
+			piece.Neighbors = []*rectPiece{}
 			pieces[spacer.SquareIndex(x, y, z)] = piece
 			res.border[piece] = true
 		} else if piece.NumInteriorCorners == 8 {
@@ -94,7 +94,7 @@ func NewRectScanner(s Solid, delta float64) *RectScanner {
 		}
 		addNeighbor := func(x, y, z int) {
 			if p1, ok := pieces[spacer.SquareIndex(x, y, z)]; ok {
-				p1.Neighbors[piece] = true
+				p1.AddNeighbor(piece)
 			}
 		}
 		if x > 0 {
@@ -210,8 +210,8 @@ func (r *RectScanner) Mesh() *Mesh {
 
 func (r *RectScanner) splitBorder(rp *rectPiece) {
 	delete(r.border, rp)
-	for n := range rp.Neighbors {
-		delete(n.Neighbors, rp)
+	for _, n := range rp.Neighbors {
+		n.RemoveNeighbor(rp)
 	}
 
 	var newPieces []*rectPiece
@@ -245,11 +245,11 @@ func (r *RectScanner) splitBorder(rp *rectPiece) {
 				newPiece := &rectPiece{
 					Min:       Coord3D{X: minX, Y: minY, Z: minZ},
 					Max:       Coord3D{X: maxX, Y: maxY, Z: maxZ},
-					Neighbors: map[*rectPiece]bool{},
+					Neighbors: []*rectPiece{},
 				}
 				newPiece.CountInteriorCorners(r.solid)
 				newPiece.UpdateNeighbors(rp.Neighbors)
-				rp.Neighbors[newPiece] = true
+				rp.AddNeighbor(newPiece)
 				newPieces = append(newPieces, newPiece)
 			}
 		}
@@ -283,7 +283,7 @@ type rectPiece struct {
 	// A set of adjacent pieces.
 	//
 	// May be nil for locked or deleted pieces.
-	Neighbors map[*rectPiece]bool
+	Neighbors []*rectPiece
 
 	// The number of corners inside the solid.
 	NumInteriorCorners int
@@ -331,21 +331,37 @@ func (r *rectPiece) CountInteriorCorners(s Solid) {
 	}
 }
 
-func (r *rectPiece) UpdateNeighbors(possible map[*rectPiece]bool) {
-	for n := range possible {
+func (r *rectPiece) UpdateNeighbors(possible []*rectPiece) {
+	for _, n := range possible {
 		if n.CheckNeighbor(r) {
 			if r.Neighbors != nil {
-				r.Neighbors[n] = true
+				r.AddNeighbor(n)
 			}
 			if n.Neighbors != nil {
-				n.Neighbors[r] = true
+				n.AddNeighbor(r)
 			}
 		}
 	}
 }
 
+func (r *rectPiece) AddNeighbor(r1 *rectPiece) {
+	r.Neighbors = append(r.Neighbors, r1)
+}
+
+func (r *rectPiece) RemoveNeighbor(r1 *rectPiece) {
+	for i, n := range r.Neighbors {
+		if n == r1 {
+			last := len(r.Neighbors) - 1
+			r.Neighbors[i] = r.Neighbors[last]
+			r.Neighbors[last] = nil
+			r.Neighbors = r.Neighbors[:last]
+			return
+		}
+	}
+}
+
 func (r *rectPiece) TouchingLocked() bool {
-	for n := range r.Neighbors {
+	for _, n := range r.Neighbors {
 		if n.Locked {
 			return true
 		}
@@ -354,7 +370,7 @@ func (r *rectPiece) TouchingLocked() bool {
 }
 
 func (r *rectPiece) TouchingDeleted() bool {
-	for n := range r.Neighbors {
+	for _, n := range r.Neighbors {
 		if n.Deleted {
 			return true
 		}
@@ -363,7 +379,7 @@ func (r *rectPiece) TouchingDeleted() bool {
 }
 
 func (r *rectPiece) IsSideBorder(axis int, max bool) bool {
-	for n := range r.Neighbors {
+	for _, n := range r.Neighbors {
 		if n.Deleted {
 			continue
 		}

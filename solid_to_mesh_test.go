@@ -79,3 +79,14 @@ func (s simpleSingularVertex) Contains(c Coord3D) bool {
 	}
 	return (c.X < 0.1 && c.Y < 0.1 && c.Z < 0.1) || (c.X > 0.9 && c.Y > 0.9 && c.Z < 0.9)
 }
+
+func BenchmarkSolidToMesh(b *testing.B) {
+	solid := &CylinderSolid{
+		P1:     Coord3D{X: 1, Y: 2, Z: 3},
+		P2:     Coord3D{X: 3, Y: 1, Z: 4},
+		Radius: 0.5,
+	}
+	for i := 0; i < b.N; i++ {
+		SolidToMesh(solid, 0.1, 2, 0, 0)
+	}
+}
