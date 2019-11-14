@@ -3,7 +3,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"bufio"
 	"os"
 
 	"github.com/unixpickle/essentials"
@@ -11,10 +11,17 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 3 {
-		essentials.Die("Usage: inch_to_mm <input.stl> <output.stl>")
+	if len(os.Args) != 2 && len(os.Args) != 3 {
+		essentials.Die("Usage: inch_to_mm <input.stl> [output.stl]")
 	}
-	r, err := os.Open(os.Args[1])
+
+	inputFile := os.Args[1]
+	outputFile := inputFile
+	if len(os.Args) == 3 {
+		outputFile = os.Args[2]
+	}
+
+	r, err := os.Open(inputFile)
 	essentials.Must(err)
 	triangles, err := model3d.ReadSTL(r)
 	r.Close()
@@ -26,6 +33,11 @@ func main() {
 		}
 	}
 
-	err = ioutil.WriteFile(os.Args[2], model3d.EncodeSTL(triangles), 0755)
+	w, err := os.Create(outputFile)
 	essentials.Must(err)
+	defer w.Close()
+	bufW := bufio.NewWriter(w)
+	err = model3d.WriteSTL(bufW, triangles)
+	essentials.Must(err)
+	essentials.Must(bufW.Flush())
 }
