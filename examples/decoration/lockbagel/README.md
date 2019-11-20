@@ -4,4 +4,4 @@ This is an example of how to create a mesh for a non-trivial shape (a lock). It 
 
 Here's a picture of a real-life 3D print of the model created by this example:
 
-![3D printed lock and bagel](printed_lockbagel.png)
+![3D printed lock and bagel](printed_lockbagel.jpg)
