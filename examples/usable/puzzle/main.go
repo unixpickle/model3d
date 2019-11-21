@@ -19,8 +19,8 @@ const (
 	PieceBottomSize = TrackSize + 0.1
 	PieceThickness  = 0.2
 
-	ScrewRadius     = 0.1
-	ScrewSlack      = 0.015
+	ScrewRadius     = 0.2
+	ScrewSlack      = 0.025
 	ScrewGrooveSize = 0.04
 
 	BottomThickness = 0.3
