@@ -12,20 +12,22 @@ import (
 )
 
 const (
-	HolderSize      = 0.5
-	HolderThickness = 0.2
-	TrackSize       = HolderSize / math.Sqrt2
-	PieceSize       = HolderSize + TrackSize - 0.05
-	PieceBottomSize = TrackSize + 0.1
-	PieceThickness  = 0.2
+	HolderSize       = 0.5
+	HolderThickness  = 0.2
+	HolderBaseRadius = 0.18
+	TrackSize        = HolderSize / math.Sqrt2
+	PieceSize        = HolderSize + TrackSize - 0.05
+	PieceBottomSize  = TrackSize + 0.1
+	PieceThickness   = 0.2
 
-	ScrewRadius     = 0.2
-	ScrewSlack      = 0.025
+	ScrewRadius     = 0.18
+	ScrewSlack      = 0.03
 	ScrewGrooveSize = 0.04
 
-	BottomThickness = 0.3
-	TotalThickness  = 1.0
-	WallThickness   = 0.3
+	BottomThickness      = 0.3
+	BottomLayerThickness = 0.1
+	TotalThickness       = 1.0
+	WallThickness        = 0.3
 )
 
 func main() {
@@ -113,7 +115,7 @@ func BoardSolid() model3d.Solid {
 			cy := WallThickness + float64(y+1)*(HolderSize+TrackSize)
 			screws = append(screws, &toolbox3d.ScrewSolid{
 				P1:         model3d.Coord3D{X: cx, Y: cy, Z: TotalThickness - PieceThickness},
-				P2:         model3d.Coord3D{X: cx, Y: cy, Z: 0},
+				P2:         model3d.Coord3D{X: cx, Y: cy, Z: BottomLayerThickness},
 				Radius:     ScrewRadius,
 				GrooveSize: ScrewGrooveSize,
 			})
@@ -133,9 +135,26 @@ func HolderSolid() model3d.Solid {
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{X: HolderSize, Y: HolderSize, Z: HolderThickness},
 		},
+		&model3d.CylinderSolid{
+			P1: model3d.Coord3D{
+				X: center,
+				Y: center,
+				Z: 0,
+			},
+			P2: model3d.Coord3D{
+				X: center,
+				Y: center,
+				Z: TotalThickness - PieceThickness - BottomThickness,
+			},
+			Radius: HolderBaseRadius,
+		},
 		&toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{X: center, Y: center, Z: 0},
-			P2:         model3d.Coord3D{X: center, Y: center, Z: TotalThickness - PieceThickness},
+			P1: model3d.Coord3D{X: center, Y: center, Z: 0},
+			P2: model3d.Coord3D{
+				X: center,
+				Y: center,
+				Z: TotalThickness - PieceThickness - BottomLayerThickness,
+			},
 			Radius:     ScrewRadius - ScrewSlack,
 			GrooveSize: ScrewGrooveSize,
 		},
