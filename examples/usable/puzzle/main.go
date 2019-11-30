@@ -12,15 +12,15 @@ import (
 )
 
 const (
-	HolderSize       = 0.5
-	HolderThickness  = 0.2
-	HolderBaseRadius = 0.18
-	TrackSize        = HolderSize / math.Sqrt2
-	PieceSize        = HolderSize + TrackSize - 0.05
-	PieceBottomSize  = TrackSize + 0.1
-	PieceThickness   = 0.2
+	HolderSize      = 0.5
+	HolderThickness = 0.2
+	TrackSize       = HolderSize / math.Sqrt2
+	PieceSize       = HolderSize + TrackSize - 0.05
+	PieceBottomSize = TrackSize + 0.1
+	PieceThickness  = 0.2
 
-	ScrewRadius     = 0.18
+	ScrewBaseRadius = 0.16
+	ScrewRadius     = 0.16
 	ScrewSlack      = 0.03
 	ScrewGrooveSize = 0.04
 
@@ -41,19 +41,19 @@ func main() {
 
 	if _, err := os.Stat("holder.stl"); os.IsNotExist(err) {
 		log.Println("Creating holder...")
-		mesh := model3d.SolidToMesh(HolderSolid(), 0.01, 1, -1, 5)
+		mesh := model3d.SolidToMesh(HolderSolid(), 0.005, 1, -1, 5)
 		mesh.SaveGroupedSTL("holder.stl")
 	}
 
 	if _, err := os.Stat("piece_top.stl"); os.IsNotExist(err) {
 		log.Println("Creating piece top...")
-		mesh := model3d.SolidToMesh(PieceTopSolid(), 0.01, 1, -1, 5)
+		mesh := model3d.SolidToMesh(PieceTopSolid(), 0.005, 1, -1, 5)
 		mesh.SaveGroupedSTL("piece_top.stl")
 	}
 
 	if _, err := os.Stat("piece_bottom.stl"); os.IsNotExist(err) {
 		log.Println("Creating piece bottom...")
-		mesh := model3d.SolidToMesh(PieceBottomSolid(), 0.01, 1, -1, 5)
+		mesh := model3d.SolidToMesh(PieceBottomSolid(), 0.005, 1, -1, 5)
 		mesh.SaveGroupedSTL("piece_bottom.stl")
 	}
 }
@@ -130,7 +130,7 @@ func BoardSolid() model3d.Solid {
 
 func HolderSolid() model3d.Solid {
 	center := HolderSize / 2
-	return model3d.JoinedSolid{
+	solid := model3d.JoinedSolid{
 		&model3d.RectSolid{
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{X: HolderSize, Y: HolderSize, Z: HolderThickness},
@@ -146,7 +146,7 @@ func HolderSolid() model3d.Solid {
 				Y: center,
 				Z: TotalThickness - PieceThickness - BottomThickness,
 			},
-			Radius: HolderBaseRadius,
+			Radius: ScrewBaseRadius,
 		},
 		&toolbox3d.ScrewSolid{
 			P1: model3d.Coord3D{X: center, Y: center, Z: 0},
@@ -159,6 +159,22 @@ func HolderSolid() model3d.Solid {
 			GrooveSize: ScrewGrooveSize,
 		},
 	}
+	// Remove screw slack from the end of the screw.
+	return &model3d.SubtractedSolid{
+		Positive: solid,
+		Negative: &model3d.RectSolid{
+			MinVal: model3d.Coord3D{
+				X: 0,
+				Y: 0,
+				Z: TotalThickness - PieceThickness - BottomLayerThickness - ScrewSlack,
+			},
+			MaxVal: model3d.Coord3D{
+				X: HolderSize,
+				Y: HolderSize,
+				Z: TotalThickness,
+			},
+		},
+	}
 }
 
 func PieceTopSolid() model3d.Solid {
@@ -167,6 +183,15 @@ func PieceTopSolid() model3d.Solid {
 		&model3d.RectSolid{
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{X: PieceSize, Y: PieceSize, Z: PieceThickness},
+		},
+		&model3d.CylinderSolid{
+			P1: model3d.Coord3D{X: center, Y: center, Z: 0},
+			P2: model3d.Coord3D{
+				X: center,
+				Y: center,
+				Z: TotalThickness - BottomThickness - PieceThickness,
+			},
+			Radius: ScrewBaseRadius,
 		},
 		&toolbox3d.ScrewSolid{
 			P1:         model3d.Coord3D{X: center, Y: center, Z: 0},
