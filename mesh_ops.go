@@ -170,6 +170,26 @@ func (m *Mesh) SmoothAreas(stepSize float64, iters int) *Mesh {
 	return m1
 }
 
+// LassoSolid pulls the vertices of a mesh closer to a
+// solid using SolidNormal().
+//
+// The stepSize argument, not present in SolidNormal(),
+// specifies the fraction of the normal to add to each
+// coordinate. This can be used to avoid taking large
+// steps that distort the mesh.
+//
+// See SolidNormal() for other argument information.
+func (m *Mesh) LassoSolid(s Solid, epsilon float64, maxIters, samplePoints int,
+	stepSize float64) *Mesh {
+	return m.MapCoords(func(c Coord3D) Coord3D {
+		norm, ok := SolidNormal(s, c, epsilon, maxIters, samplePoints)
+		if !ok {
+			return c
+		}
+		return c.Add(norm.Scale(stepSize))
+	})
+}
+
 // Repair finds vertices that are close together and
 // combines them into one.
 //
