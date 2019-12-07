@@ -1,7 +1,7 @@
 package main
 
 import (
-	"math"
+	"log"
 
 	"github.com/unixpickle/model3d/toolbox3d"
 
@@ -9,14 +9,12 @@ import (
 )
 
 const (
-	Radius     = 1.2
-	Height     = 1.2
-	RippleRate = math.Pi * 7
-	RippleSize = 0.02
+	Radius = 1.2
+	Height = Radius
 
 	ScrewRadius     = 0.3
 	ScrewGrooveSize = 0.05
-	ScrewSlack      = 0.03
+	ScrewSlack      = 0.04
 
 	SteakHeight = 3.0
 )
@@ -32,15 +30,19 @@ func main() {
 		Solid:  screw,
 		Center: model3d.Coord3D{Z: Height / 2},
 	}
+
+	log.Println("Building poop solid...")
 	poop := &model3d.SubtractedSolid{
-		Positive: PoopSolid{},
+		Positive: PoopSolid(),
 		Negative: pointedScrew,
 	}
 
-	mesh := model3d.SolidToMesh(poop, 0.02, 1, -1, 10)
+	log.Println("Building poop mesh...")
+	mesh := model3d.SolidToMesh(poop, 0.01, 0, -1, 10)
 	mesh.SaveGroupedSTL("poop.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 
+	log.Println("Building steak mesh...")
 	screw.P1, screw.P2 = screw.P2, screw.P1
 	screw.Radius -= ScrewSlack
 	mesh = model3d.SolidToMesh(pointedScrew, 0.01, 0, -1, 10)
@@ -48,24 +50,80 @@ func main() {
 	model3d.SaveRandomGrid("steak.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 }
 
-type PoopSolid struct{}
-
-func (p PoopSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -Radius, Y: -Radius}
-}
-
-func (p PoopSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: Radius, Y: Radius, Z: Height}
-}
-
-func (p PoopSolid) Contains(c model3d.Coord3D) bool {
-	if c.Min(p.Min()) != p.Min() || c.Max(p.Max()) != p.Max() {
-		return false
+func PoopSolid() model3d.Solid {
+	tip := &PointedSolid{
+		Solid: &model3d.RectSolid{
+			MinVal: model3d.Coord3D{Z: Radius * 0.85, X: -Radius * 0.3, Y: -Radius * 0.3},
+			MaxVal: model3d.Coord3D{Z: Radius * 1.15, X: Radius * 0.3, Y: Radius * 0.3},
+		},
+		Center: model3d.Coord3D{Z: Radius * 1.15},
 	}
-	radius := (model3d.Coord2D{X: c.X, Y: c.Y}).Norm()
-	ripple := RippleSize * math.Sin(radius*RippleRate)
-	maxHeight := Height - (radius*Height/Radius + ripple)
-	return c.Z < maxHeight
+	constructed := model3d.JoinedSolid{
+		tip,
+		&model3d.CylinderSolid{
+			P1:     model3d.Coord3D{Z: -Radius * 0.25},
+			P2:     model3d.Coord3D{Z: Radius * 0.25},
+			Radius: Radius,
+		},
+		&model3d.TorusSolid{
+			Axis:        model3d.Coord3D{Z: 1},
+			OuterRadius: Radius,
+			InnerRadius: 0.25 * Radius,
+		},
+		&model3d.TorusSolid{
+			Center:      model3d.Coord3D{Z: Radius * 0.35},
+			Axis:        model3d.Coord3D{Z: 1},
+			OuterRadius: Radius * 0.7,
+			InnerRadius: 0.25 * Radius,
+		},
+		&model3d.TorusSolid{
+			Center:      model3d.Coord3D{Z: Radius * 0.65},
+			Axis:        model3d.Coord3D{Z: 1},
+			OuterRadius: Radius * 0.35,
+			InnerRadius: 0.25 * Radius,
+		},
+	}
+	mesh := model3d.SolidToMesh(constructed, 0.011, 0, -1, 5)
+	for i := 0; i < 5; i++ {
+		log.Printf("- lasso solid %d/5...", i)
+		mesh = mesh.LassoSolid(constructed, 0.005, 4, 100, 0.2)
+	}
+
+	// Remove internal gaps, leaving only the external shell.
+	topTriangle := &model3d.Triangle{}
+	mesh.Iterate(func(t *model3d.Triangle) {
+		if t.Max().Z > topTriangle.Max().Z {
+			topTriangle = t
+		}
+	})
+	searched := map[*model3d.Triangle]bool{topTriangle: true}
+	toSearch := []*model3d.Triangle{topTriangle}
+	for len(toSearch) > 0 {
+		t := toSearch[0]
+		toSearch = toSearch[1:]
+		for _, n := range mesh.Neighbors(t) {
+			if !searched[n] {
+				searched[n] = true
+				toSearch = append(toSearch, n)
+			}
+		}
+	}
+	mesh.Iterate(func(t *model3d.Triangle) {
+		if !searched[t] {
+			mesh.Remove(t)
+		}
+	})
+
+	// Clip off bottom to remove need for supports, and
+	// to avoid a rough surface that occurs due to
+	// rounding.
+	return &model3d.SubtractedSolid{
+		Positive: model3d.NewColliderSolid(model3d.MeshToCollider(mesh)),
+		Negative: &model3d.RectSolid{
+			MinVal: model3d.Coord3D{X: -Radius * 2, Y: -Radius * 2, Z: -Radius * 0.3},
+			MaxVal: model3d.Coord3D{X: Radius * 2, Y: Radius * 2, Z: -Radius * 0.15},
+		},
+	}
 }
 
 type PointedSolid struct {
