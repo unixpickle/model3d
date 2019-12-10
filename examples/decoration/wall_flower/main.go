@@ -24,22 +24,27 @@ func main() {
 		} else {
 			return 0
 		}
-	}, 300)
+	}, 500)
 	sphereMesh.Iterate(func(t *model3d.Triangle) {
 		if t[0].Norm() == 0 || t[1].Norm() == 0 || t[2].Norm() == 0 {
 			sphereMesh.Remove(t)
 		}
 	})
+	sphereMesh = sphereMesh.MapCoords(func(f model3d.Coord3D) model3d.Coord3D {
+		f.Z *= -1
+		f.Z += Radius
+		return f
+	})
 	solid := model3d.JoinedSolid{
 		model3d.NewColliderSolidHollow(model3d.MeshToCollider(sphereMesh), Thickness),
 		&model3d.CylinderSolid{
-			P1:     model3d.Coord3D{Z: Radius - Thickness},
-			P2:     model3d.Coord3D{Z: Radius + Thickness},
+			P1:     model3d.Coord3D{Z: -Thickness},
+			P2:     model3d.Coord3D{Z: Thickness},
 			Radius: BaseRadius,
 		},
 	}
 
-	mesh := model3d.SolidToMesh(solid, 0.01, 0, -1, 10)
+	mesh := model3d.SolidToMesh(solid, 0.01, 0, -1, 30)
 	mesh.SaveGroupedSTL("flower.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }
