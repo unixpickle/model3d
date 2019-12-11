@@ -15,11 +15,16 @@ func SolidToMesh(s Solid, delta float64, subdivisions int, blurFrac float64, blu
 	if delta == 0 {
 		panic("invalid delta argument")
 	}
-	scanner := NewRectScanner(s, delta)
-	for i := 0; i < subdivisions; i++ {
-		scanner.Subdivide()
+	var mesh *Mesh
+	if subdivisions == 0 {
+		mesh = directSolidToMesh(s, delta)
+	} else {
+		scanner := NewRectScanner(s, delta)
+		for i := 0; i < subdivisions; i++ {
+			scanner.Subdivide()
+		}
+		mesh = scanner.Mesh()
 	}
-	mesh := scanner.Mesh()
 	if blurIters == 0 {
 		return mesh
 	}
@@ -29,6 +34,55 @@ func SolidToMesh(s Solid, delta float64, subdivisions int, blurFrac float64, blu
 	}
 	mesh = mesh.Blur(blurRates...)
 	return mesh
+}
+
+func directSolidToMesh(s Solid, delta float64) *Mesh {
+	spacer := newSquareSpacer(s, delta)
+	cache := newSolidCache(s, spacer)
+
+	return faceQuadsToMesh(func(f func([4]Coord3D)) {
+		spacer.IterateSquares(func(x, y, z int) {
+			min := spacer.CornerCoord(x, y, z)
+			max := spacer.CornerCoord(x+1, y+1, z+1)
+
+			numInterior := cache.NumInteriorCorners(x, y, z)
+			if numInterior == 0 {
+				return
+			} else if numInterior == 8 {
+				if x == 0 || x == len(spacer.Xs)-2 || y == 0 || y == len(spacer.Ys)-2 ||
+					z == 0 || z == len(spacer.Zs)-2 {
+					panic("solid is true outside of bounds")
+				}
+				return
+			}
+
+			isSideBorder := func(axis int, positive bool) bool {
+				x1, y1, z1 := x, y, z
+				delta := 1
+				if !positive {
+					delta = -1
+				}
+				if axis == 0 {
+					x1 += delta
+					if x1 < 0 || x1+1 >= len(spacer.Xs) {
+						return true
+					}
+				} else if axis == 1 {
+					y1 += delta
+					if y1 < 0 || y1+1 >= len(spacer.Ys) {
+						return true
+					}
+				} else {
+					z1 += delta
+					if z1 < 0 || z1+1 >= len(spacer.Zs) {
+						return true
+					}
+				}
+				return cache.NumInteriorCorners(x1, y1, z1) == 0
+			}
+			boxToFaceQuads(min, max, isSideBorder, f)
+		})
+	})
 }
 
 // A RectScanner maps out the edges of a solid using
@@ -140,72 +194,13 @@ func (r *RectScanner) Subdivide() {
 // inside of the solid.
 func (r *RectScanner) BorderRects(f func(points [4]Coord3D)) {
 	for p := range r.border {
-		// Left and right sides.
-		if p.IsSideBorder(0, false) {
-			p1, p2, p3 := p.Min, p.Min, p.Min
-			p1.Y = p.Max.Y
-			p2.Y = p.Max.Y
-			p2.Z = p.Max.Z
-			p3.Z = p.Max.Z
-			f([4]Coord3D{p.Min, p1, p2, p3})
-		}
-		if p.IsSideBorder(0, true) {
-			p1, p2, p3 := p.Max, p.Max, p.Max
-			p1.Z = p.Min.Z
-			p2.Z = p.Min.Z
-			p2.Y = p.Min.Y
-			p3.Y = p.Min.Y
-			f([4]Coord3D{p.Max, p1, p2, p3})
-		}
-
-		// Top and bottom sides.
-		if p.IsSideBorder(1, false) {
-			p1, p2, p3 := p.Min, p.Min, p.Min
-			p1.Z = p.Max.Z
-			p2.Z = p.Max.Z
-			p2.X = p.Max.X
-			p3.X = p.Max.X
-			f([4]Coord3D{p.Min, p1, p2, p3})
-		}
-		if p.IsSideBorder(1, true) {
-			p1, p2, p3 := p.Max, p.Max, p.Max
-			p1.X = p.Min.X
-			p2.X = p.Min.X
-			p2.Z = p.Min.Z
-			p3.Z = p.Min.Z
-			f([4]Coord3D{p.Max, p1, p2, p3})
-		}
-
-		// Front and back sides.
-		if p.IsSideBorder(2, false) {
-			p1, p2, p3 := p.Min, p.Min, p.Min
-			p1.X = p.Max.X
-			p2.X = p.Max.X
-			p2.Y = p.Max.Y
-			p3.Y = p.Max.Y
-			f([4]Coord3D{p.Min, p1, p2, p3})
-		}
-		if p.IsSideBorder(2, true) {
-			p1, p2, p3 := p.Max, p.Max, p.Max
-			p1.Y = p.Min.Y
-			p2.Y = p.Min.Y
-			p2.X = p.Min.X
-			p3.X = p.Min.X
-			f([4]Coord3D{p.Max, p1, p2, p3})
-		}
+		boxToFaceQuads(p.Min, p.Max, p.IsSideBorder, f)
 	}
 }
 
 // Mesh creates a mesh for the border.
 func (r *RectScanner) Mesh() *Mesh {
-	m := NewMesh()
-	r.BorderRects(func(points [4]Coord3D) {
-		m.Add(&Triangle{points[0], points[2], points[1]})
-		m.Add(&Triangle{points[0], points[3], points[2]})
-	})
-	fixSingularEdges(m)
-	fixSingularVertices(m)
-	return m
+	return faceQuadsToMesh(r.BorderRects)
 }
 
 func (r *RectScanner) splitBorder(rp *rectPiece) {
@@ -483,6 +478,74 @@ func (s *solidCache) NumInteriorCorners(x, y, z int) int {
 		}
 	}
 	return res
+}
+
+func boxToFaceQuads(min, max Coord3D, isSideBorder func(axis int, positive bool) bool,
+	f func([4]Coord3D)) {
+	// Left and right sides.
+	if isSideBorder(0, false) {
+		p1, p2, p3 := min, min, min
+		p1.Y = max.Y
+		p2.Y = max.Y
+		p2.Z = max.Z
+		p3.Z = max.Z
+		f([4]Coord3D{min, p1, p2, p3})
+	}
+	if isSideBorder(0, true) {
+		p1, p2, p3 := max, max, max
+		p1.Z = min.Z
+		p2.Z = min.Z
+		p2.Y = min.Y
+		p3.Y = min.Y
+		f([4]Coord3D{max, p1, p2, p3})
+	}
+
+	// Top and bottom sides.
+	if isSideBorder(1, false) {
+		p1, p2, p3 := min, min, min
+		p1.Z = max.Z
+		p2.Z = max.Z
+		p2.X = max.X
+		p3.X = max.X
+		f([4]Coord3D{min, p1, p2, p3})
+	}
+	if isSideBorder(1, true) {
+		p1, p2, p3 := max, max, max
+		p1.X = min.X
+		p2.X = min.X
+		p2.Z = min.Z
+		p3.Z = min.Z
+		f([4]Coord3D{max, p1, p2, p3})
+	}
+
+	// Front and back sides.
+	if isSideBorder(2, false) {
+		p1, p2, p3 := min, min, min
+		p1.X = max.X
+		p2.X = max.X
+		p2.Y = max.Y
+		p3.Y = max.Y
+		f([4]Coord3D{min, p1, p2, p3})
+	}
+	if isSideBorder(2, true) {
+		p1, p2, p3 := max, max, max
+		p1.Y = min.Y
+		p2.Y = min.Y
+		p2.X = min.X
+		p3.X = min.X
+		f([4]Coord3D{max, p1, p2, p3})
+	}
+}
+
+func faceQuadsToMesh(rects func(func(points [4]Coord3D))) *Mesh {
+	m := NewMesh()
+	rects(func(points [4]Coord3D) {
+		m.Add(&Triangle{points[0], points[2], points[1]})
+		m.Add(&Triangle{points[0], points[3], points[2]})
+	})
+	fixSingularEdges(m)
+	fixSingularVertices(m)
+	return m
 }
 
 // fixSingularEdges fixes edges of two touching diagonal
