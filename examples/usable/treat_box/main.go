@@ -15,7 +15,7 @@ const (
 	BoxWidth  = 4.0
 	BoxHeight = 1.4
 	Thickness = 0.2
-	LidSlack  = 0.03
+	LidSlack  = 0.05
 
 	ScrewRadius = 0.14
 	ScrewGroove = 0.04
