@@ -13,48 +13,34 @@ import (
 
 const (
 	HolderSize      = 0.5
-	HolderThickness = 0.2
 	TrackSize       = HolderSize / math.Sqrt2
 	PieceSize       = HolderSize + TrackSize - 0.05
-	PieceBottomSize = TrackSize + 0.1
 	PieceThickness  = 0.2
+	PieceBottomSize = TrackSize + 0.1
+	PoleRadius      = 0.16
 
-	ScrewBaseRadius = 0.16
-	ScrewRadius     = 0.16
-	ScrewSlack      = 0.03
-	ScrewGrooveSize = 0.04
+	BottomThickness = 0.2
+	TotalThickness  = 1.0
+	WallThickness   = 0.25
 
-	BottomThickness      = 0.3
-	BottomLayerThickness = 0.1
-	TotalThickness       = 1.0
-	WallThickness        = 0.3
+	SupportSlope = 1.3
 )
 
 func main() {
 	if _, err := os.Stat("board.stl"); os.IsNotExist(err) {
 		log.Println("Creating board...")
-		mesh := model3d.SolidToMesh(BoardSolid(), 0.01, 0, -1, 5)
+		mesh := model3d.SolidToMesh(BoardSolid(), 0.01, 0, -1, 10)
 		log.Println("Eliminating co-planar polygons...")
 		mesh = mesh.EliminateCoplanar(1e-8)
 		mesh.SaveGroupedSTL("board.stl")
 	}
 
-	if _, err := os.Stat("holder.stl"); os.IsNotExist(err) {
-		log.Println("Creating holder...")
-		mesh := model3d.SolidToMesh(HolderSolid(), 0.005, 1, -1, 5)
-		mesh.SaveGroupedSTL("holder.stl")
-	}
-
-	if _, err := os.Stat("piece_top.stl"); os.IsNotExist(err) {
-		log.Println("Creating piece top...")
-		mesh := model3d.SolidToMesh(PieceTopSolid(), 0.005, 1, -1, 5)
-		mesh.SaveGroupedSTL("piece_top.stl")
-	}
-
-	if _, err := os.Stat("piece_bottom.stl"); os.IsNotExist(err) {
-		log.Println("Creating piece bottom...")
-		mesh := model3d.SolidToMesh(PieceBottomSolid(), 0.005, 1, -1, 5)
-		mesh.SaveGroupedSTL("piece_bottom.stl")
+	if _, err := os.Stat("piece.stl"); os.IsNotExist(err) {
+		log.Println("Creating piece...")
+		mesh := model3d.SolidToMesh(PieceSolid(), 0.005, 0, -1, 10)
+		log.Println("Eliminating co-planar polygons...")
+		mesh = mesh.EliminateCoplanar(1e-8)
+		mesh.SaveGroupedSTL("piece.stl")
 	}
 }
 
@@ -87,133 +73,90 @@ func BoardSolid() model3d.Solid {
 		},
 	}
 
-	// Edge holders which can be built in to the board.
+	// Create all edge holders.
 	for x := 0; x < 5; x++ {
 		for y := 0; y < 5; y++ {
-			if x == 0 || x == 4 || y == 0 || y == 4 {
-				solid = append(solid, &model3d.RectSolid{
-					MinVal: model3d.Coord3D{
-						X: WallThickness - HolderSize/2 + float64(x)*(HolderSize+TrackSize),
-						Y: WallThickness - HolderSize/2 + float64(y)*(HolderSize+TrackSize),
-						Z: TotalThickness - HolderThickness - PieceThickness,
-					},
-					MaxVal: model3d.Coord3D{
-						X: WallThickness + HolderSize/2 + float64(x)*(HolderSize+TrackSize),
-						Y: WallThickness + HolderSize/2 + float64(y)*(HolderSize+TrackSize),
-						Z: TotalThickness - PieceThickness,
-					},
+			rect := &model3d.RectSolid{
+				MinVal: model3d.Coord3D{
+					X: WallThickness - HolderSize/2 + float64(x)*(HolderSize+TrackSize),
+					Y: WallThickness - HolderSize/2 + float64(y)*(HolderSize+TrackSize),
+					Z: TotalThickness - SupportSlope*HolderSize/2 - PieceThickness,
+				},
+				MaxVal: model3d.Coord3D{
+					X: WallThickness + HolderSize/2 + float64(x)*(HolderSize+TrackSize),
+					Y: WallThickness + HolderSize/2 + float64(y)*(HolderSize+TrackSize),
+					Z: TotalThickness - PieceThickness,
+				},
+			}
+			mid := rect.MinVal.Mid(rect.MaxVal)
+			p1 := mid
+			p1.Z = rect.MinVal.Z
+			p2 := mid
+			p2.Z = rect.MaxVal.Z
+			solid = append(solid, &toolbox3d.Ramp{
+				Solid: rect,
+				P1:    p1,
+				P2:    p2,
+			})
+
+			if !(x == 0 || x == 4 || y == 0 || y == 4) {
+				// Non-side edge holders need something to
+				// hold them up.
+				solid = append(solid, &model3d.CylinderSolid{
+					P1:     model3d.Coord3D{X: p2.X, Y: p2.Y},
+					P2:     p2,
+					Radius: PoleRadius,
 				})
 			}
 		}
 	}
 
-	// Screw holes for holders.
-	screws := model3d.JoinedSolid{}
-	for x := 0; x < 3; x++ {
-		for y := 0; y < 3; y++ {
-			cx := WallThickness + float64(x+1)*(HolderSize+TrackSize)
-			cy := WallThickness + float64(y+1)*(HolderSize+TrackSize)
-			screws = append(screws, &toolbox3d.ScrewSolid{
-				P1:         model3d.Coord3D{X: cx, Y: cy, Z: TotalThickness - PieceThickness},
-				P2:         model3d.Coord3D{X: cx, Y: cy, Z: BottomLayerThickness},
-				Radius:     ScrewRadius,
-				GrooveSize: ScrewGrooveSize,
-			})
-		}
-	}
-
-	return &model3d.SubtractedSolid{
-		Positive: solid,
-		Negative: screws,
-	}
+	return solid
 }
 
-func HolderSolid() model3d.Solid {
-	center := HolderSize / 2
-	solid := model3d.JoinedSolid{
-		&model3d.RectSolid{
-			MinVal: model3d.Coord3D{},
-			MaxVal: model3d.Coord3D{X: HolderSize, Y: HolderSize, Z: HolderThickness},
-		},
-		&model3d.CylinderSolid{
-			P1: model3d.Coord3D{
-				X: center,
-				Y: center,
-				Z: 0,
-			},
-			P2: model3d.Coord3D{
-				X: center,
-				Y: center,
-				Z: TotalThickness - PieceThickness - BottomThickness,
-			},
-			Radius: ScrewBaseRadius,
-		},
-		&toolbox3d.ScrewSolid{
-			P1: model3d.Coord3D{X: center, Y: center, Z: 0},
-			P2: model3d.Coord3D{
-				X: center,
-				Y: center,
-				Z: TotalThickness - PieceThickness - BottomLayerThickness,
-			},
-			Radius:     ScrewRadius - ScrewSlack,
-			GrooveSize: ScrewGrooveSize,
-		},
-	}
-	// Remove screw slack from the end of the screw.
-	return &model3d.SubtractedSolid{
-		Positive: solid,
-		Negative: &model3d.RectSolid{
-			MinVal: model3d.Coord3D{
-				X: 0,
-				Y: 0,
-				Z: TotalThickness - PieceThickness - BottomLayerThickness - ScrewSlack,
-			},
-			MaxVal: model3d.Coord3D{
-				X: HolderSize,
-				Y: HolderSize,
-				Z: TotalThickness,
-			},
-		},
-	}
-}
-
-func PieceTopSolid() model3d.Solid {
+func PieceSolid() model3d.Solid {
 	center := PieceSize / 2
 	return model3d.JoinedSolid{
 		&model3d.RectSolid{
-			MinVal: model3d.Coord3D{},
-			MaxVal: model3d.Coord3D{X: PieceSize, Y: PieceSize, Z: PieceThickness},
+			MinVal: model3d.Coord3D{Z: BottomThickness},
+			MaxVal: model3d.Coord3D{
+				X: PieceSize,
+				Y: PieceSize,
+				Z: BottomThickness + PieceThickness,
+			},
 		},
 		&model3d.CylinderSolid{
-			P1: model3d.Coord3D{X: center, Y: center, Z: 0},
+			P1: model3d.Coord3D{X: center, Y: center, Z: BottomThickness},
 			P2: model3d.Coord3D{
 				X: center,
 				Y: center,
-				Z: TotalThickness - BottomThickness - PieceThickness,
+				Z: TotalThickness,
 			},
-			Radius: ScrewBaseRadius,
+			Radius: PoleRadius,
 		},
-		&toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{X: center, Y: center, Z: 0},
-			P2:         model3d.Coord3D{X: center, Y: center, Z: TotalThickness - BottomThickness},
-			Radius:     ScrewRadius - ScrewSlack,
-			GrooveSize: ScrewGrooveSize,
-		},
-	}
-}
-
-func PieceBottomSolid() model3d.Solid {
-	center := PieceBottomSize / 2
-	return &model3d.SubtractedSolid{
-		Positive: &model3d.RectSolid{
-			MinVal: model3d.Coord3D{},
-			MaxVal: model3d.Coord3D{X: PieceBottomSize, Y: PieceBottomSize, Z: PieceThickness},
-		},
-		Negative: &toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{X: center, Y: center, Z: TotalThickness - BottomThickness},
-			P2:         model3d.Coord3D{X: center, Y: center, Z: 0},
-			Radius:     ScrewRadius,
-			GrooveSize: ScrewGrooveSize,
+		&toolbox3d.Ramp{
+			Solid: &model3d.RectSolid{
+				MinVal: model3d.Coord3D{
+					X: center - PieceBottomSize/2,
+					Y: center - PieceBottomSize/2,
+					Z: TotalThickness - SupportSlope*PieceBottomSize/2,
+				},
+				MaxVal: model3d.Coord3D{
+					X: center + PieceBottomSize/2,
+					Y: center + PieceBottomSize/2,
+					Z: TotalThickness,
+				},
+			},
+			P1: model3d.Coord3D{
+				X: center,
+				Y: center,
+				Z: TotalThickness - SupportSlope*PieceBottomSize/2,
+			},
+			P2: model3d.Coord3D{
+				X: center,
+				Y: center,
+				Z: TotalThickness,
+			},
 		},
 	}
 }
