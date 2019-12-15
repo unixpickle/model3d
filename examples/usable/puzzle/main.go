@@ -12,15 +12,16 @@ import (
 )
 
 const (
-	HolderSize      = 0.5
-	TrackSize       = HolderSize / math.Sqrt2
-	PieceSize       = HolderSize + TrackSize - 0.05
-	PieceThickness  = 0.2
-	PieceBottomSize = TrackSize + 0.1
-	PoleRadius      = 0.16
+	HolderSize           = 0.5
+	TrackSize            = HolderSize / math.Sqrt2
+	PieceSize            = HolderSize + TrackSize - 0.04
+	PieceThickness       = 0.2
+	FullPieceBottomSize  = TrackSize + 0.2
+	SmallPieceBottomSize = TrackSize + 0.2
+	PoleRadius           = 0.14
 
 	BottomThickness = 0.2
-	TotalThickness  = 1.0
+	TotalThickness  = 0.6
 	WallThickness   = 0.25
 
 	SupportSlope = 1.3
@@ -37,10 +38,18 @@ func main() {
 
 	if _, err := os.Stat("piece.stl"); os.IsNotExist(err) {
 		log.Println("Creating piece...")
-		mesh := model3d.SolidToMesh(PieceSolid(), 0.005, 0, -1, 10)
+		mesh := model3d.SolidToMesh(PieceSolid(FullPieceBottomSize), 0.005, 0, -1, 10)
 		log.Println("Eliminating co-planar polygons...")
 		mesh = mesh.EliminateCoplanar(1e-8)
 		mesh.SaveGroupedSTL("piece.stl")
+	}
+
+	if _, err := os.Stat("small_piece.stl"); os.IsNotExist(err) {
+		log.Println("Creating small piece...")
+		mesh := model3d.SolidToMesh(PieceSolid(SmallPieceBottomSize), 0.005, 0, -1, 10)
+		log.Println("Eliminating co-planar polygons...")
+		mesh = mesh.EliminateCoplanar(1e-8)
+		mesh.SaveGroupedSTL("small_piece.stl")
 	}
 }
 
@@ -114,7 +123,7 @@ func BoardSolid() model3d.Solid {
 	return solid
 }
 
-func PieceSolid() model3d.Solid {
+func PieceSolid(bottomSize float64) model3d.Solid {
 	center := PieceSize / 2
 	return model3d.JoinedSolid{
 		&model3d.RectSolid{
@@ -137,20 +146,20 @@ func PieceSolid() model3d.Solid {
 		&toolbox3d.Ramp{
 			Solid: &model3d.RectSolid{
 				MinVal: model3d.Coord3D{
-					X: center - PieceBottomSize/2,
-					Y: center - PieceBottomSize/2,
-					Z: TotalThickness - SupportSlope*PieceBottomSize/2,
+					X: center - bottomSize/2,
+					Y: center - bottomSize/2,
+					Z: TotalThickness - SupportSlope*bottomSize/2,
 				},
 				MaxVal: model3d.Coord3D{
-					X: center + PieceBottomSize/2,
-					Y: center + PieceBottomSize/2,
+					X: center + bottomSize/2,
+					Y: center + bottomSize/2,
 					Z: TotalThickness,
 				},
 			},
 			P1: model3d.Coord3D{
 				X: center,
 				Y: center,
-				Z: TotalThickness - SupportSlope*PieceBottomSize/2,
+				Z: TotalThickness - SupportSlope*bottomSize/2,
 			},
 			P2: model3d.Coord3D{
 				X: center,
