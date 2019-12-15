@@ -13,7 +13,8 @@ const (
 	Radius        = 1.0
 	LengthRadians = 1.0
 	Thickness     = 0.1
-	BaseRadius    = 0.2
+	BaseThickness = 0.1
+	BaseRadius    = 0.5
 )
 
 func main() {
@@ -37,11 +38,7 @@ func main() {
 	})
 	solid := model3d.JoinedSolid{
 		model3d.NewColliderSolidHollow(model3d.MeshToCollider(sphereMesh), Thickness),
-		&model3d.CylinderSolid{
-			P1:     model3d.Coord3D{Z: -Thickness},
-			P2:     model3d.Coord3D{Z: Thickness},
-			Radius: BaseRadius,
-		},
+		BaseSolid{},
 	}
 
 	mesh := model3d.SolidToMesh(solid, 0.01, 0, -1, 30)
@@ -67,4 +64,23 @@ func (f *FlowerShape) Get(x, y float64) bool {
 	intY := int(float64(f.Img.Bounds().Dy()) * (y + LengthRadians) / (LengthRadians * 2))
 	_, _, _, a := f.Img.At(intX, intY).RGBA()
 	return a > 0xffff/2
+}
+
+type BaseSolid struct{}
+
+func (b BaseSolid) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: -Radius, Y: -Radius, Z: -BaseThickness}
+}
+
+func (b BaseSolid) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: Radius, Y: Radius, Z: Radius}
+}
+
+func (b BaseSolid) Contains(c model3d.Coord3D) bool {
+	if c.Min(b.Min()) != b.Min() || c.Max(b.Max()) != b.Max() {
+		return false
+	}
+	cylinderDist := (model3d.Coord3D{X: c.X, Y: c.Y}).Norm()
+	sphereDist := (model3d.Coord3D{X: c.X, Y: c.Y, Z: Radius - c.Z}).Norm()
+	return cylinderDist < BaseRadius && sphereDist >= Radius
 }
