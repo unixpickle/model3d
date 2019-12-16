@@ -26,6 +26,13 @@ type ScrewSolid struct {
 	// GrooveSize is the size of the grooves.
 	// This may not exceed Radius.
 	GrooveSize float64
+
+	// Pointed can be set to true to indicate that the tip
+	// at the P2 end should be cut off at a 45 degree
+	// angle (in the shape of a cone).
+	// Can be used for internal screw holes to avoid
+	// support.
+	Pointed bool
 }
 
 func (s *ScrewSolid) Min() model3d.Coord3D {
@@ -52,6 +59,13 @@ func (s *ScrewSolid) Contains(c model3d.Coord3D) bool {
 		X: offset.Dot(b1),
 		Y: offset.Dot(b2),
 		Z: offset.Dot(axis),
+	}
+
+	if s.Pointed {
+		constrainedRadius := (height - offset.Z)
+		if offset.Coord2D().Norm() > constrainedRadius {
+			return false
+		}
 	}
 
 	if offset.Z < 0 || offset.Z > height {
