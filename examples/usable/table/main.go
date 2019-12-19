@@ -47,6 +47,13 @@ func main() {
 		mesh.SaveGroupedSTL("top.stl")
 		model3d.SaveRandomGrid("top.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 	}
+
+	if _, err := os.Stat("infill_cube.stl"); os.IsNotExist(err) {
+		log.Println("Creating infill cube for filling in top screws...")
+		mesh := model3d.SolidToMesh(InfillCubeSolid(), 0.1, 0, 0, 0)
+		mesh = mesh.EliminateCoplanar(1e-8)
+		mesh.SaveGroupedSTL("infill_cube.stl")
+	}
 }
 
 func StandSolid() model3d.Solid {
@@ -162,6 +169,16 @@ func TopSolid() model3d.Solid {
 			P2:         model3d.Coord3D{Z: ScrewLength},
 			Radius:     ScrewRadius,
 			GrooveSize: ScrewGrooves,
+		},
+	}
+}
+
+func InfillCubeSolid() model3d.Solid {
+	return &model3d.RectSolid{
+		MaxVal: model3d.Coord3D{
+			X: FootRadius * 2,
+			Y: FootRadius * 2,
+			Z: ScrewLength + ScrewRadius,
 		},
 	}
 }
