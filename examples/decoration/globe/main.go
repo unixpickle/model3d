@@ -17,6 +17,9 @@ const (
 	GrooveSize  = 0.05
 	ScrewRadius = 0.2
 	ScrewSlack  = 0.04
+
+	BaseHeight = 0.2
+	BaseRadius = 0.5
 )
 
 func main() {
@@ -46,15 +49,22 @@ func main() {
 	bottomMesh.SaveGroupedSTL("bottom.stl")
 	model3d.SaveRandomGrid("bottom.png", model3d.MeshToCollider(bottomMesh), 3, 3, 300, 300)
 
-	screw := &toolbox3d.ScrewSolid{
-		P1:         model3d.Coord3D{Z: -(Radius + Outset)},
-		P2:         model3d.Coord3D{Z: Radius/2 - ScrewSlack},
-		GrooveSize: GrooveSize,
-		Radius:     ScrewRadius - ScrewSlack,
-		Pointed:    true,
+	base := model3d.JoinedSolid{
+		&model3d.CylinderSolid{
+			P1:     model3d.Coord3D{Z: -(Radius + Outset + BaseHeight)},
+			P2:     model3d.Coord3D{Z: -(Radius + Outset)},
+			Radius: BaseRadius,
+		},
+		&toolbox3d.ScrewSolid{
+			P1:         model3d.Coord3D{Z: -(Radius + Outset + BaseHeight)},
+			P2:         model3d.Coord3D{Z: Radius/2 - ScrewSlack},
+			GrooveSize: GrooveSize,
+			Radius:     ScrewRadius - ScrewSlack,
+			Pointed:    true,
+		},
 	}
-	mesh := model3d.SolidToMesh(screw, 0.01, 0, -1, 10)
-	mesh.SaveGroupedSTL("screw.stl")
+	mesh := model3d.SolidToMesh(base, 0.01, 0, -1, 10)
+	mesh.SaveGroupedSTL("base.stl")
 }
 
 func RawGlobeCollider() model3d.Collider {
