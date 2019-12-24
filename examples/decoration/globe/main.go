@@ -4,44 +4,55 @@ import (
 	"image/png"
 	"os"
 
-	"github.com/unixpickle/model3d/toolbox3d"
-
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
 	Radius = 2.0
 	Outset = 0.1
 
-	GrooveSize  = 0.05
-	ScrewRadius = 0.2
-	ScrewSlack  = 0.04
-
-	BaseHeight = 0.2
-	BaseRadius = 0.5
+	DowelSize   = 0.2
+	DowelSlack  = 0.03
+	DowelHeight = 0.5
 )
 
 func main() {
+	dowel := &model3d.RectSolid{
+		MinVal: model3d.Coord3D{
+			X: -DowelSize,
+			Y: -DowelSize,
+			Z: -DowelHeight,
+		},
+		MaxVal: model3d.Coord3D{
+			X: DowelSize,
+			Y: DowelSize,
+			Z: DowelHeight,
+		},
+	}
+
 	solid := &model3d.SubtractedSolid{
 		Positive: GlobeSolid{
 			Collider: RawGlobeCollider(),
 		},
-		Negative: &toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: -(Radius + Outset)},
-			P2:         model3d.Coord3D{Z: Radius / 2},
-			GrooveSize: GrooveSize,
-			Radius:     ScrewRadius,
-			Pointed:    true,
+		Negative: &toolbox3d.Ramp{
+			Solid: &toolbox3d.Ramp{
+				Solid: dowel,
+				P1:    model3d.Coord3D{Z: DowelHeight},
+				P2:    model3d.Coord3D{Z: DowelHeight - DowelSize},
+			},
+			P1: model3d.Coord3D{Z: -DowelHeight},
+			P2: model3d.Coord3D{Z: -(DowelHeight - DowelSize)},
 		},
 	}
 	split := &SplitSolid{Solid: solid, Top: true}
-	topMesh := model3d.SolidToMesh(split, 0.01, 0, -1, 10)
+	topMesh := model3d.SolidToMesh(split, 0.01, 0, -1, 20)
 	topMesh.SaveGroupedSTL("top.stl")
 	model3d.SaveRandomGrid("top.png", model3d.MeshToCollider(topMesh), 3, 3, 300, 300)
 
 	split.Top = false
-	bottomMesh := model3d.SolidToMesh(split, 0.01, 0, -1, 10)
+	bottomMesh := model3d.SolidToMesh(split, 0.01, 0, -1, 20)
 	bottomMesh = bottomMesh.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
 		c.Z, c.X = -c.Z, -c.X
 		return c
@@ -49,22 +60,14 @@ func main() {
 	bottomMesh.SaveGroupedSTL("bottom.stl")
 	model3d.SaveRandomGrid("bottom.png", model3d.MeshToCollider(bottomMesh), 3, 3, 300, 300)
 
-	base := model3d.JoinedSolid{
-		&model3d.CylinderSolid{
-			P1:     model3d.Coord3D{Z: -(Radius + Outset + BaseHeight)},
-			P2:     model3d.Coord3D{Z: -(Radius + Outset)},
-			Radius: BaseRadius,
-		},
-		&toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: -(Radius + Outset + BaseHeight)},
-			P2:         model3d.Coord3D{Z: Radius/2 - ScrewSlack},
-			GrooveSize: GrooveSize,
-			Radius:     ScrewRadius - ScrewSlack,
-			Pointed:    true,
-		},
-	}
-	mesh := model3d.SolidToMesh(base, 0.01, 0, -1, 10)
-	mesh.SaveGroupedSTL("base.stl")
+	dowel.MinVal.X += DowelSlack / 2
+	dowel.MinVal.Y += DowelSlack / 2
+	dowel.MaxVal.X -= DowelSlack / 2
+	dowel.MaxVal.Y -= DowelSlack / 2
+	// Accommodate for pointed tip.
+	dowel.MaxVal.Z -= DowelSize
+	mesh := model3d.SolidToMesh(dowel, 0.01, 0, -1, 10)
+	mesh.SaveGroupedSTL("dowel.stl")
 }
 
 func RawGlobeCollider() model3d.Collider {
@@ -106,10 +109,13 @@ func (g GlobeSolid) Contains(c model3d.Coord3D) bool {
 	if c.Min(g.Min()) != g.Min() || c.Max(g.Max()) != g.Max() {
 		return false
 	}
-	if c.Norm() < Radius {
+	norm := c.Norm()
+	if norm < Radius {
 		return true
+	} else if norm > Radius+Outset {
+		return false
 	}
-	dist := c.Norm() - Radius
+	dist := norm - Radius
 	return g.Collider.RayCollisions(&model3d.Ray{
 		Origin:    c,
 		Direction: model3d.Coord3D{X: 1, Y: 1, Z: 1},
