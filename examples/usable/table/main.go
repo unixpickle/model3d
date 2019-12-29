@@ -22,6 +22,7 @@ const (
 	PoleThickness = 0.4
 	FootRadius    = 0.8
 	LegLength     = 6.0
+	ConeThickness = 0.2
 )
 
 func main() {
@@ -30,6 +31,13 @@ func main() {
 		mesh := model3d.SolidToMesh(StandSolid(), 0.01, 0, -1, 10)
 		mesh.SaveGroupedSTL("stand.stl")
 		model3d.SaveRandomGrid("stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	}
+
+	if _, err := os.Stat("cone_stand.stl"); os.IsNotExist(err) {
+		log.Println("Creating stand (cone)...")
+		mesh := model3d.SolidToMesh(ConeStandSolid(), 0.01, 0, -1, 10)
+		mesh.SaveGroupedSTL("cone_stand.stl")
+		model3d.SaveRandomGrid("cone_stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 	}
 
 	if _, err := os.Stat("leg.stl"); os.IsNotExist(err) {
@@ -118,6 +126,42 @@ func StandSolid() model3d.Solid {
 			Radius:     ScrewRadius - ScrewSlack,
 		},
 	}
+}
+
+func ConeStandSolid() model3d.Solid {
+	return model3d.JoinedSolid{
+		ConeSolid{},
+		&toolbox3d.ScrewSolid{
+			P1:         model3d.Coord3D{Z: StandRadius},
+			P2:         model3d.Coord3D{Z: StandRadius + ScrewLength},
+			GrooveSize: ScrewGrooves,
+			Radius:     ScrewRadius - ScrewSlack,
+		},
+	}
+}
+
+type ConeSolid struct{}
+
+func (c ConeSolid) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: -StandRadius, Y: -StandRadius}
+}
+
+func (c ConeSolid) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: StandRadius, Y: StandRadius, Z: StandRadius}
+}
+
+func (c ConeSolid) Contains(coord model3d.Coord3D) bool {
+	if !model3d.InSolidBounds(c, coord) {
+		return false
+	}
+	radiusAtZ := StandRadius - coord.Z
+	radiusAtZInner := radiusAtZ - ConeThickness
+	rad := coord.Coord2D().Norm()
+	if rad <= radiusAtZ && rad >= radiusAtZInner {
+		return true
+	}
+	// Top cylinder for mounting the screw.
+	return rad < FootRadius && rad > radiusAtZ
 }
 
 func LegSolid() model3d.Solid {
