@@ -18,6 +18,14 @@ type Solid interface {
 	Contains(p Coord3D) bool
 }
 
+// InSolidBounds returns true if c is contained within the
+// bounding rectangular volume of s.
+func InSolidBounds(s Solid, c Coord3D) bool {
+	min := s.Min()
+	max := s.Max()
+	return c.Min(min) == min && c.Max(max) == max
+}
+
 // A RectSolid is a Solid that fills an axis-aligned
 // rectangular volume.
 type RectSolid struct {
