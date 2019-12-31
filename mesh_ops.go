@@ -190,6 +190,56 @@ func (m *Mesh) LassoSolid(s Solid, epsilon float64, maxIters, samplePoints int,
 	})
 }
 
+// FlattenBase flattens out the bases of objects for
+// printing on an FDM 3D printer. It is intended to be
+// used for meshes based on flat-based solids, where the
+// base's edges got rounded by smoothing.
+//
+// The maxAngle argument specifies the maximum angle (in
+// radians) to flatten. If left at zero, 45 degrees is
+// used since this is the recommended angle on many FDM 3D
+// printers.
+//
+// In some meshes, this may cause triangles to overlap on
+// the base of the mesh. Thus, it is only intended to be
+// used when the base is clearly defined, and all of the
+// triangles touching it are not above any other
+// triangles (along the Z-axis).
+func (m *Mesh) FlattenBase(maxAngle float64) *Mesh {
+	if maxAngle == 0 {
+		maxAngle = math.Pi / 4
+	}
+	minZ := m.Min().Z
+	result := NewMesh()
+	result.AddMesh(m)
+
+	angleZ := math.Cos(maxAngle)
+
+	for {
+		mapping := map[Coord3D]Coord3D{}
+		result.Iterate(func(t *Triangle) {
+			if t.Min().Z == minZ && t.Max().Z > minZ && -t.Normal().Z > angleZ {
+				for _, c := range t {
+					c1 := c
+					c1.Z = minZ
+					mapping[c] = c1
+				}
+			}
+		})
+		if len(mapping) == 0 {
+			break
+		}
+		result = result.MapCoords(func(c Coord3D) Coord3D {
+			if c1, ok := mapping[c]; ok {
+				return c1
+			}
+			return c
+		})
+	}
+
+	return result
+}
+
 // Repair finds vertices that are close together and
 // combines them into one.
 //
