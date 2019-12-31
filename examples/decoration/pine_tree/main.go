@@ -61,5 +61,5 @@ func (t TreeSolid) Contains(c model3d.Coord3D) bool {
 	coneBaseZ := c.Z - rad*Slope
 
 	// Add a large number to avoid skip at 0.
-	return (int(coneBaseZ/Thickness+10000))%2 == 0
+	return (int(coneBaseZ/Thickness+10000))%3 == 0
 }
