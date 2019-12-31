@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/png"
+	"math"
 	"os"
 
 	"github.com/unixpickle/essentials"
@@ -65,8 +66,9 @@ func main() {
 	dowel.MaxVal.X -= DowelSlack / 2
 	dowel.MaxVal.Y -= DowelSlack / 2
 	// Accommodate for pointed tip.
-	dowel.MaxVal.Z -= DowelSize
+	dowel.MaxVal.Z -= DowelSize + DowelSlack
 	mesh := model3d.SolidToMesh(dowel, 0.01, 0, -1, 10)
+	mesh = mesh.FlattenBase(math.Pi * 0.49)
 	mesh.SaveGroupedSTL("dowel.stl")
 }
 
