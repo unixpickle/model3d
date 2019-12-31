@@ -49,7 +49,9 @@ func main() {
 
 	if _, err := os.Stat("top.stl"); os.IsNotExist(err) {
 		log.Println("Creating top...")
-		mesh := model3d.SolidToMesh(TopSolid(), 0.01, 0, -1, 10)
+		mesh := model3d.SolidToMesh(TopSolid(), 0.01, 0, -1, 20)
+		log.Println("Flattening base...")
+		mesh = mesh.FlattenBase(0)
 		log.Println("Eliminating co-planar...")
 		mesh = mesh.EliminateCoplanar(1e-8)
 		mesh.SaveGroupedSTL("top.stl")
