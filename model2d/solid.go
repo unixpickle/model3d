@@ -52,7 +52,7 @@ type scaledSolid struct {
 // coordinates c by 1/s.
 // Thus, the new solid is s times larger.
 func ScaleSolid(solid Solid, s float64) Solid {
-	return &scaledSolid{Solid: solid, Scale: s}
+	return &scaledSolid{Solid: solid, Scale: 1 / s}
 }
 
 func (s *scaledSolid) Min() Coord {

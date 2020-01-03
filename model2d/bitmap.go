@@ -77,6 +77,19 @@ func ReadBitmap(path string, c ColorBitFunc) (*Bitmap, error) {
 	return NewBitmapImage(img, c), nil
 }
 
+// MustReadBitmap is like ReadBitmap, except that it
+// panics if the bitmap cannot be read.
+func MustReadBitmap(path string, c ColorBitFunc) *Bitmap {
+	bmp, err := ReadBitmap(path, c)
+	if err != nil {
+		panic(err)
+	}
+	return bmp
+}
+
+// Get gets the bit at the coordinate.
+//
+// If the coordinate is out of bounds, false is returned.
 func (b *Bitmap) Get(x, y int) bool {
 	if x < 0 || y < 0 || x >= b.Width || y >= b.Height {
 		return false
@@ -84,11 +97,34 @@ func (b *Bitmap) Get(x, y int) bool {
 	return b.Data[x+y*b.Width]
 }
 
+// Set sets the bit at the coordinate.
+//
+// The coordinate must be in bounds.
 func (b *Bitmap) Set(x, y int, v bool) {
 	if x < 0 || y < 0 || x >= b.Width || y >= b.Height {
 		panic("coordinate out of bounds")
 	}
 	b.Data[x+y*b.Width] = v
+}
+
+// FlipY reverses the y-axis.
+func (b *Bitmap) FlipY() *Bitmap {
+	res := NewBitmap(b.Width, b.Height)
+	for y := 0; y < b.Height; y++ {
+		for x := 0; x < b.Width; x++ {
+			res.Set(x, y, b.Get(x, b.Height-(y+1)))
+		}
+	}
+	return res
+}
+
+// Invert creates a new bitmap with the opposite values.
+func (b *Bitmap) Invert() *Bitmap {
+	res := NewBitmap(b.Width, b.Height)
+	for i, x := range b.Data {
+		res.Data[i] = !x
+	}
+	return res
 }
 
 func statisticalColorBitFunc(img image.Image) ColorBitFunc {
@@ -120,7 +156,7 @@ func statisticalColorBitFunc(img image.Image) ColorBitFunc {
 			meanDist += squareDist(comp, mean[i])
 			firstDist += squareDist(comp, first[i])
 		}
-		return firstDist < meanDist
+		return firstDist > meanDist
 	}
 }
 
