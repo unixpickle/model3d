@@ -72,7 +72,7 @@ func (s *ScrewSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 
-	maxDistance := s.Radius - (model3d.Coord2D{X: offset.X, Y: offset.Y}).Norm()
+	maxDistance := s.Radius - offset.Coord2D().Norm()
 	if maxDistance < 0 {
 		return false
 	} else if maxDistance > s.GrooveSize {
