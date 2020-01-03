@@ -2,6 +2,8 @@ package model3d
 
 import "math"
 
+import "github.com/unixpickle/model3d/model2d"
+
 // A GeoCoord specifies a location on a sphere with a unit
 // radius.
 //
@@ -38,63 +40,7 @@ func (g GeoCoord) Normalize() GeoCoord {
 	return p.Geo()
 }
 
-// A Coord2D is a coordinate in 2-D Euclidean space.
-type Coord2D struct {
-	X float64
-	Y float64
-}
-
-// Mid computes the midpoint between c and c1.
-func (c Coord2D) Mid(c1 Coord2D) Coord2D {
-	return c.Add(c1).Scale(0.5)
-}
-
-// Norm computes the vector L2 norm.
-func (c Coord2D) Norm() float64 {
-	return math.Sqrt(c.X*c.X + c.Y*c.Y)
-}
-
-// Dot computes the dot product of c and c1.
-func (c Coord2D) Dot(c1 Coord2D) float64 {
-	return c.X*c1.X + c.Y*c1.Y
-}
-
-// Scale scales all the coordinates by s and returns the
-// new coordinate.
-func (c Coord2D) Scale(s float64) Coord2D {
-	c.X *= s
-	c.Y *= s
-	return c
-}
-
-// Add computes the sum of c and c1.
-func (c Coord2D) Add(c1 Coord2D) Coord2D {
-	return Coord2D{
-		X: c.X + c1.X,
-		Y: c.Y + c1.Y,
-	}
-}
-
-// Sub computes c - c1.
-func (c Coord2D) Sub(c1 Coord2D) Coord2D {
-	return c.Add(c1.Scale(-1))
-}
-
-// Dist computes the Euclidean distance to c1.
-func (c Coord2D) Dist(c1 Coord2D) float64 {
-	return math.Sqrt(math.Pow(c.X-c1.X, 2) + math.Pow(c.Y-c1.Y, 2))
-}
-
-// Normalize gets a unit vector from c.
-func (c Coord2D) Normalize() Coord2D {
-	return c.Scale(1 / c.Norm())
-}
-
-// ProjectOut projects the c1 direction out of c.
-func (c Coord2D) ProjectOut(c1 Coord2D) Coord2D {
-	normed := c1.Normalize()
-	return c.Sub(normed.Scale(normed.Dot(c)))
-}
+type Coord2D = model2d.Coord
 
 // A Coord3D is a coordinate in 3-D Euclidean space.
 type Coord3D struct {
