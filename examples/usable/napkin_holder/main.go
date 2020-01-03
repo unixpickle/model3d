@@ -1,13 +1,10 @@
 package main
 
 import (
-	"image"
-	"image/png"
 	"log"
-	"os"
 
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model2d"
 )
 
 const (
@@ -53,18 +50,14 @@ func main() {
 }
 
 type Inscription struct {
-	Image image.Image
+	Solid model2d.Solid
 }
 
 func NewInscription() *Inscription {
-	r, err := os.Open("image.png")
-	essentials.Must(err)
-	defer r.Close()
-	img, err := png.Decode(r)
-	essentials.Must(err)
-	return &Inscription{
-		Image: img,
-	}
+	bmp := model2d.MustReadBitmap("image.png", nil).FlipY()
+	solid := model2d.BitmapToSolid(bmp)
+	solid = model2d.ScaleSolid(solid, SideSize/float64(bmp.Width))
+	return &Inscription{Solid: solid}
 }
 
 func (i *Inscription) Min() model3d.Coord3D {
@@ -78,13 +71,7 @@ func (i *Inscription) Max() model3d.Coord3D {
 }
 
 func (i *Inscription) Contains(c model3d.Coord3D) bool {
-	if c.Min(i.Min()) != i.Min() || c.Max(i.Max()) != i.Max() {
-		return false
-	}
-	imgX := int(c.X / SideSize * float64(i.Image.Bounds().Dx()))
-	imgY := int((1 - c.Y/SideSize) * float64(i.Image.Bounds().Dy()))
-	r, _, _, _ := i.Image.At(imgX, imgY).RGBA()
-	return r < 0xffff/2
+	return model3d.InSolidBounds(i, c) && i.Solid.Contains(c.Coord2D())
 }
 
 type DeepInscription struct {
