@@ -165,7 +165,7 @@ func (b *Bitmap) Mesh() *Mesh {
 				m.Add(&Segment{p1, p4})
 			}
 			if !right {
-				m.Add(&Segment{p2, p3})
+				m.Add(&Segment{p3, p2})
 			}
 			if !top {
 				m.Add(&Segment{p4, p3})
