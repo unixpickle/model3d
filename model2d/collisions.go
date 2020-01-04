@@ -59,6 +59,22 @@ type Collider interface {
 	CircleCollision(c Coord, r float64) bool
 }
 
+// ColliderContains checks if a point is within a Collider
+// and at least margin away from the border.
+func ColliderContains(c Collider, coord Coord, margin float64) bool {
+	r := &Ray{
+		Origin: coord,
+		// Random direction; any direction should work, but we
+		// want to avoid edge cases and rounding errors.
+		Direction: Coord{0.5224892708603626, 0.10494477243214506},
+	}
+	collisions := c.RayCollisions(r)
+	if collisions%2 == 0 {
+		return false
+	}
+	return margin == 0 || !c.CircleCollision(coord, margin)
+}
+
 // RayCollisions returns 1 if the ray collides with the
 // segment, or 0 otherwise.
 func (s *Segment) RayCollisions(r *Ray) int {
