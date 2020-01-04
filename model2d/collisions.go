@@ -1,6 +1,9 @@
 package model2d
 
-import "math"
+import (
+	"math"
+	"sort"
+)
 
 // A Ray is a line originating at a point and extending
 // infinitely in some direction.
@@ -87,6 +90,53 @@ func (s *Segment) CircleCollision(c Coord, r float64) bool {
 	return frac >= 0 && frac <= 1 && closest.Dist(c) < r
 }
 
+// MeshToCollider converts a mesh to an efficient
+// Collider.
+func MeshToCollider(m *Mesh) Collider {
+	segs := m.SegmentsSlice()
+	GroupSegments(segs)
+	return GroupedSegmentsToCollider(segs)
+}
+
+// GroupSegments sorts the segments recursively by their x
+// and y values.
+// This can be used to prepare segments for
+// GroupedSegmentsToCollider.
+func GroupSegments(segs []*Segment) {
+	groupSegmentsAxis(segs, 0)
+}
+
+func groupSegmentsAxis(segs []*Segment, axis int) {
+	if len(segs) <= 1 {
+		return
+	}
+	sort.Slice(segs, func(i, j int) bool {
+		a1 := segs[i][0].Array()
+		a2 := segs[j][0].Array()
+		return a1[axis] < a2[axis]
+	})
+	mid := len(segs) / 2
+	groupSegmentsAxis(segs[:mid], (axis+1)%2)
+	groupSegmentsAxis(segs[mid:], (axis+1)%2)
+}
+
+// GroupedSegmentsToCollider converts pre-grouped segments
+// into an efficient collider.
+// If the segments were not grouped with GroupSegments,
+// then the resulting collider may be highly inefficient.
+func GroupedSegmentsToCollider(segs []*Segment) Collider {
+	if len(segs) == 0 {
+		return NewJoinedCollider(nil)
+	} else if len(segs) == 1 {
+		return segs[0]
+	} else {
+		mid := len(segs) / 2
+		c1 := GroupedSegmentsToCollider(segs[:mid])
+		c2 := GroupedSegmentsToCollider(segs[mid:])
+		return NewJoinedCollider([]Collider{c1, c2})
+	}
+}
+
 ////////////////////////////////////////////////////////////
 // NOTE: almost all JoinedCollider code was able to be    //
 // copied from model3d. This code duplication cannot be   //
@@ -103,8 +153,11 @@ type JoinedCollider struct {
 }
 
 // NewJoinedCollider creates a JoinedCollider which
-// combines one or more other colliders.
+// combines zero or more other colliders.
 func NewJoinedCollider(other []Collider) *JoinedCollider {
+	if len(other) == 0 {
+		return &JoinedCollider{}
+	}
 	res := &JoinedCollider{
 		colliders: other,
 		min:       other[0].Min(),
@@ -157,6 +210,9 @@ func (j *JoinedCollider) FirstRayCollision(r *Ray) (bool, float64, Coord) {
 }
 
 func (j *JoinedCollider) CircleCollision(center Coord, r float64) bool {
+	if len(j.colliders) == 0 {
+		return false
+	}
 	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
 	distSquared := 0.0
 	for axis := 0; axis < 2; axis++ {
@@ -183,6 +239,9 @@ func (j *JoinedCollider) CircleCollision(center Coord, r float64) bool {
 }
 
 func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
+	if len(j.colliders) == 0 {
+		return false
+	}
 	minFrac := math.Inf(-1)
 	maxFrac := math.Inf(1)
 	for axis := 0; axis < 2; axis++ {
