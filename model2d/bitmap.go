@@ -127,6 +127,58 @@ func (b *Bitmap) Invert() *Bitmap {
 	return res
 }
 
+// Mesh converts the bitmap to a mesh by creating boxes
+// around every true pixel and deleting duplicate
+// segments.
+func (b *Bitmap) Mesh() *Mesh {
+	m := NewMesh()
+	for y := 0; y < b.Height; y++ {
+		for x := 0; x < b.Width; x++ {
+			p1 := Coord{X: float64(x), Y: float64(y)}
+			p2 := Coord{X: float64(x + 1), Y: float64(y)}
+			p3 := Coord{X: float64(x + 1), Y: float64(y + 1)}
+			p4 := Coord{X: float64(x), Y: float64(y + 1)}
+			if !b.Get(x, y) {
+				continue
+			}
+			left := b.Get(x-1, y)
+			right := b.Get(x+1, y)
+			top := b.Get(x, y+1)
+			bottom := b.Get(x, y-1)
+
+			// Prevent singular vertices.
+			center := Coord{X: float64(x) + 0.5, Y: float64(y) + 0.5}
+			if !left && !top && b.Get(x-1, y+1) {
+				p4 = p4.Mid(center)
+			}
+			if !left && !bottom && b.Get(x-1, y-1) {
+				p1 = p1.Mid(center)
+			}
+			if !right && !top && b.Get(x+1, y+1) {
+				p3 = p3.Mid(center)
+			}
+			if !right && !bottom && b.Get(x+1, y-1) {
+				p2 = p2.Mid(center)
+			}
+
+			if !left {
+				m.Add(&Segment{p1, p4})
+			}
+			if !right {
+				m.Add(&Segment{p2, p3})
+			}
+			if !top {
+				m.Add(&Segment{p4, p3})
+			}
+			if !bottom {
+				m.Add(&Segment{p2, p1})
+			}
+		}
+	}
+
+	return m
+}
+
 func statisticalColorBitFunc(img image.Image) ColorBitFunc {
 	var mean [4]float64
 	var first [4]float64
