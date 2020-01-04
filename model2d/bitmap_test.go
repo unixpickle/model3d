@@ -46,6 +46,16 @@ func TestBitmapMesh(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("Singular", func(t *testing.T) {
+		mesh.Iterate(func(s *Segment) {
+			for _, p := range s {
+				if len(mesh.Find(p)) != 2 {
+					t.Fatal("incorrect neighbor count for vertex")
+				}
+			}
+		})
+	})
 }
 
 func testingBitmap() *Bitmap {
