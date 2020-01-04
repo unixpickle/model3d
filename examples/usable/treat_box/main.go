@@ -1,13 +1,10 @@
 package main
 
 import (
-	"image"
-	"image/png"
-	"os"
+	"github.com/unixpickle/model3d/model2d"
 
 	"github.com/unixpickle/model3d/toolbox3d"
 
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
 
@@ -66,16 +63,14 @@ func main() {
 }
 
 type BoxSolid struct {
-	Img image.Image
+	Bitmap   *model2d.Bitmap
+	Collider model2d.Collider
 }
 
 func NewBoxSolid() *BoxSolid {
-	f, err := os.Open("bone.png")
-	essentials.Must(err)
-	defer f.Close()
-	img, err := png.Decode(f)
-	essentials.Must(err)
-	return &BoxSolid{Img: img}
+	bmp := model2d.MustReadBitmap("bone.png", nil)
+	collider := model2d.MeshToCollider(bmp.Mesh())
+	return &BoxSolid{Bitmap: bmp, Collider: collider}
 }
 
 func (b *BoxSolid) Min() model3d.Coord3D {
@@ -83,7 +78,7 @@ func (b *BoxSolid) Min() model3d.Coord3D {
 }
 
 func (b *BoxSolid) Max() model3d.Coord3D {
-	depth := BoxWidth * float64(b.Img.Bounds().Dy()) / float64(b.Img.Bounds().Dx())
+	depth := BoxWidth * float64(b.Bitmap.Height) / float64(b.Bitmap.Width)
 	return model3d.Coord3D{X: BoxWidth, Y: depth, Z: BoxHeight}
 }
 
@@ -101,23 +96,19 @@ func (b *BoxSolid) filledContains(c model3d.Coord3D) bool {
 	if c.Min(b.Min()) != b.Min() || c.Max(b.Max()) != b.Max() {
 		return false
 	}
-	x := int(float64(b.Img.Bounds().Dx()) * c.X / b.Max().X)
-	y := int(float64(b.Img.Bounds().Dy()) * c.Y / b.Max().Y)
-	red, _, blue, _ := b.Img.At(x, y).RGBA()
-	return blue > red*2
+	x := int(float64(b.Bitmap.Width) * c.X / b.Max().X)
+	y := int(float64(b.Bitmap.Height) * c.Y / b.Max().Y)
+	return b.Bitmap.Get(x, y)
 }
 
 func (b *BoxSolid) containsInset(c model3d.Coord3D, thickness float64) bool {
-	scale := BoxWidth / (BoxWidth - thickness*4)
-	center := b.Min().Mid(b.Max())
-	if c.X < center.X {
-		center.X = b.Min().Scale(0.6).Add(center.Scale(0.4)).X
-	} else {
-		center.X = b.Max().Scale(0.6).Add(center.Scale(0.4)).X
+	if !b.filledContains(c) {
+		return false
 	}
-	outset := c.Sub(center).Scale(scale).Add(center)
-	outset.Z = c.Z
-	return b.filledContains(outset)
+	scale := float64(b.Bitmap.Width) / b.Max().X
+	x := float64(b.Bitmap.Width) * c.X / b.Max().X
+	y := float64(b.Bitmap.Height) * c.Y / b.Max().Y
+	return !b.Collider.CircleCollision(model2d.Coord{X: x, Y: y}, thickness*scale)
 }
 
 type LidSolid struct {
