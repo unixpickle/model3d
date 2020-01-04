@@ -122,7 +122,7 @@ func readOFF(r io.Reader) ([]*Triangle, error) {
 			}
 			numbers[i] = num
 		}
-		vertices[i] = newCoord3DArray(numbers)
+		vertices[i] = NewCoord3DArray(numbers)
 	}
 
 	triangles := make([]*Triangle, 0, numFaces)

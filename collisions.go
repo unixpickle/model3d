@@ -20,7 +20,7 @@ type Ray struct {
 // its reverse hits the triangle.
 //
 // The second return value is how much of the direction
-// must be added to the origin to hit the plane spanned by
+// must be added to the origin to hit the plane containing
 // the triangle.
 // If it is negative, it means the triangle is behind the
 // ray.
@@ -454,9 +454,9 @@ func (j *JoinedCollider) SphereCollision(center Coord3D, r float64) bool {
 	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
 	distSquared := 0.0
 	for axis := 0; axis < 3; axis++ {
-		min := j.min.array()[axis]
-		max := j.max.array()[axis]
-		value := center.array()[axis]
+		min := j.min.Array()[axis]
+		max := j.max.Array()[axis]
+		value := center.Array()[axis]
 		if value < min {
 			distSquared += (min - value) * (min - value)
 		} else if value > max {
@@ -479,16 +479,16 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 	minFrac := math.Inf(-1)
 	maxFrac := math.Inf(1)
 	for axis := 0; axis < 3; axis++ {
-		origin := r.Origin.array()[axis]
-		rate := r.Direction.array()[axis]
+		origin := r.Origin.Array()[axis]
+		rate := r.Direction.Array()[axis]
 		if rate == 0 {
-			if origin < j.min.array()[axis] || origin > j.max.array()[axis] {
+			if origin < j.min.Array()[axis] || origin > j.max.Array()[axis] {
 				return false
 			}
 			continue
 		}
-		t1 := (j.min.array()[axis] - origin) / rate
-		t2 := (j.max.array()[axis] - origin) / rate
+		t1 := (j.min.Array()[axis] - origin) / rate
+		t2 := (j.max.Array()[axis] - origin) / rate
 		if t1 > t2 {
 			t1, t2 = t2, t1
 		}

@@ -299,15 +299,15 @@ func (r *rectPiece) CheckNeighbor(r1 *rectPiece) bool {
 	for i := 0; i < 3; i++ {
 		i1 := (i + 1) % 3
 		i2 := (i + 2) % 3
-		if r.Min.array()[i1] >= r1.Max.array()[i1] ||
-			r.Min.array()[i2] >= r1.Max.array()[i2] ||
-			r.Max.array()[i1] <= r1.Min.array()[i1] ||
-			r.Max.array()[i2] <= r1.Min.array()[i2] {
+		if r.Min.Array()[i1] >= r1.Max.Array()[i1] ||
+			r.Min.Array()[i2] >= r1.Max.Array()[i2] ||
+			r.Max.Array()[i1] <= r1.Min.Array()[i1] ||
+			r.Max.Array()[i2] <= r1.Min.Array()[i2] {
 			continue
 		}
-		if r.Min.array()[i] == r1.Max.array()[i] {
+		if r.Min.Array()[i] == r1.Max.Array()[i] {
 			return true
-		} else if r.Max.array()[i] == r1.Min.array()[i] {
+		} else if r.Max.Array()[i] == r1.Min.Array()[i] {
 			return true
 		}
 	}
@@ -379,11 +379,11 @@ func (r *rectPiece) IsSideBorder(axis int, max bool) bool {
 			continue
 		}
 		if max {
-			if n.Min.array()[axis] == r.Max.array()[axis] {
+			if n.Min.Array()[axis] == r.Max.Array()[axis] {
 				return false
 			}
 		} else {
-			if n.Max.array()[axis] == r.Min.array()[axis] {
+			if n.Max.Array()[axis] == r.Min.Array()[axis] {
 				return false
 			}
 		}

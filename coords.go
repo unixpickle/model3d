@@ -49,7 +49,9 @@ type Coord3D struct {
 	Z float64
 }
 
-func newCoord3DArray(a [3]float64) Coord3D {
+// NewCoord3DArray creates a Coord3D from an array of x,
+// y, and z.
+func NewCoord3DArray(a [3]float64) Coord3D {
 	return Coord3D{a[0], a[1], a[2]}
 }
 
@@ -173,6 +175,8 @@ func (c Coord3D) ProjectOut(c1 Coord3D) Coord3D {
 	return c.Sub(normed.Scale(normed.Dot(c)))
 }
 
-func (c Coord3D) array() [3]float64 {
+// Array creates an array with the x, y, and z.
+// This can be useful for some vectorized code.
+func (c Coord3D) Array() [3]float64 {
 	return [3]float64{c.X, c.Y, c.Z}
 }

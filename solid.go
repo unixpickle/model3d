@@ -115,11 +115,11 @@ func (c *CylinderSolid) Contains(p Coord3D) bool {
 func circleAxisBound(axis int, normal Coord3D, sign float64) float64 {
 	var arr [3]float64
 	arr[axis] = sign
-	proj := newCoord3DArray(arr).ProjectOut(normal)
+	proj := NewCoord3DArray(arr).ProjectOut(normal)
 
 	// Care taken to deal with numerical issues.
 	proj = proj.Scale(1 / (proj.Norm() + 1e-8))
-	return sign * (math.Abs(proj.array()[axis]) + 1e-8)
+	return sign * (math.Abs(proj.Array()[axis]) + 1e-8)
 }
 
 // A TorusSolid is a Solid that yields values for a torus.

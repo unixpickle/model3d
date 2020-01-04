@@ -46,19 +46,19 @@ func testSolidBounds(t *testing.T, solid Solid) {
 		faceAxis := rand.Intn(3)
 		if rand.Intn(2) == 0 {
 			var arr [3]float64
-			arr[faceAxis] = min.array()[faceAxis] - epsilon
-			face = newCoord3DArray(arr)
+			arr[faceAxis] = min.Array()[faceAxis] - epsilon
+			face = NewCoord3DArray(arr)
 		} else {
 			var arr [3]float64
-			arr[faceAxis] = max.array()[faceAxis] + epsilon
-			face = newCoord3DArray(arr)
+			arr[faceAxis] = max.Array()[faceAxis] + epsilon
+			face = NewCoord3DArray(arr)
 		}
-		diff := max.Sub(min).array()
+		diff := max.Sub(min).Array()
 		var axis1Arr, axis2Arr [3]float64
 		axis1Arr[(faceAxis+1)%3] = diff[(faceAxis+1)%3]
 		axis2Arr[(faceAxis+2)%3] = diff[(faceAxis+2)%3]
-		axis1 = newCoord3DArray(axis1Arr)
-		axis2 = newCoord3DArray(axis2Arr)
+		axis1 = NewCoord3DArray(axis1Arr)
+		axis2 = NewCoord3DArray(axis2Arr)
 
 		coord := face.Add(axis1.Scale(rand.Float64())).Add(axis2.Scale(rand.Float64()))
 		if solid.Contains(coord) {
