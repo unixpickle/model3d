@@ -15,3 +15,23 @@ func (s *Segment) Normal() Coord {
 	delta := s[1].Sub(s[0])
 	return (Coord{X: -delta.Y, Y: delta.X}).Normalize()
 }
+
+// Min gets the element-wise minimum of the endpoints.
+func (s Segment) Min() Coord {
+	return s[0].Min(s[1])
+}
+
+// Max gets the element-wise maximum of the endpoints.
+func (s Segment) Max() Coord {
+	return s[0].Max(s[1])
+}
+
+// Mid gets the midpoint of the segment.
+func (s Segment) Mid() Coord {
+	return s[0].Mid(s[1])
+}
+
+// Length gets the length of the segment.
+func (s Segment) Length() float64 {
+	return s[1].Sub(s[0]).Norm()
+}

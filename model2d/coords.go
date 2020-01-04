@@ -8,6 +8,11 @@ type Coord struct {
 	Y float64
 }
 
+// NewCoordArray creates a Coord from an array of x and y.
+func NewCoordArray(a [2]float64) Coord {
+	return Coord{a[0], a[1]}
+}
+
 // Mid computes the midpoint between c and c1.
 func (c Coord) Mid(c1 Coord) Coord {
 	return c.Add(c1).Scale(0.5)
@@ -68,4 +73,9 @@ func (c Coord) Normalize() Coord {
 func (c Coord) ProjectOut(c1 Coord) Coord {
 	normed := c1.Normalize()
 	return c.Sub(normed.Scale(normed.Dot(c)))
+}
+
+// Array gets an array of x and y.
+func (c Coord) Array() [2]float64 {
+	return [2]float64{c.X, c.Y}
 }
