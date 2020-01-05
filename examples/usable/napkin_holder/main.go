@@ -16,16 +16,10 @@ const (
 
 func main() {
 	log.Println("Creating inscription...")
-	inscription := NewInscription()
-	inscriptionMesh := model3d.SolidToMesh(inscription, 0.01, 0, -1, 5)
-	deepInscription := &DeepInscription{
-		Collider: model3d.MeshToCollider(inscriptionMesh),
-		Solid:    inscription,
-	}
-
+	inscription := NewDeepInscription()
 	log.Println("Creating main mesh...")
 	solid := model3d.JoinedSolid{
-		deepInscription,
+		inscription,
 		&model3d.RectSolid{
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{X: SideSize, Y: SideSize, Z: Thickness},
@@ -49,48 +43,42 @@ func main() {
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }
 
-type Inscription struct {
-	Solid model2d.Solid
+type DeepInscription struct {
+	Collider model2d.Collider
+	Solid    model2d.Solid
+	Scale    float64
 }
 
-func NewInscription() *Inscription {
+func NewDeepInscription() *DeepInscription {
 	bmp := model2d.MustReadBitmap("image.png", nil).FlipY()
 	solid := model2d.BitmapToSolid(bmp)
-	solid = model2d.ScaleSolid(solid, SideSize/float64(bmp.Width))
-	return &Inscription{Solid: solid}
-}
-
-func (i *Inscription) Min() model3d.Coord3D {
-	// Subtract a small epsilon to prevent the entire
-	// solid from being removed by DeepInscription.
-	return model3d.Coord3D{Z: Depth - 1e-3}
-}
-
-func (i *Inscription) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: SideSize, Y: SideSize, Z: Depth + InscriptionDepth*2}
-}
-
-func (i *Inscription) Contains(c model3d.Coord3D) bool {
-	return model3d.InSolidBounds(i, c) && i.Solid.Contains(c.Coord2D())
-}
-
-type DeepInscription struct {
-	Collider model3d.Collider
-	Solid    *Inscription
+	collider := model2d.MeshToCollider(bmp.Mesh())
+	return &DeepInscription{
+		Collider: collider,
+		Solid:    solid,
+		Scale:    float64(bmp.Width) / SideSize,
+	}
 }
 
 func (d *DeepInscription) Min() model3d.Coord3D {
-	return d.Solid.Min()
+	return model3d.Coord3D{Z: Depth - 1e-3}
 }
 
 func (d *DeepInscription) Max() model3d.Coord3D {
-	return d.Solid.Max()
+	return model3d.Coord3D{X: SideSize, Y: SideSize, Z: Depth + InscriptionDepth}
 }
 
 func (d *DeepInscription) Contains(c model3d.Coord3D) bool {
-	if !d.Solid.Contains(c) {
+	if !model3d.InSolidBounds(d, c) {
 		return false
 	}
-	radius := c.Z - Depth
-	return !d.Collider.SphereCollision(c, radius)
+	c2d := c.Coord2D().Scale(d.Scale)
+	if !d.Solid.Contains(c2d) {
+		return false
+	}
+	margin := d.Scale * (c.Z - Depth)
+	if margin < 0 {
+		return false
+	}
+	return model2d.ColliderContains(d.Collider, c2d, margin)
 }
