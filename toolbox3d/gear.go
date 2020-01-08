@@ -44,37 +44,50 @@ type GearProfile interface {
 	model2d.Solid
 }
 
-type InvoluteGearProfile struct {
-	baseRadius  float64
-	outerRadius float64
-	toothTheta  float64
+type involuteGearProfile struct {
+	baseRadius   float64
+	outerRadius  float64
+	toothTheta   float64
+	reflectTheta float64
 }
 
-func NewInvoluteGearProfile(pressureAngle, modulus float64, numTeeth int) *InvoluteGearProfile {
+// InvoluteGearProfile creates a GearProfile for a
+// standard involute gear with the given specs.
+func InvoluteGearProfile(pressureAngle, modulus float64, numTeeth int) GearProfile {
 	radius := modulus * float64(numTeeth) / (2 * math.Pi)
 	baseRadius := math.Cos(pressureAngle) * radius
-	return &InvoluteGearProfile{
-		baseRadius:  baseRadius,
-		outerRadius: radius*2 - baseRadius,
-		toothTheta:  math.Pi * 2 / float64(numTeeth),
+
+	tForR := math.Sqrt(math.Pow(radius/baseRadius, 2) - 1)
+	x, y := involuteCoords(tForR)
+
+	toothTheta := math.Pi * 2 / float64(numTeeth)
+	reflectTheta := toothTheta/2 + 2*math.Atan2(y, x)
+
+	return &involuteGearProfile{
+		baseRadius:   baseRadius,
+		outerRadius:  radius*2 - baseRadius,
+		toothTheta:   toothTheta,
+		reflectTheta: reflectTheta,
 	}
 }
 
-func (i *InvoluteGearProfile) Min() model2d.Coord {
+func (i *involuteGearProfile) Min() model2d.Coord {
 	return model2d.Coord{X: -i.outerRadius, Y: -i.outerRadius}
 }
 
-func (i *InvoluteGearProfile) Max() model2d.Coord {
+func (i *involuteGearProfile) Max() model2d.Coord {
 	return i.Min().Scale(-1)
 }
 
-func (i *InvoluteGearProfile) Contains(c model2d.Coord) bool {
+func (i *involuteGearProfile) Contains(c model2d.Coord) bool {
 	if !model2d.InSolidBounds(i, c) {
 		return false
 	}
 	r := c.Norm()
-	if r < i.baseRadius || r > i.outerRadius {
+	if r < i.baseRadius {
 		return true
+	} else if r > i.outerRadius {
+		return false
 	}
 	theta := math.Atan2(c.Y, c.X)
 
@@ -85,10 +98,10 @@ func (i *InvoluteGearProfile) Contains(c model2d.Coord) bool {
 	_, frac := math.Modf(theta / i.toothTheta)
 	theta = frac * i.toothTheta
 
-	tForR := math.Sqrt(math.Pow(r-i.baseRadius, 2) - 1)
+	tForR := math.Sqrt(math.Pow(r/i.baseRadius, 2) - 1)
 	x, y := involuteCoords(tForR)
 	thetaBound := math.Atan2(y, x)
-	if theta < thetaBound || i.toothTheta-theta < thetaBound {
+	if theta < thetaBound || i.reflectTheta-theta < thetaBound {
 		return false
 	}
 
