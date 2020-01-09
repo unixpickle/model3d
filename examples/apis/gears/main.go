@@ -7,6 +7,8 @@ import (
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
+const Module = 0.1 / math.Pi
+
 func main() {
 	solid := &toolbox3d.SpurGear{
 		P1:      model3d.Coord3D{},

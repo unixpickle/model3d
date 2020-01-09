@@ -53,8 +53,8 @@ type involuteGearProfile struct {
 
 // InvoluteGearProfile creates a GearProfile for a
 // standard involute gear with the given specs.
-func InvoluteGearProfile(pressureAngle, modulus float64, numTeeth int) GearProfile {
-	radius := modulus * float64(numTeeth) / (2 * math.Pi)
+func InvoluteGearProfile(pressureAngle, module float64, numTeeth int) GearProfile {
+	radius := module * float64(numTeeth) / 2
 	baseRadius := math.Cos(pressureAngle) * radius
 
 	tForR := math.Sqrt(math.Pow(radius/baseRadius, 2) - 1)
