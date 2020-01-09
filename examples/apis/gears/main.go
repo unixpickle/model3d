@@ -16,9 +16,9 @@ const (
 )
 
 func main() {
-	// CreateGear(20, "gear_20.stl")
-	// CreateGear(30, "gear_30.stl")
-	// CreateGear(40, "gear_40.stl")
+	CreateGear(20, "gear_20.stl")
+	CreateGear(30, "gear_30.stl")
+	CreateGear(40, "gear_40.stl")
 
 	CreateHolder()
 }
