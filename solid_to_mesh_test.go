@@ -81,12 +81,24 @@ func (s simpleSingularVertex) Contains(c Coord3D) bool {
 }
 
 func BenchmarkSolidToMesh(b *testing.B) {
-	solid := &CylinderSolid{
-		P1:     Coord3D{X: 1, Y: 2, Z: 3},
-		P2:     Coord3D{X: 3, Y: 1, Z: 4},
-		Radius: 0.5,
-	}
-	for i := 0; i < b.N; i++ {
-		SolidToMesh(solid, 0.1, 2, 0, 0)
+	for _, direct := range []bool{false, true} {
+		name := "Subdivision"
+		divisions := 2
+		resolution := 0.1
+		if direct {
+			name = "Direct"
+			divisions = 0
+			resolution /= 4
+		}
+		b.Run(name, func(b *testing.B) {
+			solid := &CylinderSolid{
+				P1:     Coord3D{X: 1, Y: 2, Z: 3},
+				P2:     Coord3D{X: 3, Y: 1, Z: 4},
+				Radius: 0.5,
+			}
+			for i := 0; i < b.N; i++ {
+				SolidToMesh(solid, resolution, divisions, 0, 0)
+			}
+		})
 	}
 }
