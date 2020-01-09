@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	RootDepth     = 0.05
+	Clearance     = 0.05
 	PressureAngle = 20 * math.Pi / 180
 	Module        = 0.05
 	PoleSize      = 0.2
@@ -33,7 +33,7 @@ func CreateGear(teeth int, path string) {
 		&toolbox3d.SpurGear{
 			P1:      model3d.Coord3D{},
 			P2:      model3d.Coord3D{Z: 0.4},
-			Profile: toolbox3d.InvoluteGearProfile(PressureAngle, Module, teeth),
+			Profile: toolbox3d.InvoluteGearProfile(PressureAngle, Module, Clearance, teeth),
 		},
 	}
 	mesh := model3d.SolidToMesh(solid, 0.006, 0, -1, 5)

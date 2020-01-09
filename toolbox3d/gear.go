@@ -45,6 +45,7 @@ type GearProfile interface {
 }
 
 type involuteGearProfile struct {
+	rootRadius   float64
 	baseRadius   float64
 	outerRadius  float64
 	toothTheta   float64
@@ -53,7 +54,7 @@ type involuteGearProfile struct {
 
 // InvoluteGearProfile creates a GearProfile for a
 // standard involute gear with the given specs.
-func InvoluteGearProfile(pressureAngle, module float64, numTeeth int) GearProfile {
+func InvoluteGearProfile(pressureAngle, module, clearance float64, numTeeth int) GearProfile {
 	radius := module * float64(numTeeth) / 2
 	baseRadius := math.Cos(pressureAngle) * radius
 
@@ -64,6 +65,7 @@ func InvoluteGearProfile(pressureAngle, module float64, numTeeth int) GearProfil
 	reflectTheta := toothTheta/2 + 2*math.Atan2(y, x)
 
 	return &involuteGearProfile{
+		rootRadius:   baseRadius - clearance,
 		baseRadius:   baseRadius,
 		outerRadius:  radius*2 - baseRadius,
 		toothTheta:   toothTheta,
@@ -84,7 +86,7 @@ func (i *involuteGearProfile) Contains(c model2d.Coord) bool {
 		return false
 	}
 	r := c.Norm()
-	if r < i.baseRadius {
+	if r < i.rootRadius {
 		return true
 	} else if r > i.outerRadius {
 		return false
@@ -97,6 +99,10 @@ func (i *involuteGearProfile) Contains(c model2d.Coord) bool {
 	}
 	_, frac := math.Modf(theta / i.toothTheta)
 	theta = frac * i.toothTheta
+
+	if r < i.baseRadius {
+		return theta < i.reflectTheta
+	}
 
 	tForR := math.Sqrt(math.Pow(r/i.baseRadius, 2) - 1)
 	x, y := involuteCoords(tForR)
