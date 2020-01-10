@@ -67,8 +67,7 @@ func (h *HelicalGear) Contains(c model3d.Coord3D) bool {
 	}
 
 	distUp := axis.Normalize().Dot(c.Sub(h.P1))
-	radius := h.boundingCylinder().Radius
-	theta := math.Tan(h.Angle) * distUp / radius
+	theta := math.Tan(h.Angle) * distUp / h.Profile.PitchRadius()
 
 	c2 = model2d.NewMatrix2Rotation(theta).MulColumn(c2)
 
@@ -85,12 +84,14 @@ func (h *HelicalGear) boundingCylinder() *model3d.CylinderSolid {
 
 type GearProfile interface {
 	model2d.Solid
+	PitchRadius() float64
 }
 
 type involuteGearProfile struct {
 	rootRadius   float64
 	baseRadius   float64
 	outerRadius  float64
+	pitchRadius  float64
 	toothTheta   float64
 	reflectTheta float64
 }
@@ -111,9 +112,38 @@ func InvoluteGearProfile(pressureAngle, module, clearance float64, numTeeth int)
 		rootRadius:   baseRadius - clearance,
 		baseRadius:   baseRadius,
 		outerRadius:  radius*2 - baseRadius,
+		pitchRadius:  radius,
 		toothTheta:   toothTheta,
 		reflectTheta: reflectTheta,
 	}
+}
+
+// InvoluteGearProfileSizes creates an involute gear
+// profile using different parameters than
+// InvoluteGearProfile.
+func InvoluteGearProfileSizes(pressureAngle, module, addendum, dedendum float64,
+	numTeeth int) GearProfile {
+	radius := module * float64(numTeeth) / 2
+	baseRadius := math.Cos(pressureAngle) * radius
+
+	tForR := math.Sqrt(math.Pow(radius/baseRadius, 2) - 1)
+	x, y := involuteCoords(tForR)
+
+	toothTheta := math.Pi * 2 / float64(numTeeth)
+	reflectTheta := toothTheta/2 + 2*math.Atan2(y, x)
+
+	return &involuteGearProfile{
+		rootRadius:   radius - dedendum,
+		baseRadius:   baseRadius,
+		outerRadius:  radius + addendum,
+		pitchRadius:  radius,
+		toothTheta:   toothTheta,
+		reflectTheta: reflectTheta,
+	}
+}
+
+func (i *involuteGearProfile) PitchRadius() float64 {
+	return i.pitchRadius
 }
 
 func (i *involuteGearProfile) Min() model2d.Coord {
