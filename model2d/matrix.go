@@ -1,5 +1,7 @@
 package model2d
 
+import "math"
+
 // Matrix2 is a 2x2 matrix, stored in row-major order.
 type Matrix2 [4]float64
 
@@ -10,6 +12,14 @@ func NewMatrix2Columns(c1, c2 Coord) *Matrix2 {
 		c1.X, c2.X,
 		c1.Y, c2.Y,
 	}
+}
+
+// NewMatrix2Rotation creates a rotation matrix that
+// rotates column vectors by theta.
+func NewMatrix2Rotation(theta float64) *Matrix2 {
+	cos := math.Cos(theta)
+	sin := math.Sin(theta)
+	return &Matrix2{cos, -sin, sin, cos}
 }
 
 // Det computes the determinant of the matrix.
