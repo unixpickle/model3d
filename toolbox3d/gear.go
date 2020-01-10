@@ -40,6 +40,49 @@ func (s *SpurGear) boundingCylinder() *model3d.CylinderSolid {
 	}
 }
 
+type HelicalGear struct {
+	P1      model3d.Coord3D
+	P2      model3d.Coord3D
+	Profile GearProfile
+	Angle   float64
+}
+
+func (h *HelicalGear) Min() model3d.Coord3D {
+	return h.boundingCylinder().Min()
+}
+
+func (h *HelicalGear) Max() model3d.Coord3D {
+	return h.boundingCylinder().Max()
+}
+
+func (h *HelicalGear) Contains(c model3d.Coord3D) bool {
+	if !model3d.InSolidBounds(h, c) {
+		return false
+	}
+	axis := h.P2.Sub(h.P1)
+	v1, v2 := axis.OrthoBasis()
+	c2 := model2d.Coord{
+		X: v1.Dot(c),
+		Y: v2.Dot(c),
+	}
+
+	distUp := axis.Normalize().Dot(c.Sub(h.P1))
+	radius := h.boundingCylinder().Radius
+	theta := math.Tan(h.Angle) * distUp / radius
+
+	c2 = model2d.NewMatrix2Rotation(theta).MulColumn(c2)
+
+	return h.Profile.Contains(c2)
+}
+
+func (h *HelicalGear) boundingCylinder() *model3d.CylinderSolid {
+	return &model3d.CylinderSolid{
+		P1:     h.P1,
+		P2:     h.P2,
+		Radius: h.Profile.Max().X,
+	}
+}
+
 type GearProfile interface {
 	model2d.Solid
 }
