@@ -8,13 +8,17 @@ import (
 )
 
 const (
-	Dedendum      = 0.04
-	Addendum      = 0.04
-	PressureAngle = 25 * math.Pi / 180
-	Module        = 0.0495
-	PoleSize      = 0.2
-	HoleSize      = 0.23
-	HoleClearance = 0.02
+	Dedendum        = 0.04
+	Addendum        = 0.04
+	PressureAngle   = 25 * math.Pi / 180
+	Module          = 0.0495
+	HoleSize        = 0.23
+	HoleClearance   = 0.02
+	PoleSize        = 0.2
+	PoleBaseRadius  = 0.4
+	ScrewRadius     = 0.15
+	ScrewSlack      = 0.02
+	ScrewGrooveSize = 0.05
 )
 
 func main() {
@@ -22,6 +26,7 @@ func main() {
 	CreateGear(30, "gear_30.stl", false)
 	CreateGear(40, "gear_40.stl", true)
 
+	CreatePole()
 	CreateHolder()
 }
 
@@ -32,22 +37,48 @@ func CreateGear(teeth int, path string, invert bool) {
 	if invert {
 		theta *= -1
 	}
-	solid := model3d.JoinedSolid{
-		&model3d.CylinderSolid{
-			P1:     model3d.Coord3D{Z: 0.4},
-			P2:     model3d.Coord3D{Z: 0.8},
-			Radius: PoleSize,
-		},
-		&toolbox3d.HelicalGear{
+	solid := &model3d.SubtractedSolid{
+		Positive: &toolbox3d.HelicalGear{
 			P1: p1,
 			P2: p2,
 			Profile: toolbox3d.InvoluteGearProfileSizes(PressureAngle, Module, Dedendum, Addendum,
 				teeth),
 			Angle: theta,
 		},
+		Negative: &toolbox3d.ScrewSolid{
+			// Fix rounding errors resulting in filled-in sides.
+			P1: p1.Sub(model3d.Coord3D{Z: 0.001}),
+			P2: p2.Add(model3d.Coord3D{Z: 0.001}),
+
+			Radius:     ScrewRadius + ScrewSlack,
+			GrooveSize: ScrewGrooveSize,
+		},
 	}
 	mesh := model3d.SolidToMesh(solid, 0.004, 0, -1, 5)
 	mesh.SaveGroupedSTL(path)
+}
+
+func CreatePole() {
+	solid := model3d.JoinedSolid{
+		&model3d.CylinderSolid{
+			P1:     model3d.Coord3D{},
+			P2:     model3d.Coord3D{Z: 0.2},
+			Radius: PoleBaseRadius,
+		},
+		&model3d.CylinderSolid{
+			P1:     model3d.Coord3D{Z: 0.2},
+			P2:     model3d.Coord3D{Z: 0.6},
+			Radius: PoleSize,
+		},
+		&toolbox3d.ScrewSolid{
+			P1:         model3d.Coord3D{Z: 0.6},
+			P2:         model3d.Coord3D{Z: 1.0},
+			Radius:     ScrewRadius,
+			GrooveSize: ScrewGrooveSize,
+		},
+	}
+	mesh := model3d.SolidToMesh(solid, 0.004, 0, -1, 5)
+	mesh.SaveGroupedSTL("pole.stl")
 }
 
 func CreateHolder() {
