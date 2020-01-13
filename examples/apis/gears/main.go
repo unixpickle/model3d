@@ -16,6 +16,7 @@ const (
 	HoleClearance   = 0.02
 	PoleSize        = 0.2
 	PoleBaseRadius  = 0.4
+	PoleSlack       = 0.03
 	ScrewRadius     = 0.15
 	ScrewSlack      = 0.02
 	ScrewGrooveSize = 0.05
@@ -67,12 +68,12 @@ func CreatePole() {
 		},
 		&model3d.CylinderSolid{
 			P1:     model3d.Coord3D{Z: 0.2},
-			P2:     model3d.Coord3D{Z: 0.6},
+			P2:     model3d.Coord3D{Z: 0.6 + PoleSlack},
 			Radius: PoleSize,
 		},
 		&toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: 0.6},
-			P2:         model3d.Coord3D{Z: 1.0},
+			P1:         model3d.Coord3D{Z: 0.6 + PoleSlack},
+			P2:         model3d.Coord3D{Z: 1.0 + PoleSlack},
 			Radius:     ScrewRadius,
 			GrooveSize: ScrewGrooveSize,
 		},
