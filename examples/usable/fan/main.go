@@ -13,6 +13,7 @@ const OutputDir = "models"
 
 func main() {
 	CreateMeshFile("propeller.stl", PropellerMesh)
+	CreateMeshFile("spine.stl", SpineMesh)
 }
 
 func CreateMeshFile(name string, f func() *model3d.Mesh) {
