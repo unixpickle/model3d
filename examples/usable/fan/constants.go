@@ -33,5 +33,13 @@ const (
 	SmallGearTeeth    = 20
 	LargeGearTeeth    = 40
 	GearAirGap        = 0.02
+	LargeGearRadius   = GearModule * LargeGearTeeth / 2
 	GearDistance      = GearAirGap + GearModule*(SmallGearTeeth+LargeGearTeeth)/2
+
+	CrankGearSections     = 8
+	CrankGearRimSize      = 0.4
+	CrankGearCenterRadius = 0.5
+	CrankGearPoleSize     = 0.3
+	CrankHandleRadius     = 0.2
+	CrankHandleLength     = 2.0
 )
