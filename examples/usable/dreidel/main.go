@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 
 	"github.com/unixpickle/model3d/toolbox3d"
 
@@ -10,8 +11,8 @@ import (
 
 const (
 	Size       = 1.0
-	FlatLength = 0.8
-	PointSize  = 0.5
+	FlatLength = 1.0
+	PointSize  = 0.3
 
 	ScrewRadius = 0.2
 	ScrewGroove = 0.05
@@ -73,6 +74,6 @@ func (b BodySolid) Contains(c model3d.Coord3D) bool {
 	if !model3d.InSolidBounds(b, c) {
 		return false
 	}
-	sideSize := Size / 2 * (FlatLength + PointSize - c.Z) / PointSize
+	sideSize := Size / 2 * math.Pow((FlatLength+PointSize-c.Z)/PointSize, 0.5)
 	return c.Coord2D().Norm() <= sideSize
 }
