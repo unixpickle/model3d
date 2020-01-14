@@ -18,7 +18,7 @@ func SmallGearSolid() model3d.Solid {
 			P2: model3d.Coord3D{Z: GearThickness},
 			Profile: toolbox3d.InvoluteGearProfileSizes(GearPressureAngle, GearModule,
 				GearAddendum, GearDedendum, SmallGearTeeth),
-			Angle: GearHelicalAngle,
+			Angle: -GearHelicalAngle,
 		},
 		&model3d.CylinderSolid{
 			P1:     model3d.Coord3D{Z: GearThickness},
