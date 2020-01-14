@@ -16,6 +16,7 @@ func main() {
 	CreateMeshFile("spine.stl", SpineMesh)
 	CreateMeshFile("small_gear.stl", SmallGearMesh)
 	CreateMeshFile("crank_gear.stl", CrankGearMesh)
+	CreateMeshFile("crank_bolt.stl", CrankBoltMesh)
 }
 
 func CreateMeshFile(name string, f func() *model3d.Mesh) {

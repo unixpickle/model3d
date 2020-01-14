@@ -42,4 +42,7 @@ const (
 	CrankGearPoleSize     = 0.3
 	CrankHandleRadius     = 0.2
 	CrankHandleLength     = 2.0
+
+	CrankBoltRadius    = 0.5
+	CrankBoltThickness = 0.2
 )
