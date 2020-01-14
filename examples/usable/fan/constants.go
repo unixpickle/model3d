@@ -44,5 +44,5 @@ const (
 	CrankHandleLength     = 2.0
 
 	CrankBoltRadius    = 0.5
-	CrankBoltThickness = 0.2
+	CrankBoltThickness = 0.09
 )
