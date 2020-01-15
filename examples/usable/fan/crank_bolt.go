@@ -12,20 +12,17 @@ func CrankBoltMesh() *model3d.Mesh {
 }
 
 func CrankBoltSolid() model3d.Solid {
-	return model3d.JoinedSolid{
+	return model3d.StackedSolid{
 		&model3d.CylinderSolid{
 			P2:     model3d.Coord3D{Z: CrankBoltThickness},
 			Radius: CrankBoltRadius,
 		},
 		&model3d.CylinderSolid{
-			P1:     model3d.Coord3D{Z: CrankBoltThickness},
-			P2:     model3d.Coord3D{Z: CrankBoltThickness + SpineThickness + PoleExtraLength},
+			P2:     model3d.Coord3D{Z: SpineThickness + PoleExtraLength},
 			Radius: PoleRadius,
 		},
 		&toolbox3d.ScrewSolid{
-			P1: model3d.Coord3D{Z: CrankBoltThickness + SpineThickness + PoleExtraLength},
-			P2: model3d.Coord3D{Z: CrankBoltThickness + SpineThickness + PoleExtraLength +
-				GearThickness},
+			P2:         model3d.Coord3D{Z: GearThickness},
 			Radius:     ScrewRadius - ScrewSlack,
 			GrooveSize: ScrewGrooveSize,
 		},

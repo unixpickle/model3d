@@ -12,8 +12,7 @@ func SmallGearMesh() *model3d.Mesh {
 }
 
 func SmallGearSolid() model3d.Solid {
-	poleTop := model3d.Coord3D{Z: GearThickness + SpineThickness + SpineWasherSize + PoleExtraLength}
-	return model3d.JoinedSolid{
+	return model3d.StackedSolid{
 		&toolbox3d.HelicalGear{
 			P2: model3d.Coord3D{Z: GearThickness},
 			Profile: toolbox3d.InvoluteGearProfileSizes(GearPressureAngle, GearModule,
@@ -21,13 +20,11 @@ func SmallGearSolid() model3d.Solid {
 			Angle: -GearHelicalAngle,
 		},
 		&model3d.CylinderSolid{
-			P1:     model3d.Coord3D{Z: GearThickness},
-			P2:     poleTop,
+			P2:     model3d.Coord3D{Z: SpineThickness + SpineWasherSize + PoleExtraLength},
 			Radius: PoleRadius,
 		},
 		&toolbox3d.ScrewSolid{
-			P1:         poleTop,
-			P2:         poleTop.Add(model3d.Coord3D{Z: BladeDepth}),
+			P2:         model3d.Coord3D{Z: BladeDepth},
 			Radius:     ScrewRadius - ScrewSlack,
 			GrooveSize: ScrewGrooveSize,
 		},
