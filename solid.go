@@ -213,6 +213,43 @@ func (s *SubtractedSolid) Contains(c Coord3D) bool {
 	return s.Positive.Contains(c) && !s.Negative.Contains(c)
 }
 
+// A StackedSolid is like a JoinedSolid, but the solids
+// after the first are moved so that the lowest Z value of
+// their bounding box collides with the highest Z value of
+// the previous solid.
+// In other words, the solids are stacked on top of each
+// other along the Z axis.
+type StackedSolid []Solid
+
+func (s StackedSolid) Min() Coord3D {
+	return JoinedSolid(s).Min()
+}
+
+func (s StackedSolid) Max() Coord3D {
+	lastMax := s[0].Max()
+	for i := 1; i < len(s); i++ {
+		newMax := s[i].Max()
+		newMax.Z += lastMax.Z - s[i].Min().Z
+		lastMax = lastMax.Max(newMax)
+	}
+	return lastMax
+}
+
+func (s StackedSolid) Contains(c Coord3D) bool {
+	if !InSolidBounds(s, c) {
+		return false
+	}
+	currentZ := s[0].Min().Z
+	for _, solid := range s {
+		delta := currentZ - solid.Min().Z
+		if solid.Contains(c.Sub(Coord3D{Z: delta})) {
+			return true
+		}
+		currentZ = solid.Max().Z + delta
+	}
+	return false
+}
+
 // A ColliderSolid is a Solid that uses a Collider to
 // check if points are in the solid.
 //
