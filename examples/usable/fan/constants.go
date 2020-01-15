@@ -5,7 +5,7 @@ import "math"
 const (
 	ScrewRadius     = 0.3
 	ScrewGrooveSize = 0.06
-	ScrewSlack      = 0.04
+	ScrewSlack      = 0.05
 
 	PropellerHubRadius = 0.7
 
@@ -14,15 +14,15 @@ const (
 	BladeDepth     = 1.0
 	BladeCount     = 8
 
-	SpineThickness    = 0.5
-	SpineWasherSize   = 0.1
+	SpineThickness    = 0.4
+	SpineWasherSize   = 0.2
 	SpineWasherRadius = HoleRadius + 0.1
 	SpineWidth        = 1.2
 	SpineLength       = 8.0
 
 	HoleRadius      = 0.36
 	PoleRadius      = 0.33
-	PoleExtraLength = 0.02
+	PoleExtraLength = 0.04
 
 	GearThickness     = 0.4
 	GearModule        = 0.1
