@@ -1,0 +1,45 @@
+package main
+
+import (
+	"math"
+
+	"github.com/unixpickle/model3d"
+)
+
+const (
+	HersheyKissRadius = 0.4
+	HersheyKissHeight = 0.7
+)
+
+type HersheyKissSolid struct {
+	Center model3d.Coord3D
+}
+
+func (h HersheyKissSolid) Min() model3d.Coord3D {
+	return h.Center.Add(model3d.Coord3D{X: -HersheyKissRadius, Y: -HersheyKissRadius})
+}
+
+func (h HersheyKissSolid) Max() model3d.Coord3D {
+	return h.Center.Add(model3d.Coord3D{
+		X: HersheyKissRadius,
+		Y: HersheyKissRadius,
+		Z: HersheyKissHeight,
+	})
+}
+
+func (h HersheyKissSolid) Contains(c model3d.Coord3D) bool {
+	if !model3d.InSolidBounds(h, c) {
+		return false
+	}
+	y := (c.Z - h.Center.Z) / HersheyKissHeight
+	x := c.Sub(h.Center).Coord2D().Norm() / HersheyKissRadius
+	if x > 1 {
+		return false
+	} else if x < 0.05 {
+		// Solid cylinder center.
+		return true
+	}
+	x = 1 - x
+	hForX := 0.5 + math.Asin(2*math.Pow(x, 0.8)-1)/math.Pi
+	return y <= hForX
+}
