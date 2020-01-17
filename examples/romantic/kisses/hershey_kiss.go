@@ -7,8 +7,10 @@ import (
 )
 
 const (
-	HersheyKissRadius = 0.4
-	HersheyKissHeight = 0.7
+	HersheyKissRadius       = 0.4
+	HersheyKissHeight       = 0.7
+	HersheyKissMinThickness = 0.05
+	HersheyKissCurlStart    = 0.9
 )
 
 type HersheyKissSolid struct {
@@ -32,10 +34,13 @@ func (h HersheyKissSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 	y := (c.Z - h.Center.Z) / HersheyKissHeight
+	if y > HersheyKissCurlStart {
+		c.X += 4 * math.Pow(y-HersheyKissCurlStart, 2)
+	}
 	x := c.Sub(h.Center).Coord2D().Norm() / HersheyKissRadius
 	if x > 1 {
 		return false
-	} else if x < 0.05 {
+	} else if x < HersheyKissMinThickness {
 		// Solid cylinder center.
 		return true
 	}
