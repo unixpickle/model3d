@@ -10,9 +10,9 @@ const (
 	PropellerHubRadius = 0.7
 
 	BladeRadius    = 3.5
-	BladeThickness = 0.1
-	BladeDepth     = 1.0
-	BladeCount     = 8
+	BladeThickness = 0.15
+	BladeDepth     = 1.5
+	BladeCount     = 5
 
 	SpineThickness    = 0.4
 	SpineWasherSize   = 0.2
@@ -32,7 +32,7 @@ const (
 	GearHelicalAngle  = 20 * math.Pi / 180
 	SmallGearTeeth    = 20
 	LargeGearTeeth    = 40
-	GearAirGap        = 0.02
+	GearAirGap        = 0.04
 	LargeGearRadius   = GearModule * LargeGearTeeth / 2
 	GearDistance      = GearAirGap + GearModule*(SmallGearTeeth+LargeGearTeeth)/2
 
