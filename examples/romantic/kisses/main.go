@@ -29,6 +29,7 @@ func main() {
 	m := model3d.SolidToMesh(fullSolid, 0.01, 0, -1, 10)
 	m = m.FlattenBase(0)
 	m.SaveGroupedSTL("kiss.stl")
+	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(m), 3, 3, 300, 300)
 }
 
 type TextSolid struct {
