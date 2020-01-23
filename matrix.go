@@ -67,3 +67,12 @@ func (m *Matrix3) MulColumn(c Coord3D) Coord3D {
 		Z: m[6]*c.X + m[7]*c.Y + m[8]*c.Z,
 	}
 }
+
+// Transpose computes the matrix transpose.
+func (m *Matrix3) Transpose() *Matrix3 {
+	return &Matrix3{
+		m[0], m[3], m[6],
+		m[1], m[4], m[7],
+		m[2], m[5], m[8],
+	}
+}
