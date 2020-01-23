@@ -63,3 +63,11 @@ func (m *Matrix2) MulColumn(c Coord) Coord {
 		Y: m[2]*c.X + m[3]*c.Y,
 	}
 }
+
+// Transpose computes the matrix transpose.
+func (m *Matrix2) Transpose() *Matrix2 {
+	return &Matrix2{
+		m[0], m[2],
+		m[1], m[3],
+	}
+}
