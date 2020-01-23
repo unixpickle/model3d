@@ -17,41 +17,50 @@ const (
 
 func main() {
 	log.Println("Creating rocks...")
-	var rocks model3d.JoinedSolid
+	mesh := model3d.NewMesh()
 	for i := 0; i < GridSize; i++ {
 		for j := 0; j < GridSize; j++ {
-			min := model3d.Coord3D{X: float64(i) * 1.1, Y: float64(j) * 1.1, Z: 0}
-			rock := &RockSolid{
-				Solid: &model3d.RectSolid{
-					MinVal: min,
-					MaxVal: min.Add(model3d.Coord3D{X: 1, Y: 1, Z: rand.Float64()*0.1 + 0.95}),
+			rock := model3d.ConvexPolytope{
+				&model3d.LinearConstraint{
+					Normal: model3d.Coord3D{X: -1},
+					Max:    0,
+				},
+				&model3d.LinearConstraint{
+					Normal: model3d.Coord3D{X: 1},
+					Max:    1,
+				},
+				&model3d.LinearConstraint{
+					Normal: model3d.Coord3D{Y: -1},
+					Max:    0,
+				},
+				&model3d.LinearConstraint{
+					Normal: model3d.Coord3D{Y: 1},
+					Max:    1,
+				},
+				&model3d.LinearConstraint{
+					Normal: model3d.Coord3D{Z: -1},
+					Max:    0,
+				},
+				&model3d.LinearConstraint{
+					Normal: model3d.Coord3D{Z: 1},
+					Max:    1,
 				},
 			}
 			for i := 0; i < 100; i++ {
-				rock.AddConstraint()
+				rock = AddConstraint(rock)
 			}
-			rocks = append(rocks, rock)
+			min := model3d.Coord3D{X: float64(i) * 1.1, Y: float64(j) * 1.1, Z: 0}
+			mesh.AddMesh(rock.Mesh().MapCoords(min.Add))
 		}
 	}
 
-	log.Println("Creating mesh...")
-	mesh := model3d.SolidToMesh(rocks, 0.01, 0, -1, 5)
-	log.Println("Lasso mesh...")
-	for i := 0; i < 5; i++ {
-		mesh = mesh.LassoSolid(rocks, 0.01, 3, 0, 0.2)
-	}
 	log.Println("Saving results...")
 	mesh.SaveGroupedSTL("rock.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }
 
-type RockSolid struct {
-	model3d.Solid
-	Constraints []*LinearConstraint
-}
-
-func (r *RockSolid) AddConstraint() {
-	lc := &LinearConstraint{
+func AddConstraint(r model3d.ConvexPolytope) model3d.ConvexPolytope {
+	lc := &model3d.LinearConstraint{
 		Normal: model3d.Coord3D{
 			X: rand.NormFloat64(),
 			Y: rand.NormFloat64(),
@@ -60,39 +69,16 @@ func (r *RockSolid) AddConstraint() {
 	}
 	var dotValues []float64
 	for len(dotValues) < AdditionSamples {
-		min := r.Min()
-		scale := r.Max().Sub(min)
 		c := model3d.Coord3D{
-			X: rand.Float64()*scale.X + min.X,
-			Y: rand.Float64()*scale.Y + min.Y,
-			Z: rand.Float64()*scale.Z + min.Z,
+			X: rand.Float64(),
+			Y: rand.Float64(),
+			Z: rand.Float64(),
 		}
 		if r.Contains(c) {
 			dotValues = append(dotValues, c.Dot(lc.Normal))
 		}
 	}
 	sort.Float64s(dotValues)
-	lc.MaxDot = dotValues[KeepSamples]
-	r.Constraints = append(r.Constraints, lc)
-}
-
-func (r *RockSolid) Contains(c model3d.Coord3D) bool {
-	if !r.Solid.Contains(c) {
-		return false
-	}
-	for _, constraint := range r.Constraints {
-		if !constraint.Satisfies(c) {
-			return false
-		}
-	}
-	return true
-}
-
-type LinearConstraint struct {
-	Normal model3d.Coord3D
-	MaxDot float64
-}
-
-func (l *LinearConstraint) Satisfies(c model3d.Coord3D) bool {
-	return l.Normal.Dot(c) <= l.MaxDot
+	lc.Max = dotValues[KeepSamples]
+	return append(r, lc)
 }
