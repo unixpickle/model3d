@@ -132,6 +132,23 @@ func BenchmarkMeshToCollider(b *testing.B) {
 	}
 }
 
+func BenchmarkMeshRayCollisions(b *testing.B) {
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1
+	}, 50)
+	collider := MeshToCollider(mesh)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		collider.RayCollisions(&Ray{
+			Direction: Coord3D{
+				X: rand.NormFloat64(),
+				Y: rand.NormFloat64(),
+				Z: rand.NormFloat64(),
+			},
+		})
+	}
+}
+
 func BenchmarkMeshSphereCollisions(b *testing.B) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1
