@@ -15,9 +15,10 @@ const (
 	SectionHeight    = 1.7
 	SectionThickness = 0.2
 
-	LidThickness       = 0.3
-	LidHolderThickness = 0.2
-	LidHolderInset     = 0.06
+	LidHeight      = 1.5
+	LidThickness   = 0.2
+	LidHolderSize  = 0.2
+	LidHolderInset = 0.06
 
 	ImageSize = 1024.0
 )
@@ -89,7 +90,7 @@ func (l *LidSolid) Min() model3d.Coord3D {
 }
 
 func (l *LidSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: SideSize, Y: SideSize, Z: LidThickness + LidHolderThickness}
+	return model3d.Coord3D{X: SideSize, Y: SideSize, Z: LidHeight + LidHolderSize}
 }
 
 func (l *LidSolid) Contains(c model3d.Coord3D) bool {
@@ -98,9 +99,15 @@ func (l *LidSolid) Contains(c model3d.Coord3D) bool {
 	}
 	scale := ImageSize / SideSize
 	c2 := c.Coord2D().Scale(scale)
-	if c.Z < LidThickness {
-		return model2d.ColliderContains(l.Outline, c2, 0)
-	} else {
-		return model2d.ColliderContains(l.Outline, c2, scale*(WallThickness+LidHolderInset))
+	if !model2d.ColliderContains(l.Outline, c2, 0) {
+		return false
 	}
+	if c.Z < LidThickness {
+		return true
+	}
+	if !model2d.ColliderContains(l.Outline, c2, scale*(WallThickness+LidHolderInset)) {
+		return c.Z < LidHeight
+	}
+	return !model2d.ColliderContains(l.Outline, c2,
+		scale*(WallThickness+LidHolderInset+LidThickness))
 }
