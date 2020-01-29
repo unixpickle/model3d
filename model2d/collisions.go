@@ -269,13 +269,23 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 			}
 			continue
 		}
-		t1 := (j.min.Array()[axis] - origin) / rate
-		t2 := (j.max.Array()[axis] - origin) / rate
+		invRate := 1 / rate
+		t1 := (j.min.Array()[axis] - origin) * invRate
+		t2 := (j.max.Array()[axis] - origin) * invRate
 		if t1 > t2 {
 			t1, t2 = t2, t1
 		}
-		minFrac = math.Max(minFrac, t1)
-		maxFrac = math.Min(maxFrac, t2)
+		if t2 < 0 {
+			// No collision is possible, so we can short-circuit
+			// everything else.
+			return false
+		}
+		if t1 > minFrac {
+			minFrac = t1
+		}
+		if t2 < maxFrac {
+			maxFrac = t2
+		}
 	}
 
 	return minFrac <= maxFrac && maxFrac >= 0
