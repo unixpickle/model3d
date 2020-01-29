@@ -35,7 +35,8 @@ func (r *Ray) Collision(t *Triangle) (bool, float64) {
 	if math.Abs(matrix.Det()) < 1e-8*t.Area()*r.Direction.Norm() {
 		return false, 0
 	}
-	result := matrix.Inverse().MulColumn(r.Origin.Sub(t[0]))
+	matrix.InvertInPlace()
+	result := matrix.MulColumn(r.Origin.Sub(t[0]))
 	return result.X >= 0 && result.Y >= 0 && result.X+result.Y <= 1, -result.Z
 }
 
@@ -492,8 +493,16 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 		if t1 > t2 {
 			t1, t2 = t2, t1
 		}
-		minFrac = math.Max(minFrac, t1)
-		maxFrac = math.Min(maxFrac, t2)
+		if t2 < 0 {
+			// Short-circuit optimization.
+			return false
+		}
+		if t1 > minFrac {
+			minFrac = t1
+		}
+		if t2 < maxFrac {
+			maxFrac = t2
+		}
 	}
 
 	return minFrac <= maxFrac && maxFrac >= 0

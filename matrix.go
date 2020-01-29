@@ -31,14 +31,21 @@ func (m *Matrix3) Scale(s float64) {
 
 // Inverse computes the inverse matrix.
 func (m *Matrix3) Inverse() *Matrix3 {
+	res := *m
+	res.InvertInPlace()
+	return &res
+}
+
+// InvertInPlace moves the inverse of m into m without
+// causing any new allocations.
+func (m *Matrix3) InvertInPlace() {
 	coeff := 1 / m.Det()
-	res := Matrix3{
+	*m = Matrix3{
 		m[4]*m[8] - m[5]*m[7], m[2]*m[7] - m[1]*m[8], m[1]*m[5] - m[2]*m[4],
 		m[5]*m[6] - m[3]*m[8], m[0]*m[8] - m[2]*m[6], m[2]*m[3] - m[0]*m[5],
 		m[3]*m[7] - m[4]*m[6], m[1]*m[6] - m[0]*m[7], m[0]*m[4] - m[1]*m[3],
 	}
-	res.Scale(coeff)
-	return &res
+	m.Scale(coeff)
 }
 
 // Mul computes m*m1 and returns the product.
