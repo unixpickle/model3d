@@ -32,7 +32,8 @@ func (r *Ray) Collision(s *Segment) (bool, float64) {
 	if math.Abs(matrix.Det()) < 1e-8*s.Length()*r.Direction.Norm() {
 		return false, 0
 	}
-	result := matrix.Inverse().MulColumn(r.Origin.Sub(s[0]))
+	matrix.InvertInPlace()
+	result := matrix.MulColumn(r.Origin.Sub(s[0]))
 	return result.X >= 0 && result.X <= 1, -result.Y
 }
 
