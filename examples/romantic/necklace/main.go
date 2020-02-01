@@ -1,178 +1,66 @@
 package main
 
 import (
-	"io/ioutil"
 	"math"
 
 	"github.com/unixpickle/model3d"
 )
 
 const (
-	RingOuterRadius = 0.3
-	RingInnerRadius = 0.05
-	RingSpacing     = 0.12
+	LinkWidth     = 0.2
+	LinkHeight    = 0.4
+	LinkThickness = 0.04
+	LinkOddShift  = LinkWidth * 0.4
 
-	ClaspRingRadius  = 0.4
-	ClaspBarLength   = 1.2
-	ClaspBarDistance = 0.2
+	TotalLength = 20
 
-	NumRows = 7
-	NumCols = 5
+	StartRadius = 2.0
+	SpiralRate  = 0.4 / (math.Pi * 2)
+	MoveRate    = 0.6 * LinkHeight
 )
 
 func main() {
-	mesh := model3d.NewMesh()
-	center := model3d.Coord3D{}
-	direction := 1.0
-	for i := 0; i < NumRows; i++ {
-		endCenter := center
-		endCenter.Y += direction * (RingOuterRadius) * (NumCols*2 + 1)
-		if i == NumRows/2 {
-			AddMiddleRow(mesh, center, direction)
+	link := model3d.SolidToMesh(LinkSolid{}, 0.01, 0, -1, 5)
+	linkOdd := link.MapCoords((model3d.Coord3D{X: LinkOddShift}).Add)
+	m := model3d.NewMesh()
+	manifold := NewSpiralManifold(StartRadius, SpiralRate)
+	for i := 0; i < int(TotalLength/LinkHeight); i++ {
+		if i%2 == 0 {
+			m.AddMesh(link.MapCoords(manifold.Convert))
 		} else {
-			AddNormalRow(mesh, center, direction, i)
+			m.AddMesh(linkOdd.MapCoords(manifold.Convert))
 		}
-		center = endCenter
-		if i+1 < NumRows {
-			center.X += RingOuterRadius + RingSpacing
-			AddRing(mesh, center, 1)
-			center.X += RingOuterRadius + RingSpacing
-			direction *= -1
-		}
+		manifold.Move(MoveRate)
 	}
-
-	ioutil.WriteFile("model.stl", mesh.EncodeSTL(), 0755)
+	if m.SelfIntersections() > 0 {
+		panic("self intersections detected")
+	}
+	m.SaveGroupedSTL("necklace.stl")
+	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(m), 3, 3, 300, 300)
 }
 
-func AddMiddleRow(m *model3d.Mesh, center model3d.Coord3D, direction float64) {
-	var solid model3d.JoinedSolid
-	for j := 0; j < NumCols; j++ {
-		if j%2 == 1 {
-			p1, p2 := center, center
-			p1.Y -= direction * RingSpacing
-			p2.Y += direction * (RingOuterRadius + RingSpacing*2)
-			if p1.Y > p2.Y {
-				p1, p2 = p2, p1
-			}
-			solid = append(solid, JewelryPiece(j/2, p1, p2))
-			center.Y += 2 * direction * (RingOuterRadius + RingSpacing)
-			continue
-		}
-		solid = append(solid, &model3d.TorusSolid{
-			Axis:        model3d.Coord3D{Z: 1},
-			Center:      center,
-			InnerRadius: RingInnerRadius,
-			OuterRadius: RingOuterRadius,
-		})
-		if j+1 < NumCols {
-			center.Y += direction * (RingOuterRadius + RingSpacing)
-			solid = append(solid, &model3d.TorusSolid{
-				Axis:        model3d.Coord3D{X: 1},
-				Center:      center,
-				InnerRadius: RingInnerRadius,
-				OuterRadius: RingOuterRadius,
-			})
-			center.Y += direction * (RingOuterRadius + RingSpacing)
-		}
-	}
-	m.AddMesh(model3d.SolidToMesh(solid, 0.01, 1, 0.8, 5))
+type LinkSolid struct{}
+
+func (l LinkSolid) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: -LinkWidth / 2, Y: -LinkHeight / 2, Z: 0}
 }
 
-func AddNormalRow(m *model3d.Mesh, center model3d.Coord3D, direction float64, i int) {
-	for j := 0; j < NumCols; j++ {
-		if i == 0 && j == 0 {
-			offset := (ClaspRingRadius - RingOuterRadius) / math.Sqrt2
-			AddClaspRing(m, center.Sub(model3d.Coord3D{X: offset, Y: offset}), 2)
-		} else if i+1 == NumRows && j+1 == NumCols {
-			AddBarRing(m, center, direction)
-		} else {
-			AddRing(m, center, 2)
-		}
-		if j+1 < NumCols {
-			center.Y += direction * (RingOuterRadius + RingSpacing)
-			AddRing(m, center, 0)
-			center.Y += direction * (RingOuterRadius + RingSpacing)
-		}
-	}
+func (l LinkSolid) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: LinkWidth / 2, Y: LinkHeight / 2, Z: LinkWidth/2 + LinkThickness}
 }
 
-func AddBarRing(m *model3d.Mesh, center model3d.Coord3D, dir float64) {
-	barLeft := center
-	barLeft.Y += dir * (RingOuterRadius + ClaspBarDistance)
-	barLeft.X -= ClaspBarLength / 2
-	solid := model3d.JoinedSolid{
-		&model3d.TorusSolid{
-			Axis:        model3d.Coord3D{Z: 1},
-			Center:      center,
-			InnerRadius: RingInnerRadius,
-			OuterRadius: RingOuterRadius,
-		},
-		&model3d.CylinderSolid{
-			P1:     center.Add(model3d.Coord3D{Y: dir * RingOuterRadius}),
-			P2:     center.Add(model3d.Coord3D{Y: dir * (RingOuterRadius + ClaspBarDistance)}),
-			Radius: RingInnerRadius,
-		},
-		&model3d.CylinderSolid{
-			P1:     barLeft,
-			P2:     barLeft.Add(model3d.Coord3D{X: ClaspBarLength}),
-			Radius: RingInnerRadius,
-		},
+func (l LinkSolid) Contains(c model3d.Coord3D) bool {
+	if !model3d.InSolidBounds(l, c) {
+		return false
 	}
-	m.AddMesh(model3d.SolidToMesh(solid, 0.01, 1, 0.8, 5))
-}
-
-func AddRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int) {
-	addRing(m, center, normalDim, RingOuterRadius)
-}
-
-func AddClaspRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int) {
-	addRing(m, center, normalDim, ClaspRingRadius)
-}
-
-func addRing(m *model3d.Mesh, center model3d.Coord3D, normalDim int, outerRadius float64) {
-	torusPoint := func(outer, inner float64) model3d.Coord3D {
-		outerDirection := model3d.Coord3D{
-			X: math.Cos(outer),
-			Y: math.Sin(outer),
-		}
-		d1 := outerDirection
-		d2 := model3d.Coord3D{Z: 1}
-
-		p := outerDirection.Scale(outerRadius)
-		p = p.Add(d1.Scale(RingInnerRadius * math.Cos(inner)))
-		p = p.Add(d2.Scale(RingInnerRadius * math.Sin(inner)))
-
-		if normalDim == 0 {
-			p.X, p.Z = p.Z, p.X
-		} else if normalDim == 1 {
-			p.Y, p.Z = p.Z, p.Y
-		} else {
-			// Fix normal.
-			p.X, p.Y = p.Y, p.X
-		}
-		return p.Add(center)
+	if c.Z < LinkThickness &&
+		(c.X < -LinkWidth/2+LinkThickness || c.X > LinkWidth/2-LinkThickness) {
+		return true
+	}
+	if c.Y > -LinkHeight/2+LinkThickness && c.Y < LinkHeight/2-LinkThickness {
+		return false
 	}
 
-	outerAngles := circleAngles(50.0)
-	innerAngles := circleAngles(20.0)
-	for i, outer := range outerAngles {
-		outer1 := outerAngles[(i+1)%len(outerAngles)]
-		for j, inner := range innerAngles {
-			inner1 := innerAngles[(j+1)%len(innerAngles)]
-			p1 := torusPoint(outer, inner)
-			p2 := torusPoint(outer, inner1)
-			p3 := torusPoint(outer1, inner1)
-			p4 := torusPoint(outer1, inner)
-			m.Add(&model3d.Triangle{p1, p2, p3})
-			m.Add(&model3d.Triangle{p1, p3, p4})
-		}
-	}
-}
-
-func circleAngles(stops float64) []float64 {
-	var res []float64
-	for i := 0.0; i < stops; i++ {
-		res = append(res, math.Pi*2*i/stops)
-	}
-	return res
+	height := LinkWidth/2 - math.Abs(c.X)
+	return c.Z >= height && c.Z <= height+LinkThickness
 }
