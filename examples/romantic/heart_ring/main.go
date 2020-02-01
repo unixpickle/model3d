@@ -20,6 +20,7 @@ const (
 	// Lower values mean more curvature.
 	RingCurveRadius = 0.5
 
+	HeartSpacing = 0.01
 	HeartWidth   = 0.3
 	HeartHeight  = HeartWidth * 456.0 / 512.0
 	EngraveDepth = 0.015
@@ -30,7 +31,7 @@ func main() {
 		RingSolid{},
 		NewHeartSolid(),
 	}
-	m := model3d.SolidToMesh(solid, 0.0025, 0, -1, 10)
+	m := model3d.SolidToMesh(solid, 0.0015, 0, -1, 10)
 	m.SaveGroupedSTL("ring.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(m), 3, 3, 300, 300)
 }
@@ -82,7 +83,7 @@ func NewHeartSolid() *HeartSolid {
 }
 
 func (h *HeartSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -HeartWidth / 2, Y: RingRadius, Z: -HeartHeight / 2}
+	return model3d.Coord3D{X: -HeartWidth / 2, Y: RingRadius + HeartSpacing, Z: -HeartHeight / 2}
 }
 
 func (h *HeartSolid) Max() model3d.Coord3D {
