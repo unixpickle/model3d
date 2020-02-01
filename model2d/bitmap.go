@@ -107,6 +107,17 @@ func (b *Bitmap) Set(x, y int, v bool) {
 	b.Data[x+y*b.Width] = v
 }
 
+// FlipX reverses the x-axis.
+func (b *Bitmap) FlipX() *Bitmap {
+	res := NewBitmap(b.Width, b.Height)
+	for y := 0; y < b.Height; y++ {
+		for x := 0; x < b.Width; x++ {
+			res.Set(x, y, b.Get(b.Width-(x+1), y))
+		}
+	}
+	return res
+}
+
 // FlipY reverses the y-axis.
 func (b *Bitmap) FlipY() *Bitmap {
 	res := NewBitmap(b.Width, b.Height)
