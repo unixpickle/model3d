@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d"
@@ -20,8 +21,18 @@ const (
 )
 
 func main() {
-	link := model3d.SolidToMesh(LinkSolid{}, 0.01, 0, -1, 5)
-	linkOdd := link.MapCoords((model3d.Coord3D{X: LinkOddShift}).Add)
+	log.Println("Creating link mesh...")
+	solid := LinkSolid{}
+	link := model3d.SolidToMesh(solid, 0.005, 0, -1, 5)
+	for i := 0; i < 10; i++ {
+		link = link.LassoSolid(solid, 0.005, 3, 200, 0.2)
+	}
+	link = link.FlattenBase(0)
+	link = link.EliminateCoplanar(1e-5)
+	linkOdd := link.MapCoords((model3d.Coord3D{X: LinkOddShift / 2}).Add)
+	link = link.MapCoords((model3d.Coord3D{X: -LinkOddShift / 2}).Add)
+
+	log.Println("Creating full mesh...")
 	m := model3d.NewMesh()
 	manifold := NewSpiralManifold(StartRadius, SpiralRate)
 	for i := 0; i < int(TotalLength/LinkHeight); i++ {
@@ -32,9 +43,14 @@ func main() {
 		}
 		manifold.Move(MoveRate)
 	}
+	log.Println("Verifying mesh...")
 	if m.SelfIntersections() > 0 {
 		panic("self intersections detected")
 	}
+	if _, n := m.RepairNormals(1e-5); n != 0 {
+		panic("incorrect normals")
+	}
+	log.Println("Saving results...")
 	m.SaveGroupedSTL("necklace.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(m), 3, 3, 300, 300)
 }
