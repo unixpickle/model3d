@@ -1,9 +1,13 @@
 package main
 
 import (
+	"image"
+	"image/png"
 	"log"
 	"math"
+	"os"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
 
@@ -12,6 +16,9 @@ const (
 	LinkHeight    = 0.4
 	LinkThickness = 0.04
 	LinkOddShift  = LinkWidth * 0.4
+
+	HookOffset = 0.1
+	HookLength = LinkHeight
 
 	TotalLength = 20
 
@@ -29,18 +36,29 @@ func main() {
 	}
 	link = link.FlattenBase(0)
 	link = link.EliminateCoplanar(1e-5)
-	linkOdd := link.MapCoords((model3d.Coord3D{X: LinkOddShift / 2}).Add)
-	link = link.MapCoords((model3d.Coord3D{X: -LinkOddShift / 2}).Add)
+
+	log.Println("Creating hook mesh...")
+	hook := model3d.SolidToMesh(HookSolid{}, 0.005, 0, -1, 5)
+	for i := 0; i < 10; i++ {
+		hook = hook.LassoSolid(HookSolid{}, 0.005, 3, 200, 0.2)
+	}
+	hook = hook.FlattenBase(0)
+	hook = hook.EliminateCoplanar(1e-5)
 
 	log.Println("Creating full mesh...")
 	m := model3d.NewMesh()
 	manifold := NewSpiralManifold(StartRadius, SpiralRate)
-	for i := 0; i < int(TotalLength/LinkHeight); i++ {
-		if i%2 == 0 {
-			m.AddMesh(link.MapCoords(manifold.Convert))
-		} else {
-			m.AddMesh(linkOdd.MapCoords(manifold.Convert))
+	numLinks := int(TotalLength / LinkHeight)
+	for i := 0; i < numLinks; i++ {
+		offset := model3d.Coord3D{X: LinkOddShift / 2}
+		if i%2 == 1 {
+			offset = offset.Scale(-1)
 		}
+		subMesh := link
+		if i == numLinks-1 {
+			subMesh = hook
+		}
+		m.AddMesh(subMesh.MapCoords(offset.Add).MapCoords(manifold.Convert))
 		manifold.Move(MoveRate)
 	}
 	log.Println("Verifying mesh...")
@@ -50,9 +68,18 @@ func main() {
 	if _, n := m.RepairNormals(1e-5); n != 0 {
 		panic("incorrect normals")
 	}
-	log.Println("Saving results...")
+	log.Println("Saving mesh...")
 	m.SaveGroupedSTL("necklace.stl")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(m), 3, 3, 300, 300)
+
+	log.Println("Saving rendering...")
+	img := image.NewGray(image.Rect(0, 0, 1000, 500))
+	model3d.RenderRayCast(model3d.MeshToCollider(m), img, model3d.Coord3D{Z: 2, Y: -4},
+		model3d.Coord3D{X: 1}, model3d.Coord3D{Y: -0.4, Z: -0.5},
+		model3d.Coord3D{Y: 0.5, Z: -0.4}, math.Pi/2)
+	f, err := os.Create("rendering.png")
+	essentials.Must(err)
+	defer f.Close()
+	png.Encode(f, img)
 }
 
 type LinkSolid struct{}
@@ -79,4 +106,44 @@ func (l LinkSolid) Contains(c model3d.Coord3D) bool {
 
 	height := LinkWidth/2 - math.Abs(c.X)
 	return c.Z >= height && c.Z <= height+LinkThickness
+}
+
+type HookSolid struct{}
+
+func (h HookSolid) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: -HookLength / 2, Y: -LinkHeight / 2, Z: 0}
+}
+
+func (h HookSolid) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: HookLength / 2, Y: LinkHeight/2 + HookOffset + LinkThickness,
+		Z: LinkWidth/2 + LinkThickness}
+}
+
+func (h HookSolid) Contains(c model3d.Coord3D) bool {
+	if !model3d.InSolidBounds(h, c) {
+		return false
+	}
+	if c.Z < LinkThickness {
+		if c.Y < LinkHeight/2 {
+			if math.Abs(c.X) > LinkWidth/2-LinkThickness && math.Abs(c.X) < LinkWidth/2 {
+				return true
+			}
+			if c.Y > LinkHeight/2-LinkThickness && math.Abs(c.X) < LinkWidth/2 {
+				return true
+			}
+		} else if c.Y < LinkHeight/2+HookOffset {
+			return math.Abs(c.X) < LinkThickness/2
+		} else {
+			// Hook itself fills the max-y part of the solid.
+			return true
+		}
+	}
+	if c.Y < -LinkHeight/2+LinkThickness && math.Abs(c.X) < LinkWidth/2 {
+		height := LinkWidth/2 - math.Abs(c.X)
+		if c.Z >= height && c.Z <= height+LinkThickness {
+			return true
+		}
+	}
+
+	return false
 }
