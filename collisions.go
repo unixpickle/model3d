@@ -515,7 +515,7 @@ type joinedTriangleCollider struct {
 func (j joinedTriangleCollider) TriangleCollisions(t *Triangle) []Segment {
 	min := t.Min().Max(j.min)
 	max := t.Max().Min(j.max)
-	if min.X >= max.X || min.Y >= max.Y || min.Z >= max.Z {
+	if min.X > max.X || min.Y > max.Y || min.Z > max.Z {
 		return nil
 	}
 

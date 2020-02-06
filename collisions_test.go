@@ -106,6 +106,76 @@ func TestTriangleCollisions(t *testing.T) {
 	})
 }
 
+func TestTriangleCollisionMismatch(t *testing.T) {
+	solid := hookSolid{}
+	m := SolidToMesh(solid, 0.01, 0, -1, 5)
+	for i := 0; i < 10; i++ {
+		m = m.LassoSolid(solid, 0.01, 4, 0, 0.2)
+	}
+	flat := m.FlattenBase(0)
+	flat1 := NewMesh()
+	flat1.AddMesh(flat)
+
+	i1 := flat.SelfIntersections()
+	i2 := flat1.SelfIntersections()
+	if i1 != i2 {
+		t.Fatal("bad intersection count", i1, i2)
+	}
+}
+
+// Code taken from a real life example of SelfIntersections()
+// giving invalid results.
+
+const (
+	LinkWidth     = 0.5
+	LinkHeight    = 0.8
+	LinkThickness = 0.06
+	LinkOddShift  = LinkWidth * 0.3
+
+	HookOffset = 0.2
+	HookLength = LinkHeight
+)
+
+type hookSolid struct{}
+
+func (h hookSolid) Min() Coord3D {
+	return Coord3D{X: -HookLength / 2, Y: -LinkHeight / 2, Z: 0}
+}
+
+func (h hookSolid) Max() Coord3D {
+	return Coord3D{X: HookLength / 2, Y: LinkHeight/2 + HookOffset + LinkThickness,
+		Z: 0.2}
+}
+
+func (h hookSolid) Contains(c Coord3D) bool {
+	if !InSolidBounds(h, c) {
+		return false
+	}
+	if c.Z < LinkThickness {
+		if c.Y < LinkHeight/2 {
+			if math.Abs(c.X) > LinkWidth/2-LinkThickness && math.Abs(c.X) < LinkWidth/2 {
+				return true
+			}
+			if c.Y > LinkHeight/2-LinkThickness && math.Abs(c.X) < LinkWidth/2 {
+				return true
+			}
+		} else if c.Y < LinkHeight/2+HookOffset {
+			return math.Abs(c.X) < LinkThickness/2
+		} else {
+			// Hook itself fills the max-y part of the solid.
+			return true
+		}
+	}
+	if c.Y < -LinkHeight/2+LinkThickness && math.Abs(c.X) < LinkWidth/2 {
+		height := LinkWidth/2 - math.Abs(c.X)
+		if c.Z >= height && c.Z <= height+LinkThickness*math.Sqrt2 {
+			return true
+		}
+	}
+
+	return false
+}
+
 func randomTriangle() *Triangle {
 	t := &Triangle{}
 	for i := range t {
