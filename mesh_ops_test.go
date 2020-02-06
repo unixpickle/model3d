@@ -115,14 +115,18 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 	}
 }
 
-func TestMeshFlatten(t *testing.T) {
-	t.Run("SelfIntersections", func(t *testing.T) {
+func TestMeshFlattenBase(t *testing.T) {
+	t.Run("Topology", func(t *testing.T) {
 		m := readNonIntersectingHook()
 		flat := m.FlattenBase(0)
 		if flat.SelfIntersections() != 0 {
 			t.Error("flattened mesh has self-intersections")
-		} else if _, n := flat.RepairNormals(1e-8); n != 0 {
-			t.Fatal("flattened mesh has invalid normals")
+		}
+		if _, n := flat.RepairNormals(1e-8); n != 0 {
+			t.Error("flattened mesh has invalid normals")
+		}
+		if flat.NeedsRepair() {
+			t.Error("flattened mesh needs repair")
 		}
 	})
 
@@ -198,7 +202,14 @@ func BenchmarkEliminateCoplanar(b *testing.B) {
 }
 
 func BenchmarkMeshFlattenBase(b *testing.B) {
-	m := readNonIntersectingHook()
+	solid := JoinedSolid{
+		&RectSolid{MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5}},
+		&RectSolid{
+			MinVal: Coord3D{X: 1, Y: 1, Z: 0},
+			MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5},
+		},
+	}
+	m := SolidToMesh(solid, 0.025, 0, -1, 20)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		m.FlattenBase(0)
