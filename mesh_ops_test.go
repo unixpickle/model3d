@@ -115,6 +115,43 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 	}
 }
 
+func TestMeshFlatten(t *testing.T) {
+	solid := JoinedSolid{
+		&RectSolid{MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5}},
+		&RectSolid{
+			MinVal: Coord3D{X: 1, Y: 1, Z: 0},
+			MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5},
+		},
+	}
+	m := SolidToMesh(solid, 0.025, 0, -1, 5)
+	for i := 0; i < 10; i++ {
+		m = m.LassoSolid(solid, 0.025, 4, 0, 0.2)
+	}
+	if m.SelfIntersections() != 0 {
+		t.Fatal("invalid starting mesh (intersections)")
+	} else if _, n := m.RepairNormals(1e-8); n != 0 {
+		t.Fatal("invalid starting mesh (normals)")
+	}
+
+	flat := m.FlattenBase(0)
+
+	if flat.SelfIntersections() != 0 {
+		t.Error("flattened mesh has self-intersections")
+	} else if _, n := flat.RepairNormals(1e-8); n != 0 {
+		t.Fatal("flattened mesh has invalid normals")
+	}
+
+	c1 := NewColliderSolid(MeshToCollider(m))
+	c2 := NewColliderSolid(MeshToCollider(flat))
+	for i := 0; i < 1000; i++ {
+		p := Coord3D{X: rand.Float64(), Y: rand.Float64(), Z: rand.Float64()}
+		p = p.Mul(solid.Max())
+		if c1.Contains(p) && !c2.Contains(p) {
+			t.Error("flattened solid is not strictly larger")
+		}
+	}
+}
+
 func BenchmarkMeshBlur(b *testing.B) {
 	m := NewMeshPolar(func(g GeoCoord) float64 {
 		return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
