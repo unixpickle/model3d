@@ -218,7 +218,13 @@ func (m *Mesh) FlattenBase(maxAngle float64) *Mesh {
 	for {
 		mapping := map[Coord3D]Coord3D{}
 		result.Iterate(func(t *Triangle) {
-			if t.Min().Z == minZ && t.Max().Z > minZ && -t.Normal().Z > angleZ {
+			var minCount int
+			for _, c := range t {
+				if c.Z == minZ {
+					minCount++
+				}
+			}
+			if minCount > 1 && t.Max().Z > minZ && -t.Normal().Z > angleZ {
 				for _, c := range t {
 					c1 := c
 					c1.Z = minZ
