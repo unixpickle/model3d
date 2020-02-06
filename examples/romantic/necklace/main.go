@@ -12,17 +12,17 @@ import (
 )
 
 const (
-	LinkWidth     = 0.2
-	LinkHeight    = 0.4
-	LinkThickness = 0.04
-	LinkOddShift  = LinkWidth * 0.4
+	LinkWidth     = 0.5
+	LinkHeight    = 0.8
+	LinkThickness = 0.06
+	LinkOddShift  = LinkWidth * 0.3
 
-	HookOffset = 0.1
+	HookOffset = 0.2
 	HookLength = LinkHeight
 
 	TotalLength = 20
 
-	StartRadius = 2.0
+	StartRadius = 3.0
 	SpiralRate  = 0.4 / (math.Pi * 2)
 	MoveRate    = 0.6 * LinkHeight
 )
@@ -32,18 +32,20 @@ func main() {
 	solid := LinkSolid{}
 	link := model3d.SolidToMesh(solid, 0.005, 0, -1, 5)
 	for i := 0; i < 10; i++ {
-		link = link.LassoSolid(solid, 0.005, 3, 200, 0.2)
+		link = link.LassoSolid(solid, 0.0025, 4, 200, 0.2)
 	}
-	link = link.FlattenBase(0)
-	link = link.EliminateCoplanar(1e-5)
+	// Causes self-intersections :(
+	// link = link.FlattenBase(0)
+	// link = link.EliminateCoplanar(1e-8)
 
 	log.Println("Creating hook mesh...")
 	hook := model3d.SolidToMesh(HookSolid{}, 0.005, 0, -1, 5)
 	for i := 0; i < 10; i++ {
-		hook = hook.LassoSolid(HookSolid{}, 0.005, 3, 200, 0.2)
+		hook = hook.LassoSolid(HookSolid{}, 0.0025, 4, 200, 0.2)
 	}
-	hook = hook.FlattenBase(0)
-	hook = hook.EliminateCoplanar(1e-5)
+	// Causes self-intersections :(
+	// hook = hook.FlattenBase(0)
+	// hook = hook.EliminateCoplanar(1e-8)
 
 	log.Println("Creating full mesh...")
 	m := model3d.NewMesh()
@@ -89,7 +91,8 @@ func (l LinkSolid) Min() model3d.Coord3D {
 }
 
 func (l LinkSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: LinkWidth / 2, Y: LinkHeight / 2, Z: LinkWidth/2 + LinkThickness}
+	return model3d.Coord3D{X: LinkWidth / 2, Y: LinkHeight / 2,
+		Z: LinkWidth/2 + LinkThickness*math.Sqrt2}
 }
 
 func (l LinkSolid) Contains(c model3d.Coord3D) bool {
@@ -105,7 +108,7 @@ func (l LinkSolid) Contains(c model3d.Coord3D) bool {
 	}
 
 	height := LinkWidth/2 - math.Abs(c.X)
-	return c.Z >= height && c.Z <= height+LinkThickness
+	return c.Z >= height && c.Z <= height+LinkThickness*math.Sqrt2
 }
 
 type HookSolid struct{}
@@ -116,7 +119,7 @@ func (h HookSolid) Min() model3d.Coord3D {
 
 func (h HookSolid) Max() model3d.Coord3D {
 	return model3d.Coord3D{X: HookLength / 2, Y: LinkHeight/2 + HookOffset + LinkThickness,
-		Z: LinkWidth/2 + LinkThickness}
+		Z: LinkWidth/2 + LinkThickness*math.Sqrt2}
 }
 
 func (h HookSolid) Contains(c model3d.Coord3D) bool {
@@ -140,7 +143,7 @@ func (h HookSolid) Contains(c model3d.Coord3D) bool {
 	}
 	if c.Y < -LinkHeight/2+LinkThickness && math.Abs(c.X) < LinkWidth/2 {
 		height := LinkWidth/2 - math.Abs(c.X)
-		if c.Z >= height && c.Z <= height+LinkThickness {
+		if c.Z >= height && c.Z <= height+LinkThickness*math.Sqrt2 {
 			return true
 		}
 	}
