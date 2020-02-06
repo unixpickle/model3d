@@ -211,36 +211,63 @@ func (m *Mesh) FlattenBase(maxAngle float64) *Mesh {
 	}
 	minZ := m.Min().Z
 	result := NewMesh()
-	result.AddMesh(m)
+	m.Iterate(func(t *Triangle) {
+		t1 := *t
+		result.Add(&t1)
+	})
 
 	angleZ := math.Cos(maxAngle)
-
-	for {
-		mapping := map[Coord3D]Coord3D{}
-		result.Iterate(func(t *Triangle) {
-			var minCount int
-			for _, c := range t {
-				if c.Z == minZ {
-					minCount++
-				}
+	shouldFlatten := func(t *Triangle) bool {
+		var minCount int
+		for _, c := range t {
+			if c.Z == minZ {
+				minCount++
 			}
-			if minCount > 1 && t.Max().Z > minZ && -t.Normal().Z > angleZ {
-				for _, c := range t {
-					c1 := c
-					c1.Z = minZ
-					mapping[c] = c1
-				}
-			}
-		})
-		if len(mapping) == 0 {
-			break
 		}
-		result = result.MapCoords(func(c Coord3D) Coord3D {
-			if c1, ok := mapping[c]; ok {
-				return c1
+		return minCount == 2 && -t.Normal().Z > angleZ
+	}
+
+	pending := map[*Triangle]bool{}
+	result.Iterate(func(t *Triangle) {
+		if shouldFlatten(t) {
+			pending[t] = true
+		}
+	})
+
+	flattenCoord := func(c Coord3D) {
+		newC := c
+		newC.Z = minZ
+		v2t := result.getVertexToTriangle()
+		for _, t2 := range v2t[c] {
+			for i, c1 := range t2 {
+				if c1 == c {
+					t2[i] = newC
+					break
+				}
 			}
-			return c
-		})
+			if shouldFlatten(t2) {
+				pending[t2] = true
+			} else {
+				delete(pending, t2)
+			}
+		}
+		v2t[newC] = v2t[c]
+		delete(v2t, c)
+	}
+
+	for len(pending) > 0 {
+		oldPending := []*Triangle{}
+		for t := range pending {
+			oldPending = append(oldPending, t)
+		}
+		pending = map[*Triangle]bool{}
+		for _, t := range oldPending {
+			for _, c := range t {
+				if c.Z != minZ {
+					flattenCoord(c)
+				}
+			}
+		}
 	}
 
 	return result
