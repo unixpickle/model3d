@@ -196,3 +196,11 @@ func BenchmarkEliminateCoplanar(b *testing.B) {
 		mesh.EliminateCoplanar(1e-5)
 	}
 }
+
+func BenchmarkMeshFlattenBase(b *testing.B) {
+	m := readNonIntersectingHook()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m.FlattenBase(0)
+	}
+}
