@@ -3,6 +3,7 @@ package model3d
 import (
 	"math"
 	"math/rand"
+	"os"
 	"testing"
 )
 
@@ -107,11 +108,8 @@ func TestTriangleCollisions(t *testing.T) {
 }
 
 func TestTriangleCollisionMismatch(t *testing.T) {
-	solid := hookSolid{}
-	m := SolidToMesh(solid, 0.01, 0, -1, 5)
-	for i := 0; i < 10; i++ {
-		m = m.LassoSolid(solid, 0.01, 4, 0, 0.2)
-	}
+	m := readNonIntersectingHook()
+
 	flat := m.FlattenBase(0)
 	flat1 := NewMesh()
 	flat1.AddMesh(flat)
@@ -123,57 +121,18 @@ func TestTriangleCollisionMismatch(t *testing.T) {
 	}
 }
 
-// Code taken from a real life example of SelfIntersections()
-// giving invalid results.
-
-const (
-	LinkWidth     = 0.5
-	LinkHeight    = 0.8
-	LinkThickness = 0.06
-	LinkOddShift  = LinkWidth * 0.3
-
-	HookOffset = 0.2
-	HookLength = LinkHeight
-)
-
-type hookSolid struct{}
-
-func (h hookSolid) Min() Coord3D {
-	return Coord3D{X: -HookLength / 2, Y: -LinkHeight / 2, Z: 0}
-}
-
-func (h hookSolid) Max() Coord3D {
-	return Coord3D{X: HookLength / 2, Y: LinkHeight/2 + HookOffset + LinkThickness,
-		Z: 0.2}
-}
-
-func (h hookSolid) Contains(c Coord3D) bool {
-	if !InSolidBounds(h, c) {
-		return false
+// Load a 3D model that caused various bugs in the past.
+func readNonIntersectingHook() *Mesh {
+	r, err := os.Open("test_data/non_intersecting_hook.stl")
+	if err != nil {
+		panic(err)
 	}
-	if c.Z < LinkThickness {
-		if c.Y < LinkHeight/2 {
-			if math.Abs(c.X) > LinkWidth/2-LinkThickness && math.Abs(c.X) < LinkWidth/2 {
-				return true
-			}
-			if c.Y > LinkHeight/2-LinkThickness && math.Abs(c.X) < LinkWidth/2 {
-				return true
-			}
-		} else if c.Y < LinkHeight/2+HookOffset {
-			return math.Abs(c.X) < LinkThickness/2
-		} else {
-			// Hook itself fills the max-y part of the solid.
-			return true
-		}
+	defer r.Close()
+	tris, err := ReadSTL(r)
+	if err != nil {
+		panic(err)
 	}
-	if c.Y < -LinkHeight/2+LinkThickness && math.Abs(c.X) < LinkWidth/2 {
-		height := LinkWidth/2 - math.Abs(c.X)
-		if c.Z >= height && c.Z <= height+LinkThickness*math.Sqrt2 {
-			return true
-		}
-	}
-
-	return false
+	return NewMeshTriangles(tris)
 }
 
 func randomTriangle() *Triangle {
