@@ -557,6 +557,9 @@ func (s *SolidCollider) Max() Coord3D {
 // The result may be inaccurate for parts of the solid
 // smaller than epsilon.
 func (s *SolidCollider) RayCollisions(r *Ray) int {
+	if s.Epsilon <= 0 {
+		panic("invalid epsilon")
+	}
 	minFrac, maxFrac := rayCollisionWithBounds(r, s.Min(), s.Max())
 	if maxFrac < minFrac || maxFrac < 0 {
 		return 0
@@ -581,6 +584,9 @@ func (s *SolidCollider) RayCollisions(r *Ray) int {
 // The result may be inaccurate for parts of the solid
 // smaller than epsilon.
 func (s *SolidCollider) FirstRayCollision(r *Ray) (bool, float64, Coord3D) {
+	if s.Epsilon <= 0 {
+		panic("invalid epsilon")
+	}
 	minFrac, maxFrac := rayCollisionWithBounds(r, s.Min(), s.Max())
 	if maxFrac < minFrac || maxFrac < 0 {
 		return false, 0, Coord3D{}
@@ -641,6 +647,9 @@ func (s *SolidCollider) approximateNormal(c Coord3D) Coord3D {
 //
 // This grows slower with r as O(r^3).
 func (s *SolidCollider) SphereCollision(c Coord3D, r float64) bool {
+	if s.Epsilon <= 0 {
+		panic("invalid epsilon")
+	}
 	if !sphereTouchesBounds(c, r, s.Min(), s.Max()) {
 		return false
 	}
