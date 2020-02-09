@@ -213,6 +213,36 @@ func (s *SubtractedSolid) Contains(c Coord3D) bool {
 	return s.Positive.Contains(c) && !s.Negative.Contains(c)
 }
 
+// IntersectedSolid is a Solid containing the intersection
+// of one or more Solids.
+type IntersectedSolid []Solid
+
+func (i IntersectedSolid) Min() Coord3D {
+	bound := i[0].Min()
+	for _, s := range i[1:] {
+		bound = bound.Max(s.Min())
+	}
+	return bound
+}
+
+func (i IntersectedSolid) Max() Coord3D {
+	bound := i[0].Max()
+	for _, s := range i[1:] {
+		bound = bound.Min(s.Max())
+	}
+	// Prevent negative area.
+	return bound.Max(i.Min())
+}
+
+func (i IntersectedSolid) Contains(c Coord3D) bool {
+	for _, s := range i {
+		if !s.Contains(c) {
+			return false
+		}
+	}
+	return true
+}
+
 // A StackedSolid is like a JoinedSolid, but the solids
 // after the first are moved so that the lowest Z value of
 // their bounding box collides with the highest Z value of
