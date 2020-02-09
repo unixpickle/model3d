@@ -452,19 +452,7 @@ func (j *JoinedCollider) FirstRayCollision(r *Ray) (bool, float64, Coord3D) {
 }
 
 func (j *JoinedCollider) SphereCollision(center Coord3D, r float64) bool {
-	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
-	distSquared := 0.0
-	for axis := 0; axis < 3; axis++ {
-		min := j.min.Array()[axis]
-		max := j.max.Array()[axis]
-		value := center.Array()[axis]
-		if value < min {
-			distSquared += (min - value) * (min - value)
-		} else if value > max {
-			distSquared += (max - value) * (max - value)
-		}
-	}
-	if distSquared > r*r {
+	if !sphereTouchesBounds(center, r, j.min, j.max) {
 		return false
 	}
 
@@ -477,35 +465,8 @@ func (j *JoinedCollider) SphereCollision(center Coord3D, r float64) bool {
 }
 
 func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
-	minFrac := math.Inf(-1)
-	maxFrac := math.Inf(1)
-	for axis := 0; axis < 3; axis++ {
-		origin := r.Origin.Array()[axis]
-		rate := r.Direction.Array()[axis]
-		if rate == 0 {
-			if origin < j.min.Array()[axis] || origin > j.max.Array()[axis] {
-				return false
-			}
-			continue
-		}
-		t1 := (j.min.Array()[axis] - origin) / rate
-		t2 := (j.max.Array()[axis] - origin) / rate
-		if t1 > t2 {
-			t1, t2 = t2, t1
-		}
-		if t2 < 0 {
-			// Short-circuit optimization.
-			return false
-		}
-		if t1 > minFrac {
-			minFrac = t1
-		}
-		if t2 < maxFrac {
-			maxFrac = t2
-		}
-	}
-
-	return minFrac <= maxFrac && maxFrac >= 0
+	minFrac, maxFrac := rayCollisionWithBounds(r, j.min, j.max)
+	return maxFrac >= minFrac && maxFrac >= 0
 }
 
 type joinedTriangleCollider struct {
@@ -555,4 +516,51 @@ func (n nullCollider) SphereCollision(c Coord3D, r float64) bool {
 
 func (n nullCollider) TriangleCollisions(t *Triangle) []Segment {
 	return nil
+}
+
+func sphereTouchesBounds(center Coord3D, r float64, min, max Coord3D) bool {
+	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
+	distSquared := 0.0
+	for axis := 0; axis < 3; axis++ {
+		min := min.Array()[axis]
+		max := max.Array()[axis]
+		value := center.Array()[axis]
+		if value < min {
+			distSquared += (min - value) * (min - value)
+		} else if value > max {
+			distSquared += (max - value) * (max - value)
+		}
+	}
+	return distSquared <= r*r
+}
+
+func rayCollisionWithBounds(r *Ray, min, max Coord3D) (minFrac, maxFrac float64) {
+	minFrac = math.Inf(-1)
+	maxFrac = math.Inf(1)
+	for axis := 0; axis < 3; axis++ {
+		origin := r.Origin.Array()[axis]
+		rate := r.Direction.Array()[axis]
+		if rate == 0 {
+			if origin < min.Array()[axis] || origin > max.Array()[axis] {
+				return 0, -1
+			}
+			continue
+		}
+		t1 := (min.Array()[axis] - origin) / rate
+		t2 := (max.Array()[axis] - origin) / rate
+		if t1 > t2 {
+			t1, t2 = t2, t1
+		}
+		if t2 < 0 {
+			// Short-circuit optimization.
+			return 0, -1
+		}
+		if t1 > minFrac {
+			minFrac = t1
+		}
+		if t2 < maxFrac {
+			maxFrac = t2
+		}
+	}
+	return
 }
