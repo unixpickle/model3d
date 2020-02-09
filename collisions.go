@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"math"
+	"math/rand"
 
 	"github.com/unixpickle/essentials"
 )
@@ -516,6 +517,147 @@ func (n nullCollider) SphereCollision(c Coord3D, r float64) bool {
 
 func (n nullCollider) TriangleCollisions(t *Triangle) []Segment {
 	return nil
+}
+
+// A SolidCollider approximates the behavior of a Collider
+// based on nothing but a Solid.
+type SolidCollider struct {
+	Solid Solid
+
+	// Epsilon is a distance considered "small" in the
+	// context of the solid.
+	// It is used to walk along rays to find
+	// intersections.
+	Epsilon float64
+
+	// BisectCount, if non-zero, specifies the number of
+	// bisections to use to narrow down collisions.
+	// If it is zero, a reasonable default is used.
+	BisectCount int
+
+	// NormalSamples, if non-zero, specifies how many
+	// samples to use to approximate normals.
+	// If not specified, a default is used.
+	NormalSamples int
+}
+
+// Min gets the minimum boundary of the Solid.
+func (s *SolidCollider) Min() Coord3D {
+	return s.Solid.Min()
+}
+
+// Max gets the maximum boundary of the Solid.
+func (s *SolidCollider) Max() Coord3D {
+	return s.Solid.Max()
+}
+
+// RayCollisions counts the approximate number of times
+// the ray collides with the solid's border.
+//
+// The result may be inaccurate for parts of the solid
+// smaller than epsilon.
+func (s *SolidCollider) RayCollisions(r *Ray) int {
+	minFrac, maxFrac := rayCollisionWithBounds(r, s.Min(), s.Max())
+	if maxFrac < minFrac || maxFrac < 0 {
+		return 0
+	}
+	fracStep := s.Epsilon / r.Direction.Norm()
+	contained := false
+	intersections := 0
+	for t := minFrac; t < maxFrac; t += fracStep {
+		c := r.Origin.Add(r.Direction.Scale(t))
+		newContained := s.Solid.Contains(c)
+		if newContained != contained {
+			intersections++
+		}
+		contained = newContained
+	}
+	return intersections
+}
+
+// FirstRayCollision approximately finds the first time
+// the ray collides with the solid.
+//
+// The result may be inaccurate for parts of the solid
+// smaller than epsilon.
+func (s *SolidCollider) FirstRayCollision(r *Ray) (bool, float64, Coord3D) {
+	minFrac, maxFrac := rayCollisionWithBounds(r, s.Min(), s.Max())
+	if maxFrac < minFrac || maxFrac < 0 {
+		return false, 0, Coord3D{}
+	}
+	fracStep := s.Epsilon / r.Direction.Norm()
+	for t := minFrac; t < maxFrac; t += fracStep {
+		c := r.Origin.Add(r.Direction.Scale(t))
+		if s.Solid.Contains(c) {
+			frac := s.bisectCollision(r, t-fracStep, t)
+			normal := s.approximateNormal(r.Origin.Add(r.Direction.Scale(frac)))
+			return true, frac, normal
+		}
+	}
+	return false, 0, Coord3D{}
+}
+
+func (s *SolidCollider) bisectCollision(r *Ray, min, max float64) float64 {
+	count := s.BisectCount
+	if count == 0 {
+		count = 32
+	}
+	for i := 0; i < count; i++ {
+		f := (min + max) / 2
+		if s.Solid.Contains(r.Origin.Add(r.Direction.Scale(f))) {
+			max = f
+		} else {
+			min = f
+		}
+	}
+	return (min + max) / 2
+}
+
+func (s *SolidCollider) approximateNormal(c Coord3D) Coord3D {
+	count := s.NormalSamples
+	if count == 0 {
+		// Default taken from SolidNormal.
+		count = 40
+	}
+	normalSum := Coord3D{}
+	for i := 0; i < count; i++ {
+		delta := Coord3D{X: rand.NormFloat64(), Y: rand.NormFloat64(),
+			Z: rand.NormFloat64()}.Normalize()
+		c1 := c.Add(delta.Scale(s.Epsilon))
+		if s.Solid.Contains(c1) {
+			normalSum = normalSum.Sub(delta)
+		} else {
+			normalSum = normalSum.Add(delta)
+		}
+	}
+	return normalSum.Normalize()
+}
+
+// SphereCollision checks if the solid touches a
+// sphere with origin c and radius r.
+//
+// The result may be inaccurate for parts of the solid
+// smaller than epsilon.
+//
+// This grows slower with r as O(r^3).
+func (s *SolidCollider) SphereCollision(c Coord3D, r float64) bool {
+	if !sphereTouchesBounds(c, r, s.Min(), s.Max()) {
+		return false
+	}
+	for z := c.Z - r; z <= c.Z+r; z += s.Epsilon {
+		for y := c.Y - r; y <= c.Y+r; y += s.Epsilon {
+			for x := c.X - r; x <= c.X+r; x += s.Epsilon {
+				coord := Coord3D{X: x, Y: y, Z: z}
+				if c.Dist(coord) > r {
+					continue
+				}
+				if s.Solid.Contains(coord) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func sphereTouchesBounds(center Coord3D, r float64, min, max Coord3D) bool {
