@@ -539,6 +539,19 @@ type SolidCollider struct {
 	// samples to use to approximate normals.
 	// If not specified, a default is used.
 	NormalSamples int
+
+	// NormalBisectEpsilon, if non-zero, specifies a small
+	// distance to use in a bisection-based method to
+	// compute approximate normals.
+	//
+	// If set, this should typically be smaller than
+	// Epsilon, since smaller values don't affect runtime
+	// but do improve accuracy (up to a point).
+	//
+	// If this is 0, bisection is not used to approximate
+	// normals, but rather a more noisy but less brittle
+	// algorithm.
+	NormalBisectEpsilon float64
 }
 
 // Min gets the minimum boundary of the Solid.
@@ -625,6 +638,14 @@ func (s *SolidCollider) approximateNormal(c Coord3D) Coord3D {
 		// Default taken from SolidNormal.
 		count = 40
 	}
+	if s.NormalBisectEpsilon == 0 || count < 5 {
+		return s.approximateNormalAverage(c, count)
+	} else {
+		return s.approximateNormalBisection(c, count)
+	}
+}
+
+func (s *SolidCollider) approximateNormalAverage(c Coord3D, count int) Coord3D {
 	normalSum := Coord3D{}
 	for i := 0; i < count; i++ {
 		delta := Coord3D{X: rand.NormFloat64(), Y: rand.NormFloat64(),
@@ -637,6 +658,36 @@ func (s *SolidCollider) approximateNormal(c Coord3D) Coord3D {
 		}
 	}
 	return normalSum.Normalize()
+}
+
+func (s *SolidCollider) approximateNormalBisection(c Coord3D, count int) Coord3D {
+	eps := s.NormalBisectEpsilon
+	var planeAxes [2]Coord3D
+	for i := 0; i < 2; i++ {
+		v1 := NewCoord3DRandUnit().Scale(eps)
+		v2 := NewCoord3DRandUnit().Scale(eps)
+		if !s.Solid.Contains(c.Add(v1)) {
+			v1 = v1.Scale(-1)
+		}
+		if s.Solid.Contains(c.Add(v2)) {
+			v2 = v2.Scale(-1)
+		}
+		for j := 2; j < (count-1)/2; j++ {
+			mp := v1.Add(v2).Normalize().Scale(eps)
+			if s.Solid.Contains(c.Add(mp)) {
+				v1 = mp
+			} else {
+				v2 = mp
+			}
+		}
+		planeAxes[i] = v1.Add(v2).Normalize()
+	}
+	res := planeAxes[0].Cross(planeAxes[1]).Normalize()
+	if s.Solid.Contains(c.Add(res.Scale(eps))) {
+		return res.Scale(-1)
+	} else {
+		return res
+	}
 }
 
 // SphereCollision checks if the solid touches a

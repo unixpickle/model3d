@@ -27,9 +27,19 @@ func main() {
 		// blocky around the edges.
 		Epsilon: 0.005,
 
-		// Larger values make the lighting more accurate,
-		// while smaller values result in some grain.
-		NormalSamples: 500,
+		// Use an accurate bisection method to compute
+		// normals.
+		//
+		// This method uses very small vectors to tell if
+		// if a given direction has a positive dot product
+		// with surface normals.
+		// Therefore, if this epsilon is too large, it
+		// will yield totally incorrect results.
+		// If the epsilon is too small (i.e. 1e-20), then
+		// the probe vectors may be too small to pass the
+		// surface boundary at all, and the results will
+		// also become inaccurate.
+		NormalBisectEpsilon: 1e-5,
 	}
-	model3d.SaveRandomGrid("rendering.png", collider, 3, 3, 200, 200)
+	model3d.SaveRandomGrid("rendering.png", collider, 4, 4, 300, 300)
 }
