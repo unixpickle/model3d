@@ -52,8 +52,8 @@ func rayCastBounds(c Collider, bounds image.Rectangle, origin, x, y, z Coord3D, 
 	f func(x, y int, brightness float64, c Coord3D)) {
 	planeDistance := 1 / math.Tan(fov/2)
 
-	x = x.Scale(1 / x.Norm())
-	y = y.Scale(1 / y.Norm())
+	x = x.Normalize()
+	y = y.Normalize()
 	if bounds.Dx() > bounds.Dy() {
 		y = y.Scale(float64(bounds.Dy()) / float64(bounds.Dx()))
 	} else {
