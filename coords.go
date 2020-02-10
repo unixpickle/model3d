@@ -1,8 +1,11 @@
 package model3d
 
-import "math"
+import (
+	"math"
+	"math/rand"
 
-import "github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model2d"
+)
 
 // A GeoCoord specifies a location on a sphere with a unit
 // radius.
@@ -42,6 +45,18 @@ func (g GeoCoord) Normalize() GeoCoord {
 
 type Coord2D = model2d.Coord
 
+// NewCoord2DRandNorm creates a random Coord2D with
+// normally distributed components.
+func NewCoord2DRandNorm() Coord2D {
+	return model2d.NewCoordRandNorm()
+}
+
+// NewCoord2DRandUnit creates a random Coord with
+// magnitude 1.
+func NewCoord2DRandUnit() Coord2D {
+	return model2d.NewCoordRandUnit()
+}
+
 // A Coord3D is a coordinate in 3-D Euclidean space.
 type Coord3D struct {
 	X float64
@@ -53,6 +68,29 @@ type Coord3D struct {
 // y, and z.
 func NewCoord3DArray(a [3]float64) Coord3D {
 	return Coord3D{a[0], a[1], a[2]}
+}
+
+// NewCoord3DRandNorm creates a random Coord3D with
+// normally distributed components.
+func NewCoord3DRandNorm() Coord3D {
+	return Coord3D{
+		X: rand.NormFloat64(),
+		Y: rand.NormFloat64(),
+		Z: rand.NormFloat64(),
+	}
+}
+
+// NewCoord3DRandUnit creates a random Coord3D with
+// magnitude 1.
+func NewCoord3DRandUnit() Coord3D {
+	for {
+		res := NewCoord3DRandNorm()
+		norm := res.Norm()
+		// Edge case to avoid numerical issues.
+		if norm > 1e-8 {
+			return res.Scale(1 / norm)
+		}
+	}
 }
 
 // Mid computes the midpoint between c and c1.

@@ -1,11 +1,36 @@
 package model2d
 
-import "math"
+import (
+	"math"
+	"math/rand"
+)
 
 // A Coord is a coordinate in 2-D Euclidean space.
 type Coord struct {
 	X float64
 	Y float64
+}
+
+// NewCoordRandNorm creates a random Coord with normally
+// distributed components.
+func NewCoordRandNorm() Coord {
+	return Coord{
+		X: rand.NormFloat64(),
+		Y: rand.NormFloat64(),
+	}
+}
+
+// NewCoordRandUnit creates a random Coord with magnitude
+// 1.
+func NewCoordRandUnit() Coord {
+	for {
+		res := NewCoordRandNorm()
+		norm := res.Norm()
+		// Edge case to avoid numerical issues.
+		if norm > 1e-8 {
+			return res.Scale(1 / norm)
+		}
+	}
 }
 
 // NewCoordArray creates a Coord from an array of x and y.
