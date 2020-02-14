@@ -36,6 +36,8 @@ func (c ConvexPolytope) Contains(coord Coord3D) bool {
 // of the polytope.
 func (c ConvexPolytope) Mesh() *Mesh {
 	m := NewMesh()
+	// TODO: better way of figuring this out
+	epsilon := 1e-8
 	for i1 := 0; i1 < len(c); i1++ {
 		vertices := []Coord3D{}
 		for i2 := 0; i2 < len(c)-1; i2++ {
@@ -46,7 +48,7 @@ func (c ConvexPolytope) Mesh() *Mesh {
 				if i3 == i1 {
 					continue
 				}
-				vertex, found := c.vertex(i1, i2, i3)
+				vertex, found := c.vertex(i1, i2, i3, epsilon)
 				if found {
 					vertices = append(vertices, vertex)
 				}
@@ -59,15 +61,15 @@ func (c ConvexPolytope) Mesh() *Mesh {
 	return m
 }
 
-func (c ConvexPolytope) vertex(i1, i2, i3 int) (Coord3D, bool) {
+func (c ConvexPolytope) vertex(i1, i2, i3 int, epsilon float64) (Coord3D, bool) {
 	// Make sure the indices are sorted so that we yield
 	// deterministic results for different first faces.
 	if i2 < i1 {
-		return c.vertex(i2, i1, i3)
+		return c.vertex(i2, i1, i3, epsilon)
 	} else if i3 < i1 {
-		return c.vertex(i3, i2, i1)
+		return c.vertex(i3, i2, i1, epsilon)
 	} else if i3 < i2 {
-		return c.vertex(i1, i3, i2)
+		return c.vertex(i1, i3, i2, epsilon)
 	}
 
 	l1, l2, l3 := c[i1], c[i2], c[i3]
@@ -86,7 +88,7 @@ func (c ConvexPolytope) vertex(i1, i2, i3 int) (Coord3D, bool) {
 		if i == i1 || i == i2 || i == i3 {
 			continue
 		}
-		if !l.Contains(solution) {
+		if l.Normal.Dot(solution) > l.Max + epsilon {
 			return solution, false
 		}
 	}
