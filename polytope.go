@@ -36,8 +36,7 @@ func (c ConvexPolytope) Contains(coord Coord3D) bool {
 // of the polytope.
 func (c ConvexPolytope) Mesh() *Mesh {
 	m := NewMesh()
-	// TODO: better way of figuring this out
-	epsilon := 1e-8
+	epsilon := c.spacialEpsilon()
 	for i1 := 0; i1 < len(c); i1++ {
 		vertices := []Coord3D{}
 		for i2 := 0; i2 < len(c)-1; i2++ {
@@ -88,12 +87,35 @@ func (c ConvexPolytope) vertex(i1, i2, i3 int, epsilon float64) (Coord3D, bool) 
 		if i == i1 || i == i2 || i == i3 {
 			continue
 		}
-		if l.Normal.Dot(solution) > l.Max + epsilon {
+		if l.Normal.Dot(solution) > l.Max+epsilon/l.Normal.Norm() {
 			return solution, false
 		}
 	}
 
 	return solution, true
+}
+
+func (c ConvexPolytope) spacialEpsilon() float64 {
+	var min, max Coord3D
+	var first bool
+	for i := 0; i < len(c)-2; i++ {
+		for j := i + 1; j < len(c)-1; j++ {
+			for k := j + 1; k < len(c); k++ {
+				coord, found := c.vertex(i, j, k, math.Inf(1))
+				if found {
+					if first {
+						min = coord
+						max = coord
+						first = false
+					} else {
+						min = min.Min(coord)
+						max = max.Max(coord)
+					}
+				}
+			}
+		}
+	}
+	return max.Sub(min).Norm() * 1e-8
 }
 
 func addConvexFace(m *Mesh, vertices []Coord3D, normal Coord3D) {
