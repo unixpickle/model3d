@@ -15,19 +15,26 @@ func main() {
 			Max:    0.4,
 		},
 	}
+	iAngle := math.Pi * 2 / NumSides
 	for i := 0; i < NumSides; i++ {
-		theta := float64(i) * math.Pi * 2 / NumSides
-		n1 := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta), Z: -1}.Normalize()
-		n2 := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta), Z: 0.8}.Normalize()
-		p := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta)}
+		theta := float64(i) * iAngle
+		p1 := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta)}
+		p2 := model3d.Coord3D{X: math.Cos(theta + iAngle/2), Y: math.Sin(theta + iAngle/2)}
+		n1 := model3d.Coord3D{X: p1.X, Y: p1.Y, Z: -0.8}.Normalize()
+		n2 := model3d.Coord3D{X: p2.X, Y: p2.Y, Z: -1}.Normalize()
+		n3 := model3d.Coord3D{X: p1.X, Y: p1.Y, Z: 0.8}.Normalize()
 		system = append(system,
 			&model3d.LinearConstraint{
 				Normal: n1,
-				Max:    n1.Dot(p),
+				Max:    n1.Dot(p1),
 			},
 			&model3d.LinearConstraint{
 				Normal: n2,
-				Max:    n2.Dot(p),
+				Max:    n2.Dot(p2) + 0.03,
+			},
+			&model3d.LinearConstraint{
+				Normal: n3,
+				Max:    n3.Dot(p1),
 			},
 		)
 	}
