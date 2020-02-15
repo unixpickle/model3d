@@ -12,13 +12,13 @@ func main() {
 	system := model3d.ConvexPolytope{
 		&model3d.LinearConstraint{
 			Normal: model3d.Coord3D{Z: -1},
-			Max:    0.2,
+			Max:    0.4,
 		},
 	}
 	for i := 0; i < NumSides; i++ {
 		theta := float64(i) * math.Pi * 2 / NumSides
 		n1 := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta), Z: -1}.Normalize()
-		n2 := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta), Z: 0.4}.Normalize()
+		n2 := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta), Z: 0.8}.Normalize()
 		p := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta)}
 		system = append(system,
 			&model3d.LinearConstraint{
