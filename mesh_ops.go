@@ -120,54 +120,15 @@ func (m *Mesh) BlurFiltered(f func(c1, c2 Coord3D) bool, rates ...float64) *Mesh
 // is much less efficient than Blur().
 // Consider Blur() when perfect smoothness is not
 // required.
+//
+// This method is a simpler version of the MeshSmoother
+// object, which provides a more controlled smoothing API.
 func (m *Mesh) SmoothAreas(stepSize float64, iters int) *Mesh {
-	capacity := len(m.triangles) * 3
-	if m.vertexToTriangle != nil {
-		capacity = len(m.vertexToTriangle)
+	smoother := &MeshSmoother{
+		StepSize:   stepSize,
+		Iterations: iters,
 	}
-
-	coordToIdx := make(map[Coord3D]int, capacity)
-	coords := make([]Coord3D, 0, capacity)
-	triangles := make([][3]int, 0, len(m.triangles))
-
-	m.Iterate(func(t *Triangle) {
-		var triangle [3]int
-		for i, c := range t {
-			idx, ok := coordToIdx[c]
-			if !ok {
-				idx = len(coords)
-				coordToIdx[c] = idx
-				coords = append(coords, c)
-			}
-			triangle[i] = idx
-		}
-		triangles = append(triangles, triangle)
-	})
-
-	newCoords := append([]Coord3D{}, coords...)
-	for i := 0; i < iters; i++ {
-		for _, triangle := range triangles {
-			var t Triangle
-			for i, j := range triangle {
-				t[i] = coords[j]
-			}
-			for i, grad := range t.AreaGradient() {
-				j := triangle[i]
-				newCoords[j] = newCoords[j].Add(grad.Scale(-stepSize))
-			}
-		}
-		copy(coords, newCoords)
-	}
-
-	m1 := NewMesh()
-	for _, triangle := range triangles {
-		var t Triangle
-		for i, j := range triangle {
-			t[i] = coords[j]
-		}
-		m1.Add(&t)
-	}
-	return m1
+	return smoother.Smooth(m)
 }
 
 // LassoSolid pulls the vertices of a mesh closer to a
