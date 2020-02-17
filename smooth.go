@@ -51,7 +51,7 @@ func (m *MeshSmoother) Smooth(mesh *Mesh) *Mesh {
 					}
 					d = d.Scale((norm - m.ConstraintDistance) / norm)
 				}
-				newCoords[i] = c.Add(d.Scale(2 * m.ConstraintWeight))
+				newCoords[i] = c.Add(d.Scale(2 * m.ConstraintWeight * m.StepSize))
 			}
 		}
 		for i := range im.Triangles {
