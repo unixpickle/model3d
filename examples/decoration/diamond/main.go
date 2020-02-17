@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d"
@@ -9,6 +10,7 @@ import (
 const NumSides = 12
 
 func main() {
+	log.Println("Creating diamond...")
 	system := model3d.ConvexPolytope{
 		&model3d.LinearConstraint{
 			Normal: model3d.Coord3D{Z: -1},
@@ -41,4 +43,37 @@ func main() {
 	mesh := system.Mesh()
 	mesh.SaveGroupedSTL("diamond.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+
+	CreateStand(mesh)
+}
+
+func CreateStand(diamond *model3d.Mesh) {
+	log.Println("Creating stand...")
+	diamond = diamond.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
+		c.Z *= -1
+		c.X *= -1
+		return c
+	})
+	solid := model3d.NewColliderSolid(model3d.MeshToCollider(diamond))
+
+	standSolid := &model3d.SubtractedSolid{
+		Positive: &model3d.CylinderSolid{
+			P1:     model3d.Coord3D{Z: solid.Min().Z},
+			P2:     model3d.Coord3D{Z: solid.Min().Z + 0.5},
+			Radius: 1.0,
+		},
+		Negative: solid,
+	}
+	mesh := model3d.SolidToMesh(standSolid, 0.01, 0, 0, 0)
+	smoother := &model3d.MeshSmoother{
+		StepSize:           0.1,
+		Iterations:         200,
+		ConstraintDistance: 0.01,
+		ConstraintWeight:   0.1,
+	}
+	mesh = smoother.Smooth(mesh)
+	mesh = mesh.FlattenBase(0)
+
+	mesh.SaveGroupedSTL("stand.stl")
+	model3d.SaveRandomGrid("rendering_stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }
