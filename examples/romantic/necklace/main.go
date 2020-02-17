@@ -28,24 +28,27 @@ const (
 )
 
 func main() {
+	smoother := model3d.MeshSmoother{
+		StepSize:           0.1,
+		Iterations:         20,
+		ConstraintDistance: 0.0025,
+		ConstraintWeight:   0.3,
+	}
+
 	log.Println("Creating link mesh...")
 	solid := LinkSolid{}
-	link := model3d.SolidToMesh(solid, 0.005, 0, -1, 5)
-	for i := 0; i < 10; i++ {
-		link = link.LassoSolid(solid, 0.0025, 4, 200, 0.2)
-	}
-	// Causes self-intersections :(
-	// link = link.FlattenBase(0)
-	// link = link.EliminateCoplanar(1e-8)
+	link := model3d.SolidToMesh(solid, 0.005, 0, 0, 0)
+	link = smoother.Smooth(link)
+	link = link.FlattenBase(0)
+	link = link.EliminateCoplanar(1e-8)
+	VerifyMesh(link)
 
 	log.Println("Creating hook mesh...")
-	hook := model3d.SolidToMesh(HookSolid{}, 0.005, 0, -1, 5)
-	for i := 0; i < 10; i++ {
-		hook = hook.LassoSolid(HookSolid{}, 0.0025, 4, 200, 0.2)
-	}
-	// Causes self-intersections :(
-	// hook = hook.FlattenBase(0)
-	// hook = hook.EliminateCoplanar(1e-8)
+	hook := model3d.SolidToMesh(HookSolid{}, 0.005, 0, 0, 0)
+	hook = smoother.Smooth(hook)
+	hook = hook.FlattenBase(0)
+	hook = hook.EliminateCoplanar(1e-8)
+	VerifyMesh(hook)
 
 	log.Println("Creating full mesh...")
 	m := model3d.NewMesh()
@@ -63,13 +66,7 @@ func main() {
 		m.AddMesh(subMesh.MapCoords(offset.Add).MapCoords(manifold.Convert))
 		manifold.Move(MoveRate)
 	}
-	log.Println("Verifying mesh...")
-	if m.SelfIntersections() > 0 {
-		panic("self intersections detected")
-	}
-	if _, n := m.RepairNormals(1e-5); n != 0 {
-		panic("incorrect normals")
-	}
+
 	log.Println("Saving mesh...")
 	m.SaveGroupedSTL("necklace.stl")
 
@@ -82,6 +79,18 @@ func main() {
 	essentials.Must(err)
 	defer f.Close()
 	png.Encode(f, img)
+
+	log.Println("Verifying mesh...")
+	VerifyMesh(m)
+}
+
+func VerifyMesh(m *model3d.Mesh) {
+	if m.SelfIntersections() > 0 {
+		panic("self intersections detected")
+	}
+	if _, n := m.RepairNormals(1e-5); n != 0 {
+		panic("incorrect normals")
+	}
 }
 
 type LinkSolid struct{}
