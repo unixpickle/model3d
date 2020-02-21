@@ -7,17 +7,78 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
-const NumSides = 12
+const (
+	NumSides   = 12
+	BaseHeight = 0.4
+	TipHeight  = 1.2
+)
 
 func main() {
 	log.Println("Creating diamond polytope...")
-	system := TriangularDiamondPolytope()
+	system := CreateDiamondPolytope()
 	log.Println("Exporting diamond...")
 	mesh := system.Mesh()
 	mesh.SaveGroupedSTL("diamond.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 
 	CreateStand(mesh)
+}
+
+func CreateDiamondPolytope() model3d.ConvexPolytope {
+	system := model3d.ConvexPolytope{
+		&model3d.LinearConstraint{
+			Normal: model3d.Coord3D{Z: -1},
+			Max:    BaseHeight,
+		},
+	}
+
+	addTriangle := func(t *model3d.Triangle) {
+		n := t.Normal()
+
+		// Make sure the normal points outward.
+		if n.Dot(t[0]) < 0 {
+			t[0], t[1] = t[1], t[0]
+		}
+
+		system = append(system, &model3d.LinearConstraint{
+			Normal: t.Normal(),
+			Max:    t[0].Dot(t.Normal()),
+		})
+	}
+
+	iAngle := math.Pi * 2 / NumSides
+	rimPoint := func(i int) model3d.Coord3D {
+		return model3d.Coord3D{
+			X: math.Cos(float64(i) * iAngle),
+			Y: math.Sin(float64(i) * iAngle),
+		}
+	}
+	basePoint := func(i int) model3d.Coord3D {
+		return model3d.Coord3D{
+			X: math.Cos((float64(i) + 0.5) * iAngle),
+			Y: math.Sin((float64(i) + 0.5) * iAngle),
+		}.Scale(1 - BaseHeight).Sub(model3d.Coord3D{Z: BaseHeight})
+	}
+	tipPoint := model3d.Coord3D{Z: TipHeight}
+
+	for i := 0; i < NumSides; i++ {
+		addTriangle(&model3d.Triangle{
+			rimPoint(i),
+			rimPoint(i + 1),
+			tipPoint,
+		})
+		addTriangle(&model3d.Triangle{
+			rimPoint(i),
+			rimPoint(i + 1),
+			basePoint(i),
+		})
+		addTriangle(&model3d.Triangle{
+			basePoint(i),
+			basePoint(i + 1),
+			rimPoint(i + 1),
+		})
+	}
+	return system
 }
 
 func CreateStand(diamond *model3d.Mesh) {
@@ -49,119 +110,4 @@ func CreateStand(diamond *model3d.Mesh) {
 
 	mesh.SaveGroupedSTL("stand.stl")
 	model3d.SaveRandomGrid("rendering_stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
-}
-
-// TriangularDiamondPolytope creates a polytope for a
-// diamond with a triangular cut base.
-func TriangularDiamondPolytope() model3d.ConvexPolytope {
-	z1 := 0.5
-	z2 := 1.0
-	for {
-		secZ := (z1 + z2) / 2
-		secDelta := OptimalPolytopeDelta(secZ)
-		cp := CreatePolytope(secZ, secDelta)
-		if math.Abs(z2-z1) < 1e-5 {
-			return cp
-		}
-		if PolytopeTriangleScore(cp) < 1e-5 {
-			z2 = secZ
-		} else {
-			z1 = secZ
-		}
-	}
-}
-
-// OptimalPolytopeDelta computes the secondaryDelta that
-// minimizes the area difference between the two equations
-// that govern the base of the diamond.
-func OptimalPolytopeDelta(secZ float64) float64 {
-	areaDelta := func(secDelta float64) float64 {
-		cp := CreatePolytope(secZ, secDelta)
-		m := cp.Mesh()
-		norm1 := cp[1].Normal
-		norm2 := cp[2].Normal
-		var area1, area2 float64
-		m.Iterate(func(t *model3d.Triangle) {
-			if t.Area() < 1e-5 {
-				return
-			}
-			if t.Normal().Dot(norm1) > 1-1e-5 {
-				area1 += t.Area()
-			} else if t.Normal().Dot(norm2) > 1-1e-5 {
-				area2 += t.Area()
-			}
-		})
-		return area1 - area2
-	}
-	d1 := -0.2
-	d2 := 0.2
-	for i := 0; i < 16; i++ {
-		d := (d1 + d2) / 2
-		score := areaDelta(d)
-		if score < 0 {
-			d1 = d
-		} else {
-			d2 = d
-		}
-	}
-	return (d1 + d2) / 2
-}
-
-// PolytopeTriangleScore gives a number measuring how
-// close the bottoms of the diamond's two base equations
-// are. Minimum value is zero, at which point the two
-// equations meet exactly.
-func PolytopeTriangleScore(cp model3d.ConvexPolytope) float64 {
-	norm1 := cp[1].Normal
-	norm2 := cp[2].Normal
-
-	var min1, min2 model3d.Coord3D
-	cp.Mesh().Iterate(func(t *model3d.Triangle) {
-		if t.Area() < 1e-5 {
-			return
-		}
-		if t.Normal().Dot(norm1) > 1-1e-5 {
-			min1 = min1.Min(t.Min())
-		} else if t.Normal().Dot(norm2) > 1-1e-5 {
-			min2 = min2.Min(t.Min())
-		}
-	})
-	return math.Abs(min1.Z - min2.Z)
-}
-
-// CreatePolytope creates a diamond polytope with two
-// parameters that govern the shape of the base.
-// These parameters are intended to be tuned for a
-// perfectly triangular cut on the base.
-func CreatePolytope(secondaryZ, secondaryDelta float64) model3d.ConvexPolytope {
-	system := model3d.ConvexPolytope{
-		&model3d.LinearConstraint{
-			Normal: model3d.Coord3D{Z: -1},
-			Max:    0.4,
-		},
-	}
-	iAngle := math.Pi * 2 / NumSides
-	for i := 0; i < NumSides; i++ {
-		theta := float64(i) * iAngle
-		p1 := model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta)}
-		p2 := model3d.Coord3D{X: math.Cos(theta + iAngle/2), Y: math.Sin(theta + iAngle/2)}
-		n1 := model3d.Coord3D{X: p1.X, Y: p1.Y, Z: -secondaryZ}.Normalize()
-		n2 := model3d.Coord3D{X: p2.X, Y: p2.Y, Z: -1}.Normalize()
-		n3 := model3d.Coord3D{X: p1.X, Y: p1.Y, Z: 0.8}.Normalize()
-		system = append(system,
-			&model3d.LinearConstraint{
-				Normal: n1,
-				Max:    n1.Dot(p1),
-			},
-			&model3d.LinearConstraint{
-				Normal: n2,
-				Max:    n2.Dot(p2) + secondaryDelta,
-			},
-			&model3d.LinearConstraint{
-				Normal: n3,
-				Max:    n3.Dot(p1),
-			},
-		)
-	}
-	return system
 }
