@@ -34,6 +34,9 @@ func (c ConvexPolytope) Contains(coord Coord3D) bool {
 
 // Mesh creates a mesh containing all of the finite faces
 // of the polytope.
+//
+// For complicated polytopes, this may take a long time to
+// run, since it is O(n^3) in the constraints.
 func (c ConvexPolytope) Mesh() *Mesh {
 	m := NewMesh()
 	epsilon := c.spacialEpsilon()
@@ -58,6 +61,19 @@ func (c ConvexPolytope) Mesh() *Mesh {
 		}
 	}
 	return m
+}
+
+// Solid creates a solid out of the polytope.
+//
+// This runs in O(n^3) in the constraints, so it may be
+// unacceptable for large polytopes.
+func (c ConvexPolytope) Solid() Solid {
+	m := c.Mesh()
+	return &polytopeSolid{
+		ConvexPolytope: c,
+		MinVal:         m.Min(),
+		MaxVal:         m.Max(),
+	}
 }
 
 func (c ConvexPolytope) vertex(i1, i2, i3 int, epsilon float64) (Coord3D, bool) {
@@ -145,4 +161,18 @@ func addConvexFace(m *Mesh, vertices []Coord3D, normal Coord3D) {
 		}
 		m.Add(t)
 	}
+}
+
+type polytopeSolid struct {
+	ConvexPolytope
+	MinVal Coord3D
+	MaxVal Coord3D
+}
+
+func (p *polytopeSolid) Min() Coord3D {
+	return p.MinVal
+}
+
+func (p *polytopeSolid) Max() Coord3D {
+	return p.MaxVal
 }
