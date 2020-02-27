@@ -345,6 +345,37 @@ func (c *ColliderSolid) Contains(p Coord3D) bool {
 	})%2 == 1
 }
 
+type boundCacheSolid struct {
+	min Coord3D
+	max Coord3D
+	s   Solid
+}
+
+// CacheSolidBounds creates a Solid that has a cached
+// version of the solid's boundary coordinates.
+//
+// The solid also explicitly checks that points are inside
+// the boundary before passing them off to s.
+func CacheSolidBounds(s Solid) Solid {
+	return boundCacheSolid{
+		min: s.Min(),
+		max: s.Max(),
+		s:   s,
+	}
+}
+
+func (b boundCacheSolid) Min() Coord3D {
+	return b.min
+}
+
+func (b boundCacheSolid) Max() Coord3D {
+	return b.max
+}
+
+func (b boundCacheSolid) Contains(c Coord3D) bool {
+	return InSolidBounds(b, c) && b.s.Contains(c)
+}
+
 // SolidNormal approximates the shortest vector that
 // goes from point c to the boundary of a solid s.
 // It is meant for cases when c is close to the boundary
