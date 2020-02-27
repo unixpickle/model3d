@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/toolbox3d"
@@ -17,6 +18,10 @@ const (
 	LidScrewDiameter = 1.1
 	LidScrewSlack    = 0.03
 	LidScrewGroove   = 0.05
+
+	PreviewZ1    = 0.4
+	PreviewZ2    = 2.5
+	PreviewWidth = 0.1
 )
 
 func main() {
@@ -48,24 +53,25 @@ func main() {
 				Radius:     LidScrewDiameter / 2,
 				GrooveSize: LidScrewGroove,
 			},
+			PreviewCutout{},
 		},
 	}
 
 	smoother := &model3d.MeshSmoother{
 		StepSize:           0.1,
 		Iterations:         20,
-		ConstraintDistance: 0.01,
+		ConstraintDistance: 0.005,
 		ConstraintWeight:   0.02,
 	}
 
 	log.Println("Creating lid mesh...")
-	lidMesh := model3d.SolidToMesh(lidSolid, 0.01, 0, 0, 0)
+	lidMesh := model3d.SolidToMesh(lidSolid, 0.005, 0, 0, 0)
 	lidMesh = smoother.Smooth(lidMesh)
 	log.Println("Saving lid mesh...")
 	lidMesh.SaveGroupedSTL("qh_lid.stl")
 
 	log.Println("Creating body mesh...")
-	bodyMesh := model3d.SolidToMesh(bodySolid, 0.01, 0, 0, 0)
+	bodyMesh := model3d.SolidToMesh(bodySolid, 0.005, 0, 0, 0)
 	bodyMesh = smoother.Smooth(bodyMesh)
 	log.Println("Saving body mesh...")
 	bodyMesh.SaveGroupedSTL("qh_body.stl")
@@ -73,4 +79,22 @@ func main() {
 	log.Println("Rendering...")
 	model3d.SaveRandomGrid("rendering_lid.png", model3d.MeshToCollider(lidMesh), 3, 3, 300, 300)
 	model3d.SaveRandomGrid("rendering_body.png", model3d.MeshToCollider(bodyMesh), 3, 3, 300, 300)
+}
+
+type PreviewCutout struct{}
+
+func (p PreviewCutout) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: -OuterDiameter / 2, Y: -OuterDiameter / 2, Z: PreviewZ1}
+}
+
+func (p PreviewCutout) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: OuterDiameter / 2, Y: OuterDiameter / 2, Z: PreviewZ2}
+}
+
+func (p PreviewCutout) Contains(c model3d.Coord3D) bool {
+	if !model3d.InSolidBounds(p, c) {
+		return false
+	}
+	width := math.Min(PreviewWidth, math.Abs(c.Z-p.Max().Z))
+	return math.Abs(c.X) < width
 }
