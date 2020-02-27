@@ -70,9 +70,9 @@ func (c ConvexPolytope) Mesh() *Mesh {
 func (c ConvexPolytope) Solid() Solid {
 	m := c.Mesh()
 	return &polytopeSolid{
-		ConvexPolytope: c,
-		MinVal:         m.Min(),
-		MaxVal:         m.Max(),
+		P:      c,
+		MinVal: m.Min(),
+		MaxVal: m.Max(),
 	}
 }
 
@@ -164,7 +164,7 @@ func addConvexFace(m *Mesh, vertices []Coord3D, normal Coord3D) {
 }
 
 type polytopeSolid struct {
-	ConvexPolytope
+	P      ConvexPolytope
 	MinVal Coord3D
 	MaxVal Coord3D
 }
@@ -175,4 +175,8 @@ func (p *polytopeSolid) Min() Coord3D {
 
 func (p *polytopeSolid) Max() Coord3D {
 	return p.MaxVal
+}
+
+func (p *polytopeSolid) Contains(c Coord3D) bool {
+	return InSolidBounds(p, c) && p.P.Contains(c)
 }
