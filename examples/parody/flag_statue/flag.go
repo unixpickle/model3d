@@ -29,12 +29,12 @@ func GenerateFlag() model3d.Solid {
 type FlagFabric struct{}
 
 func (f FlagFabric) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: 0, Y: -FlagThickness/2 - FlagRippleDepth,
+	return model3d.Coord3D{X: 0, Y: -FlagThickness/2 - FlagRippleDepth*2,
 		Z: FlagHeight - FlagWidth}
 }
 
 func (f FlagFabric) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: FlagWidth, Y: FlagThickness/2 + FlagRippleDepth,
+	return model3d.Coord3D{X: FlagWidth, Y: FlagThickness/2 + FlagRippleDepth*2,
 		Z: FlagHeight}
 }
 
