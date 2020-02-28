@@ -17,34 +17,24 @@ const (
 )
 
 func GenerateBase() model3d.Solid {
+	extra := model3d.Coord3D{X: 1, Y: 1}.Scale(BaseChunkSize)
 	return model3d.IntersectedSolid{
 		&model3d.RectSolid{
-			MinVal: model3d.Coord3D{X: -BaseLength / 2, Y: -BaseWidth / 2, Z: 0},
-			MaxVal: model3d.Coord3D{X: BaseLength / 2, Y: BaseWidth / 2, Z: BaseHeight},
+			MinVal: model3d.Coord3D{X: -BaseLength / 2, Y: -BaseWidth / 2, Z: 0}.Sub(extra),
+			MaxVal: model3d.Coord3D{X: BaseLength / 2, Y: BaseWidth / 2,
+				Z: BaseHeight + BaseChunkSize}.Add(extra),
 		},
 		model3d.JoinedSolid{
-			GenerateBasePolytope(),
+			BaseSmoothSolid{},
 			GenerateChunkyFinish(),
 		},
 	}
 }
 
-func GenerateBasePolytope() model3d.Solid {
-	var result model3d.ConvexPolytope
-	for i := 0; i < 1000; i++ {
-		v, v1 := SampleBasePoint()
-		result = append(result, &model3d.LinearConstraint{
-			Normal: v,
-			Max:    v1.Norm(),
-		})
-	}
-	return &BasePolytopeSolid{P: result}
-}
-
 func GenerateChunkyFinish() model3d.Solid {
 	var chunks model3d.JoinedSolid
-	for i := 0; i < 300; i++ {
-		_, v1 := SampleBasePoint()
+	for i := 0; i < 500; i++ {
+		center := SampleBasePoint()
 
 		rotAxis := model3d.NewCoord3DRandUnit()
 		ax1, ax2 := rotAxis.OrthoBasis()
@@ -53,7 +43,7 @@ func GenerateChunkyFinish() model3d.Solid {
 		ax1, ax2 = ax1.Scale(cos).Add(ax2.Scale(sin)), ax1.Scale(-sin).Add(ax2.Scale(cos))
 		chunks = append(chunks, &BaseChunk{
 			Axes:   [3]model3d.Coord3D{rotAxis, ax1, ax2},
-			Center: v1,
+			Center: center,
 		})
 	}
 
@@ -63,7 +53,7 @@ func GenerateChunkyFinish() model3d.Solid {
 		return chunks[i].Min().X < chunks[j].Min().X
 	})
 	var aggChunks model3d.JoinedSolid
-	aggSize := len(chunks) / 10
+	aggSize := len(chunks) / 20
 	for i := 0; i < len(chunks); i += aggSize {
 		subset := chunks[i:]
 		if len(subset) > aggSize {
@@ -74,28 +64,33 @@ func GenerateChunkyFinish() model3d.Solid {
 	return aggChunks
 }
 
-func SampleBasePoint() (spherical, base model3d.Coord3D) {
-	spherical = model3d.NewCoord3DRandUnit()
-	if spherical.Z < 0 {
-		spherical = spherical.Scale(-1)
+func SampleBasePoint() model3d.Coord3D {
+	var x, y, z float64
+	for {
+		// This is not quite uniform, but it is spread
+		// out fairly nicely over the ellipsoid base.
+		x = math.Tanh(rand.Float64()*4-2) * BaseLength / 2
+		y = math.Tanh(rand.Float64()*4-2) * BaseWidth / 2
+		z = math.Sqrt(1-(math.Pow(2*x/BaseLength, 2)+math.Pow(2*y/BaseWidth, 2))) * BaseHeight
+		if !math.IsNaN(z) {
+			break
+		}
 	}
-	base = spherical.Mul(model3d.Coord3D{X: BaseLength / 2, Y: BaseWidth / 2, Z: BaseHeight})
-	return
+	return model3d.Coord3D{X: x, Y: y, Z: z}
 }
 
-type BasePolytopeSolid struct {
-	P model3d.ConvexPolytope
-}
+type BaseSmoothSolid struct{}
 
-func (b BasePolytopeSolid) Min() model3d.Coord3D {
+func (b BaseSmoothSolid) Min() model3d.Coord3D {
 	return model3d.Coord3D{X: -BaseLength / 2, Y: -BaseWidth / 2}
 }
-func (b BasePolytopeSolid) Max() model3d.Coord3D {
+func (b BaseSmoothSolid) Max() model3d.Coord3D {
 	return model3d.Coord3D{X: BaseLength / 2, Y: BaseWidth / 2, Z: BaseHeight}
 }
 
-func (b BasePolytopeSolid) Contains(c model3d.Coord3D) bool {
-	return model3d.InSolidBounds(b, c) && b.P.Contains(c)
+func (b BaseSmoothSolid) Contains(c model3d.Coord3D) bool {
+	cScale := model3d.Coord3D{X: 2 / BaseLength, Y: 2 / BaseWidth, Z: 1 / BaseHeight}
+	return model3d.InSolidBounds(b, c) && c.Mul(cScale).Norm() < 1
 }
 
 type BaseChunk struct {

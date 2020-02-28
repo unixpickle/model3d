@@ -22,6 +22,7 @@ const (
 	PersonShoulder    = 0.1
 
 	PersonHeadRadius = 0.2
+	PersonHeadOffset = PersonHeadRadius / 2
 )
 
 func GeneratePeople() model3d.Solid {
@@ -90,7 +91,7 @@ func (p *PersonSolid) Contains(c model3d.Coord3D) bool {
 	topSolid := model3d.JoinedSolid{
 		&model3d.SphereSolid{
 			Center: model3d.Coord3D{
-				Z: PersonLegHeight + PersonTorsoHeight + PersonHeadRadius/3,
+				Z: PersonLegHeight + PersonTorsoHeight + PersonHeadOffset,
 			},
 			Radius: PersonHeadRadius,
 		},
