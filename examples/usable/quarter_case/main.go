@@ -14,7 +14,7 @@ const (
 	OuterDiameter = 1.2
 
 	LidHeight        = 0.4
-	LidScrewHeight   = 0.4
+	LidScrewHeight   = 0.2
 	LidScrewDiameter = 1.1
 	LidScrewSlack    = 0.03
 	LidScrewGroove   = 0.05
