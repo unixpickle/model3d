@@ -1,6 +1,8 @@
 package main
 
 import (
+	"math"
+
 	"github.com/unixpickle/model3d"
 )
 
@@ -8,13 +10,14 @@ const (
 	PersonRadius = 1.0
 	PersonHeight = 3.0
 
-	PersonTorsoHeight    = 1.0
+	PersonTorsoHeight    = 0.9
 	PersonTorsoWidth     = 0.5
 	PersonTorsoThickness = 0.3
 
-	PersonLegHeight = 1.0
-	PersonLegRadius = 0.18
-	PersonLegSpace  = 0.23
+	PersonLegHeight   = 1.1
+	PersonLegSpace    = 0.1
+	PersonWaistInset  = 0.05
+	PersonWaistHeight = 0.1
 
 	PersonArmHeight   = 0.8
 	PersonArmRadius   = 0.1
@@ -32,7 +35,7 @@ func GeneratePeople() model3d.Solid {
 			model3d.Coord3D{X: -0.2, Z: 1},
 		)),
 		model3d.CacheSolidBounds(NewPersonSolid(
-			model3d.Coord3D{X: 2, Z: 0.5},
+			model3d.Coord3D{X: 2, Z: 0.6},
 			model3d.Coord3D{X: -0.38, Z: 1},
 		)),
 		model3d.CacheSolidBounds(NewPersonSolid(
@@ -40,7 +43,7 @@ func GeneratePeople() model3d.Solid {
 			model3d.Coord3D{X: 0.33, Z: 1},
 		)),
 		model3d.CacheSolidBounds(NewPersonSolid(
-			model3d.Coord3D{X: -2, Z: 0.5},
+			model3d.Coord3D{X: -2, Z: 0.6},
 			model3d.Coord3D{X: 0.4, Z: 1},
 		)),
 	}
@@ -81,11 +84,25 @@ func (p *PersonSolid) Contains(c model3d.Coord3D) bool {
 
 	if c.Z < 0 {
 		return false
-	} else if c.Z < PersonLegHeight {
-		return c2.Sub(model3d.Coord2D{X: -PersonLegSpace}).Norm() < PersonLegRadius ||
-			c2.Sub(model3d.Coord2D{X: PersonLegSpace}).Norm() < PersonLegRadius
-	} else if c.Z < PersonLegHeight+PersonTorsoHeight {
-		return c2.Mul(model3d.Coord2D{X: 1 / PersonTorsoWidth, Y: 1 / PersonTorsoThickness}).Norm() < 1
+	}
+	if c.Z < PersonLegHeight+PersonTorsoHeight {
+		var inset float64
+		if c.Z < PersonLegHeight {
+			inset = math.Max(0, math.Min(PersonWaistHeight, PersonLegHeight-c.Z)) *
+				PersonWaistInset / PersonWaistHeight
+		}
+		cylinderParams := model3d.Coord2D{
+			X: 1 / (PersonTorsoWidth - inset),
+			Y: 1 / (PersonTorsoThickness - inset),
+		}
+		if c2.Mul(cylinderParams).Norm() >= 1 {
+			return false
+		}
+		if c.Z < PersonLegHeight {
+			gap := math.Min(PersonLegSpace, PersonLegHeight-c.Z)
+			return math.Abs(c.X) >= gap
+		}
+		return true
 	}
 
 	topSolid := model3d.JoinedSolid{
