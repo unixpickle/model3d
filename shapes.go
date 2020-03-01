@@ -1,5 +1,7 @@
 package model3d
 
+import "math"
+
 // A Triangle is a triangle in 3D Euclidean space.
 type Triangle [3]Coord3D
 
@@ -82,6 +84,32 @@ func (t *Triangle) AreaGradient() *Triangle {
 	return &grad
 }
 
+// Dist gets the minimum distance from c to a point on the
+// triangle.
+func (t *Triangle) Dist(c Coord3D) float64 {
+	// Special case where closest point is inside the
+	// triangle, rather than on an edge.
+	v1 := t[1].Sub(t[0])
+	v2 := t[2].Sub(t[0])
+	mat := NewMatrix3Columns(v1, v2, t.Normal())
+	mat.InvertInPlace()
+	components := mat.MulColumn(c.Sub(t[0]))
+	if components.X >= 0 && components.Y >= 0 && components.X+components.Y <= 1 {
+		return math.Abs(components.Z)
+	}
+
+	// Check all three edges.
+	// This could almost certainly be avoided by using
+	// the results of the above matrix product.
+	result := math.Inf(1)
+	for _, s := range t.Segments() {
+		if d := s.Dist(c); d < result {
+			result = d
+		}
+	}
+	return result
+}
+
 // A Segment is a line segment in a canonical ordering,
 // such that segments can be compared via the == operator
 // even if they were created with their points in the
@@ -102,6 +130,25 @@ func NewSegment(p1, p2 Coord3D) Segment {
 // Mid gets the midpoint of the segment.
 func (s Segment) Mid() Coord3D {
 	return s[0].Mid(s[1])
+}
+
+// Dist gets the minimum distance from c to a point on the
+// line segment.
+func (s Segment) Dist(c Coord3D) float64 {
+	v1 := s[1].Sub(s[0])
+	norm := v1.Norm()
+	v := v1.Scale(1 / norm)
+
+	v2 := c.Sub(s[0])
+	mag := v.Dot(v2)
+	if mag > norm {
+		return c.Dist(s[1])
+	} else if mag < 0 {
+		return c.Dist(s[0])
+	}
+
+	proj := v.Scale(mag).Add(s[0])
+	return proj.Dist(c)
 }
 
 // other gets the third point in a triangle for which s is

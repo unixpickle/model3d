@@ -1,6 +1,7 @@
 package model3d
 
 import (
+	"math"
 	"math/rand"
 	"testing"
 )
@@ -41,4 +42,33 @@ func approxTriangleAreaGradient(t *Triangle) *Triangle {
 		grad[i] = NewCoord3DArray(coordGrad)
 	}
 	return &grad
+}
+
+func TestTriangleDist(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		tri := &Triangle{NewCoord3DRandNorm(), NewCoord3DRandNorm(), NewCoord3DRandNorm()}
+		for j := 0; j < 10; j++ {
+			c := NewCoord3DRandNorm()
+			approx := approxTriangleDist(tri, c)
+			actual := tri.Dist(c)
+			if math.Abs(approx-actual) > 1e-5 {
+				t.Fatalf("expected %f but got %f", approx, actual)
+			}
+		}
+	}
+}
+
+func approxTriangleDist(t *Triangle, c Coord3D) float64 {
+	min := 0.0
+	max := t[0].Dist(c)
+	for i := 0; i < 64; i++ {
+		mid := (min + max) / 2
+		collides := t.SphereCollision(c, mid)
+		if collides {
+			max = mid
+		} else {
+			min = mid
+		}
+	}
+	return (min + max) / 2
 }
