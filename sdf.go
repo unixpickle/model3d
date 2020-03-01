@@ -1,5 +1,7 @@
 package model3d
 
+import "math"
+
 // An SDF is a signed distance function.
 //
 // An SDF returns 0 on the boundary of some surface,
@@ -46,7 +48,11 @@ func (c *colliderSDF) SDF(coord Coord3D) float64 {
 			min = mid
 		}
 	}
-	return (min + max) / 2
+	res := (min + max) / 2
+	if !c.Solid.Contains(coord) {
+		res *= -1
+	}
+	return res
 }
 
 func (c *colliderSDF) boundDistance(coord Coord3D) (min, max float64) {
@@ -69,4 +75,86 @@ func (c *colliderSDF) boundDistance(coord Coord3D) (min, max float64) {
 	} else {
 		return newDist, lastDist
 	}
+}
+
+type meshSDF struct {
+	Solid
+	MDF *meshDistFunc
+}
+
+// MeshToSDF turns a mesh into an SDF.
+func MeshToSDF(m *Mesh) SDF {
+	tris := m.TriangleSlice()
+	GroupTriangles(tris)
+	return GroupedTrianglesToSDF(tris)
+}
+
+// GroupedTrianglesToSDF creates an SDF from a slice of
+// triangles.
+// If the triangles are not grouped by GroupTriangles(),
+// the resulting SDF is inefficient.
+func GroupedTrianglesToSDF(tris []*Triangle) SDF {
+	if len(tris) == 0 {
+		panic("cannot create empty SDF")
+	}
+	return &meshSDF{
+		Solid: NewColliderSolid(GroupedTrianglesToCollider(tris)),
+		MDF:   newMeshDistFunc(tris),
+	}
+}
+
+func (m *meshSDF) SDF(c Coord3D) float64 {
+	dist := m.MDF.Dist(c, math.Inf(1))
+	if m.Solid.Contains(c) {
+		return dist
+	} else {
+		return -dist
+	}
+}
+
+type meshDistFunc struct {
+	min Coord3D
+	max Coord3D
+
+	root     *Triangle
+	children [2]*meshDistFunc
+}
+
+func newMeshDistFunc(tris []*Triangle) *meshDistFunc {
+	if len(tris) == 1 {
+		return &meshDistFunc{root: tris[0], min: tris[0].Min(), max: tris[0].Max()}
+	}
+
+	midIdx := len(tris) / 2
+	t1 := newMeshDistFunc(tris[:midIdx])
+	t2 := newMeshDistFunc(tris[midIdx:])
+	return &meshDistFunc{
+		min:      t1.Min().Min(t2.Min()),
+		max:      t1.Max().Max(t2.Max()),
+		children: [2]*meshDistFunc{t1, t2},
+	}
+
+}
+
+func (m *meshDistFunc) Min() Coord3D {
+	return m.min
+}
+
+func (m *meshDistFunc) Max() Coord3D {
+	return m.max
+}
+
+func (m *meshDistFunc) Dist(c Coord3D, curMin float64) float64 {
+	if !math.IsInf(curMin, 1) && !sphereTouchesBounds(c, curMin, m.min, m.max) {
+		return curMin
+	}
+
+	if m.root != nil {
+		return math.Min(curMin, m.root.Dist(c))
+	}
+
+	for _, child := range m.children {
+		curMin = math.Min(curMin, child.Dist(c, curMin))
+	}
+	return curMin
 }
