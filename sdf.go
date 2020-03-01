@@ -145,15 +145,23 @@ func (m *meshDistFunc) Max() Coord3D {
 }
 
 func (m *meshDistFunc) Dist(c Coord3D, curMin float64) float64 {
-	if !math.IsInf(curMin, 1) && !sphereTouchesBounds(c, curMin, m.min, m.max) {
-		return curMin
-	}
-
 	if m.root != nil {
 		return math.Min(curMin, m.root.Dist(c))
 	}
 
-	for _, child := range m.children {
+	boundDists := [2]float64{
+		pointToBoundsDistSquared(c, m.children[0].min, m.children[0].max),
+		pointToBoundsDistSquared(c, m.children[1].min, m.children[1].max),
+	}
+	iterates := m.children
+	if boundDists[0] > boundDists[1] {
+		iterates[0], iterates[1] = iterates[1], iterates[0]
+		boundDists[0], boundDists[1] = boundDists[1], boundDists[0]
+	}
+	for i, child := range iterates {
+		if boundDists[i] > curMin*curMin {
+			continue
+		}
 		curMin = math.Min(curMin, child.Dist(c, curMin))
 	}
 	return curMin

@@ -721,6 +721,10 @@ func (s *SolidCollider) SphereCollision(c Coord3D, r float64) bool {
 }
 
 func sphereTouchesBounds(center Coord3D, r float64, min, max Coord3D) bool {
+	return pointToBoundsDistSquared(center, min, max) <= r*r
+}
+
+func pointToBoundsDistSquared(center Coord3D, min, max Coord3D) float64 {
 	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
 	distSquared := 0.0
 	for axis := 0; axis < 3; axis++ {
@@ -733,7 +737,7 @@ func sphereTouchesBounds(center Coord3D, r float64, min, max Coord3D) bool {
 			distSquared += (max - value) * (max - value)
 		}
 	}
-	return distSquared <= r*r
+	return distSquared
 }
 
 func rayCollisionWithBounds(r *Ray, min, max Coord3D) (minFrac, maxFrac float64) {
