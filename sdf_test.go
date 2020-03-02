@@ -39,17 +39,24 @@ func BenchmarkMeshSDFs(b *testing.B) {
 	approxSDF := ColliderToSDF(MeshToCollider(mesh), 64)
 	exactSDF := MeshToSDF(mesh)
 
-	c := Coord3D{}
+	runTests := func(b *testing.B, c Coord3D) {
+		b.Run("Approx", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				approxSDF.SDF(c)
+			}
+		})
 
-	b.Run("Approx", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			approxSDF.SDF(c)
-		}
+		b.Run("Exact", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				exactSDF.SDF(c)
+			}
+		})
+	}
+
+	b.Run("Center", func(b *testing.B) {
+		runTests(b, Coord3D{})
 	})
-
-	b.Run("Exact", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			exactSDF.SDF(c)
-		}
+	b.Run("Edge", func(b *testing.B) {
+		runTests(b, Coord3D{X: 0.9, Y: 0.9})
 	})
 }
