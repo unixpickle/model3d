@@ -99,8 +99,6 @@ func (t *Triangle) Dist(c Coord3D) float64 {
 	}
 
 	// Check all three edges.
-	// This could almost certainly be avoided by using
-	// the results of the above matrix product.
 	result := math.Inf(1)
 	for _, s := range t.Segments() {
 		if d := s.Dist(c); d < result {
