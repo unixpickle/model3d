@@ -19,9 +19,11 @@ const (
 	LidScrewSlack    = 0.03
 	LidScrewGroove   = 0.05
 
-	PreviewZ1    = 0.4
-	PreviewZ2    = 2.5
-	PreviewWidth = 0.1
+	PreviewZ1        = 0.4
+	PreviewZ2        = 2.5
+	PreviewWidth     = 0.1
+	PreviewBarSpace  = 0.4
+	PreviewBarHeight = 0.1
 )
 
 func main() {
@@ -93,6 +95,9 @@ func (p PreviewCutout) Max() model3d.Coord3D {
 
 func (p PreviewCutout) Contains(c model3d.Coord3D) bool {
 	if !model3d.InSolidBounds(p, c) {
+		return false
+	}
+	if math.Mod(c.Z+c.X, PreviewBarSpace) < PreviewBarHeight {
 		return false
 	}
 	width := math.Min(PreviewWidth, math.Abs(c.Z-p.Max().Z))
