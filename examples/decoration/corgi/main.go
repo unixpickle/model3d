@@ -18,11 +18,21 @@ const (
 
 	HeadRadius = 0.22
 
-	SnoutLargeRadius = 0.15
-	SnoutSmallRadius = 0.1
+	NubRadius  = 0.1
+	NubXOffset = -0.3
+
+	SnoutLargeRadius = 0.14
+	SnoutSmallRadius = 0.12
 	SnoutInset       = 0.05
-	SnoutZOffset     = -0.05
+	SnoutZOffset     = -0.07
 	SnoutLength      = 0.27
+
+	EarYOffset   = 0.12
+	EarZOffset   = 0.12
+	EarTheta     = 0.1 * math.Pi
+	EarWidth     = 0.24
+	EarHeight    = 0.4
+	EarThickness = 0.06
 
 	LegInset               = 0.15
 	LegRadius              = 0.07
@@ -38,7 +48,7 @@ const (
 func main() {
 	log.Println("creating body solid...")
 	model := SmoothJoin(0.1, MakeBody(), MakeHeadNeck(), MakeLegs(), MakeHindLegMuscles(),
-		MakeSnout())
+		MakeSnout(), MakeNub(), MakeEars())
 	log.Println("creating mesh...")
 	mesh := model3d.SolidToMesh(model, 0.01, 0, -1, 5)
 	log.Println("saving...")
@@ -113,8 +123,35 @@ func MakeSnout() model3d.Solid {
 	}
 	return &SnoutSolid{
 		P1: origin,
-		P2: origin.Add(model3d.Coord3D{X: SnoutLength}),
+		P2: origin.Add(model3d.Coord3D{X: SnoutLength * math.Sin(NeckTheta),
+			Z: -SnoutLength * math.Cos(NeckTheta)}),
 	}
+}
+
+func MakeNub() model3d.Solid {
+	return &model3d.SphereSolid{
+		Center: model3d.Coord3D{X: NubXOffset, Z: BodyRadius - NubRadius},
+		Radius: NubRadius,
+	}
+}
+
+func MakeEars() model3d.Solid {
+	origin := model3d.Coord3D{
+		X: BodyLength + NeckLength*math.Cos(NeckTheta),
+		Z: NeckLength*math.Sin(NeckTheta) + EarZOffset,
+	}
+	var res model3d.JoinedSolid
+	for _, y := range []float64{-EarYOffset, EarYOffset} {
+		yDiff := EarHeight * math.Sin(EarTheta)
+		if y < 0 {
+			yDiff *= -1
+		}
+		res = append(res, &EarSolid{
+			Base: origin.Add(model3d.Coord3D{Y: y}),
+			Tip:  origin.Add(model3d.Coord3D{Y: y + yDiff, Z: EarHeight * math.Cos(EarTheta)}),
+		})
+	}
+	return res
 }
 
 type HindLegMuscleSolid struct {
@@ -173,10 +210,10 @@ func (s *SnoutSolid) Contains(c model3d.Coord3D) bool {
 	c2 := model3d.Coord2D{X: b1.Dot(c), Y: b2.Dot(c)}
 
 	// Smooth tip, and make it "wide".
-	c2.X /= math.Pow(1-frac, 0.2)
-	c2.Y /= math.Pow(1-frac, 0.3)
+	c2.X /= math.Pow(1-frac, 0.3) * SnoutLargeRadius
+	c2.Y /= math.Pow(1-frac, 0.3) * SnoutSmallRadius
 
-	return c2.Norm() < SnoutLargeRadius
+	return c2.Norm() < 1
 }
 
 func (s *SnoutSolid) boundingCylinder() *model3d.CylinderSolid {
@@ -184,5 +221,49 @@ func (s *SnoutSolid) boundingCylinder() *model3d.CylinderSolid {
 		P1:     s.P1,
 		P2:     s.P2,
 		Radius: SnoutLargeRadius,
+	}
+}
+
+type EarSolid struct {
+	Base model3d.Coord3D
+	Tip  model3d.Coord3D
+}
+
+func (e *EarSolid) Min() model3d.Coord3D {
+	return e.boundingCylinder().Min()
+}
+
+func (e *EarSolid) Max() model3d.Coord3D {
+	return e.boundingCylinder().Max()
+}
+
+func (e *EarSolid) Contains(c model3d.Coord3D) bool {
+	cyl := e.boundingCylinder()
+	if !cyl.Contains(c) {
+		return false
+	}
+
+	c = c.Sub(e.Base)
+
+	diff := e.Tip.Sub(e.Base)
+	frac := diff.Dot(c) / diff.Dot(diff)
+	if frac < 0 || frac > 1 {
+		return false
+	}
+
+	// Curved tip
+	frac = math.Pow(1-frac, 0.3)
+
+	xAxis := model3d.Coord3D{Y: 1}.ProjectOut(diff).Normalize()
+	yAxis := diff.Cross(xAxis).Normalize()
+	return math.Abs(xAxis.Dot(c)) < frac*EarWidth/2 &&
+		math.Abs(yAxis.Dot(c)) < EarThickness/2
+}
+
+func (e *EarSolid) boundingCylinder() *model3d.CylinderSolid {
+	return &model3d.CylinderSolid{
+		P1:     e.Base,
+		P2:     e.Tip,
+		Radius: EarWidth / 2,
 	}
 }
