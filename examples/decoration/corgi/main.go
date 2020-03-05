@@ -25,13 +25,8 @@ const (
 )
 
 func main() {
-	model := NewSoftJoin()
-	model.Add(MakeBody(), 0.02)
-	for _, leg := range MakeHindLegs() {
-		model.Add(leg, 0.01)
-	}
-	model.Build()
-
+	log.Println("creating body solid...")
+	model := SmoothJoin(0.1, MakeBody(), MakeHindLegs())
 	log.Println("creating mesh...")
 	mesh := model3d.SolidToMesh(model, 0.01, 0, -1, 5)
 	log.Println("saving...")
@@ -56,8 +51,8 @@ func MakeBody() model3d.Solid {
 	}
 }
 
-func MakeHindLegs() []model3d.Solid {
-	return []model3d.Solid{
+func MakeHindLegs() model3d.Solid {
+	return model3d.JoinedSolid{
 		HindLegSolid{
 			Center: model3d.Coord3D{X: HindLegX, Y: -BodyRadius + HindLegInset, Z: HindLegZ},
 		},
