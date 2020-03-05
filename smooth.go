@@ -33,6 +33,17 @@ type MeshSmoother struct {
 	// constraint term, ||x-x0||^2.
 	// If this is 0, no constraint is applied.
 	ConstraintWeight float64
+
+	// ConstraintFunc, if specified, is a totally custom
+	// gradient term that constrains points to their
+	// original positions.
+	//
+	// The return value of the function is added to the
+	// gradient at every step.
+	//
+	// This is independent of ConstraintDistance and
+	// ConstraintWeight, which can be used simultaneously.
+	ConstraintFunc func(origin, newCoord Coord3D) Coord3D
 }
 
 // Smooth applies gradient descent to smooth the mesh.
@@ -52,6 +63,12 @@ func (m *MeshSmoother) Smooth(mesh *Mesh) *Mesh {
 					d = d.Scale((norm - m.ConstraintDistance) / norm)
 				}
 				newCoords[i] = c.Add(d.Scale(2 * m.ConstraintWeight * m.StepSize))
+			}
+		}
+		if m.ConstraintFunc != nil {
+			for i, c := range newCoords {
+				grad := m.ConstraintFunc(origins[i], c)
+				newCoords[i] = c.Add(grad.Scale(m.StepSize))
 			}
 		}
 		for i := range im.Triangles {
