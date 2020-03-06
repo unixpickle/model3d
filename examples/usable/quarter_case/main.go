@@ -18,6 +18,7 @@ const (
 	LidScrewDiameter = 1.1
 	LidScrewSlack    = 0.03
 	LidScrewGroove   = 0.05
+	LidSides         = 6
 
 	PreviewZ1        = 0.4
 	PreviewZ2        = 2.5
@@ -27,11 +28,25 @@ const (
 )
 
 func main() {
-	lidSolid := &model3d.StackedSolid{
-		&model3d.CylinderSolid{
-			P2:     model3d.Coord3D{Z: LidHeight},
-			Radius: OuterDiameter / 2,
+	lidBase := model3d.ConvexPolytope{
+		&model3d.LinearConstraint{
+			Normal: model3d.Coord3D{Z: -1},
+			Max:    0,
 		},
+		&model3d.LinearConstraint{
+			Normal: model3d.Coord3D{Z: 1},
+			Max:    LidHeight,
+		},
+	}
+	for i := 0; i < LidSides; i++ {
+		theta := math.Pi * 2 * float64(i) / LidSides
+		lidBase = append(lidBase, &model3d.LinearConstraint{
+			Normal: model3d.Coord3D{X: math.Cos(theta), Y: math.Sin(theta)},
+			Max:    OuterDiameter / 2,
+		})
+	}
+	lidSolid := &model3d.StackedSolid{
+		lidBase.Solid(),
 		&toolbox3d.ScrewSolid{
 			P2:         model3d.Coord3D{Z: LidScrewHeight},
 			Radius:     LidScrewDiameter/2 - LidScrewSlack,
@@ -61,8 +76,8 @@ func main() {
 
 	smoother := &model3d.MeshSmoother{
 		StepSize:           0.1,
-		Iterations:         20,
-		ConstraintDistance: 0.005,
+		Iterations:         40,
+		ConstraintDistance: 0.01,
 		ConstraintWeight:   0.02,
 	}
 
