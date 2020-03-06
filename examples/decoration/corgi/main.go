@@ -43,6 +43,28 @@ const (
 	HindLegMuscleThickness = 0.4
 	HindLegMuscleZ         = -0.02
 	HindLegMuscleX         = -0.1
+
+	BrownMaxX              = BodyLength - 0.2
+	BrownMinZ              = -BodyRadius - 0.05
+	HeadColorSphereRadius  = 0.41
+	HeadColorSphereX       = BodyLength + 0.2
+	HeadColorSphereY       = 0.4
+	HeadColorSphereZ       = 0.72
+	ButtColorSphereX       = -0.65
+	ButtColorSphereZ       = -0.15
+	ButtColorSphereRadius  = 0.4
+	BellyColorSphereZ      = -2.1
+	BellyColorSphereRadius = 1.9
+)
+
+var (
+	BrownFur = [3]float64{179.0 / 255, 99.0 / 255, 0}
+	WhiteFur = [3]float64{1, 1, 1}
+	ButtFur  = [3]float64{
+		(BrownFur[0] + WhiteFur[0]) / 2,
+		(BrownFur[1] + WhiteFur[1]) / 2,
+		(BrownFur[2] + WhiteFur[2]) / 2,
+	}
 )
 
 func main() {
@@ -51,10 +73,54 @@ func main() {
 		MakeSnout(), MakeNub(), MakeEars())
 	log.Println("creating mesh...")
 	mesh := model3d.SolidToMesh(model, 0.01, 0, -1, 5)
+
+	colors := MakeColorer()
+
 	log.Println("saving...")
 	mesh.SaveGroupedSTL("corgi.stl")
+
 	log.Println("rendering...")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	model3d.SaveRandomGridColor("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300,
+		colors.VertexColor)
+}
+
+func MakeColorer() *Colorer {
+	res := &Colorer{}
+
+	res.Add(&model3d.SphereSolid{
+		Center: model3d.Coord3D{X: ButtColorSphereX, Z: ButtColorSphereZ},
+		Radius: ButtColorSphereRadius,
+	}, ButtFur)
+
+	res.Add(&model3d.SphereSolid{
+		Center: model3d.Coord3D{X: BodyLength / 2, Z: BellyColorSphereZ},
+		Radius: BellyColorSphereRadius,
+	}, WhiteFur)
+
+	res.Add(&model3d.RectSolid{
+		MinVal: model3d.Coord3D{X: math.Inf(-1), Y: math.Inf(-1), Z: BrownMinZ},
+		MaxVal: model3d.Coord3D{X: BrownMaxX, Y: math.Inf(1), Z: math.Inf(1)},
+	}, BrownFur)
+
+	res.Add(&model3d.RectSolid{
+		MinVal: model3d.Coord3D{X: math.Inf(-1), Y: math.Inf(-1), Z: BrownMinZ},
+		MaxVal: model3d.Coord3D{X: BrownMaxX, Y: math.Inf(1), Z: math.Inf(1)},
+	}, BrownFur)
+
+	for _, y := range []float64{HeadColorSphereY, -HeadColorSphereY} {
+		res.Add(&model3d.SphereSolid{
+			Center: model3d.Coord3D{X: HeadColorSphereX, Y: y, Z: HeadColorSphereZ},
+			Radius: HeadColorSphereRadius,
+		}, BrownFur)
+	}
+
+	// Default to white.
+	res.Add(&model3d.RectSolid{
+		MinVal: model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(math.Inf(-1)),
+		MaxVal: model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(math.Inf(1)),
+	}, WhiteFur)
+
+	return res
 }
 
 func MakeBody() model3d.Solid {
