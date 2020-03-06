@@ -8,24 +8,24 @@ import (
 )
 
 const (
-	BodyLength = 1.5
+	BodyLength = 1.1
 	BodyRadius = 0.3
 	BodyToNeck = 0.2
 
 	NeckTheta  = 0.4 * math.Pi
 	NeckLength = 0.6
-	NeckRadius = 0.2
+	NeckRadius = 0.23
 
-	HeadRadius = 0.22
+	HeadRadius = 0.23
 
 	NubRadius  = 0.1
 	NubXOffset = -0.3
 
-	SnoutLargeRadius = 0.14
+	SnoutLargeRadius = 0.17
 	SnoutSmallRadius = 0.12
 	SnoutInset       = 0.05
-	SnoutZOffset     = -0.07
-	SnoutLength      = 0.27
+	SnoutZOffset     = -0.08
+	SnoutLength      = 0.29
 
 	EarYOffset   = 0.12
 	EarZOffset   = 0.12
