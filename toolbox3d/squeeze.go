@@ -2,6 +2,14 @@ package toolbox3d
 
 import "github.com/unixpickle/model3d"
 
+type Axis int
+
+const (
+	AxisX = 0
+	AxisY = 1
+	AxisZ = 2
+)
+
 // AxisSqueeze is a coordinate transformation which
 // squeezes some section of space into a much smaller
 // amount of space along some axis.
@@ -11,8 +19,7 @@ import "github.com/unixpickle/model3d"
 // a tall cylinder.
 type AxisSqueeze struct {
 	// The axis to compress.
-	// Can be 0, 1, 2 for x, y, z respectively.
-	Axis int
+	Axis Axis
 
 	// Bounds on the axis to compress.
 	Min float64

@@ -7,6 +7,7 @@ import (
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
@@ -40,18 +41,33 @@ func main() {
 		essentials.Must(os.Mkdir(RenderDir, 0755))
 	}
 
-	CreateMesh(CreateDrawer(), "drawer", 0.015)
-	CreateMesh(CreateFrame(), "frame", 0.02)
+	// Don't render the middle part in as high
+	// resolution, since it's uniform along the
+	// y axis.
+	squeeze := &toolbox3d.AxisSqueeze{
+		Axis:  toolbox3d.AxisY,
+		Min:   1.0,
+		Max:   DrawerDepth - 1.0,
+		Ratio: 0.1,
+	}
+
+	CreateMesh(CreateDrawer(), "drawer", 0.015, squeeze)
+	CreateMesh(CreateFrame(), "frame", 0.02, squeeze)
 }
 
-func CreateMesh(solid model3d.Solid, name string, resolution float64) {
+func CreateMesh(solid model3d.Solid, name string, resolution float64, ax *toolbox3d.AxisSqueeze) {
 	if _, err := os.Stat(filepath.Join(ModelDir, name+".stl")); err == nil {
 		log.Printf("Skipping %s mesh", name)
 		return
 	}
 
 	log.Printf("Creating %s mesh...", name)
-	mesh := model3d.SolidToMesh(solid, resolution, 0, -1, 5)
+	var mesh *model3d.Mesh
+	if ax != nil {
+		mesh = ax.SolidToMesh(solid, resolution, 0, -1, 5)
+	} else {
+		mesh = model3d.SolidToMesh(solid, resolution, 0, -1, 5)
+	}
 	log.Println("Eliminating co-planar polygons...")
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Printf("Saving %s mesh...", name)
