@@ -2,7 +2,10 @@ package main
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
 
@@ -24,25 +27,36 @@ const (
 	RidgeDepth = 0.2
 )
 
+const (
+	ModelDir  = "models"
+	RenderDir = "renderings"
+)
+
 func main() {
-	frame := CreateFrame()
-	drawer := CreateDrawer()
+	if _, err := os.Stat(ModelDir); os.IsNotExist(err) {
+		essentials.Must(os.Mkdir(ModelDir, 0755))
+	}
+	if _, err := os.Stat(RenderDir); os.IsNotExist(err) {
+		essentials.Must(os.Mkdir(RenderDir, 0755))
+	}
 
-	log.Println("Creating frame mesh...")
-	mesh := model3d.SolidToMesh(frame, 0.02, 0, -1, 5)
+	CreateMesh(CreateDrawer(), "drawer", 0.015)
+	CreateMesh(CreateFrame(), "frame", 0.02)
+}
+
+func CreateMesh(solid model3d.Solid, name string, resolution float64) {
+	if _, err := os.Stat(filepath.Join(ModelDir, name+".stl")); err == nil {
+		log.Printf("Skipping %s mesh", name)
+		return
+	}
+
+	log.Printf("Creating %s mesh...", name)
+	mesh := model3d.SolidToMesh(solid, resolution, 0, -1, 5)
 	log.Println("Eliminating co-planar polygons...")
 	mesh = mesh.EliminateCoplanar(1e-8)
-	log.Println("Saving frame mesh...")
-	mesh.SaveGroupedSTL("frame.stl")
-	log.Println("Rendering frame mesh...")
-	model3d.SaveRandomGrid("frame.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
-
-	log.Println("Creating drawer mesh...")
-	mesh = model3d.SolidToMesh(drawer, 0.02, 0, -1, 5)
-	log.Println("Eliminating co-planar polygons...")
-	mesh = mesh.EliminateCoplanar(1e-8)
-	log.Println("Saving drawer mesh...")
-	mesh.SaveGroupedSTL("drawer.stl")
-	log.Println("Rendering drawer mesh...")
-	model3d.SaveRandomGrid("drawer.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	log.Printf("Saving %s mesh...", name)
+	mesh.SaveGroupedSTL(filepath.Join(ModelDir, name+".stl"))
+	log.Printf("Rendering %s mesh...", name)
+	model3d.SaveRandomGrid(filepath.Join(RenderDir, name+".png"), model3d.MeshToCollider(mesh),
+		3, 3, 300, 300)
 }
