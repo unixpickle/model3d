@@ -2,16 +2,16 @@ package main
 
 import "github.com/unixpickle/model3d"
 
-func CreateShelf() model3d.Solid {
+func CreateDrawer() model3d.Solid {
 	min := model3d.Coord3D{
-		X: ShelfSlack,
+		X: DrawerSlack,
 		Y: 0,
-		Z: ContainerThickness + ShelfSlack,
+		Z: FrameThickness + DrawerSlack,
 	}
 	max := model3d.Coord3D{
-		X: ShelfWidth - ShelfSlack,
-		Y: ShelfDepth - ShelfSlack,
-		Z: ContainerThickness + ShelfHeight - ShelfSlack,
+		X: DrawerWidth - DrawerSlack,
+		Y: DrawerDepth - DrawerSlack,
+		Z: FrameThickness + DrawerHeight - DrawerSlack,
 	}
 
 	result := model3d.JoinedSolid{
@@ -19,23 +19,23 @@ func CreateShelf() model3d.Solid {
 		&model3d.RectSolid{
 			MinVal: min,
 			MaxVal: model3d.Coord3D{X: max.X, Y: max.Y,
-				Z: ContainerThickness + ShelfThickness},
+				Z: FrameThickness + DrawerThickness},
 		},
 	}
 
 	// Side faces.
-	for _, x := range []float64{min.X, max.X - ShelfThickness} {
+	for _, x := range []float64{min.X, max.X - DrawerThickness} {
 		result = append(result, &model3d.RectSolid{
 			MinVal: model3d.Coord3D{X: x, Y: min.Y, Z: min.Z},
-			MaxVal: model3d.Coord3D{X: x + ShelfThickness, Y: max.Y, Z: max.Z},
+			MaxVal: model3d.Coord3D{X: x + DrawerThickness, Y: max.Y, Z: max.Z},
 		})
 	}
 
 	// Front/back faces.
-	for _, y := range []float64{min.Y, max.Y - ShelfThickness} {
+	for _, y := range []float64{min.Y, max.Y - DrawerThickness} {
 		result = append(result, &model3d.RectSolid{
 			MinVal: model3d.Coord3D{X: min.X, Y: y, Z: min.Z},
-			MaxVal: model3d.Coord3D{X: max.X, Y: y + ShelfThickness, Z: max.Z},
+			MaxVal: model3d.Coord3D{X: max.X, Y: y + DrawerThickness, Z: max.Z},
 		})
 	}
 
@@ -50,8 +50,8 @@ func CreateShelf() model3d.Solid {
 				X:      mid.X,
 				Z:      mid.Z,
 				Y1:     min.Y - 1e-5,
-				Y2:     min.Y + ShelfThickness + 1e-5,
-				Radius: ShelfHoleRadius,
+				Y2:     min.Y + DrawerThickness + 1e-5,
+				Radius: DrawerHoleRadius,
 			},
 		},
 	}

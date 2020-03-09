@@ -7,42 +7,42 @@ import (
 )
 
 const (
-	ShelfWidth      = 6.0
-	ShelfHeight     = 2.0
-	ShelfDepth      = 6.0
-	ShelfSlack      = 0.05
-	ShelfThickness  = 0.4
-	ShelfHoleRadius = 0.1
+	DrawerWidth      = 6.0
+	DrawerHeight     = 2.0
+	DrawerDepth      = 6.0
+	DrawerSlack      = 0.05
+	DrawerThickness  = 0.4
+	DrawerHoleRadius = 0.1
 
-	ShelfCount = 3
+	DrawerCount = 3
 
-	ContainerThickness      = 0.2
-	ContainerFootWidth      = 0.6
-	ContainerFootHeight     = 0.2
-	ContainerFootRampHeight = ContainerFootWidth / 2
+	FrameThickness      = 0.2
+	FrameFootWidth      = 0.6
+	FrameFootHeight     = 0.2
+	FrameFootRampHeight = FrameFootWidth / 2
 
 	RidgeDepth = 0.2
 )
 
 func main() {
-	container := CreateContainer()
-	shelf := CreateShelf()
+	frame := CreateFrame()
+	drawer := CreateDrawer()
 
-	log.Println("Creating container mesh...")
-	mesh := model3d.SolidToMesh(container, 0.02, 0, -1, 5)
+	log.Println("Creating frame mesh...")
+	mesh := model3d.SolidToMesh(frame, 0.02, 0, -1, 5)
 	log.Println("Eliminating co-planar polygons...")
 	mesh = mesh.EliminateCoplanar(1e-8)
-	log.Println("Saving container mesh...")
-	mesh.SaveGroupedSTL("container.stl")
-	log.Println("Rendering container mesh...")
-	model3d.SaveRandomGrid("container.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	log.Println("Saving frame mesh...")
+	mesh.SaveGroupedSTL("frame.stl")
+	log.Println("Rendering frame mesh...")
+	model3d.SaveRandomGrid("frame.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 
-	log.Println("Creating shelf mesh...")
-	mesh = model3d.SolidToMesh(shelf, 0.02, 0, -1, 5)
+	log.Println("Creating drawer mesh...")
+	mesh = model3d.SolidToMesh(drawer, 0.02, 0, -1, 5)
 	log.Println("Eliminating co-planar polygons...")
 	mesh = mesh.EliminateCoplanar(1e-8)
-	log.Println("Saving shelf mesh...")
-	mesh.SaveGroupedSTL("shelf.stl")
-	log.Println("Rendering shelf mesh...")
-	model3d.SaveRandomGrid("shelf.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	log.Println("Saving drawer mesh...")
+	mesh.SaveGroupedSTL("drawer.stl")
+	log.Println("Rendering drawer mesh...")
+	model3d.SaveRandomGrid("drawer.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }
