@@ -9,14 +9,14 @@ import (
 )
 
 const (
-	DrawerWidth      = 6.0
-	DrawerHeight     = 2.0
-	DrawerDepth      = 6.0
-	DrawerSlack      = 0.05
-	DrawerThickness  = 0.4
-	DrawerHoleRadius = 0.1
+	ShelfWidth      = 6.0
+	ShelfHeight     = 2.0
+	ShelfDepth      = 6.0
+	ShelfSlack      = 0.05
+	ShelfThickness  = 0.4
+	ShelfHoleRadius = 0.1
 
-	DrawerCount = 3
+	ShelfCount = 3
 
 	ContainerThickness      = 0.2
 	ContainerFootWidth      = 0.6
@@ -28,7 +28,7 @@ const (
 
 func main() {
 	container := CreateContainer()
-	shelf := CreateShelf(container)
+	shelf := CreateShelf()
 
 	log.Println("Creating container mesh...")
 	mesh := model3d.SolidToMesh(container, 0.02, 0, -1, 5)
@@ -49,16 +49,16 @@ func main() {
 	model3d.SaveRandomGrid("shelf.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }
 
-func CreateShelf(container model3d.Solid) model3d.Solid {
+func CreateShelf() model3d.Solid {
 	min := model3d.Coord3D{
-		X: DrawerSlack,
+		X: ShelfSlack,
 		Y: 0,
-		Z: ContainerThickness + DrawerSlack,
+		Z: ContainerThickness + ShelfSlack,
 	}
 	max := model3d.Coord3D{
-		X: DrawerWidth - DrawerSlack,
-		Y: DrawerDepth - DrawerSlack,
-		Z: ContainerThickness + DrawerHeight - DrawerSlack,
+		X: ShelfWidth - ShelfSlack,
+		Y: ShelfDepth - ShelfSlack,
+		Z: ContainerThickness + ShelfHeight - ShelfSlack,
 	}
 
 	result := model3d.JoinedSolid{
@@ -66,64 +66,100 @@ func CreateShelf(container model3d.Solid) model3d.Solid {
 		&model3d.RectSolid{
 			MinVal: min,
 			MaxVal: model3d.Coord3D{X: max.X, Y: max.Y,
-				Z: ContainerThickness + DrawerThickness},
+				Z: ContainerThickness + ShelfThickness},
 		},
 	}
 
 	// Side faces.
-	for _, x := range []float64{min.X, max.X - DrawerThickness} {
+	for _, x := range []float64{min.X, max.X - ShelfThickness} {
 		result = append(result, &model3d.RectSolid{
 			MinVal: model3d.Coord3D{X: x, Y: min.Y, Z: min.Z},
-			MaxVal: model3d.Coord3D{X: x + DrawerThickness, Y: max.Y, Z: max.Z},
+			MaxVal: model3d.Coord3D{X: x + ShelfThickness, Y: max.Y, Z: max.Z},
 		})
 	}
 
 	// Front/back faces.
-	for _, y := range []float64{min.Y, max.Y - DrawerThickness} {
+	for _, y := range []float64{min.Y, max.Y - ShelfThickness} {
 		result = append(result, &model3d.RectSolid{
 			MinVal: model3d.Coord3D{X: min.X, Y: y, Z: min.Z},
-			MaxVal: model3d.Coord3D{X: max.X, Y: y + DrawerThickness, Z: max.Z},
+			MaxVal: model3d.Coord3D{X: max.X, Y: y + ShelfThickness, Z: max.Z},
 		})
 	}
 
-	holeStart := min.Mid(max)
-	holeStart.Y = min.Y - 0.1
+	mid := min.Mid(max)
 
 	return &model3d.SubtractedSolid{
 		Positive: result,
 		Negative: model3d.JoinedSolid{
-			container,
-			&model3d.CylinderSolid{
-				P1:     holeStart,
-				P2:     holeStart.Add(model3d.Coord3D{Y: DrawerThickness + 0.2}),
-				Radius: DrawerHoleRadius,
+			&RidgeSolid{X1: min.X, X2: min.X + RidgeDepth, Z: mid.Z},
+			&RidgeSolid{X1: max.X, X2: max.X - RidgeDepth, Z: mid.Z},
+			&HoleCutout{
+				X:      mid.X,
+				Z:      mid.Z,
+				Y1:     min.Y - 1e-5,
+				Y2:     min.Y + ShelfThickness + 1e-5,
+				Radius: ShelfHoleRadius,
 			},
 		},
 	}
+}
+
+type HoleCutout struct {
+	X float64
+	Z float64
+
+	Y1     float64
+	Y2     float64
+	Radius float64
+}
+
+func (h *HoleCutout) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: h.X - h.Radius, Y: h.Y1, Z: h.Z - h.Radius}
+}
+
+func (h *HoleCutout) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: h.X + h.Radius, Y: h.Y2, Z: h.Z + h.Radius*2}
+}
+
+func (h *HoleCutout) Contains(c model3d.Coord3D) bool {
+	if !model3d.InSolidBounds(h, c) {
+		return false
+	}
+	c2d := model3d.Coord2D{X: c.X - h.X, Y: c.Z - h.Z}
+	if c2d.Norm() <= h.Radius {
+		return true
+	}
+	if c2d.Y < 0 {
+		return false
+	}
+	// Pointed tip to avoid support.
+	vec := model3d.Coord2D{X: 1, Y: 1}.Normalize()
+	vec1 := vec.Mul(model3d.Coord2D{X: -1, Y: 1})
+	return c2d.Dot(vec) <= h.Radius && c2d.Dot(vec1) <= h.Radius
 }
 
 func CreateContainer() model3d.Solid {
 	var solid model3d.JoinedSolid
 
 	// Side walls.
-	for _, x := range []float64{-ContainerThickness, DrawerWidth} {
+	for _, x := range []float64{-ContainerThickness, ShelfWidth} {
 		solid = append(solid, &model3d.RectSolid{
 			MinVal: model3d.Coord3D{X: x, Z: -ContainerThickness},
 			MaxVal: model3d.Coord3D{
 				X: x + ContainerThickness,
-				Y: DrawerDepth + ContainerThickness,
-				Z: DrawerCount*DrawerHeight + ContainerThickness,
+				Y: ShelfDepth + ContainerThickness,
+				Z: ShelfCount*ShelfHeight + ContainerThickness,
 			},
 		})
 	}
 
 	// Top/bottom walls.
-	for _, z := range []float64{-ContainerThickness, DrawerHeight * DrawerCount} {
+	for _, z := range []float64{-ContainerThickness, ShelfHeight * ShelfCount} {
 		solid = append(solid, &model3d.RectSolid{
 			MinVal: model3d.Coord3D{X: -ContainerThickness, Z: z},
 			MaxVal: model3d.Coord3D{
-				X: DrawerWidth + ContainerThickness,
-				Y: DrawerDepth + ContainerThickness,
+				X: ShelfWidth + ContainerThickness,
+				Y: ShelfDepth + ContainerThickness,
 				Z: z + ContainerThickness,
 			},
 		})
@@ -138,9 +174,9 @@ func CreateContainer() model3d.Solid {
 	})
 
 	// Ridges for shelves.
-	for i := 0; i < DrawerCount; i++ {
+	for i := 0; i < ShelfCount; i++ {
 		for _, right := range []bool{false, true} {
-			solid = append(solid, CreateRidge((float64(i)+0.5)*DrawerHeight, right))
+			solid = append(solid, CreateRidge((float64(i)+0.5)*ShelfHeight, right))
 		}
 	}
 
@@ -159,7 +195,7 @@ func CreateRidge(z float64, onRight bool) model3d.Solid {
 	if !onRight {
 		return &RidgeSolid{X1: 0, X2: RidgeDepth, Z: z}
 	} else {
-		return &RidgeSolid{X1: DrawerWidth, X2: DrawerWidth - RidgeDepth, Z: z}
+		return &RidgeSolid{X1: ShelfWidth, X2: ShelfWidth - RidgeDepth, Z: z}
 	}
 }
 
@@ -174,7 +210,7 @@ func (r *RidgeSolid) Min() model3d.Coord3D {
 }
 
 func (r *RidgeSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: math.Max(r.X1, r.X2), Y: DrawerDepth + ContainerThickness,
+	return model3d.Coord3D{X: math.Max(r.X1, r.X2), Y: ShelfDepth + ContainerThickness,
 		Z: r.Z + RidgeDepth}
 }
 
