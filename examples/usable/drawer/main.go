@@ -16,6 +16,7 @@ const (
 	DrawerDepth      = 6.0
 	DrawerSlack      = 0.05
 	DrawerThickness  = 0.4
+	DrawerBottom     = 0.2
 	DrawerHoleRadius = 0.1
 
 	DrawerCount = 3

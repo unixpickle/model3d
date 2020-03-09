@@ -18,8 +18,7 @@ func CreateDrawer() model3d.Solid {
 		// Bottom face.
 		&model3d.RectSolid{
 			MinVal: min,
-			MaxVal: model3d.Coord3D{X: max.X, Y: max.Y,
-				Z: FrameThickness + DrawerThickness},
+			MaxVal: model3d.Coord3D{X: max.X, Y: max.Y, Z: min.Z + DrawerBottom},
 		},
 	}
 
