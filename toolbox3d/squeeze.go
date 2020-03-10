@@ -59,14 +59,9 @@ func (a *AxisSqueeze) ApplySolid(s model3d.Solid) model3d.Solid {
 	}
 }
 
-// ApplyMesh squeezes a mesh.
-func (a *AxisSqueeze) ApplyMesh(m *model3d.Mesh) *model3d.Mesh {
-	return m.MapCoords(a.Apply)
-}
-
 // Inverse creates an AxisSqueeze that undoes the squeeze
 // performed by a.
-func (a *AxisSqueeze) Inverse() *AxisSqueeze {
+func (a *AxisSqueeze) Inverse() model3d.Transform {
 	return &AxisSqueeze{
 		Axis:  a.Axis,
 		Min:   a.Min,
@@ -80,14 +75,14 @@ func (a *AxisSqueeze) Inverse() *AxisSqueeze {
 func (a *AxisSqueeze) SolidToMesh(s model3d.Solid, delta float64, subdivisions int,
 	blurFrac float64, blurIters int) *model3d.Mesh {
 	m := model3d.SolidToMesh(a.ApplySolid(s), delta, subdivisions, blurFrac, blurIters)
-	return a.Inverse().ApplyMesh(m)
+	return m.Transform(a.Inverse())
 }
 
 type axisSqueezeSolid struct {
 	min     model3d.Coord3D
 	max     model3d.Coord3D
 	solid   model3d.Solid
-	inverse *AxisSqueeze
+	inverse model3d.Transform
 }
 
 func (a *axisSqueezeSolid) Min() model3d.Coord3D {

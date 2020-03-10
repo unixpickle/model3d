@@ -257,6 +257,11 @@ func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
 	return m1
 }
 
+// Transform applies t to the coordinates.
+func (m *Mesh) Transform(t Transform) *Mesh {
+	return m.MapCoords(t.Apply)
+}
+
 // EncodeSTL encodes the mesh as STL data.
 func (m *Mesh) EncodeSTL() []byte {
 	return EncodeSTL(m.TriangleSlice())
