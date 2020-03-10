@@ -7,6 +7,48 @@ type Transform interface {
 	Inverse() Transform
 }
 
+// Translate is a Transform that adds an offset to
+// coordinates.
+type Translate struct {
+	Offset Coord3D
+}
+
+func (t *Translate) Apply(c Coord3D) Coord3D {
+	return c.Add(t.Offset)
+}
+
+func (t *Translate) ApplySolid(s Solid) Solid {
+	return &translatedSolid{
+		offset: t.Offset,
+		min:    s.Min().Add(t.Offset),
+		max:    s.Max().Add(t.Offset),
+		solid:  s,
+	}
+}
+
+func (t *Translate) Inverse() Transform {
+	return &Translate{Offset: t.Offset.Scale(-1)}
+}
+
+type translatedSolid struct {
+	offset Coord3D
+	min    Coord3D
+	max    Coord3D
+	solid  Solid
+}
+
+func (t *translatedSolid) Min() Coord3D {
+	return t.min
+}
+
+func (t *translatedSolid) Max() Coord3D {
+	return t.max
+}
+
+func (t *translatedSolid) Contains(c Coord3D) bool {
+	return InSolidBounds(t, c) && t.solid.Contains(c.Sub(t.offset))
+}
+
 // A JoinedTransform composes transformations from left to
 // right.
 type JoinedTransform []Transform
