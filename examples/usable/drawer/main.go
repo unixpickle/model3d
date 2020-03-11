@@ -25,6 +25,10 @@ const (
 	FrameFootWidth      = 0.6
 	FrameFootHeight     = 0.2
 	FrameFootRampHeight = FrameFootWidth / 2
+	FrameHoleWidth      = 1.0
+	FrameHoleMargin     = 0.4
+
+	BottomHoleRadius = 5.0
 
 	RidgeDepth = 0.2
 
