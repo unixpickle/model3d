@@ -32,12 +32,15 @@ const (
 
 	RidgeDepth = 0.2
 
-	KnobRadius       = 0.3
-	KnobLength       = 0.8
+	KnobBaseRadius = 0.4
+	KnobBaseLength = 0.2
+	KnobPoleRadius = 0.2
+	KnobPoleLength = 0.6
+
 	KnobScrewRadius  = 0.08
 	KnobScrewGroove  = 0.03
 	KnobScrewSlack   = 0.02
-	KnobNutRadius    = 0.4
+	KnobNutRadius    = 0.2
 	KnobNutThickness = 0.2
 )
 
@@ -66,8 +69,8 @@ func main() {
 
 	knobSqueeze := &toolbox3d.AxisSqueeze{
 		Axis:  toolbox3d.AxisZ,
-		Min:   KnobLength * 0.1,
-		Max:   KnobLength * 0.9,
+		Min:   KnobBaseLength + KnobPoleLength*0.1,
+		Max:   KnobBaseLength + KnobPoleLength*0.9,
 		Ratio: 0.1,
 	}
 
