@@ -27,6 +27,14 @@ const (
 	FrameFootRampHeight = FrameFootWidth / 2
 
 	RidgeDepth = 0.2
+
+	KnobRadius       = 0.3
+	KnobLength       = 0.8
+	KnobScrewRadius  = 0.08
+	KnobScrewGroove  = 0.03
+	KnobScrewSlack   = 0.02
+	KnobNutRadius    = 0.4
+	KnobNutThickness = 0.2
 )
 
 const (
@@ -52,8 +60,17 @@ func main() {
 		Ratio: 0.1,
 	}
 
+	knobSqueeze := &toolbox3d.AxisSqueeze{
+		Axis:  toolbox3d.AxisZ,
+		Min:   KnobLength * 0.1,
+		Max:   KnobLength * 0.9,
+		Ratio: 0.1,
+	}
+
 	CreateMesh(CreateDrawer(), "drawer", 0.015, squeeze)
 	CreateMesh(CreateFrame(), "frame", 0.02, squeeze)
+	CreateMesh(CreateKnob(), "knob", 0.0025, knobSqueeze)
+	CreateMesh(CreateKnobNut(), "nut", 0.0025, nil)
 }
 
 func CreateMesh(solid model3d.Solid, name string, resolution float64, ax *toolbox3d.AxisSqueeze) {
