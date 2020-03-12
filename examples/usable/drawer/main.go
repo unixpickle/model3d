@@ -75,7 +75,7 @@ func main() {
 	}
 
 	CreateMesh(CreateDrawer(), "drawer", 0.015, squeeze)
-	CreateMesh(CreateFrame(), "frame", 0.02, squeeze)
+	CreateMesh(CreateFrame(), "frame", 0.02, nil)
 	CreateMesh(CreateKnob(), "knob", 0.0025, knobSqueeze)
 	CreateMesh(CreateKnobNut(), "nut", 0.0025, nil)
 }
