@@ -1,6 +1,10 @@
 package model3d
 
-import "github.com/unixpickle/model3d/model2d"
+import (
+	"math"
+
+	"github.com/unixpickle/model3d/model2d"
+)
 
 type Matrix2 = model2d.Matrix2
 
@@ -15,6 +19,23 @@ func NewMatrix3Columns(c1, c2, c3 Coord3D) *Matrix3 {
 		c1.Y, c2.Y, c3.Y,
 		c1.Z, c2.Z, c3.Z,
 	}
+}
+
+// NewMatrix3Rotation creates a 3D rotation matrix.
+// Points are rotated around the given vector in a
+// right-handed direction.
+//
+// The axis is assumed to be normalized.
+// The angle is measured in radians.
+func NewMatrix3Rotation(axis Coord3D, angle float64) *Matrix3 {
+	x, y := axis.OrthoBasis()
+	basis := NewMatrix3Columns(axis, x, y)
+	rotation := &Matrix3{
+		1, 0, 0,
+		0, math.Cos(angle), math.Sin(angle),
+		0, -math.Sin(angle), math.Cos(angle),
+	}
+	return basis.Mul(rotation).Mul(basis.Transpose())
 }
 
 // Det computes the determinant of the matrix.
