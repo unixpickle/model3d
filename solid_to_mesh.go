@@ -1,5 +1,9 @@
 package model3d
 
+import (
+	"github.com/unixpickle/essentials"
+)
+
 // SolidToMesh approximates the solid s as a triangle mesh
 // by blurring the result of a RectScanner.
 //
@@ -453,17 +457,36 @@ func (s *squareSpacer) CornerIndex(x, y, z int) int {
 	return x + y*len(s.Xs) + z*len(s.Xs)*len(s.Ys)
 }
 
-type solidCache struct {
-	spacer *squareSpacer
-	values []bool
+func (s *squareSpacer) IndexToCorner(idx int) (int, int, int) {
+	x := idx % len(s.Xs)
+	idx /= len(s.Xs)
+	y := idx % len(s.Ys)
+	z := idx / len(s.Ys)
+	return x, y, z
 }
 
-func newSolidCache(s Solid, spacer *squareSpacer) *solidCache {
-	values := make([]bool, spacer.NumCorners())
-	spacer.IterateCorners(func(x, y, z int) {
-		values[spacer.CornerIndex(x, y, z)] = s.Contains(spacer.CornerCoord(x, y, z))
-	})
-	return &solidCache{spacer: spacer, values: values}
+type solidCache struct {
+	spacer *squareSpacer
+	solid  Solid
+
+	startZ  int
+	strideZ int
+	cachedZ int
+	values  []bool
+}
+
+func newSolidCache(solid Solid, spacer *squareSpacer) *solidCache {
+	cachedZ := essentials.MinInt(len(spacer.Zs), 10)
+	strideZ := len(spacer.Xs) * len(spacer.Ys)
+	cache := &solidCache{
+		spacer:  spacer,
+		solid:   solid,
+		strideZ: strideZ,
+		cachedZ: cachedZ,
+		values:  make([]bool, strideZ*cachedZ),
+	}
+	cache.fillTailValues(cachedZ)
+	return cache
 }
 
 func (s *solidCache) NumInteriorCorners(x, y, z int) int {
@@ -471,13 +494,45 @@ func (s *solidCache) NumInteriorCorners(x, y, z int) int {
 	for k := z; k < z+2; k++ {
 		for j := y; j < y+2; j++ {
 			for i := x; i < x+2; i++ {
-				if s.values[s.spacer.CornerIndex(i, j, k)] {
+				if s.cornerValue(i, j, k) {
 					res++
 				}
 			}
 		}
 	}
 	return res
+}
+
+func (s *solidCache) cornerValue(x, y, z int) bool {
+	if z >= s.startZ && z < s.startZ+s.cachedZ {
+		return s.values[s.spacer.CornerIndex(x, y, z-s.startZ)]
+	}
+
+	newStart := essentials.MinInt(essentials.MaxInt(0, z-s.cachedZ/2),
+		len(s.spacer.Zs)-s.cachedZ)
+	shift := newStart - s.startZ
+	s.startZ = newStart
+	if shift < 0 || shift >= s.cachedZ {
+		// Start the cache all over again.
+		s.fillTailValues(s.cachedZ)
+	} else {
+		copy(s.values, s.values[shift*s.strideZ:])
+		s.fillTailValues(shift)
+	}
+
+	return s.cornerValue(x, y, z)
+}
+
+func (s *solidCache) fillTailValues(numTail int) {
+	idx := (s.cachedZ - numTail) * s.strideZ
+	for _, z := range s.spacer.Zs[s.startZ+s.cachedZ-numTail:][:numTail] {
+		for _, y := range s.spacer.Ys {
+			for _, x := range s.spacer.Xs {
+				s.values[idx] = s.solid.Contains(Coord3D{X: x, Y: y, Z: z})
+				idx++
+			}
+		}
+	}
 }
 
 func boxToFaceQuads(min, max Coord3D, isSideBorder func(axis int, positive bool) bool,
