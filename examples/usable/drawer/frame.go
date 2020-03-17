@@ -37,9 +37,12 @@ func CreateFrame() model3d.Solid {
 	// Back wall.
 	wallMin := solid.Min()
 	wallMin.Y = solid.Max().Y - FrameThickness
-	solid = append(solid, &model3d.RectSolid{
-		MinVal: wallMin,
-		MaxVal: solid.Max(),
+	solid = append(solid, &model3d.SubtractedSolid{
+		Positive: &model3d.RectSolid{
+			MinVal: wallMin,
+			MaxVal: solid.Max(),
+		},
+		Negative: BackWallHole{},
 	})
 
 	// Ridges for shelves.
@@ -149,16 +152,16 @@ type BottomFrameHole struct{}
 
 func (b BottomFrameHole) Min() model3d.Coord3D {
 	return model3d.Coord3D{
-		X: (DrawerWidth - BottomHoleRadius) / 2,
-		Y: (DrawerDepth - BottomHoleRadius) / 2,
+		X: (DrawerWidth - FrameBottomHoleRadius) / 2,
+		Y: (DrawerDepth - FrameBottomHoleRadius) / 2,
 		Z: -(FrameThickness + 1e-5),
 	}
 }
 
 func (b BottomFrameHole) Max() model3d.Coord3D {
 	return model3d.Coord3D{
-		X: (DrawerWidth + BottomHoleRadius) / 2,
-		Y: (DrawerDepth + BottomHoleRadius) / 2,
+		X: (DrawerWidth + FrameBottomHoleRadius) / 2,
+		Y: (DrawerDepth + FrameBottomHoleRadius) / 2,
 		Z: 1e-5,
 	}
 }
@@ -169,4 +172,40 @@ func (b BottomFrameHole) Contains(c model3d.Coord3D) bool {
 	}
 	mid := b.Min().Mid(b.Max())
 	return math.Abs(c.X-mid.X) <= c.Y-b.Min().Y
+}
+
+type BackWallHole struct{}
+
+func (b BackWallHole) Min() model3d.Coord3D {
+	return model3d.Coord3D{X: -FrameThickness, Y: DrawerDepth - 1e-5, Z: -FrameThickness}
+}
+
+func (b BackWallHole) Max() model3d.Coord3D {
+	return model3d.Coord3D{X: FrameThickness + DrawerWidth, Y: DrawerDepth + FrameThickness + 1e-5,
+		Z: DrawerHeight*DrawerCount + FrameThickness}
+}
+
+func (b BackWallHole) Contains(c model3d.Coord3D) bool {
+	if !model3d.InSolidBounds(b, c) {
+		return false
+	}
+	minDiff := c.Sub(b.Min())
+	maxDiff := b.Max().Sub(c)
+	for _, f := range [4]float64{minDiff.X, minDiff.Z, maxDiff.X, maxDiff.Z} {
+		if f < FrameBackHoleMargin {
+			return false
+		}
+	}
+
+	// Cool wavy pattern.
+	zWave := (math.Sin(c.X*math.Pi*2) + 1) * 0.1
+	if math.Mod(c.Z+zWave, 1.0) < 0.2 {
+		return false
+	}
+	xWave := (math.Sin(c.Z*math.Pi*2) + 1) * 0.1
+	if math.Mod(c.X+xWave, 1.0) < 0.2 {
+		return false
+	}
+
+	return true
 }
