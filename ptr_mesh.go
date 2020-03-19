@@ -20,6 +20,9 @@ func (p *ptrMesh) Add(t *ptrTriangle) {
 	if t.Prev != nil || t.Next != nil {
 		panic("triangle is already in a mesh")
 	}
+	if p.First != nil {
+		p.First.Prev = t
+	}
 	t.Next = p.First
 	p.First = t
 }
@@ -36,9 +39,6 @@ func (p *ptrMesh) Remove(t *ptrTriangle) {
 		next.Prev = prev
 	}
 	t.Next, t.Prev = nil, nil
-	for _, c := range t.Coords {
-		c.RemoveTriangle(t)
-	}
 }
 
 // Iterate loops through the triangles in the mesh.
@@ -98,6 +98,8 @@ type ptrCoord struct {
 	Triangles []*ptrTriangle
 }
 
+// RemoveTriangle removes t from p.Triangles.
+// It must be the case that t is in p.Triangles.
 func (p *ptrCoord) RemoveTriangle(t *ptrTriangle) {
 	for i, t1 := range p.Triangles {
 		if t1 == t {
@@ -112,15 +114,86 @@ func (p *ptrCoord) RemoveTriangle(t *ptrTriangle) {
 	panic("coordinate not in triangle")
 }
 
+// Clusters returns all of the clusters of triangles
+// connected to this vertex.
+// A cluster is defined as a group of triangles which all
+// share p and are all connected to each other by edges.
+//
+// A non-singular vertex has exactly one cluster.
+func (p *ptrCoord) Clusters() [][]*ptrTriangle {
+	unvisited := make(map[*ptrTriangle]bool, len(p.Triangles))
+	for _, t := range p.Triangles {
+		unvisited[t] = true
+	}
+
+	var families [][]*ptrTriangle
+	for len(unvisited) > 0 {
+		var first *ptrTriangle
+		for t := range unvisited {
+			first = t
+			break
+		}
+		family := make([]*ptrTriangle, 1, len(unvisited))
+		family[0] = first
+		delete(unvisited, first)
+		for queueIdx := 0; queueIdx < len(family); queueIdx++ {
+			next := family[queueIdx]
+			for _, c := range next.Coords {
+				if c == p {
+					continue
+				}
+				for _, t1 := range c.Triangles {
+					if unvisited[t1] {
+						delete(unvisited, t1)
+						family = append(family, t1)
+					}
+				}
+			}
+		}
+		families = append(families, family)
+	}
+
+	return families
+}
+
+// A ptrTriangle is a triangle in a ptrMesh.
+//
+// The triangle's coordinates contain a pointer to it.
+// When the triangle is done being used, call RemoveCoords
+// on it to remove it from its coordinates.
+// This is different from removing the triangle from its
+// mesh.
 type ptrTriangle struct {
 	Coords [3]*ptrCoord
 	Prev   *ptrTriangle
 	Next   *ptrTriangle
 }
 
+// newPtrTriangle creates a triangle and adds it to all of
+// its coordinates.
+func newPtrTriangle(c1, c2, c3 *ptrCoord) *ptrTriangle {
+	res := &ptrTriangle{Coords: [3]*ptrCoord{c1, c2, c3}}
+	for _, c := range res.Coords {
+		c.Triangles = append(c.Triangles, res)
+	}
+	return res
+}
+
+// Triangle creates a geometric triangle for p.
+func (p *ptrTriangle) Triangle() *Triangle {
+	return &Triangle{p.Coords[0].Coord3D, p.Coords[1].Coord3D, p.Coords[2].Coord3D}
+}
+
 // Contains checks if p contains a point c.
 func (p *ptrTriangle) Contains(c *ptrCoord) bool {
 	return p.Coords[0] == c || p.Coords[1] == c || p.Coords[2] == c
+}
+
+// RemoveCoords removes p from its coordinates.
+func (p *ptrTriangle) RemoveCoords() {
+	for _, c := range p.Coords {
+		c.RemoveTriangle(p)
+	}
 }
 
 // A ptrSegment is a line segment.
@@ -147,4 +220,20 @@ func (p ptrSegment) Triangles() []*ptrTriangle {
 		}
 	}
 	return res
+}
+
+// Mid gets the segment's midpoint.
+func (p ptrSegment) Mid() Coord3D {
+	return p[0].Coord3D.Mid(p[1].Coord3D)
+}
+
+// Other gets the point in t which is not in p.
+func (p ptrSegment) Other(t *ptrTriangle) *ptrCoord {
+	if t.Coords[0] != p[0] && t.Coords[0] != p[1] {
+		return t.Coords[0]
+	} else if t.Coords[1] != p[0] && t.Coords[1] != p[1] {
+		return t.Coords[1]
+	} else {
+		return t.Coords[2]
+	}
 }

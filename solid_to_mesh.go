@@ -593,67 +593,72 @@ func boxToFaceQuads(min, max Coord3D, isSideBorder func(axis int, positive bool)
 }
 
 func faceQuadsToMesh(rects func(func(points [4]Coord3D))) *Mesh {
-	m := NewMesh()
+	p := newPtrMesh()
+	cmap := newPtrCoordMap()
+	segmentCounts := map[ptrSegment]int{}
 	rects(func(points [4]Coord3D) {
-		m.Add(&Triangle{points[0], points[2], points[1]})
-		m.Add(&Triangle{points[0], points[3], points[2]})
+		var ptrs [4]*ptrCoord
+		for i, c := range points {
+			ptrs[i] = cmap.Coord(c)
+		}
+		p.Add(newPtrTriangle(ptrs[0], ptrs[2], ptrs[1]))
+		p.Add(newPtrTriangle(ptrs[0], ptrs[3], ptrs[2]))
+		for i, p1 := range ptrs {
+			s := newPtrSegment(p1, ptrs[(i+1)%4])
+			segmentCounts[s]++
+		}
 	})
-	fixSingularEdges(m)
-	fixSingularVertices(m)
-	return m
+	fixSingularEdges(p, segmentCounts)
+	fixSingularVertices(p)
+	return p.Mesh()
 }
 
 // fixSingularEdges fixes edges of two touching diagonal
 // edge boxes, since these edges belong to four faces at
 // once (which is not allowed).
+//
 // The fix is done by splitting the edge apart and pulling
 // the two middle vertices apart, producing singular
-// points but no singular edges. Singular edges really
-// ought not to be touching, since there is only a
-// singularity because the touching vertices are not in
-// the solid.
-func fixSingularEdges(m *Mesh) {
-	changed := true
-	for changed {
-		changed = false
-		sideToTriangle := map[Segment][]*Triangle{}
-		m.Iterate(func(t *Triangle) {
-			for _, seg := range t.Segments() {
-				sideToTriangle[seg] = append(sideToTriangle[seg], t)
-			}
-		})
-		for seg, triangles := range sideToTriangle {
-			if len(triangles) == 2 {
-				continue
-			} else if len(triangles) == 4 {
-				fixSingularEdge(m, seg, triangles)
-				changed = true
-			} else {
-				panic("unexpected edge situation")
-			}
+// vertices but no singular edges.
+//
+// Conceptually, singular edges really ought not touch,
+// since there is only a singularity because the touching
+// vertices are not in the solid.
+func fixSingularEdges(p *ptrMesh, counts map[ptrSegment]int) {
+	for seg, count := range counts {
+		if count == 2 {
+			continue
+		} else if count == 4 {
+			fixSingularEdge(p, seg)
+		} else {
+			panic("unexpected edge situation")
 		}
 	}
 }
 
-func fixSingularEdge(m *Mesh, seg Segment, tris []*Triangle) {
-	for _, t := range tris {
-		if !m.Contains(t) {
-			return
-		}
+func fixSingularEdge(p *ptrMesh, seg ptrSegment) {
+	tris := seg.Triangles()
+	if len(tris) != 4 {
+		panic("not a singular edge")
 	}
-	t1 := tris[0]
-	var minDot float64
-	var t2 *Triangle
+
+	// Find a pair of triangles on the same cube.
+	var t1, t2 *ptrTriangle
+	t1 = tris[0]
+	t1Normal := t1.Triangle().Normal()
+	t1Other := seg.Other(t1).Coord3D
+	minDot := 0.0
 	for _, t := range tris[1:] {
-		dir := seg.other(t).Sub(seg.other(t1))
-		dot := dir.Dot(t1.Normal())
+		dir := seg.Other(t).Coord3D.Sub(t1Other)
+		dot := dir.Dot(t1Normal)
 		if dot < minDot {
 			minDot = dot
 			t2 = t
 		}
 	}
 
-	var t3, t4 *Triangle
+	// Find the other cube's triangle pair.
+	var t3, t4 *ptrTriangle
 	for _, t := range tris[1:] {
 		if t != t2 {
 			if t3 == nil {
@@ -664,118 +669,92 @@ func fixSingularEdge(m *Mesh, seg Segment, tris []*Triangle) {
 		}
 	}
 
-	fixSingularEdgePair(m, seg, t1, t2)
-	fixSingularEdgePair(m, seg, t3, t4)
+	fixSingularEdgePair(p, seg, t1, t2)
+	fixSingularEdgePair(p, seg, t3, t4)
 }
 
-func fixSingularEdgePair(m *Mesh, seg Segment, t1, t2 *Triangle) {
-	p1 := seg.other(t1)
-	p2 := seg.other(t2)
+func fixSingularEdgePair(p *ptrMesh, seg ptrSegment, t1, t2 *ptrTriangle) {
+	p1 := seg.Other(t1).Coord3D
+	p2 := seg.Other(t2).Coord3D
 
 	// Move the segment's midpoint away from the singular
 	// edge to make the edges not touch.
 	mp := seg.Mid().Scale(0.9).Add(p1.Mid(p2).Scale(0.1))
 
-	fixSingularEdgeTriangle(m, seg, mp, t1)
-	fixSingularEdgeTriangle(m, seg, mp, t2)
+	// This point is definitely not already in the mesh,
+	// since it's off the grid.
+	mpPtr := &ptrCoord{Coord3D: mp}
+
+	fixSingularEdgeTriangle(p, seg, mpPtr, t1)
+	fixSingularEdgeTriangle(p, seg, mpPtr, t2)
 }
 
-func fixSingularEdgeTriangle(m *Mesh, seg Segment, mid Coord3D, t *Triangle) {
-	m.Remove(t)
-	other := seg.other(t)
-	t1 := &Triangle{other, seg[0], seg.Mid()}
-	t2 := &Triangle{other, seg[1], seg.Mid()}
-	if t1.Normal().Dot(t.Normal()) < 0 {
-		t1[0], t1[1] = t1[1], t1[0]
+func fixSingularEdgeTriangle(p *ptrMesh, seg ptrSegment, mid *ptrCoord, t *ptrTriangle) {
+	other := seg.Other(t)
+	tNormal := t.Triangle().Normal()
+	p.Remove(t)
+	t.RemoveCoords()
+
+	t1 := newPtrTriangle(other, seg[0], mid)
+	t2 := newPtrTriangle(other, seg[1], mid)
+
+	// Flip the triangles so that, if mp == mid, the
+	// orientation/normal would be the same.
+	mp := seg.Mid()
+	rawT1 := &Triangle{other.Coord3D, seg[0].Coord3D, mp}
+	rawT2 := &Triangle{other.Coord3D, seg[1].Coord3D, mp}
+	if rawT1.Normal().Dot(tNormal) < 0 {
+		t1.Coords[0], t1.Coords[1] = t1.Coords[1], t1.Coords[0]
 	}
-	t1[2] = mid
-	if t2.Normal().Dot(t.Normal()) < 0 {
-		t2[0], t2[1] = t2[1], t2[0]
+	if rawT2.Normal().Dot(tNormal) < 0 {
+		t2.Coords[0], t2.Coords[1] = t2.Coords[1], t2.Coords[0]
 	}
-	t2[2] = mid
-	m.Add(t1)
-	m.Add(t2)
+
+	p.Add(t1)
+	p.Add(t2)
 }
 
 // fixSingularVertices fixes singular vertices by
 // duplicating them and then moving the duplicates
 // slightly away from each other.
-func fixSingularVertices(m *Mesh) {
-	for _, v := range m.SingularVertices() {
-		for _, family := range singularVertexFamilies(m, v) {
+func fixSingularVertices(p *ptrMesh) {
+	vertices := map[*ptrCoord]struct{}{}
+	p.Iterate(func(t *ptrTriangle) {
+		for _, c := range t.Coords {
+			vertices[c] = struct{}{}
+		}
+	})
+	for v := range vertices {
+		clusters := v.Clusters()
+		if len(clusters) == 1 {
+			continue
+		}
+		for _, cluster := range clusters {
 			// Move the vertex closer to the mean of this
-			// family. Might not work in the general case, but
-			// appears to work for the cube-based grids we
-			// generate here.
+			// cluster. Might not work in the general case,
+			// but appears to work for the cube-based grids
+			// we generate here.
 			mean := Coord3D{}
 			count := 0.0
-			for _, t := range family {
-				for _, p := range t {
+			for _, t := range cluster {
+				for _, p := range t.Coords {
 					count++
-					mean = mean.Add(p)
+					mean = mean.Add(p.Coord3D)
 				}
 			}
 			mean = mean.Scale(1 / count)
 			v1 := v.Scale(0.99).Add(mean.Scale(0.01))
-			for _, t := range family {
-				m.Remove(t)
-				for i, p := range t {
-					if p == v {
-						t[i] = v1
+			newCoord := &ptrCoord{Coord3D: v1}
+
+			for _, t := range cluster {
+				v.RemoveTriangle(t)
+				newCoord.Triangles = append(newCoord.Triangles, t)
+				for i, c := range t.Coords {
+					if c == v {
+						t.Coords[i] = newCoord
 					}
 				}
-				m.Add(t)
 			}
 		}
-	}
-}
-
-func singularVertexFamilies(m *Mesh, v Coord3D) [][]*Triangle {
-	var families [][]*Triangle
-	tris := m.getVertexToTriangle()[v]
-	for len(tris) > 0 {
-		var family []*Triangle
-		family, tris = singularVertexNextFamily(m, tris)
-		families = append(families, family)
-	}
-	return families
-}
-
-func singularVertexNextFamily(m *Mesh, tris []*Triangle) (family, leftover []*Triangle) {
-	// See mesh.SingularVertices() for an explanation of
-	// this algorithm.
-
-	queue := make([]int, len(tris))
-	queue[0] = 1
-	changed := true
-	numVisited := 1
-	for changed {
-		changed = false
-		for i, status := range queue {
-			if status != 1 {
-				continue
-			}
-			t := tris[i]
-			for j, t1 := range tris {
-				if queue[j] == 0 && t.SharesEdge(t1) {
-					queue[j] = 1
-					numVisited++
-					changed = true
-				}
-			}
-			queue[i] = 2
-		}
-	}
-	if numVisited == len(tris) {
-		return tris, nil
-	} else {
-		for i, status := range queue {
-			if status == 0 {
-				leftover = append(leftover, tris[i])
-			} else {
-				family = append(family, tris[i])
-			}
-		}
-		return
 	}
 }

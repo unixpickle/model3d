@@ -6,10 +6,55 @@ import (
 	"testing"
 )
 
+func TestSolidToMeshShere(t *testing.T) {
+	solid := &SphereSolid{
+		Radius: 0.5,
+		Center: Coord3D{X: 1},
+	}
+	mesh := SolidToMesh(solid, 0.025, 0, 0, 0)
+
+	// Margin of error for mesh.
+	epsilon := 0.1
+
+	t.Run("Singular", func(t *testing.T) {
+		if mesh.NeedsRepair() {
+			t.Fatal("mesh needs repair")
+		}
+		if len(mesh.SingularVertices()) > 0 {
+			t.Fatal("singular vertices detected")
+		}
+	})
+
+	t.Run("Boundary", func(t *testing.T) {
+		mesh.Iterate(func(tri *Triangle) {
+			for _, c := range tri {
+				if math.Abs(c.Dist(solid.Center)-solid.Radius) > epsilon {
+					t.Fatalf("vertex %v too far from solid bounds", c)
+				}
+			}
+		})
+	})
+
+	t.Run("Collisions", func(t *testing.T) {
+		collider := MeshToCollider(mesh)
+		solid1 := NewColliderSolid(collider)
+		for i := 0; i < 100; i++ {
+			c := NewCoord3DRandNorm().Add(solid.Center)
+			if math.Abs(c.Dist(solid.Center)-solid.Radius) < epsilon {
+				// The coordinate is on the boundary.
+				continue
+			}
+			if solid.Contains(c) != solid1.Contains(c) {
+				t.Fatalf("containment mismatch for %v", c)
+			}
+		}
+	})
+}
+
 func TestSolidToMeshSingularEdgesSimple(t *testing.T) {
 	mesh := SolidToMesh(simpleSingular{}, 0.5, 0, 0, 0)
 	if mesh.NeedsRepair() {
-		t.Fatal("mesh needs repair")
+		t.Error("mesh needs repair")
 	}
 	if len(mesh.SingularVertices()) > 0 {
 		t.Error("singular vertices detected")
