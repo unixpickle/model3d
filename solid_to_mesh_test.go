@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"math"
+	"math/rand"
 	"testing"
 )
 
@@ -30,6 +31,32 @@ func (s simpleSingular) Contains(c Coord3D) bool {
 		return false
 	}
 	return (c.X < 0.1 && c.Y < 0.1 && c.Z < 0.1) || (c.X > 0.9 && c.Y > 0.9 && c.Z < 0.1)
+}
+
+func TestSolidToMeshSingularitiesRandom(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		mesh := SolidToMesh(randomSolid{}, 0.19, 0, 0, 0)
+		if mesh.NeedsRepair() {
+			t.Fatal("singular edge detected")
+		}
+		if len(mesh.SingularVertices()) > 0 {
+			t.Fatal("singular vertices detected")
+		}
+	}
+}
+
+type randomSolid struct{}
+
+func (r randomSolid) Min() Coord3D {
+	return Coord3D{}
+}
+
+func (r randomSolid) Max() Coord3D {
+	return Coord3D{X: 1, Y: 1, Z: 1}
+}
+
+func (r randomSolid) Contains(c Coord3D) bool {
+	return InSolidBounds(r, c) && rand.Intn(4) == 0
 }
 
 func TestSolidToMeshSingularities(t *testing.T) {
