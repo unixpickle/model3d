@@ -117,3 +117,34 @@ type ptrTriangle struct {
 	Prev   *ptrTriangle
 	Next   *ptrTriangle
 }
+
+// Contains checks if p contains a point c.
+func (p *ptrTriangle) Contains(c *ptrCoord) bool {
+	return p.Coords[0] == c || p.Coords[1] == c || p.Coords[2] == c
+}
+
+// A ptrSegment is a line segment.
+type ptrSegment [2]*ptrCoord
+
+// newPtrSegment creates a ptrSegment that is unique for
+// the un-ordered pair c1, c2.
+func newPtrSegment(c1, c2 *ptrCoord) ptrSegment {
+	p1, p2 := c1.Coord3D, c2.Coord3D
+	if p1.X < p2.X || (p1.X == p2.X && p1.Y < p2.Y) ||
+		(p1.X == p2.X && p1.Y == p2.Y && p1.Z < p2.Z) {
+		return ptrSegment{c1, c2}
+	} else {
+		return ptrSegment{c2, c1}
+	}
+}
+
+// Triangles gets the triangles touching the segment.
+func (p ptrSegment) Triangles() []*ptrTriangle {
+	res := make([]*ptrTriangle, 0, 2)
+	for _, t := range p[0].Triangles {
+		if t.Contains(p[1]) {
+			res = append(res, t)
+		}
+	}
+	return res
+}
