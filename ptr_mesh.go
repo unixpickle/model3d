@@ -156,6 +156,54 @@ func (p *ptrCoord) Clusters() [][]*ptrTriangle {
 	return families
 }
 
+// SortTriangles re-orders p.Triangles so that all of the
+// triangles are connected to the next triangle in the
+// list by an edge.
+//
+// If there are multiple clusters, it sorts each cluster
+// separately.
+func (p *ptrCoord) SortTriangles() {
+	if len(p.Triangles) < 2 {
+		return
+	}
+
+	var firstCorner, nextCorner *ptrCoord
+	for _, c := range p.Triangles[0].Coords {
+		if c != p {
+			firstCorner = c
+			nextCorner = c
+			break
+		}
+	}
+
+	for i := 1; i < len(p.Triangles)-1; i++ {
+		var found bool
+		for j := i; j < len(p.Triangles); j++ {
+			t := p.Triangles[j]
+			if !t.Contains(nextCorner) {
+				continue
+			}
+			p.Triangles[i], p.Triangles[j] = p.Triangles[j], p.Triangles[i]
+			nextCorner = newPtrSegment(p, nextCorner).Other(t)
+			if nextCorner == firstCorner {
+				return
+			}
+			found = true
+			break
+		}
+		if !found {
+			// Start sorting the next cluster.
+			for _, c := range p.Triangles[i].Coords {
+				if c != p {
+					firstCorner = c
+					nextCorner = c
+					break
+				}
+			}
+		}
+	}
+}
+
 // A ptrTriangle is a triangle in a ptrMesh.
 //
 // The triangle's coordinates contain a pointer to it.
