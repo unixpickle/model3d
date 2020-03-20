@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestSolidToMeshShere(t *testing.T) {
+func TestSolidToMeshSphere(t *testing.T) {
 	solid := &SphereSolid{
 		Radius: 0.5,
 		Center: Coord3D{X: 1},
