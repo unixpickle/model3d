@@ -182,14 +182,7 @@ func (p *ptrCoord) SortLoops() []*ptrCoord {
 		panic("coordinate is not surrounded by a loop")
 	}
 
-	var nextCorner *ptrCoord
-	for _, c := range p.Triangles[0].Coords {
-		if c != p {
-			nextCorner = c
-			break
-		}
-	}
-
+	nextCorner := p.Triangles[0].NextCoord(p)
 	loop := make([]*ptrCoord, 0, len(p.Triangles)*2)
 
 OuterSortLoop:
@@ -206,12 +199,7 @@ OuterSortLoop:
 		}
 
 		// Start sorting the next cluster.
-		for _, c := range p.Triangles[i].Coords {
-			if c != p {
-				nextCorner = c
-				break
-			}
-		}
+		nextCorner = p.Triangles[i].NextCoord(p)
 	}
 
 	return append(loop, nextCorner)
@@ -261,6 +249,27 @@ func (p *ptrTriangle) RemoveCoords() {
 func (p *ptrTriangle) AddCoords() {
 	for _, c := range p.Coords {
 		c.Triangles = append(c.Triangles, p)
+	}
+}
+
+// Segments gets the edges of the triangle.
+func (p *ptrTriangle) Segments() [3]ptrSegment {
+	return [3]ptrSegment{
+		newPtrSegment(p.Coords[0], p.Coords[1]),
+		newPtrSegment(p.Coords[1], p.Coords[2]),
+		newPtrSegment(p.Coords[2], p.Coords[0]),
+	}
+}
+
+// NextCoord gets the next coordinate in the triangle
+// after c.
+func (p *ptrTriangle) NextCoord(c *ptrCoord) *ptrCoord {
+	if p.Coords[0] == c {
+		return p.Coords[1]
+	} else if p.Coords[1] == c {
+		return p.Coords[2]
+	} else {
+		return p.Coords[0]
 	}
 }
 
