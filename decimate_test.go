@@ -54,10 +54,6 @@ func TestDecimateMinimal(t *testing.T) {
 }
 
 func TestDecimateSphere(t *testing.T) {
-	m := NewMeshPolar(func(g GeoCoord) float64 {
-		return 1.0
-	}, 50)
-
 	decimators := []*Decimator{
 		// Extremely aggressive decimator.
 		&Decimator{
@@ -74,15 +70,24 @@ func TestDecimateSphere(t *testing.T) {
 		},
 	}
 	for i, d := range decimators {
-		elim := d.Decimate(m)
-		if elim.NeedsRepair() {
-			t.Errorf("decimator %d: needs repair", i)
-		}
-		if len(elim.SingularVertices()) != 0 {
-			t.Errorf("decimator %d: has singular vertices", i)
-		}
-		if len(elim.TriangleSlice()) == 0 {
-			t.Errorf("decimator %d: no triangles", i)
+		// Some errors are non-deterministic.
+		for j := 0; j < 30; j++ {
+			m := NewMeshPolar(func(g GeoCoord) float64 {
+				return 1.0
+			}, 50)
+			elim := d.Decimate(m)
+			if elim.NeedsRepair() {
+				t.Errorf("decimator %d: needs repair", i)
+			}
+			if len(elim.SingularVertices()) != 0 {
+				t.Errorf("decimator %d: has singular vertices", i)
+			}
+			if len(elim.TriangleSlice()) == 0 {
+				t.Errorf("decimator %d: no triangles", i)
+			}
+			if _, n := elim.RepairNormals(1e-8); n != 0 {
+				t.Errorf("decimator %d: bad normals", i)
+			}
 		}
 	}
 }

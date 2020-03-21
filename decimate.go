@@ -92,7 +92,8 @@ func (d *Decimator) attemptRemoveVertex(p *ptrMesh, v *decVertex) bool {
 
 	// Only preserve interior edge when connecting
 	// the two points wouldn't cause an empty loop.
-	if v.Edge() && v.FeatureEndpoints[1] != v.FeatureEndpoints[0]+1 {
+	if v.Edge() && v.FeatureEndpoints[1] != v.FeatureEndpoints[0]+1 &&
+		v.FeatureEndpoints[0] != (v.FeatureEndpoints[1]+1)%len(v.Loop) {
 		loop1, loop2, ratio := d.createSubloops(v.AvgPlane, v.Loop, v.FeatureEndpoints[0],
 			v.FeatureEndpoints[1])
 		if ratio == 0 {
@@ -143,7 +144,11 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 	if len(coords) < 3 {
 		panic("invalid number of loop coordinates")
 	} else if len(coords) == 3 {
-		return []*ptrTriangle{newPtrTriangle(coords[0], coords[1], coords[2])}
+		tri := newPtrTriangle(coords[0], coords[1], coords[2])
+		if tri.Triangle().Normal().Dot(avgPlane.Normal) < 0 {
+			tri.Coords[0], tri.Coords[1] = tri.Coords[1], tri.Coords[0]
+		}
+		return []*ptrTriangle{tri}
 	}
 
 	var bestAspectRatio float64
