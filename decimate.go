@@ -126,6 +126,10 @@ func (d *Decimator) attemptRemoveVertex(p *ptrMesh, v *decVertex) bool {
 		t.RemoveCoords()
 	}
 	for _, t := range newTriangles {
+		// fillLoop(s) explicitly don't add the triangles
+		// to their coords to avoid unnecessary undoing.
+		t.AddCoords()
+
 		p.Add(t)
 	}
 
@@ -169,7 +173,9 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 	if len(coords) < 3 {
 		panic("invalid number of loop coordinates")
 	} else if len(coords) == 3 {
-		return []*ptrTriangle{newPtrTriangle(coords[0], coords[2], coords[1])}
+		return []*ptrTriangle{
+			{Coords: [3]*ptrCoord{coords[0], coords[2], coords[1]}},
+		}
 	}
 
 	var bestAspectRatio float64
@@ -235,9 +241,6 @@ func (d *Decimator) fillLoops(avgPlane *plane, loop1, loop2 []*ptrCoord) []*ptrT
 	}
 	tris2 := d.fillLoop(avgPlane, loop2)
 	if tris2 == nil {
-		for _, t := range tris1 {
-			t.RemoveCoords()
-		}
 		return nil
 	}
 	return append(tris1, tris2...)
