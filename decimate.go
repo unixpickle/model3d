@@ -36,8 +36,8 @@ type Decimator struct {
 	// rather than consulting BoundaryDistance.
 	NoEdgePreservation bool
 
-	// If true, eliminate corner edges.
-	CornerEdges bool
+	// If true, eliminate corner vertices.
+	EliminateCorners bool
 
 	// MinimumAspectRatio is the minimum aspect ratio for
 	// triangulation splits.
@@ -45,6 +45,96 @@ type Decimator struct {
 	// If 0, a default of DefaultDecimatorMinAspectRatio
 	// is used.
 	MinimumAspectRatio float64
+}
+
+// Decimate applies the decimation algorithm to m,
+// producing a new mesh.
+func (d *Decimator) Decimate(m *Mesh) *Mesh {
+	pm := newPtrMeshMesh(m)
+	d.decimatePtrMesh(pm)
+	return pm.Mesh()
+}
+
+func (d *Decimator) decimatePtrMesh(p *ptrMesh) int {
+	coords := map[*ptrCoord]struct{}{}
+	p.Iterate(func(t *ptrTriangle) {
+		for _, c := range t.Coords {
+			coords[c] = struct{}{}
+		}
+	})
+	var eliminated int
+	for c := range coords {
+		v := newDecVertex(c, d.FeatureAngle)
+		if d.canRemoveVertex(v) && d.attemptRemoveVertex(p, v) {
+			eliminated++
+		}
+	}
+	return eliminated
+}
+
+func (d *Decimator) canRemoveVertex(v *decVertex) bool {
+	if v.Simple() || (v.Edge() && d.NoEdgePreservation) || (v.Corner() && d.EliminateCorners) {
+		// Use the distance to plane metric.
+		return math.Abs(v.AvgPlane.Eval(v.Vertex.Coord3D)) < d.PlaneDistance
+	} else if v.Edge() {
+		// Use the distance to edge metric.
+		seg := NewSegment(v.Loop[v.FeatureEndpoints[0]].Coord3D,
+			v.Loop[v.FeatureEndpoints[1]].Coord3D)
+		return seg.Dist(v.Vertex.Coord3D) < d.BoundaryDistance
+	}
+	return false
+}
+
+func (d *Decimator) attemptRemoveVertex(p *ptrMesh, v *decVertex) bool {
+	var newTriangles []*ptrTriangle
+
+	// Only preserve interior edge when connecting
+	// the two points wouldn't cause an empty loop.
+	if v.Edge() && v.FeatureEndpoints[1] != v.FeatureEndpoints[0]+1 {
+		loop1, loop2, ratio := d.createSubloops(v.AvgPlane, v.Loop, v.FeatureEndpoints[0],
+			v.FeatureEndpoints[1])
+		if ratio == 0 {
+			return false
+		}
+		newTriangles = d.fillLoops(v.AvgPlane, loop1, loop2)
+	} else {
+		newTriangles = d.fillLoop(v.AvgPlane, v.Loop)
+	}
+
+	if newTriangles == nil {
+		return false
+	}
+
+	oldTriangles := append([]*ptrTriangle{}, v.Vertex.Triangles...)
+	for _, t := range oldTriangles {
+		p.Remove(t)
+		t.RemoveCoords()
+	}
+	for _, t := range newTriangles {
+		p.Add(t)
+	}
+
+	// It is possible to eliminate the mesh too much, and
+	// create a flattened section (duplicated triangle).
+	for _, t := range newTriangles {
+		for _, t1 := range t.Coords[0].Triangles {
+			if t1 != t && t1.Contains(t.Coords[0]) && t1.Contains(t.Coords[1]) &&
+				t1.Contains(t.Coords[2]) {
+				// Roll back all the changes.
+				for _, t := range newTriangles {
+					p.Remove(t)
+					t.RemoveCoords()
+				}
+				for _, t := range oldTriangles {
+					t.AddCoords()
+					p.Add(t)
+				}
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle {
@@ -56,25 +146,12 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 
 	var bestAspectRatio float64
 	var bestLoop1, bestLoop2 []*ptrCoord
-	for i, c1 := range coords {
+	for i := range coords {
 		for j := i + 2; j < len(coords); j++ {
-			c2 := coords[j]
-			sepLine := c2.Coord3D.Sub(c1.Coord3D)
-			sepNormal := sepLine.Cross(avgPlane.Normal)
-			sepPlane := newPlanePoint(sepNormal, c1.Coord3D)
-
-			loop1 := createSubloop(coords, i, j)
-			sign1, minAbs1 := subloopSplitDist(loop1, sepPlane)
-			if sign1 == 0 {
+			loop1, loop2, aspectRatio := d.createSubloops(avgPlane, coords, i, j)
+			if aspectRatio == 0 {
 				continue
 			}
-			loop2 := createSubloop(coords, j, i)
-			sign2, minAbs2 := subloopSplitDist(loop2, sepPlane)
-			if sign2 == 0 || sign2 == sign1 {
-				continue
-			}
-
-			aspectRatio := math.Min(minAbs1, minAbs2) / sepLine.Norm()
 			if bestAspectRatio == 0 || math.Abs(aspectRatio-1) < math.Abs(bestAspectRatio-1) {
 				bestAspectRatio = aspectRatio
 				bestLoop1, bestLoop2 = loop1, loop2
@@ -82,7 +159,7 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 		}
 	}
 
-	if bestLoop1 == nil {
+	if bestAspectRatio == 0 {
 		return nil
 	}
 
@@ -94,11 +171,38 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 		return nil
 	}
 
-	tris1 := d.fillLoop(avgPlane, bestLoop1)
+	return d.fillLoops(avgPlane, bestLoop1, bestLoop2)
+}
+
+func (d *Decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int) (loop1,
+	loop2 []*ptrCoord, aspectRatio float64) {
+	c1 := coords[i]
+	c2 := coords[j]
+
+	sepLine := c2.Coord3D.Sub(c1.Coord3D)
+	sepNormal := sepLine.Cross(avgPlane.Normal)
+	sepPlane := newPlanePoint(sepNormal, c1.Coord3D)
+
+	loop1 = createSubloop(coords, i, j)
+	sign1, minAbs1 := subloopSplitDist(loop1, sepPlane)
+	if sign1 == 0 {
+		return nil, nil, 0
+	}
+	loop2 = createSubloop(coords, j, i)
+	sign2, minAbs2 := subloopSplitDist(loop2, sepPlane)
+	if sign2 == 0 || sign2 == sign1 {
+		return nil, nil, 0
+	}
+	aspectRatio = math.Min(minAbs1, minAbs2) / sepLine.Norm()
+	return
+}
+
+func (d *Decimator) fillLoops(avgPlane *plane, loop1, loop2 []*ptrCoord) []*ptrTriangle {
+	tris1 := d.fillLoop(avgPlane, loop1)
 	if tris1 == nil {
 		return nil
 	}
-	tris2 := d.fillLoop(avgPlane, bestLoop2)
+	tris2 := d.fillLoop(avgPlane, loop2)
 	if tris2 == nil {
 		for _, t := range tris1 {
 			t.RemoveCoords()
@@ -141,6 +245,55 @@ func subloopSplitDist(coords []*ptrCoord, p *plane) (sign int, minAbs float64) {
 		}
 	}
 	return
+}
+
+// decVertex stores info relavant for deleting a given
+// vertex.
+type decVertex struct {
+	// The vertex to consider for decimation.
+	Vertex *ptrCoord
+
+	// A loop of points around the vertex.
+	Loop []*ptrCoord
+
+	// AvgPlane is the average plane around the vertex.
+	AvgPlane *plane
+
+	// Loop point indices that are part of feature edges.
+	FeatureEndpoints []int
+}
+
+func newDecVertex(v *ptrCoord, featureAngle float64) *decVertex {
+	res := &decVertex{
+		Vertex:   v,
+		Loop:     v.SortLoops(),
+		AvgPlane: newPlaneAvg(v.Triangles),
+	}
+
+	nextNormal := v.Triangles[0].Triangle().Normal()
+	for i := range v.Triangles {
+		t := v.Triangles[(i+1)%len(v.Triangles)]
+		normal := nextNormal
+		nextNormal = t.Triangle().Normal()
+		angle := math.Acos(normal.Dot(nextNormal))
+		if angle > featureAngle {
+			res.FeatureEndpoints = append(res.FeatureEndpoints, i)
+		}
+	}
+
+	return res
+}
+
+func (d *decVertex) Simple() bool {
+	return len(d.FeatureEndpoints) == 0
+}
+
+func (d *decVertex) Edge() bool {
+	return len(d.FeatureEndpoints) == 2
+}
+
+func (d *decVertex) Corner() bool {
+	return !d.Simple() && !d.Edge()
 }
 
 // plane implements the plane Normal*X - Bias = 0.
