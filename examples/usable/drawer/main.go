@@ -94,7 +94,12 @@ func CreateMesh(solid model3d.Solid, name string, resolution float64, ax *toolbo
 		mesh = model3d.SolidToMesh(solid, resolution, 0, -1, 5)
 	}
 	log.Println("Eliminating co-planar polygons...")
-	mesh = mesh.EliminateCoplanar(1e-8)
+	d := &model3d.Decimator{
+		BoundaryDistance:   1e-8,
+		PlaneDistance:      1e-8,
+		MinimumAspectRatio: 1e-5,
+	}
+	mesh = d.Decimate(mesh)
 	log.Printf("Saving %s mesh...", name)
 	mesh.SaveGroupedSTL(filepath.Join(ModelDir, name+".stl"))
 	log.Printf("Rendering %s mesh...", name)
