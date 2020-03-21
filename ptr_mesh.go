@@ -165,52 +165,56 @@ func (p *ptrCoord) Clusters() [][]*ptrTriangle {
 	return families
 }
 
-// SortTriangles re-orders p.Triangles so that all of the
+// SortLoops re-orders p.Triangles so that all of the
 // triangles are connected to the next triangle in the
 // list by an edge.
 //
+// It assumes that the mesh is closed, i.e. that clusters
+// of triangles all form a loop.
 // If there are multiple clusters, it sorts each cluster
 // separately.
-func (p *ptrCoord) SortTriangles() {
-	if len(p.Triangles) < 2 {
-		return
+//
+// Returns a loop of points around the coordinate, where
+// each point is introduced by the next triangle in the
+// sorted list.
+func (p *ptrCoord) SortLoops() []*ptrCoord {
+	if len(p.Triangles) < 3 {
+		panic("coordinate is not surrounded by a loop")
 	}
 
-	var firstCorner, nextCorner *ptrCoord
+	var nextCorner *ptrCoord
 	for _, c := range p.Triangles[0].Coords {
 		if c != p {
-			firstCorner = c
 			nextCorner = c
 			break
 		}
 	}
 
-	for i := 1; i < len(p.Triangles)-1; i++ {
-		var found bool
+	loop := make([]*ptrCoord, 0, len(p.Triangles)*2)
+
+OuterSortLoop:
+	for i := 1; i < len(p.Triangles); i++ {
 		for j := i; j < len(p.Triangles); j++ {
 			t := p.Triangles[j]
 			if !t.Contains(nextCorner) {
 				continue
 			}
 			p.Triangles[i], p.Triangles[j] = p.Triangles[j], p.Triangles[i]
+			loop = append(loop, nextCorner)
 			nextCorner = newPtrSegment(p, nextCorner).Other(t)
-			if nextCorner == firstCorner {
-				return
-			}
-			found = true
-			break
+			continue OuterSortLoop
 		}
-		if !found {
-			// Start sorting the next cluster.
-			for _, c := range p.Triangles[i].Coords {
-				if c != p {
-					firstCorner = c
-					nextCorner = c
-					break
-				}
+
+		// Start sorting the next cluster.
+		for _, c := range p.Triangles[i].Coords {
+			if c != p {
+				nextCorner = c
+				break
 			}
 		}
 	}
+
+	return append(loop, nextCorner)
 }
 
 // A ptrTriangle is a triangle in a ptrMesh.
