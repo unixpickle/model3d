@@ -157,11 +157,7 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 	if len(coords) < 3 {
 		panic("invalid number of loop coordinates")
 	} else if len(coords) == 3 {
-		tri := newPtrTriangle(coords[0], coords[1], coords[2])
-		if tri.Triangle().Normal().Dot(avgPlane.Normal) < 0 {
-			tri.Coords[0], tri.Coords[1] = tri.Coords[1], tri.Coords[0]
-		}
-		return []*ptrTriangle{tri}
+		return []*ptrTriangle{newPtrTriangle(coords[0], coords[2], coords[1])}
 	}
 
 	var bestAspectRatio float64

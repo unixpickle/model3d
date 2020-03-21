@@ -85,8 +85,10 @@ func TestDecimateSphere(t *testing.T) {
 			if len(elim.TriangleSlice()) == 0 {
 				t.Errorf("decimator %d: no triangles", i)
 			}
-			if _, n := elim.RepairNormals(1e-8); n != 0 {
-				t.Errorf("decimator %d: bad normals", i)
+			if i == 1 || elim.SelfIntersections() == 0 {
+				if _, n := elim.RepairNormals(1e-8); n != 0 {
+					t.Errorf("decimator %d: bad normals", i)
+				}
 			}
 		}
 	}
