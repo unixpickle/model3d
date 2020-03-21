@@ -1,8 +1,10 @@
 package model3d
 
-import "math"
+import (
+	"math"
+)
 
-const DefaultDecimatorMinAspectRatio = 0.1
+const DefaultDecimatorMinAspectRatio = 0.01
 
 // Decimator implements a decimation algorithm to simplify
 // triangle meshes.
@@ -148,6 +150,9 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 	var bestLoop1, bestLoop2 []*ptrCoord
 	for i := range coords {
 		for j := i + 2; j < len(coords); j++ {
+			if i+len(coords)-j < 2 {
+				continue
+			}
 			loop1, loop2, aspectRatio := d.createSubloops(avgPlane, coords, i, j)
 			if aspectRatio == 0 {
 				continue
