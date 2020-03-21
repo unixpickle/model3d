@@ -117,21 +117,34 @@ func (d *Decimator) attemptRemoveVertex(p *ptrMesh, v *decVertex) bool {
 		p.Add(t)
 	}
 
+	rollBack := func() {
+		for _, t := range newTriangles {
+			p.Remove(t)
+			t.RemoveCoords()
+		}
+		for _, t := range oldTriangles {
+			t.AddCoords()
+			p.Add(t)
+		}
+	}
+
 	// It is possible to eliminate the mesh too much, and
 	// create a flattened section (duplicated triangle).
 	for _, t := range newTriangles {
 		for _, t1 := range t.Coords[0].Triangles {
 			if t1 != t && t1.Contains(t.Coords[0]) && t1.Contains(t.Coords[1]) &&
 				t1.Contains(t.Coords[2]) {
-				// Roll back all the changes.
-				for _, t := range newTriangles {
-					p.Remove(t)
-					t.RemoveCoords()
-				}
-				for _, t := range oldTriangles {
-					t.AddCoords()
-					p.Add(t)
-				}
+				rollBack()
+				return false
+			}
+		}
+	}
+
+	// Also make sure we don't create duplicate edges.
+	for _, t := range newTriangles {
+		for _, s := range t.Segments() {
+			if len(s.Triangles()) != 2 {
+				rollBack()
 				return false
 			}
 		}
