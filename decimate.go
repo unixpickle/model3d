@@ -4,7 +4,19 @@ import (
 	"math"
 )
 
-const DefaultDecimatorMinAspectRatio = 0.1
+const (
+	DefaultDecimatorMinAspectRatio = 0.1
+	DefaultDecimatorFeatureAngle   = 0.5
+)
+
+// DecimateSimple decimates a mesh using a specified
+// distance epsilon combined with default parameters.
+//
+// For more fine-grained control, use Decimator.
+func DecimateSimple(m *Mesh, epsilon float64) *Mesh {
+	d := Decimator{PlaneDistance: epsilon, BoundaryDistance: epsilon}
+	return d.Decimate(m)
+}
 
 // Decimator implements a decimation algorithm to simplify
 // triangle meshes.
@@ -21,9 +33,9 @@ type Decimator struct {
 	// The minimum dihedral angle between two triangles
 	// to consider an edge a "feature edge".
 	//
+	// If 0, DefaultDecimatorFeatureAngle is used.
+	//
 	// This is measured in radians.
-	// It is unused if NoEdgePreservation and CornerEdges
-	// are both true.
 	FeatureAngle float64
 
 	// The maximum distance for a vertex to be from its
@@ -283,6 +295,10 @@ type decVertex struct {
 }
 
 func newDecVertex(v *ptrCoord, featureAngle float64) *decVertex {
+	if featureAngle == 0 {
+		featureAngle = DefaultDecimatorFeatureAngle
+	}
+
 	res := &decVertex{
 		Vertex:   v,
 		Loop:     v.SortLoops(),
