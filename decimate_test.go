@@ -93,3 +93,18 @@ func TestDecimateSphere(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkDecimator(b *testing.B) {
+	m := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1.0
+	}, 50)
+	d := &Decimator{
+		FeatureAngle:     0.1,
+		PlaneDistance:    0.05,
+		BoundaryDistance: 0.05,
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		d.Decimate(m)
+	}
+}
