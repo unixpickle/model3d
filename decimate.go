@@ -4,7 +4,7 @@ import (
 	"math"
 )
 
-const DefaultDecimatorMinAspectRatio = 0.01
+const DefaultDecimatorMinAspectRatio = 0.1
 
 // Decimator implements a decimation algorithm to simplify
 // triangle meshes.
@@ -199,7 +199,7 @@ func (d *Decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int
 	c2 := coords[j]
 
 	sepLine := c2.Coord3D.Sub(c1.Coord3D)
-	sepNormal := sepLine.Cross(avgPlane.Normal)
+	sepNormal := sepLine.Cross(avgPlane.Normal).Normalize()
 	sepPlane := newPlanePoint(sepNormal, c1.Coord3D)
 
 	loop1 = createSubloop(coords, i, j)
