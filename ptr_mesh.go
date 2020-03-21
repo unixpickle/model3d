@@ -4,13 +4,22 @@ package model3d
 // pointers rather than hash maps, allowing for faster
 // operations.
 type ptrMesh struct {
-	CoordMap map[Coord3D]*ptrCoord
-	First    *ptrTriangle
+	First *ptrTriangle
 }
 
 // newPtrMesh creates an empty ptrMesh.
 func newPtrMesh() *ptrMesh {
-	return &ptrMesh{CoordMap: map[Coord3D]*ptrCoord{}}
+	return &ptrMesh{}
+}
+
+// newPtrMeshMesh creates a ptrMesh from a Mesh.
+func newPtrMeshMesh(m *Mesh) *ptrMesh {
+	mapping := newPtrCoordMap()
+	res := newPtrMesh()
+	m.Iterate(func(t *Triangle) {
+		res.Add(mapping.Triangle(t))
+	})
+	return res
 }
 
 // Add adds a triangle to the mesh.
@@ -241,6 +250,13 @@ func (p *ptrTriangle) Contains(c *ptrCoord) bool {
 func (p *ptrTriangle) RemoveCoords() {
 	for _, c := range p.Coords {
 		c.RemoveTriangle(p)
+	}
+}
+
+// AddCoords un-does p.RemoveCoords().
+func (p *ptrTriangle) AddCoords() {
+	for _, c := range p.Coords {
+		c.Triangles = append(c.Triangles, p)
 	}
 }
 
