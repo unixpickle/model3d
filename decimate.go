@@ -179,7 +179,7 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 	}
 
 	var bestAspectRatio float64
-	var bestLoop1, bestLoop2 []*ptrCoord
+	var bestLoop1, bestLoop2 *subloop
 	for i := range coords {
 		for j := i + 2; j < len(coords); j++ {
 			if i+len(coords)-j < 2 {
@@ -212,7 +212,7 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 }
 
 func (d *Decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int) (loop1,
-	loop2 []*ptrCoord, aspectRatio float64) {
+	loop2 *subloop, aspectRatio float64) {
 	c1 := coords[i]
 	c2 := coords[j]
 
@@ -220,12 +220,12 @@ func (d *Decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int
 	sepNormal := sepLine.Cross(avgPlane.Normal).Normalize()
 	sepPlane := newPlanePoint(sepNormal, c1.Coord3D)
 
-	loop1 = createSubloop(coords, i, j)
+	loop1 = newSubloop(coords, i, j)
 	sign1, minAbs1 := subloopSplitDist(loop1, sepPlane)
 	if sign1 == 0 {
 		return nil, nil, 0
 	}
-	loop2 = createSubloop(coords, j, i)
+	loop2 = newSubloop(coords, j, i)
 	sign2, minAbs2 := subloopSplitDist(loop2, sepPlane)
 	if sign2 == 0 || sign2 == sign1 {
 		return nil, nil, 0
@@ -234,31 +234,21 @@ func (d *Decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int
 	return
 }
 
-func (d *Decimator) fillLoops(avgPlane *plane, loop1, loop2 []*ptrCoord) []*ptrTriangle {
-	tris1 := d.fillLoop(avgPlane, loop1)
+func (d *Decimator) fillLoops(avgPlane *plane, loop1, loop2 *subloop) []*ptrTriangle {
+	tris1 := d.fillLoop(avgPlane, loop1.Slice())
 	if tris1 == nil {
 		return nil
 	}
-	tris2 := d.fillLoop(avgPlane, loop2)
+	tris2 := d.fillLoop(avgPlane, loop2.Slice())
 	if tris2 == nil {
 		return nil
 	}
 	return append(tris1, tris2...)
 }
 
-func createSubloop(coords []*ptrCoord, start, end int) []*ptrCoord {
-	if end < start {
-		end += len(coords)
-	}
-	res := make([]*ptrCoord, 0, end-start+1)
-	for i := start; i <= end; i++ {
-		res = append(res, coords[i%len(coords)])
-	}
-	return res
-}
-
-func subloopSplitDist(coords []*ptrCoord, p *plane) (sign int, minAbs float64) {
-	for i, c := range coords[1 : len(coords)-1] {
+func subloopSplitDist(loop *subloop, p *plane) (sign int, minAbs float64) {
+	for i := 0; i < loop.Length-2; i++ {
+		c := loop.Get(i + 1)
 		dist := p.Eval(c.Coord3D)
 		curSign := 1
 		if dist == 0 {
@@ -332,6 +322,39 @@ func (d *decVertex) Edge() bool {
 
 func (d *decVertex) Corner() bool {
 	return !d.Simple() && !d.Edge()
+}
+
+// A subloop is a loop of vertices from a larger loop.
+type subloop struct {
+	Loop   []*ptrCoord
+	Start  int
+	Length int
+}
+
+// newSubloop creates a subloop as a range of indices in a
+// loop.
+//
+// If end < start, the loop goes backwards.
+func newSubloop(loop []*ptrCoord, start, end int) *subloop {
+	if end < start {
+		end += len(loop)
+	}
+	if end-start+1 < 3 {
+		panic("loop must contain at least three vertices")
+	}
+	return &subloop{Loop: loop, Start: start, Length: end - start + 1}
+}
+
+func (s *subloop) Get(i int) *ptrCoord {
+	return s.Loop[(s.Start+i)%len(s.Loop)]
+}
+
+func (s *subloop) Slice() []*ptrCoord {
+	res := make([]*ptrCoord, s.Length)
+	for i := range res {
+		res[i] = s.Get(i)
+	}
+	return res
 }
 
 // plane implements the plane Normal*X - Bias = 0.
