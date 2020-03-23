@@ -71,7 +71,7 @@ func (d *Decimator) decimator() *decimator {
 	return &decimator{
 		FeatureAngle:       d.FeatureAngle,
 		MinimumAspectRatio: d.MinimumAspectRatio,
-		Criterion: &distanceCriterion{
+		Criterion: &distanceDecCriterion{
 			PlaneDistance:      d.PlaneDistance,
 			BoundaryDistance:   d.BoundaryDistance,
 			NoEdgePreservation: d.NoEdgePreservation,
@@ -85,14 +85,14 @@ type decCriterion interface {
 	canRemoveVertex(v *decVertex) bool
 }
 
-type distanceCriterion struct {
+type distanceDecCriterion struct {
 	PlaneDistance      float64
 	BoundaryDistance   float64
 	NoEdgePreservation bool
 	EliminateCorners   bool
 }
 
-func (d *distanceCriterion) canRemoveVertex(v *decVertex) bool {
+func (d *distanceDecCriterion) canRemoveVertex(v *decVertex) bool {
 	if v.Simple() || (v.Edge() && d.NoEdgePreservation) || (v.Corner() && d.EliminateCorners) {
 		// Use the distance to plane metric.
 		return math.Abs(v.AvgPlane.Eval(v.Vertex.Coord3D)) < d.PlaneDistance
@@ -103,6 +103,20 @@ func (d *distanceCriterion) canRemoveVertex(v *decVertex) bool {
 		return seg.Dist(v.Vertex.Coord3D) < d.BoundaryDistance
 	}
 	return false
+}
+
+type normalDecCriterion struct {
+	CosineEpsilon float64
+}
+
+func (n *normalDecCriterion) canRemoveVertex(v *decVertex) bool {
+	for _, t := range v.Vertex.Triangles {
+		nDot := t.Triangle().Normal().Dot(v.AvgPlane.Normal)
+		if math.Abs(nDot-1) > n.CosineEpsilon {
+			return false
+		}
+	}
+	return true
 }
 
 // decimator decimates meshes using arbitrary criteria.

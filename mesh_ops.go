@@ -460,27 +460,22 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 	return result
 }
 
-// EliminateCoplanar eliminates line segments which are
-// touching a collection of coplanar triangles.
+// EliminateCoplanar eliminates vertices inside whose
+// neighboring triangles are all co-planar.
 //
 // The epsilon argument controls how close two normals
 // must be for the triangles to be considered coplanar.
+// A good value for very precise results is 1e-8.
 func (m *Mesh) EliminateCoplanar(epsilon float64) *Mesh {
-	return m.EliminateEdges(func(m *Mesh, s Segment) bool {
-		isFirst := true
-		var normal Coord3D
-		for _, p := range s {
-			for _, neighbor := range m.getVertexToTriangle()[p] {
-				if isFirst {
-					normal = neighbor.Normal()
-					isFirst = false
-				} else if math.Abs(neighbor.Normal().Dot(normal)-1) > epsilon {
-					return false
-				}
-			}
-		}
-		return true
-	})
+	dec := &decimator{
+		// For co-planar elimination, we don't care as
+		// much about the layout of triangles.
+		MinimumAspectRatio: 0.01,
+		Criterion: &normalDecCriterion{
+			CosineEpsilon: epsilon,
+		},
+	}
+	return dec.Decimate(m)
 }
 
 func canEliminateSegment(m *Mesh, seg Segment) bool {
