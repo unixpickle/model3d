@@ -71,7 +71,7 @@ func (b BodySolid) Max() model3d.Coord3D {
 }
 
 func (b BodySolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(b, c) {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
 	sideSize := Size / 2 * math.Pow((FlatLength+PointSize-c.Z)/PointSize, 0.5)

@@ -101,7 +101,7 @@ func (r *RidgeSolid) Max() model3d.Coord3D {
 }
 
 func (r *RidgeSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(r, c) {
+	if !model3d.InBounds(r, c) {
 		return false
 	}
 	return math.Abs(c.Z-r.Z) <= math.Abs(c.X-r.X2)
@@ -141,7 +141,7 @@ func (f *FrameHole) Max() model3d.Coord3D {
 }
 
 func (f *FrameHole) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(f, c) {
+	if !model3d.InBounds(f, c) {
 		return false
 	}
 	edgeDist := math.Min(math.Min(c.Y-f.Min().Y, f.Max().Y-c.Y), FrameHoleWidth/2)
@@ -167,7 +167,7 @@ func (b BottomFrameHole) Max() model3d.Coord3D {
 }
 
 func (b BottomFrameHole) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(b, c) {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
 	mid := b.Min().Mid(b.Max())
@@ -186,7 +186,7 @@ func (b BackWallHole) Max() model3d.Coord3D {
 }
 
 func (b BackWallHole) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(b, c) {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
 	minDiff := c.Sub(b.Min())

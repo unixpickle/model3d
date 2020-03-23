@@ -9,21 +9,11 @@ import (
 // true indicates that a point is part of the solid, and
 // false indicates that it is not.
 type Solid interface {
-	// Get the corners of a bounding rectangular volume.
-	// Outside of this volume, Contains() must always
-	// return false.
-	Min() Coord3D
-	Max() Coord3D
+	// Contains must always return false outside of the
+	// boundaries of the solid.
+	Bounder
 
 	Contains(p Coord3D) bool
-}
-
-// InSolidBounds returns true if c is contained within the
-// bounding rectangular volume of s.
-func InSolidBounds(s Solid, c Coord3D) bool {
-	min := s.Min()
-	max := s.Max()
-	return c.Min(min) == min && c.Max(max) == max
 }
 
 // A RectSolid is a Solid that fills an axis-aligned
@@ -266,7 +256,7 @@ func (s StackedSolid) Max() Coord3D {
 }
 
 func (s StackedSolid) Contains(c Coord3D) bool {
-	if !InSolidBounds(s, c) {
+	if !InBounds(s, c) {
 		return false
 	}
 	currentZ := s[0].Min().Z
@@ -373,7 +363,7 @@ func (b boundCacheSolid) Max() Coord3D {
 }
 
 func (b boundCacheSolid) Contains(c Coord3D) bool {
-	return InSolidBounds(b, c) && b.s.Contains(c)
+	return InBounds(b, c) && b.s.Contains(c)
 }
 
 // SolidNormal approximates the shortest vector that

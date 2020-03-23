@@ -41,9 +41,7 @@ func (r *Ray) Collision(s *Segment) (bool, float64) {
 // It can count its intersections with a ray, and check if
 // any part of the outline is inside a circle.
 type Collider interface {
-	// Bounding box for the outline.
-	Min() Coord
-	Max() Coord
+	Bounder
 
 	// RayCollisions counts the number of collisions with
 	// a ray.

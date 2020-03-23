@@ -48,7 +48,7 @@ func (r RingSolid) Max() model3d.Coord3D {
 }
 
 func (r RingSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(r, c) {
+	if !model3d.InBounds(r, c) {
 		return false
 	}
 	rad := c.Coord2D().Norm()
@@ -92,7 +92,7 @@ func (h *HeartSolid) Max() model3d.Coord3D {
 }
 
 func (h *HeartSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(h, c) {
+	if !model3d.InBounds(h, c) {
 		return false
 	}
 	localCoord := model3d.Coord2D{

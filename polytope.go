@@ -178,5 +178,5 @@ func (p *polytopeSolid) Max() Coord3D {
 }
 
 func (p *polytopeSolid) Contains(c Coord3D) bool {
-	return InSolidBounds(p, c) && p.P.Contains(c)
+	return InBounds(p, c) && p.P.Contains(c)
 }

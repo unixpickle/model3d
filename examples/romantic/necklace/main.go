@@ -105,7 +105,7 @@ func (l LinkSolid) Max() model3d.Coord3D {
 }
 
 func (l LinkSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(l, c) {
+	if !model3d.InBounds(l, c) {
 		return false
 	}
 	if c.Z < LinkThickness &&
@@ -132,7 +132,7 @@ func (h HookSolid) Max() model3d.Coord3D {
 }
 
 func (h HookSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(h, c) {
+	if !model3d.InBounds(h, c) {
 		return false
 	}
 	if c.Z < LinkThickness {

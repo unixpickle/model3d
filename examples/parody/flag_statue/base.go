@@ -90,7 +90,7 @@ func (b BaseSmoothSolid) Max() model3d.Coord3D {
 
 func (b BaseSmoothSolid) Contains(c model3d.Coord3D) bool {
 	cScale := model3d.Coord3D{X: 2 / BaseLength, Y: 2 / BaseWidth, Z: 1 / BaseHeight}
-	return model3d.InSolidBounds(b, c) && c.Mul(cScale).Norm() < 1
+	return model3d.InBounds(b, c) && c.Mul(cScale).Norm() < 1
 }
 
 type BaseChunk struct {
@@ -109,7 +109,7 @@ func (b *BaseChunk) Max() model3d.Coord3D {
 }
 
 func (b *BaseChunk) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(b, c) {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
 	c = c.Sub(b.Center)

@@ -49,7 +49,7 @@ func (b BladeSolid) Max() model3d.Coord3D {
 }
 
 func (b BladeSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(b, c) {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
 	c2 := c.Coord2D()

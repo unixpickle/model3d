@@ -51,7 +51,7 @@ func (c CrankGearHollow) Max() model3d.Coord3D {
 }
 
 func (c CrankGearHollow) Contains(coord model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(c, coord) {
+	if !model3d.InBounds(c, coord) {
 		return false
 	}
 	c2 := coord.Coord2D()

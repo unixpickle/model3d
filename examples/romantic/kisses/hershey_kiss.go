@@ -30,7 +30,7 @@ func (h HersheyKissSolid) Max() model3d.Coord3D {
 }
 
 func (h HersheyKissSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(h, c) {
+	if !model3d.InBounds(h, c) {
 		return false
 	}
 	y := (c.Z - h.Center.Z) / HersheyKissHeight

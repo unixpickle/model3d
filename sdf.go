@@ -9,9 +9,7 @@ import "math"
 // outside the surface.
 // The magnitude is the distance to the surface.
 type SDF interface {
-	// Rectangular bounds for the surface.
-	Min() Coord3D
-	Max() Coord3D
+	Bounder
 
 	SDF(c Coord3D) float64
 }

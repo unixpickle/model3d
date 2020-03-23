@@ -5,17 +5,11 @@ package model2d
 // For any given coordinate, the solid can check if the
 // shape contains that coordinate.
 type Solid interface {
-	Min() Coord
-	Max() Coord
-	Contains(c Coord) bool
-}
+	// Contains must always return false outside of the
+	// boundaries of the solid.
+	Bounder
 
-// InSolidBounds returns true if c is contained within the
-// bounding rectangular area of s.
-func InSolidBounds(s Solid, c Coord) bool {
-	min := s.Min()
-	max := s.Max()
-	return c.Min(min) == min && c.Max(max) == max
+	Contains(c Coord) bool
 }
 
 type bitmapSolid struct {
@@ -37,7 +31,7 @@ func (b *bitmapSolid) Max() Coord {
 }
 
 func (b *bitmapSolid) Contains(c Coord) bool {
-	if !InSolidBounds(b, c) {
+	if !InBounds(b, c) {
 		return false
 	}
 	return b.B.Get(int(c.X), int(c.Y))

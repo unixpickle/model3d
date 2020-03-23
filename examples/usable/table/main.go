@@ -153,7 +153,7 @@ func (c ConeSolid) Max() model3d.Coord3D {
 }
 
 func (c ConeSolid) Contains(coord model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(c, coord) {
+	if !model3d.InBounds(c, coord) {
 		return false
 	}
 	radiusAtZ := StandRadius - coord.Z

@@ -45,9 +45,7 @@ func (r *Ray) Collision(t *Triangle) (bool, float64) {
 // times it intersects a ray, and check if any part of it
 // is inside of a sphere.
 type Collider interface {
-	// Bounding box for the surface.
-	Min() Coord3D
-	Max() Coord3D
+	Bounder
 
 	// RayCollisions counts the number of collisions with
 	// a ray.

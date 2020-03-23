@@ -101,7 +101,7 @@ func (r randomSolid) Max() Coord3D {
 }
 
 func (r randomSolid) Contains(c Coord3D) bool {
-	return InSolidBounds(r, c) && rand.Intn(4) == 0
+	return InBounds(r, c) && rand.Intn(4) == 0
 }
 
 func TestSolidToMeshSingularities(t *testing.T) {

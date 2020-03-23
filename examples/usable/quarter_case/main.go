@@ -109,7 +109,7 @@ func (p PreviewCutout) Max() model3d.Coord3D {
 }
 
 func (p PreviewCutout) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(p, c) {
+	if !model3d.InBounds(p, c) {
 		return false
 	}
 	if math.Mod(c.Z+c.X, PreviewBarSpace) < PreviewBarHeight {

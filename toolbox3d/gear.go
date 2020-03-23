@@ -22,7 +22,7 @@ func (s *SpurGear) Max() model3d.Coord3D {
 }
 
 func (s *SpurGear) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(s, c) {
+	if !model3d.InBounds(s, c) {
 		return false
 	}
 	v1, v2 := s.P2.Sub(s.P1).OrthoBasis()
@@ -56,7 +56,7 @@ func (h *HelicalGear) Max() model3d.Coord3D {
 }
 
 func (h *HelicalGear) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(h, c) {
+	if !model3d.InBounds(h, c) {
 		return false
 	}
 	axis := h.P2.Sub(h.P1)
@@ -155,7 +155,7 @@ func (i *involuteGearProfile) Max() model2d.Coord {
 }
 
 func (i *involuteGearProfile) Contains(c model2d.Coord) bool {
-	if !model2d.InSolidBounds(i, c) {
+	if !model2d.InBounds(i, c) {
 		return false
 	}
 	r := c.Norm()

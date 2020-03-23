@@ -41,7 +41,7 @@ func (t TreeSolid) Max() model3d.Coord3D {
 }
 
 func (t TreeSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(t, c) {
+	if !model3d.InBounds(t, c) {
 		return false
 	}
 

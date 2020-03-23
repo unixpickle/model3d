@@ -46,7 +46,7 @@ func (t *translatedSolid) Max() Coord3D {
 }
 
 func (t *translatedSolid) Contains(c Coord3D) bool {
-	return InSolidBounds(t, c) && t.solid.Contains(c.Sub(t.offset))
+	return InBounds(t, c) && t.solid.Contains(c.Sub(t.offset))
 }
 
 // Matrix3Transform is a Transform that applies a matrix
@@ -104,7 +104,7 @@ func (m *matrix3Solid) Max() Coord3D {
 }
 
 func (m *matrix3Solid) Contains(c Coord3D) bool {
-	return InSolidBounds(m, c) && m.solid.Contains(m.inverse.MulColumn(c))
+	return InBounds(m, c) && m.solid.Contains(m.inverse.MulColumn(c))
 }
 
 // A JoinedTransform composes transformations from left to

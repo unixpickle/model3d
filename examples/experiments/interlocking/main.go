@@ -49,7 +49,7 @@ func (s SlopedTriangle) Max() model3d.Coord3D {
 }
 
 func (s SlopedTriangle) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(s, c) {
+	if !model3d.InBounds(s, c) {
 		return false
 	}
 	return checkInPole(s.Base1, s.Base2, c, 0.1) ||

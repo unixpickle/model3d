@@ -55,7 +55,7 @@ func (v VaseSolid) Max() model3d.Coord3D {
 }
 
 func (v VaseSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(v, c) {
+	if !model3d.InBounds(v, c) {
 		return false
 	}
 	maxRadius := RadiusFunc(c.Z)

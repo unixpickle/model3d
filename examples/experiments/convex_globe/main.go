@@ -74,5 +74,5 @@ func (p *PolySolid) Max() model3d.Coord3D {
 }
 
 func (p *PolySolid) Contains(c model3d.Coord3D) bool {
-	return model3d.InSolidBounds(p, c) && p.Polytope.Contains(c)
+	return model3d.InBounds(p, c) && p.Polytope.Contains(c)
 }

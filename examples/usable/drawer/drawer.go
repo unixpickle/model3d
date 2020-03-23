@@ -74,7 +74,7 @@ func (h *HoleCutout) Max() model3d.Coord3D {
 }
 
 func (h *HoleCutout) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(h, c) {
+	if !model3d.InBounds(h, c) {
 		return false
 	}
 	c2d := model3d.Coord2D{X: c.X - h.X, Y: c.Z - h.Z}

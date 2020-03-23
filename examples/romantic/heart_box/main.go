@@ -64,7 +64,7 @@ func (b *BoxSolid) Max() model3d.Coord3D {
 }
 
 func (b *BoxSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(b, c) {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
 	scale := ImageSize / SideSize
@@ -94,7 +94,7 @@ func (l *LidSolid) Max() model3d.Coord3D {
 }
 
 func (l *LidSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(l, c) {
+	if !model3d.InBounds(l, c) {
 		return false
 	}
 	scale := ImageSize / SideSize

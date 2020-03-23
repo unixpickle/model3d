@@ -70,7 +70,7 @@ func (p *PersonSolid) Max() model3d.Coord3D {
 }
 
 func (p *PersonSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(p, c) {
+	if !model3d.InBounds(p, c) {
 		return false
 	}
 

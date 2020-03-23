@@ -59,7 +59,7 @@ func (t TubeSolid) Max() model3d.Coord3D {
 }
 
 func (t TubeSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(t, c) {
+	if !model3d.InBounds(t, c) {
 		return false
 	}
 	c2d := model2d.Coord{X: c.Z, Y: c.X}

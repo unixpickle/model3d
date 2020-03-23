@@ -39,7 +39,7 @@ func (f FlagFabric) Max() model3d.Coord3D {
 }
 
 func (f FlagFabric) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(f, c) {
+	if !model3d.InBounds(f, c) {
 		return false
 	}
 

@@ -69,7 +69,7 @@ func (d *DeepInscription) Max() model3d.Coord3D {
 }
 
 func (d *DeepInscription) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(d, c) {
+	if !model3d.InBounds(d, c) {
 		return false
 	}
 	c2d := c.Coord2D().Scale(d.Scale)

@@ -103,7 +103,7 @@ func (b *BrickCylinder) Max() model3d.Coord3D {
 }
 
 func (b *BrickCylinder) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(b, c) {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
 
@@ -134,7 +134,7 @@ func (t *TopBlocks) Max() model3d.Coord3D {
 }
 
 func (t *TopBlocks) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(t, c) {
+	if !model3d.InBounds(t, c) {
 		return false
 	}
 	r := c.Coord2D().Norm()
@@ -160,7 +160,7 @@ func (w *Wall) Max() model3d.Coord3D {
 }
 
 func (w *Wall) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(w, c) {
+	if !model3d.InBounds(w, c) {
 		return false
 	}
 	dist1 := math.Mod(c.X-w.X1, WallBrickXSpace) - WallBrickXSpace/2

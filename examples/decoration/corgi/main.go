@@ -241,7 +241,7 @@ func (h HindLegMuscleSolid) Max() model3d.Coord3D {
 }
 
 func (h HindLegMuscleSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InSolidBounds(h, c) {
+	if !model3d.InBounds(h, c) {
 		return false
 	}
 	c = c.Sub(h.Center)
