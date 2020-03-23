@@ -121,7 +121,7 @@ func (g GlobeSolid) Contains(c model3d.Coord3D) bool {
 	return g.Collider.RayCollisions(&model3d.Ray{
 		Origin:    c,
 		Direction: model3d.Coord3D{X: 1, Y: 1, Z: 1},
-	})%2 != 0 && !g.Collider.SphereCollision(c, dist)
+	}, nil)%2 != 0 && !g.Collider.SphereCollision(c, dist)
 }
 
 type SplitSolid struct {

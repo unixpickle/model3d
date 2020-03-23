@@ -413,7 +413,7 @@ func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
 		normal := t.Normal()
 		center := t[0].Add(t[1]).Add(t[2]).Scale(1.0 / 3)
 		origin := center.Add(normal.Scale(epsilon))
-		if collider.RayCollisions(&Ray{Origin: origin, Direction: normal})%2 == 1 {
+		if collider.RayCollisions(&Ray{Origin: origin, Direction: normal}, nil)%2 == 1 {
 			numFlipped++
 			t1[0], t1[1] = t1[1], t1[0]
 		}

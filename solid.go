@@ -332,7 +332,7 @@ func (c *ColliderSolid) Contains(p Coord3D) bool {
 	return c.collider.RayCollisions(&Ray{
 		Origin:    p,
 		Direction: c.direction,
-	})%2 == 1
+	}, nil)%2 == 1
 }
 
 type boundCacheSolid struct {

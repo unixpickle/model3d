@@ -8,54 +8,45 @@ import (
 )
 
 // A Ray is a line originating at a point and extending
-// infinitely in some direction.
+// infinitely in some direction (but not in the opposite
+// direction).
 type Ray struct {
 	Origin    Coord3D
 	Direction Coord3D
 }
 
-// Collision computes where (and if) the ray intersects
-// the triangle.
-//
-// If it returns true as the first value, then the ray or
-// its reverse hits the triangle.
-//
-// The second return value is how much of the direction
-// must be added to the origin to hit the plane containing
-// the triangle.
-// If it is negative, it means the triangle is behind the
-// ray.
-func (r *Ray) Collision(t *Triangle) (bool, float64) {
-	v1 := t[1].Sub(t[0])
-	v2 := t[2].Sub(t[0])
-	matrix := Matrix3{
-		v1.X, v2.X, r.Direction.X,
-		v1.Y, v2.Y, r.Direction.Y,
-		v1.Z, v2.Z, r.Direction.Z,
-	}
-	if math.Abs(matrix.Det()) < 1e-8*t.Area()*r.Direction.Norm() {
-		return false, 0
-	}
-	matrix.InvertInPlace()
-	result := matrix.MulColumn(r.Origin.Sub(t[0]))
-	return result.X >= 0 && result.Y >= 0 && result.X+result.Y <= 1, -result.Z
+// RayCollision is a point where a ray intersects a
+// surface.
+type RayCollision struct {
+	// The amount of the ray direction to add to the ray
+	// origin to hit the point in question.
+	//
+	// The scale should be non-negative.
+	Scale float64
+
+	// The normal pointing outward from the surface at the
+	// point of collision.
+	Normal Coord3D
 }
 
-// A Collider is a surface which can count the number of
-// times it intersects a ray, and check if any part of it
-// is inside of a sphere.
+// A Collider is a surface which can detect intersections
+// with linear rays and spheres.
 type Collider interface {
 	Bounder
 
-	// RayCollisions counts the number of collisions with
-	// a ray.
-	RayCollisions(r *Ray) int
+	// RayCollisions enumerates the collisions with a ray.
+	// It returns the total number of collisions.
+	//
+	// f may be nil, in which case this is simply used for
+	// counting.
+	RayCollisions(r *Ray, f func(RayCollision)) int
 
 	// FirstRayCollision gets the ray collision with the
-	// lowest non-negative distance.
-	// It also yields the normal from the surface where
-	// the collision took place.
-	FirstRayCollision(r *Ray) (collides bool, distance float64, normal Coord3D)
+	// lowest scale.
+	//
+	// The second return value is false if no collisions
+	// were found.
+	FirstRayCollision(r *Ray) (collision RayCollision, collides bool)
 
 	// SphereCollision checks if the collider touches a
 	// sphere with origin c and radius r.
@@ -181,22 +172,44 @@ func GroupedTrianglesToCollider(tris []*Triangle) TriangleCollider {
 	return joinedTriangleCollider{NewJoinedCollider([]Collider{c1, c2})}
 }
 
-// RayCollisions returns 1 if the ray intersects the
-// triangle, and 0 otherwise.
-func (t *Triangle) RayCollisions(r *Ray) int {
-	collides, frac := r.Collision(t)
-	if collides && frac >= 0 {
-		return 1
+// FirstRayCollision gets the ray collision if there is
+// one.
+func (t *Triangle) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	collides, scale := t.rayCollision(r)
+	if collides && scale >= 0 {
+		return RayCollision{Scale: scale, Normal: t.Normal()}, true
 	} else {
-		return 0
+		return RayCollision{}, false
 	}
 }
 
-// FirstRayCollision returns information about the
-// triangle collision.
-func (t *Triangle) FirstRayCollision(r *Ray) (collides bool, distance float64, normal Coord3D) {
-	collides, frac := r.Collision(t)
-	return collides && frac >= 0, frac, t.Normal()
+// RayCollisions calls f (if non-nil) with a collision (if
+// applicable) and returns the collisions count (0 or 1).
+func (t *Triangle) RayCollisions(r *Ray, f func(RayCollision)) int {
+	collides, scale := t.rayCollision(r)
+	if !collides || scale < 0 {
+		return 0
+	}
+	if f != nil {
+		f(RayCollision{Scale: scale, Normal: t.Normal()})
+	}
+	return 1
+}
+
+func (t *Triangle) rayCollision(r *Ray) (collides bool, scale float64) {
+	v1 := t[1].Sub(t[0])
+	v2 := t[2].Sub(t[0])
+	matrix := Matrix3{
+		v1.X, v2.X, r.Direction.X,
+		v1.Y, v2.Y, r.Direction.Y,
+		v1.Z, v2.Z, r.Direction.Z,
+	}
+	if math.Abs(matrix.Det()) < 1e-8*t.Area()*r.Direction.Norm() {
+		return false, 0
+	}
+	matrix.InvertInPlace()
+	result := matrix.MulColumn(r.Origin.Sub(t[0]))
+	return result.X >= 0 && result.Y >= 0 && result.X+result.Y <= 1, -result.Z
 }
 
 // SphereCollision checks if any part of the triangle is
@@ -218,7 +231,7 @@ func (t *Triangle) SphereCollision(c Coord3D, r float64) bool {
 		Origin:    c,
 		Direction: t.Normal(),
 	}
-	inside, frac := ray.Collision(t)
+	inside, frac := t.rayCollision(ray)
 	return inside && math.Abs(frac) < r
 }
 
@@ -419,35 +432,33 @@ func (j *JoinedCollider) Max() Coord3D {
 	return j.max
 }
 
-func (j *JoinedCollider) RayCollisions(r *Ray) int {
+func (j *JoinedCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
 	if !j.rayCollidesWithBounds(r) {
 		return 0
 	}
 
 	var count int
 	for _, c := range j.colliders {
-		count += c.RayCollisions(r)
+		count += c.RayCollisions(r, f)
 	}
 	return count
 }
 
-func (j *JoinedCollider) FirstRayCollision(r *Ray) (bool, float64, Coord3D) {
+func (j *JoinedCollider) FirstRayCollision(r *Ray) (RayCollision, bool) {
 	if !j.rayCollidesWithBounds(r) {
-		return false, 0, Coord3D{}
+		return RayCollision{}, false
 	}
+	var closest RayCollision
 	var anyCollides bool
-	var closestDistance float64
-	var closestNormal Coord3D
 	for _, c := range j.colliders {
-		if collides, dist, normal := c.FirstRayCollision(r); collides {
-			if dist < closestDistance || !anyCollides {
-				closestDistance = dist
-				closestNormal = normal
+		if collision, collides := c.FirstRayCollision(r); collides {
+			if collision.Scale < closest.Scale || !anyCollides {
+				closest = collision
 				anyCollides = true
 			}
 		}
 	}
-	return anyCollides, closestDistance, closestNormal
+	return closest, anyCollides
 }
 
 func (j *JoinedCollider) SphereCollision(center Coord3D, r float64) bool {
@@ -501,12 +512,12 @@ func (n nullCollider) Max() Coord3D {
 	return Coord3D{}
 }
 
-func (n nullCollider) RayCollisions(r *Ray) int {
+func (n nullCollider) RayCollisions(r *Ray, float32 func(RayCollision)) int {
 	return 0
 }
 
-func (n nullCollider) FirstRayCollision(r *Ray) (collides bool, distance float64, normal Coord3D) {
-	return false, 0, Coord3D{}
+func (n nullCollider) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	return RayCollision{}, false
 }
 
 func (n nullCollider) SphereCollision(c Coord3D, r float64) bool {
@@ -567,7 +578,7 @@ func (s *SolidCollider) Max() Coord3D {
 //
 // The result may be inaccurate for parts of the solid
 // smaller than epsilon.
-func (s *SolidCollider) RayCollisions(r *Ray) int {
+func (s *SolidCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
 	if s.Epsilon <= 0 {
 		panic("invalid epsilon")
 	}
@@ -583,6 +594,9 @@ func (s *SolidCollider) RayCollisions(r *Ray) int {
 		newContained := s.Solid.Contains(c)
 		if newContained != contained {
 			intersections++
+			if f != nil {
+				f(s.collision(r, t-fracStep, t))
+			}
 		}
 		contained = newContained
 	}
@@ -594,24 +608,28 @@ func (s *SolidCollider) RayCollisions(r *Ray) int {
 //
 // The result may be inaccurate for parts of the solid
 // smaller than epsilon.
-func (s *SolidCollider) FirstRayCollision(r *Ray) (bool, float64, Coord3D) {
+func (s *SolidCollider) FirstRayCollision(r *Ray) (RayCollision, bool) {
 	if s.Epsilon <= 0 {
 		panic("invalid epsilon")
 	}
 	minFrac, maxFrac := rayCollisionWithBounds(r, s.Min(), s.Max())
 	if maxFrac < minFrac || maxFrac < 0 {
-		return false, 0, Coord3D{}
+		return RayCollision{}, false
 	}
 	fracStep := s.Epsilon / r.Direction.Norm()
 	for t := minFrac; t < maxFrac; t += fracStep {
 		c := r.Origin.Add(r.Direction.Scale(t))
 		if s.Solid.Contains(c) {
-			frac := s.bisectCollision(r, t-fracStep, t)
-			normal := s.approximateNormal(r.Origin.Add(r.Direction.Scale(frac)))
-			return true, frac, normal
+			return s.collision(r, t-fracStep, t), true
 		}
 	}
-	return false, 0, Coord3D{}
+	return RayCollision{}, false
+}
+
+func (s *SolidCollider) collision(r *Ray, min, max float64) RayCollision {
+	scale := s.bisectCollision(r, min, max)
+	normal := s.approximateNormal(r.Origin.Add(r.Direction.Scale(scale)))
+	return RayCollision{Scale: scale, Normal: normal}
 }
 
 func (s *SolidCollider) bisectCollision(r *Ray, min, max float64) float64 {

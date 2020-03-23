@@ -174,7 +174,7 @@ func BenchmarkMeshRayCollisions(b *testing.B) {
 				Y: rand.NormFloat64(),
 				Z: rand.NormFloat64(),
 			},
-		})
+		}, nil)
 	}
 }
 

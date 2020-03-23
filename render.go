@@ -66,10 +66,10 @@ func rayCastBounds(c Collider, bounds image.Rectangle, origin, x, y, z Coord3D, 
 		for j := 0; j < bounds.Dx(); j++ {
 			scaledX := x.Scale(float64(2*j)/float64((bounds.Dx()-1)) - 1)
 			ray := &Ray{Origin: origin, Direction: scaledX.Add(scaledY).Add(z)}
-			collides, dist, normal := c.FirstRayCollision(ray)
+			coll, collides := c.FirstRayCollision(ray)
 			if collides {
-				brightness := math.Max(0, -normal.Dot(z)/z.Norm())
-				p := ray.Origin.Add(ray.Direction.Scale(dist))
+				brightness := math.Max(0, -coll.Normal.Dot(z)/z.Norm())
+				p := ray.Origin.Add(ray.Direction.Scale(coll.Scale))
 				f(j+bounds.Min.X, i+bounds.Min.Y, brightness, p)
 			} else {
 				f(j+bounds.Min.X, i+bounds.Min.Y, 0, Coord3D{})

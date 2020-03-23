@@ -105,8 +105,9 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 			Origin:    Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
 			Direction: Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
 		}
-		if c1.RayCollisions(ray) != c2.RayCollisions(ray) {
-			t.Fatal("mismatched ray collisions", c1.RayCollisions(ray), c2.RayCollisions(ray))
+		if c1.RayCollisions(ray, nil) != c2.RayCollisions(ray, nil) {
+			t.Fatal("mismatched ray collisions", c1.RayCollisions(ray, nil),
+				c2.RayCollisions(ray, nil))
 		}
 		r := rand.Float64()
 		if c1.SphereCollision(ray.Origin, r) != c2.SphereCollision(ray.Origin, r) {
