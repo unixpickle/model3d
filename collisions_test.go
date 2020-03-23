@@ -235,6 +235,19 @@ func BenchmarkMeshToCollider(b *testing.B) {
 	}
 }
 
+func BenchmarkMeshFirstRayCollisions(b *testing.B) {
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1
+	}, 50)
+	collider := MeshToCollider(mesh)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		collider.FirstRayCollision(&Ray{
+			Direction: NewCoord3DRandUnit(),
+		})
+	}
+}
+
 func BenchmarkMeshRayCollisions(b *testing.B) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1
