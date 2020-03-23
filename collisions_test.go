@@ -243,6 +243,7 @@ func BenchmarkMeshFirstRayCollisions(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		collider.FirstRayCollision(&Ray{
+			Origin:    NewCoord3DRandNorm(),
 			Direction: NewCoord3DRandUnit(),
 		})
 	}
