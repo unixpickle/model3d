@@ -6,35 +6,24 @@ import (
 )
 
 // A Ray is a line originating at a point and extending
-// infinitely in some direction.
+// infinitely in some (positive) direction.
 type Ray struct {
 	Origin    Coord
 	Direction Coord
 }
 
-// Collision computes where (and if) the ray intersects
-// the segment.
-//
-// If it returns true as the first value, then the ray or
-// its reverse hits the segment.
-//
-// The second return value is how much of the direction
-// must be added to the origin to hit the line containing
-// the segment.
-// If it is negative, it means the segment is behind the
-// ray.
-func (r *Ray) Collision(s *Segment) (bool, float64) {
-	v := s[1].Sub(s[0])
-	matrix := Matrix2{
-		v.X, r.Direction.X,
-		v.Y, r.Direction.Y,
-	}
-	if math.Abs(matrix.Det()) < 1e-8*s.Length()*r.Direction.Norm() {
-		return false, 0
-	}
-	matrix.InvertInPlace()
-	result := matrix.MulColumn(r.Origin.Sub(s[0]))
-	return result.X >= 0 && result.X <= 1, -result.Y
+// RayCollision is a point where a ray intersects a
+// 2-dimensional outline.
+type RayCollision struct {
+	// The amount of the ray direction to add to the ray
+	// origin to hit the point in question.
+	//
+	// The scale should be non-negative.
+	Scale float64
+
+	// The normal pointing outward from the outline at the
+	// point of collision.
+	Normal Coord
 }
 
 // A Collider is the outline of a 2-dimensional shape.
@@ -43,15 +32,19 @@ func (r *Ray) Collision(s *Segment) (bool, float64) {
 type Collider interface {
 	Bounder
 
-	// RayCollisions counts the number of collisions with
-	// a ray.
-	RayCollisions(r *Ray) int
+	// RayCollisions enumerates the collisions with a ray.
+	// It returns the total number of collisions.
+	//
+	// f may be nil, in which case this is simply used for
+	// counting.
+	RayCollisions(r *Ray, f func(RayCollision)) int
 
 	// FirstRayCollision gets the ray collision with the
-	// lowest non-negative distance.
-	// It also yields the normal from the outline where
-	// the collision took place.
-	FirstRayCollision(r *Ray) (collides bool, distance float64, normal Coord)
+	// lowest scale.
+	//
+	// The second return value is false if no collisions
+	// were found.
+	FirstRayCollision(r *Ray) (collision RayCollision, collides bool)
 
 	// CircleCollision checks if the collider touches a
 	// circle with origin c and radius r.
@@ -67,27 +60,57 @@ func ColliderContains(c Collider, coord Coord, margin float64) bool {
 		// want to avoid edge cases and rounding errors.
 		Direction: Coord{0.5224892708603626, 0.10494477243214506},
 	}
-	collisions := c.RayCollisions(r)
+	collisions := c.RayCollisions(r, nil)
 	if collisions%2 == 0 {
 		return false
 	}
 	return margin == 0 || !c.CircleCollision(coord, margin)
 }
 
-// RayCollisions returns 1 if the ray collides with the
-// segment, or 0 otherwise.
-func (s *Segment) RayCollisions(r *Ray) int {
-	if collides, pos := r.Collision(s); collides && pos >= 0 {
+// RayCollisions calls f (if non-nil) with a collision (if
+// applicable) and returns the collisions count (0 or 1).
+func (s *Segment) RayCollisions(r *Ray, f func(RayCollision)) int {
+	if collides, scale := s.rayCollision(r); collides && scale >= 0 {
+		if f != nil {
+			f(RayCollision{Scale: scale, Normal: s.Normal()})
+		}
 		return 1
 	}
 	return 0
 }
 
-// FirstRayCollision returns the collision info and the
-// segment normal.
-func (s *Segment) FirstRayCollision(r *Ray) (bool, float64, Coord) {
-	collides, frac := r.Collision(s)
-	return collides && frac >= 0, frac, s.Normal()
+// FirstRayCollision gets the ray collision if there is
+// one.
+func (s *Segment) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	if collides, scale := s.rayCollision(r); collides && scale >= 0 {
+		return RayCollision{Scale: scale, Normal: s.Normal()}, true
+	}
+	return RayCollision{}, false
+}
+
+// rayCollision computes where (and if) the ray intersects
+// the segment.
+//
+// If it returns true as the first value, then the ray or
+// its reverse hits the segment.
+//
+// The second return value is how much of the direction
+// must be added to the origin to hit the line containing
+// the segment.
+// If it is negative, it means the segment is behind the
+// ray.
+func (s *Segment) rayCollision(r *Ray) (bool, float64) {
+	v := s[1].Sub(s[0])
+	matrix := Matrix2{
+		v.X, r.Direction.X,
+		v.Y, r.Direction.Y,
+	}
+	if math.Abs(matrix.Det()) < 1e-8*s.Length()*r.Direction.Norm() {
+		return false, 0
+	}
+	matrix.InvertInPlace()
+	result := matrix.MulColumn(r.Origin.Sub(s[0]))
+	return result.X >= 0 && result.X <= 1, -result.Y
 }
 
 // CircleCollision checks if the circle intersects the
@@ -193,35 +216,33 @@ func (j *JoinedCollider) Max() Coord {
 	return j.max
 }
 
-func (j *JoinedCollider) RayCollisions(r *Ray) int {
+func (j *JoinedCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
 	if !j.rayCollidesWithBounds(r) {
 		return 0
 	}
 
 	var count int
 	for _, c := range j.colliders {
-		count += c.RayCollisions(r)
+		count += c.RayCollisions(r, f)
 	}
 	return count
 }
 
-func (j *JoinedCollider) FirstRayCollision(r *Ray) (bool, float64, Coord) {
+func (j *JoinedCollider) FirstRayCollision(r *Ray) (RayCollision, bool) {
 	if !j.rayCollidesWithBounds(r) {
-		return false, 0, Coord{}
+		return RayCollision{}, false
 	}
 	var anyCollides bool
-	var closestDistance float64
-	var closestNormal Coord
+	var closest RayCollision
 	for _, c := range j.colliders {
-		if collides, dist, normal := c.FirstRayCollision(r); collides {
-			if dist < closestDistance || !anyCollides {
-				closestDistance = dist
-				closestNormal = normal
+		if collision, collides := c.FirstRayCollision(r); collides {
+			if collision.Scale < closest.Scale || !anyCollides {
+				closest = collision
 				anyCollides = true
 			}
 		}
 	}
-	return anyCollides, closestDistance, closestNormal
+	return closest, anyCollides
 }
 
 func (j *JoinedCollider) CircleCollision(center Coord, r float64) bool {

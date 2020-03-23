@@ -29,7 +29,7 @@ func TestBitmapMesh(t *testing.T) {
 					Origin:    Coord{float64(x) + 0.5, float64(y) + 0.5},
 					Direction: Coord{rand.NormFloat64(), rand.NormFloat64()},
 				}
-				collides, _, normal := collider.FirstRayCollision(ray)
+				collision, collides := collider.FirstRayCollision(ray)
 				if !collides {
 					if bmp.Get(x, y) {
 						t.Errorf("bad collision result at %d, %d", x, y)
@@ -37,7 +37,7 @@ func TestBitmapMesh(t *testing.T) {
 					}
 					continue
 				}
-				facingOut := normal.Dot(ray.Direction) > 0
+				facingOut := collision.Normal.Dot(ray.Direction) > 0
 				if facingOut != bmp.Get(x, y) {
 					t.Errorf("incorrect normal direction at %d, %d (contained %v)", x, y,
 						bmp.Get(x, y))

@@ -17,6 +17,6 @@ func BenchmarkMeshCollisions(b *testing.B) {
 	ray := &Ray{Direction: Coord{X: 0.5, Y: 0.5}}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		collider.RayCollisions(ray)
+		collider.RayCollisions(ray, nil)
 	}
 }

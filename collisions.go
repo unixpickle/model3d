@@ -8,8 +8,7 @@ import (
 )
 
 // A Ray is a line originating at a point and extending
-// infinitely in some direction (but not in the opposite
-// direction).
+// infinitely in some (positive) direction.
 type Ray struct {
 	Origin    Coord3D
 	Direction Coord3D
