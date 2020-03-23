@@ -64,29 +64,35 @@ type Decimator struct {
 // Decimate applies the decimation algorithm to m,
 // producing a new mesh.
 func (d *Decimator) Decimate(m *Mesh) *Mesh {
-	pm := newPtrMeshMesh(m)
-	d.decimatePtrMesh(pm)
-	return pm.Mesh()
+	return d.decimator().Decimate(m)
 }
 
-func (d *Decimator) decimatePtrMesh(p *ptrMesh) int {
-	coords := map[*ptrCoord]struct{}{}
-	p.Iterate(func(t *ptrTriangle) {
-		for _, c := range t.Coords {
-			coords[c] = struct{}{}
-		}
-	})
-	var eliminated int
-	for c := range coords {
-		v := newDecVertex(c, d.FeatureAngle)
-		if d.canRemoveVertex(v) && d.attemptRemoveVertex(p, v) {
-			eliminated++
-		}
+func (d *Decimator) decimator() *decimator {
+	return &decimator{
+		FeatureAngle:       d.FeatureAngle,
+		MinimumAspectRatio: d.MinimumAspectRatio,
+		Criterion: &distanceCriterion{
+			PlaneDistance:      d.PlaneDistance,
+			BoundaryDistance:   d.BoundaryDistance,
+			NoEdgePreservation: d.NoEdgePreservation,
+			EliminateCorners:   d.EliminateCorners,
+		},
 	}
-	return eliminated
 }
 
-func (d *Decimator) canRemoveVertex(v *decVertex) bool {
+// decCriterion is a decimation vertex filter.
+type decCriterion interface {
+	canRemoveVertex(v *decVertex) bool
+}
+
+type distanceCriterion struct {
+	PlaneDistance      float64
+	BoundaryDistance   float64
+	NoEdgePreservation bool
+	EliminateCorners   bool
+}
+
+func (d *distanceCriterion) canRemoveVertex(v *decVertex) bool {
 	if v.Simple() || (v.Edge() && d.NoEdgePreservation) || (v.Corner() && d.EliminateCorners) {
 		// Use the distance to plane metric.
 		return math.Abs(v.AvgPlane.Eval(v.Vertex.Coord3D)) < d.PlaneDistance
@@ -99,7 +105,38 @@ func (d *Decimator) canRemoveVertex(v *decVertex) bool {
 	return false
 }
 
-func (d *Decimator) attemptRemoveVertex(p *ptrMesh, v *decVertex) bool {
+// decimator decimates meshes using arbitrary criteria.
+type decimator struct {
+	FeatureAngle       float64
+	MinimumAspectRatio float64
+
+	Criterion decCriterion
+}
+
+func (d *decimator) Decimate(m *Mesh) *Mesh {
+	pm := newPtrMeshMesh(m)
+	d.decimatePtrMesh(pm)
+	return pm.Mesh()
+}
+
+func (d *decimator) decimatePtrMesh(p *ptrMesh) int {
+	coords := map[*ptrCoord]struct{}{}
+	p.Iterate(func(t *ptrTriangle) {
+		for _, c := range t.Coords {
+			coords[c] = struct{}{}
+		}
+	})
+	var eliminated int
+	for c := range coords {
+		v := newDecVertex(c, d.FeatureAngle)
+		if d.Criterion.canRemoveVertex(v) && d.attemptRemoveVertex(p, v) {
+			eliminated++
+		}
+	}
+	return eliminated
+}
+
+func (d *decimator) attemptRemoveVertex(p *ptrMesh, v *decVertex) bool {
 	var newTriangles []*ptrTriangle
 
 	// Only preserve interior edge when connecting
@@ -169,7 +206,7 @@ func (d *Decimator) attemptRemoveVertex(p *ptrMesh, v *decVertex) bool {
 	return true
 }
 
-func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle {
+func (d *decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle {
 	if len(coords) < 3 {
 		panic("invalid number of loop coordinates")
 	} else if len(coords) == 3 {
@@ -211,7 +248,7 @@ func (d *Decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 	return d.fillLoops(avgPlane, bestLoop1, bestLoop2)
 }
 
-func (d *Decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int) (loop1,
+func (d *decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int) (loop1,
 	loop2 *subloop, aspectRatio float64) {
 	c1 := coords[i]
 	c2 := coords[j]
@@ -234,7 +271,7 @@ func (d *Decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int
 	return
 }
 
-func (d *Decimator) fillLoops(avgPlane *plane, loop1, loop2 *subloop) []*ptrTriangle {
+func (d *decimator) fillLoops(avgPlane *plane, loop1, loop2 *subloop) []*ptrTriangle {
 	tris1 := d.fillLoop(avgPlane, loop1.Slice())
 	if tris1 == nil {
 		return nil
