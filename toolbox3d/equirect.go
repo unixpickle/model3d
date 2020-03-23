@@ -1,9 +1,11 @@
-package model3d
+package toolbox3d
 
 import (
 	"image"
 	"image/color"
 	"math"
+
+	"github.com/unixpickle/model3d"
 )
 
 // An Equirect is an equirectangular bitmap representing
@@ -31,7 +33,7 @@ func NewEquirect(img image.Image) *Equirect {
 }
 
 // At gets the color at the given GeoCoord.
-func (e *Equirect) At(g GeoCoord) color.Color {
+func (e *Equirect) At(g model3d.GeoCoord) color.Color {
 	g = g.Normalize()
 	x := math.Round((e.width - 1) * (g.Lon + math.Pi) / (2 * math.Pi))
 	y := math.Round((e.height - 1) * (-g.Lat + math.Pi/2) / math.Pi)

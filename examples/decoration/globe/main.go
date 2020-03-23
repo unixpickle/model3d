@@ -78,7 +78,7 @@ func RawGlobeCollider() model3d.Collider {
 	defer f.Close()
 	img, err := png.Decode(f)
 	essentials.Must(err)
-	eq := model3d.NewEquirect(img)
+	eq := toolbox3d.NewEquirect(img)
 
 	mesh := model3d.NewMeshPolar(func(g model3d.GeoCoord) float64 {
 		r, _, _, _ := eq.At(g).RGBA()

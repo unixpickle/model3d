@@ -8,6 +8,7 @@ import (
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
@@ -27,7 +28,7 @@ func main() {
 }
 
 type GlobeSolid struct {
-	Equirect *model3d.Equirect
+	Equirect *toolbox3d.Equirect
 }
 
 func NewGlobeSolid() *GlobeSolid {
@@ -36,7 +37,7 @@ func NewGlobeSolid() *GlobeSolid {
 	defer r.Close()
 	img, err := png.Decode(r)
 	essentials.Must(err)
-	return &GlobeSolid{Equirect: model3d.NewEquirect(img)}
+	return &GlobeSolid{Equirect: toolbox3d.NewEquirect(img)}
 }
 
 func (g *GlobeSolid) Min() model3d.Coord3D {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const LandDepth = 0.03
@@ -20,7 +21,7 @@ func main() {
 	defer f.Close()
 	img, err := png.Decode(f)
 	essentials.Must(err)
-	eq := model3d.NewEquirect(img)
+	eq := toolbox3d.NewEquirect(img)
 
 	log.Println("Creating polytope...")
 	var poly model3d.ConvexPolytope
