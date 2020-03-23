@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"sort"
 	"testing"
 )
 
@@ -149,6 +150,79 @@ func triangleContains(t *Triangle, c Coord3D) bool {
 	combo := (NewMatrix3Columns(v1, v2, t.Normal())).Inverse().MulColumn(c.Sub(t[0]))
 	return math.Abs(combo.Z) < 1e-8 && combo.X > -1e-8 && combo.Y > -1e-8 &&
 		combo.X+combo.Y <= 1+1e-8
+}
+
+func TestMeshRayCollisions(t *testing.T) {
+	// Small mesh for fast brute force.
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 0.5 + 0.1*math.Cos(g.Lon)
+	}, 10)
+
+	collider := MeshToCollider(mesh)
+	for i := 0; i < 1000; i++ {
+		ray := &Ray{
+			Origin:    NewCoord3DRandNorm(),
+			Direction: NewCoord3DRandUnit(),
+		}
+		var actual []RayCollision
+		collider.RayCollisions(ray, func(c RayCollision) {
+			actual = append(actual, c)
+		})
+		var expected []RayCollision
+		mesh.Iterate(func(t *Triangle) {
+			coll, ok := t.FirstRayCollision(ray)
+			if ok {
+				expected = append(expected, coll)
+			}
+		})
+
+		if len(actual) != len(expected) {
+			t.Fatal("incorrect number of collisions")
+		}
+
+		for _, s := range [][]RayCollision{actual, expected} {
+			sort.Slice(s, func(i, j int) bool {
+				return s[i].Scale < s[j].Scale
+			})
+		}
+
+		for i, a := range actual {
+			x := expected[i]
+			if a != x {
+				t.Error("collision mismatch")
+			}
+		}
+	}
+}
+
+func TestMeshRayCollisionsConsistency(t *testing.T) {
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 0.5 + 0.1*math.Cos(g.Lon)
+	}, 100)
+
+	collider := MeshToCollider(mesh)
+	for i := 0; i < 1000; i++ {
+		ray := &Ray{
+			Origin:    NewCoord3DRandNorm(),
+			Direction: NewCoord3DRandUnit(),
+		}
+		var collisions []RayCollision
+		count := collider.RayCollisions(ray, func(c RayCollision) {
+			collisions = append(collisions, c)
+		})
+		if count != len(collisions) {
+			t.Fatal("callback not called for every collision")
+		}
+		sort.Slice(collisions, func(i, j int) bool {
+			return collisions[i].Scale < collisions[j].Scale
+		})
+		firstCollision, collides := collider.FirstRayCollision(ray)
+		if collides != (len(collisions) > 0) {
+			t.Error("mismatched collision reports")
+		} else if collides && math.Abs(firstCollision.Scale-collisions[0].Scale) > 1e-8 {
+			t.Error("mismatched collision scales for closest collision")
+		}
+	}
 }
 
 func BenchmarkMeshToCollider(b *testing.B) {
