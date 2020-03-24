@@ -69,16 +69,16 @@ func (l *LambertMaterial) Reflect(normal, source, dest model3d.Coord3D) Color {
 	if dest.Dot(normal) < 0 {
 		return Color{}
 	}
-	return l.ReflectColor.Scale(math.Max(0, -normal.Dot(source)))
+	return l.DiffuseColor.Scale(math.Max(0, -normal.Dot(source)))
 }
 
 func (l *LambertMaterial) BackSampler(normal, dest model3d.Coord3D) SampleFunc {
 	return func() (model3d.Coord3D, float64) {
 		c := model3d.NewCoord3DRandUnit()
 		if c.Dot(normal) > 0 {
-			return c.Scale(-1), 1
+			return c.Scale(-1), 0.5
 		}
-		return c, 1
+		return c, 0.5
 	}
 }
 
