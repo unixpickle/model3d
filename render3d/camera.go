@@ -6,6 +6,8 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
+const DefaultFieldOfView = math.Pi / 3
+
 // A Camera defines a viewer's position, orientation, and
 // field of view for rendering.
 //
@@ -35,6 +37,32 @@ type Camera struct {
 	//
 	// This is measured in radians.
 	FieldOfView float64
+}
+
+// NewCameraAt creates a new Camera that is looking at a
+// point from another point.
+//
+// If fov is 0, DefaultFieldOfView is used.
+//
+// The image axes are automatically determined.
+func NewCameraAt(source, dest model3d.Coord3D, fov float64) *Camera {
+	if fov == 0 {
+		fov = DefaultFieldOfView
+	}
+	zAxis := dest.Sub(source).Normalize()
+	xAxis := model3d.Coord3D{X: zAxis.Y, Y: -zAxis.X}
+	if xAxis.Norm() < 1e-5 {
+		// There is no well-defined x-axis.
+		xAxis = model3d.Coord3D{X: 1}.ProjectOut(zAxis)
+	}
+	xAxis = xAxis.Normalize()
+	yAxis := zAxis.Cross(xAxis)
+	return &Camera{
+		Origin:      source,
+		ScreenX:     xAxis,
+		ScreenY:     yAxis,
+		FieldOfView: fov,
+	}
 }
 
 // Caster produces a function that converts image
