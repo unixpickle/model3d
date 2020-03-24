@@ -62,6 +62,7 @@ func (i *Image) RGBA() *image.RGBA {
 				R: uint8(c.X * (256.0 - 0.001)),
 				G: uint8(c.Y * (256.0 - 0.001)),
 				B: uint8(c.Z * (256.0 - 0.001)),
+				A: 0xff,
 			})
 		}
 	}
