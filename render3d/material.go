@@ -42,9 +42,9 @@ type Material interface {
 	// The main purpose of BackSampler is to provide a
 	// lower-variance means of integrating over the
 	// incoming light using importance sampling.
-	// The weight of a direction should be proportional to
-	// the ratio of the sampling density to the uniform
-	// density (over the surface of the unit sphere).
+	// The weight of a direction should be equal to the
+	// ratio of the sampling density to the uniform
+	// density over the unit sphere.
 	BackSampler(normal, dest model3d.Coord3D) SampleFunc
 
 	// Luminance is the amount of light directly given off
@@ -93,8 +93,10 @@ func (l *LambertMaterial) Ambience() Color {
 type PhongMaterial struct {
 	// Alpha is the exponent for the reflection term.
 	//
-	// A value of 0 makes PhongMaterial equivalent to
-	// lambert material.
+	// A value of 0 makes PhongMaterial similar to a
+	// lambert material, except that the viewer cannot be
+	// at a negative dot product to the reflected rays.
+	//
 	// Higher values result in more reflectiveness.
 	Alpha float64
 
@@ -107,8 +109,12 @@ func (p *PhongMaterial) Reflect(normal, source, dest model3d.Coord3D) Color {
 	if dest.Dot(normal) < 0 {
 		return Color{}
 	}
-	reflection := normal.Add(source.ProjectOut(normal).Scale(-2))
-	intensity := -normal.Dot(source) * math.Pow(math.Max(0, reflection.Dot(dest)), p.Alpha)
+	reflection := normal.Reflect(source)
+	refDot := reflection.Dot(dest)
+	if refDot < 0 {
+		return Color{}
+	}
+	intensity := -normal.Dot(source) * math.Pow(refDot, p.Alpha)
 	return p.ReflectColor.Scale(math.Max(0, intensity))
 }
 
@@ -139,8 +145,13 @@ func (p *PhongMaterial) BackSampler(normal, dest model3d.Coord3D) SampleFunc {
 	//
 	// The jacobian is diagonal, so the determinant is:
 	// dx dy = 2 * pi * v^(1/(alpha+1)-1) / (alpha + 1) * du dv
+	//
+	// Dividing by the entire area of the sphere gives:
+	//
+	//     1/2 * v^(1/(alpha+1)-1) / (alpha + 1)
+	//
 
-	reflection := normal.Add(dest.ProjectOut(normal).Scale(-2))
+	reflection := normal.Reflect(dest)
 	xAxis, zAxis := reflection.OrthoBasis()
 	return func() (model3d.Coord3D, float64) {
 		u := rand.Float64()
@@ -151,7 +162,7 @@ func (p *PhongMaterial) BackSampler(normal, dest model3d.Coord3D) SampleFunc {
 
 		lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
 		point := reflection.Scale(math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
-		weight := math.Pow(v, 1/(p.Alpha+1)-1)
+		weight := math.Pow(v, 1/(p.Alpha+1)-1) / (2 * (p.Alpha + 1))
 
 		return point, weight
 	}
