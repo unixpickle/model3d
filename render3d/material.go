@@ -115,7 +115,7 @@ func (p *PhongMaterial) Reflect(normal, source, dest model3d.Coord3D) Color {
 		color = p.DiffuseColor.Scale(sourceDot)
 	}
 
-	reflection := normal.Reflect(source)
+	reflection := normal.Reflect(source).Scale(-1)
 	refDot := reflection.Dot(dest)
 	if refDot < 0 {
 		return color
@@ -175,7 +175,7 @@ func (p *PhongMaterial) SampleSource(normal, dest model3d.Coord3D) (model3d.Coor
 	//     1/2 * v^(1/(alpha+1)-1) / (alpha + 1)
 	//
 
-	reflection := normal.Reflect(dest)
+	reflection := normal.Reflect(dest).Scale(-1)
 	xAxis, zAxis := reflection.OrthoBasis()
 
 	u := rand.Float64()

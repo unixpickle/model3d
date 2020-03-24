@@ -218,10 +218,11 @@ func (c Coord3D) ProjectOut(c1 Coord3D) Coord3D {
 	return c.Sub(normed.Scale(normed.Dot(c)))
 }
 
-// Reflect reflects c1 around c.
+// Reflect reflects c1 around c on the plane spanned by
+// both vectors.
 func (c Coord3D) Reflect(c1 Coord3D) Coord3D {
 	n := c.Normalize()
-	return c1.Add(n.Scale(-2 * n.Dot(c1)))
+	return c1.Add(n.Scale(-2 * n.Dot(c1))).Scale(-1)
 }
 
 // Array creates an array with the x, y, and z.

@@ -108,7 +108,7 @@ func (c Coord) ProjectOut(c1 Coord) Coord {
 // Reflect reflects c1 around c.
 func (c Coord) Reflect(c1 Coord) Coord {
 	n := c.Normalize()
-	return c1.Add(n.Scale(-2 * n.Dot(c1)))
+	return c1.Add(n.Scale(-2 * n.Dot(c1))).Scale(-1)
 }
 
 // Array gets an array of x and y.
