@@ -8,22 +8,27 @@ import (
 
 func TestLambertMaterialSampling(t *testing.T) {
 	testMaterialSampling(t, &LambertMaterial{
-		ReflectColor: Color{X: 1, Y: 0.9, Z: 0.5},
+		DiffuseColor: Color{X: 1, Y: 0.9, Z: 0.5},
 	})
 }
 
 func TestPhongMaterialSampling(t *testing.T) {
 	testMaterialSampling(t, &PhongMaterial{
-		Alpha:        0,
-		ReflectColor: Color{X: 1, Y: 0.9, Z: 0.5},
+		Alpha:         0,
+		SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
 	})
 	testMaterialSampling(t, &PhongMaterial{
-		Alpha:        0.5,
-		ReflectColor: Color{X: 1, Y: 0.9, Z: 0.5},
+		Alpha:         0.5,
+		SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
 	})
 	testMaterialSampling(t, &PhongMaterial{
-		Alpha:        2,
-		ReflectColor: Color{X: 1, Y: 0.9, Z: 0.5},
+		Alpha:         2,
+		SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
+	})
+	testMaterialSampling(t, &PhongMaterial{
+		Alpha:         2,
+		SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
+		DiffuseColor:  Color{X: 0.3, Y: 0.2, Z: 0.5},
 	})
 }
 
@@ -51,9 +56,8 @@ func testMaterialSampling(t *testing.T, m Material) {
 	}
 
 	var expected Color
-	sampler := m.BackSampler(normal, dest)
 	for i := 0; i < 500000; i++ {
-		source, weight := sampler()
+		source, weight := m.SampleSource(normal, dest)
 		reflection := m.Reflect(normal, source, dest)
 		color := reflection.Mul(sourceColorFunc(source)).Scale(weight)
 		expected = expected.Add(color)
