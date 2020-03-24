@@ -105,6 +105,12 @@ func (c Coord) ProjectOut(c1 Coord) Coord {
 	return c.Sub(normed.Scale(normed.Dot(c)))
 }
 
+// Reflect reflects c1 around c.
+func (c Coord) Reflect(c1 Coord) Coord {
+	n := c.Normalize()
+	return c1.Add(n.Scale(-2 * n.Dot(c1)))
+}
+
 // Array gets an array of x and y.
 func (c Coord) Array() [2]float64 {
 	return [2]float64{c.X, c.Y}

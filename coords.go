@@ -218,6 +218,12 @@ func (c Coord3D) ProjectOut(c1 Coord3D) Coord3D {
 	return c.Sub(normed.Scale(normed.Dot(c)))
 }
 
+// Reflect reflects c1 around c.
+func (c Coord3D) Reflect(c1 Coord3D) Coord3D {
+	n := c.Normalize()
+	return c1.Add(n.Scale(-2 * n.Dot(c1)))
+}
+
 // Array creates an array with the x, y, and z.
 // This can be useful for some vectorized code.
 func (c Coord3D) Array() [3]float64 {
