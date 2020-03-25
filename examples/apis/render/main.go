@@ -14,8 +14,8 @@ func main() {
 		&render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(model3d.NewMeshPolar(
 				func(g model3d.GeoCoord) float64 {
-					return 1
-				}, 100).MapCoords(model3d.Coord3D{X: 2, Y: 6, Z: 0}.Add)),
+					return 2
+				}, 30).MapCoords(model3d.Coord3D{X: 2, Y: 6, Z: 0}.Add)),
 			Material: &render3d.PhongMaterial{
 				Alpha:         5.0,
 				SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
@@ -23,25 +23,27 @@ func main() {
 				AmbienceColor: render3d.Color{X: 0.3},
 			},
 		},
+
 		// Blue ball.
-		// &render3d.ColliderObject{
-		// 	Collider: model3d.MeshToCollider(model3d.NewMeshPolar(
-		// 		func(g model3d.GeoCoord) float64 {
-		// 			return 1
-		// 		}, 100).MapCoords(model3d.Coord3D{X: 1.5, Y: -5}.Add)),
-		// 	Material: &render3d.PhongMaterial{
-		// 		Alpha:         5.0,
-		// 		SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
-		// 		DiffuseColor:  render3d.Color{X: 0.1, Y: 0.1, Z: 0.7},
-		// 		AmbienceColor: render3d.Color{X: 0.3},
-		// 	},
-		// },
+		&render3d.ColliderObject{
+			Collider: model3d.MeshToCollider(model3d.NewMeshPolar(
+				func(g model3d.GeoCoord) float64 {
+					return 1
+				}, 30).MapCoords(model3d.Coord3D{X: -2, Y: 7, Z: -1}.Add)),
+			Material: &render3d.PhongMaterial{
+				Alpha:         5.0,
+				SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
+				DiffuseColor:  render3d.Color{X: 0.1, Y: 0.1, Z: 0.7},
+				AmbienceColor: render3d.Color{Z: 0.3},
+			},
+		},
+
 		// Room walls.
 		&render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(
 				model3d.SolidToMesh(
 					&model3d.RectSolid{
-						MinVal: model3d.Coord3D{X: -5, Y: 0, Z: -2},
+						MinVal: model3d.Coord3D{X: -5, Y: -7, Z: -2},
 						MaxVal: model3d.Coord3D{X: 5, Y: 10, Z: 7},
 					},
 					0.05, 0, 0, 0,
@@ -49,9 +51,10 @@ func main() {
 			),
 			Material: &render3d.LambertMaterial{
 				DiffuseColor:  render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
-				AmbienceColor: render3d.Color{X: 0.3, Y: 0.3, Z: 0.3},
+				AmbienceColor: render3d.Color{X: 0.1, Y: 0.1, Z: 0.1},
 			},
 		},
+
 		// Ceiling light.
 		&render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(
@@ -72,17 +75,24 @@ func main() {
 	}
 
 	renderer := render3d.RecursiveRayTracer{
-		Camera: render3d.NewCameraAt(model3d.Coord3D{Z: 3}, model3d.Coord3D{Y: 10, Z: 3}, math.Pi/2),
-		Lights: []*render3d.PointLight{
-			// &render3d.PointLight{
-			// 	Color:  render3d.Color{X: 1, Y: 1, Z: 1},
-			// 	Origin: model3d.Coord3D{X: 0, Y: 1, Z: 6},
-			// },
+		Camera: render3d.NewCameraAt(model3d.Coord3D{Y: -6, Z: 2.5},
+			model3d.Coord3D{Y: 10, Z: 2.5}, math.Pi/3.6),
+
+		// Focus reflections towards the light source
+		// to lower variance (i.e. grain).
+		FocusPoints: []render3d.FocusPoint{
+			&render3d.PhongFocusPoint{
+				Target: model3d.Coord3D{X: 0, Y: 6, Z: 6.9},
+				Alpha:  10.0,
+			},
 		},
-		MaxDepth:   2,
-		NumSamples: 500,
+		FocusPointProbs: []float64{0.5},
+
+		MaxDepth:   4,
+		NumSamples: 20,
 	}
-	img := render3d.NewImage(500, 500)
+
+	img := render3d.NewImage(200, 200)
 	renderer.Render(img, object)
 	img.Save("output.png")
 }
