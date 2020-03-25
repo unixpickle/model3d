@@ -11,11 +11,9 @@ func main() {
 	// Join all the objects into a mega-object.
 	object := render3d.JoinedObject{
 		// Red ball.
-		&render3d.ColliderObject{
-			Collider: model3d.MeshToCollider(model3d.NewMeshPolar(
-				func(g model3d.GeoCoord) float64 {
-					return 2
-				}, 30).MapCoords(model3d.Coord3D{X: 2, Y: 6, Z: 0}.Add)),
+		&render3d.Sphere{
+			Center: model3d.Coord3D{X: 2, Y: 6, Z: 0},
+			Radius: 2,
 			Material: &render3d.PhongMaterial{
 				Alpha:         5.0,
 				SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
@@ -25,11 +23,9 @@ func main() {
 		},
 
 		// Blue ball.
-		&render3d.ColliderObject{
-			Collider: model3d.MeshToCollider(model3d.NewMeshPolar(
-				func(g model3d.GeoCoord) float64 {
-					return 1
-				}, 30).MapCoords(model3d.Coord3D{X: -2, Y: 7, Z: -1}.Add)),
+		&render3d.Sphere{
+			Center: model3d.Coord3D{X: -2, Y: 7, Z: -1},
+			Radius: 1,
 			Material: &render3d.PhongMaterial{
 				Alpha:         5.0,
 				SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
@@ -41,13 +37,10 @@ func main() {
 		// Room walls.
 		&render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(
-				model3d.SolidToMesh(
-					&model3d.RectSolid{
-						MinVal: model3d.Coord3D{X: -5, Y: -7, Z: -2},
-						MaxVal: model3d.Coord3D{X: 5, Y: 10, Z: 7},
-					},
-					0.05, 0, 0, 0,
-				).EliminateCoplanar(1e-8).MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul),
+				model3d.NewMeshRect(
+					model3d.Coord3D{X: -5, Y: -7, Z: -2},
+					model3d.Coord3D{X: 5, Y: 10, Z: 7},
+				).MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul),
 			),
 			Material: &render3d.LambertMaterial{
 				DiffuseColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
@@ -58,13 +51,10 @@ func main() {
 		// Ceiling light.
 		&render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(
-				model3d.SolidToMesh(
-					&model3d.RectSolid{
-						MinVal: model3d.Coord3D{X: -2, Y: 5, Z: 6.8},
-						MaxVal: model3d.Coord3D{X: 2, Y: 7, Z: 7},
-					},
-					0.05, 0, 0, 0,
-				).EliminateCoplanar(1e-8),
+				model3d.NewMeshRect(
+					model3d.Coord3D{X: -2, Y: 5, Z: 6.8},
+					model3d.Coord3D{X: 2, Y: 7, Z: 7},
+				),
 			),
 			Material: &render3d.LambertMaterial{
 				// Make it really bright so it lights the scene
@@ -89,10 +79,10 @@ func main() {
 		FocusPointProbs: []float64{0.5},
 
 		MaxDepth:   4,
-		NumSamples: 50,
+		NumSamples: 20,
 	}
 
-	img := render3d.NewImage(200, 200)
+	img := render3d.NewImage(400, 400)
 	renderer.Render(img, object)
 	img.Save("output.png")
 }
