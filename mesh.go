@@ -99,6 +99,20 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 	return res
 }
 
+// NewMeshRect creates a new mesh around the rectangular
+// bounds.
+func NewMeshRect(min, max Coord3D) *Mesh {
+	var system ConvexPolytope
+	for i := 0; i < 3; i++ {
+		var vecArr [3]float64
+		vecArr[i] = 1
+		axis := NewCoord3DArray(vecArr)
+		system = append(system, &LinearConstraint{Normal: axis, Max: max.Array()[i]})
+		system = append(system, &LinearConstraint{Normal: axis.Scale(-1), Max: -min.Array()[i]})
+	}
+	return system.Mesh()
+}
+
 // Add adds the triangle t to the mesh.
 func (m *Mesh) Add(t *Triangle) {
 	if m.vertexToTriangle == nil {
