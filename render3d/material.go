@@ -48,22 +48,22 @@ type Material interface {
 	// density divided by the density on a unit sphere.
 	SourceDensity(normal, source, dest model3d.Coord3D) float64
 
-	// Luminance is the amount of light directly given off
+	// Emission is the amount of light directly given off
 	// by the surface in the normal direction.
-	Luminance() Color
+	Emission() Color
 
-	// Ambience is the baseline color to use for all
+	// Ambient is the baseline color to use for all
 	// collisions with this surface for rendering.
 	// It ensures that every surface is rendered at least
 	// some amount.
-	Ambience() Color
+	Ambient() Color
 }
 
 // LambertMaterial is a completely matte material.
 type LambertMaterial struct {
-	DiffuseColor   Color
-	AmbienceColor  Color
-	LuminanceColor Color
+	DiffuseColor  Color
+	AmbientColor  Color
+	EmissionColor Color
 }
 
 func (l *LambertMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
@@ -95,12 +95,12 @@ func (l *LambertMaterial) SourceDensity(normal, source, dest model3d.Coord3D) fl
 	return 4 * normalDot
 }
 
-func (l *LambertMaterial) Luminance() Color {
-	return l.LuminanceColor
+func (l *LambertMaterial) Emission() Color {
+	return l.EmissionColor
 }
 
-func (l *LambertMaterial) Ambience() Color {
-	return l.AmbienceColor
+func (l *LambertMaterial) Ambient() Color {
+	return l.AmbientColor
 }
 
 // PhongMaterial implements the Phong reflection model.
@@ -112,10 +112,10 @@ type PhongMaterial struct {
 	// concentrated.
 	Alpha float64
 
-	SpecularColor  Color
-	DiffuseColor   Color
-	LuminanceColor Color
-	AmbienceColor  Color
+	SpecularColor Color
+	DiffuseColor  Color
+	EmissionColor Color
+	AmbientColor  Color
 }
 
 func (p *PhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
@@ -226,10 +226,10 @@ func (p *PhongMaterial) specularDensity(normal, source, dest model3d.Coord3D) fl
 	return (2 * (p.Alpha + 1)) / math.Pow(v, 1/(p.Alpha+1)-1)
 }
 
-func (p *PhongMaterial) Luminance() Color {
-	return p.LuminanceColor
+func (p *PhongMaterial) Emission() Color {
+	return p.EmissionColor
 }
 
-func (p *PhongMaterial) Ambience() Color {
-	return p.AmbienceColor
+func (p *PhongMaterial) Ambient() Color {
+	return p.AmbientColor
 }

@@ -64,11 +64,11 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *model3d.Ray,
 	coll model3d.RayCollision, mat Material, depth int) Color {
 	dest := ray.Direction.Normalize().Scale(-1)
-	color := mat.Luminance()
+	color := mat.Emission()
 	if depth == 0 {
 		// Only add ambient light directly to object, not to
 		// recursive rays.
-		color = color.Add(mat.Ambience())
+		color = color.Add(mat.Ambient())
 	}
 	for _, l := range r.Lights {
 		lightDirection := l.Origin.Sub(point)

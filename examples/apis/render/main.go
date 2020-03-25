@@ -20,7 +20,7 @@ func main() {
 				Alpha:         5.0,
 				SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
 				DiffuseColor:  render3d.Color{X: 0.7, Y: 0.1, Z: 0.1},
-				AmbienceColor: render3d.Color{X: 0.3},
+				AmbientColor:  render3d.Color{X: 0.3},
 			},
 		},
 
@@ -34,7 +34,7 @@ func main() {
 				Alpha:         5.0,
 				SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
 				DiffuseColor:  render3d.Color{X: 0.1, Y: 0.1, Z: 0.7},
-				AmbienceColor: render3d.Color{Z: 0.3},
+				AmbientColor:  render3d.Color{Z: 0.3},
 			},
 		},
 
@@ -50,8 +50,8 @@ func main() {
 				).EliminateCoplanar(1e-8).MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul),
 			),
 			Material: &render3d.LambertMaterial{
-				DiffuseColor:  render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
-				AmbienceColor: render3d.Color{X: 0.1, Y: 0.1, Z: 0.1},
+				DiffuseColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
+				AmbientColor: render3d.Color{X: 0.1, Y: 0.1, Z: 0.1},
 			},
 		},
 
@@ -69,7 +69,7 @@ func main() {
 			Material: &render3d.LambertMaterial{
 				// Make it really bright so it lights the scene
 				// adequately.
-				LuminanceColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(20),
+				EmissionColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(20),
 			},
 		},
 	}
