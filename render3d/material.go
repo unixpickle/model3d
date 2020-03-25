@@ -45,7 +45,7 @@ type Material interface {
 	// SourceDensity computes the density ratio of
 	// arbitrary source directions under the distribution
 	// used by SampleSource(). These ratios measure the
-	// density divided by the density on a unit sphere.
+	// density divided by the density on a unit hemisphere.
 	SourceDensity(normal, source, dest model3d.Coord3D) float64
 
 	// Emission is the amount of light directly given off
@@ -92,7 +92,7 @@ func (l *LambertMaterial) SourceDensity(normal, source, dest model3d.Coord3D) fl
 	if normalDot < 0 {
 		return 0
 	}
-	return 4 * normalDot
+	return 2 * normalDot
 }
 
 func (l *LambertMaterial) Emission() Color {
@@ -223,7 +223,7 @@ func (p *PhongMaterial) specularDensity(normal, source, dest model3d.Coord3D) fl
 		return 0
 	}
 	v := math.Pow(reflectionDot, p.Alpha+1)
-	return (2 * (p.Alpha + 1)) / math.Pow(v, 1/(p.Alpha+1)-1)
+	return (p.Alpha + 1) / math.Pow(v, 1/(p.Alpha+1)-1)
 }
 
 func (p *PhongMaterial) Emission() Color {

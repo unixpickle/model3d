@@ -49,6 +49,9 @@ func testMaterialSampling(t *testing.T, m Material) {
 	var actual Color
 	for i := 0; i < 1000000; i++ {
 		source := model3d.NewCoord3DRandUnit()
+		if source.Dot(normal) > 0 {
+			source = source.Scale(-1)
+		}
 		reflection := m.BRDF(normal, source, dest)
 		color := reflection.Mul(sourceColorFunc(source))
 		actual = actual.Add(color)
