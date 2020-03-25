@@ -10,8 +10,8 @@ import (
 // A Material determines how light bounces off a locally
 // flat surface.
 type Material interface {
-	// Reflect gets the amount of light that bounces off
-	// the surface into a given direction.
+	// BRDF gets the amount of light that bounces off the
+	// surface into a given direction.
 	//
 	// Both arguments should be unit vectors.
 	//
@@ -29,7 +29,7 @@ type Material interface {
 	// Thus, the outgoing Color should be, on expectation
 	// over random unit source vectors, less than 1 in all
 	// components.
-	Reflect(normal, source, dest model3d.Coord3D) Color
+	BRDF(normal, source, dest model3d.Coord3D) Color
 
 	// SampleSource samples a random source vector for a
 	// given dest vector, possibly with a non-uniform
@@ -66,7 +66,7 @@ type LambertMaterial struct {
 	LuminanceColor Color
 }
 
-func (l *LambertMaterial) Reflect(normal, source, dest model3d.Coord3D) Color {
+func (l *LambertMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 	if dest.Dot(normal) < 0 {
 		return Color{}
 	}
@@ -118,7 +118,7 @@ type PhongMaterial struct {
 	AmbienceColor  Color
 }
 
-func (p *PhongMaterial) Reflect(normal, source, dest model3d.Coord3D) Color {
+func (p *PhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 	destDot := dest.Dot(normal)
 	sourceDot := -source.Dot(normal)
 	if destDot < 0 || sourceDot < 0 {

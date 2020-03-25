@@ -61,7 +61,7 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 			continue
 		}
 
-		scale := mat.Reflect(coll.Normal, point.Sub(l.Origin).Normalize(),
+		scale := mat.BRDF(coll.Normal, point.Sub(l.Origin).Normalize(),
 			ray.Origin.Sub(point).Normalize())
 		lightDist := lightDirection.Norm()
 		color = color.Add(l.ColorAtDistance(lightDist).Mul(scale))
@@ -74,7 +74,7 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 	nextDest := ray.Direction.Normalize().Scale(-1)
 	nextSource := mat.SampleSource(coll.Normal, nextDest)
 	weight := 1 / mat.SourceDensity(coll.Normal, nextSource, nextDest)
-	reflectWeight := mat.Reflect(coll.Normal, nextSource, nextDest)
+	reflectWeight := mat.BRDF(coll.Normal, nextSource, nextDest)
 	nextRay := r.bounceRay(point, nextSource.Scale(-1))
 	nextColor := r.castRay(obj, nextRay, depth+1)
 	return color.Add(nextColor.Mul(reflectWeight).Scale(weight))
