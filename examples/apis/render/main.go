@@ -10,27 +10,24 @@ import (
 func main() {
 	// Join all the objects into a mega-object.
 	object := render3d.JoinedObject{
-		// Red ball.
+		// Mirror ball.
 		&render3d.Sphere{
-			Center: model3d.Coord3D{X: 2, Y: 6, Z: 0},
+			Center: model3d.Coord3D{X: 2, Y: 7, Z: 0},
 			Radius: 2,
 			Material: &render3d.PhongMaterial{
-				Alpha:         5.0,
-				SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
-				DiffuseColor:  render3d.Color{X: 0.7, Y: 0.1, Z: 0.1},
-				AmbientColor:  render3d.Color{X: 0.3},
+				Alpha:         20.0,
+				SpecularColor: render3d.Color{X: 1, Y: 1, Z: 1},
 			},
 		},
 
-		// Blue ball.
+		// Red ball.
 		&render3d.Sphere{
-			Center: model3d.Coord3D{X: -2, Y: 7, Z: -1},
+			Center: model3d.Coord3D{X: -2, Y: 5.5, Z: -1},
 			Radius: 1,
 			Material: &render3d.PhongMaterial{
-				Alpha:         5.0,
-				SpecularColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
-				DiffuseColor:  render3d.Color{X: 0.1, Y: 0.1, Z: 0.7},
-				AmbientColor:  render3d.Color{Z: 0.3},
+				Alpha:         10.0,
+				SpecularColor: render3d.Color{X: 0.3, Y: 0.3, Z: 0.3},
+				DiffuseColor:  render3d.Color{X: 0.7, Y: 0.1, Z: 0.1},
 			},
 		},
 
@@ -44,7 +41,6 @@ func main() {
 			),
 			Material: &render3d.LambertMaterial{
 				DiffuseColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
-				AmbientColor: render3d.Color{X: 0.1, Y: 0.1, Z: 0.1},
 			},
 		},
 
@@ -59,7 +55,7 @@ func main() {
 			Material: &render3d.LambertMaterial{
 				// Make it really bright so it lights the scene
 				// adequately.
-				EmissionColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(20),
+				EmissionColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(50),
 			},
 		},
 	}
@@ -78,11 +74,11 @@ func main() {
 		},
 		FocusPointProbs: []float64{0.5},
 
-		MaxDepth:   4,
-		NumSamples: 20,
+		MaxDepth:   5,
+		NumSamples: 400,
 	}
 
-	img := render3d.NewImage(400, 400)
+	img := render3d.NewImage(200, 200)
 	renderer.Render(img, object)
 	img.Save("output.png")
 }
