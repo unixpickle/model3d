@@ -6,7 +6,7 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
-const DefaultFieldOfView = math.Pi / 4
+const DefaultFieldOfView = math.Pi / 2
 
 // A Camera defines a viewer's position, orientation, and
 // field of view for rendering.
