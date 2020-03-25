@@ -136,6 +136,8 @@ func (p *PhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 		return color
 	}
 	intensity := sourceDot * math.Pow(refDot, p.Alpha)
+	// Divide by (integral from x=0 to pi/2 of sin(x)*cos(x)^alpha)
+	intensity *= (1 + p.Alpha)
 	return color.Add(p.SpecularColor.Scale(intensity))
 }
 
