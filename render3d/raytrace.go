@@ -4,6 +4,8 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
+const DefaultEpsilon = 1e-8
+
 // A RecursiveRayTracer renders objects using recursive
 // tracing with random sampling.
 type RecursiveRayTracer struct {
@@ -17,6 +19,11 @@ type RecursiveRayTracer struct {
 
 	// NumSamples is the number of rays to sample.
 	NumSamples int
+
+	// Epsilon is a small distance used to move away from
+	// surfaces before bouncing new rays.
+	// If nil, DefaultEpsilon is used.
+	Epsilon float64
 }
 
 // Render renders the object to an image.
@@ -47,9 +54,8 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 	color := mat.Luminance()
 	for _, l := range r.Lights {
 		lightDirection := l.Origin.Sub(point)
-		lightDist := lightDirection.Norm()
 
-		shadowRay := bounceRay(point, lightDirection, lightDist)
+		shadowRay := r.bounceRay(point, lightDirection)
 		collision, _, ok := obj.Cast(shadowRay)
 		if ok && collision.Scale < 1 {
 			continue
@@ -57,6 +63,7 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 
 		scale := mat.Reflect(coll.Normal, point.Sub(l.Origin).Normalize(),
 			ray.Origin.Sub(point).Normalize())
+		lightDist := lightDirection.Norm()
 		color = color.Add(l.ColorAtDistance(lightDist).Mul(scale))
 	}
 	if depth >= r.MaxDepth {
@@ -67,7 +74,7 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 	nextDest := ray.Direction.Normalize().Scale(-1)
 	nextSource, weight := mat.SampleSource(coll.Normal, nextDest)
 	reflectWeight := mat.Reflect(coll.Normal, nextSource, nextDest)
-	nextRay := bounceRay(point, nextSource, coll.Scale)
+	nextRay := r.bounceRay(point, nextSource.Scale(-1))
 	nextColor := r.castRay(obj, nextRay, depth+1)
 	return color.Add(nextColor.Mul(reflectWeight).Scale(weight))
 }
@@ -81,12 +88,16 @@ func (r *RecursiveRayTracer) castRay(obj Object, ray *model3d.Ray, depth int) Co
 	return r.recurse(obj, point, ray, collision, material, depth)
 }
 
-func bounceRay(point model3d.Coord3D, newDirection model3d.Coord3D, scale float64) *model3d.Ray {
+func (r *RecursiveRayTracer) bounceRay(point model3d.Coord3D, dir model3d.Coord3D) *model3d.Ray {
+	eps := r.Epsilon
+	if eps == 0 {
+		eps = DefaultEpsilon
+	}
 	return &model3d.Ray{
 		// Prevent a duplicate collision from being
 		// detected when bouncing off an existing
 		// object.
-		Origin:    point.Add(newDirection.Scale(scale * 1e-8)),
-		Direction: newDirection,
+		Origin:    point.Add(dir.Normalize().Scale(eps)),
+		Direction: dir,
 	}
 }
