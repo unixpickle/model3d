@@ -7,11 +7,6 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
-// A SampleFunc generates random unit directions along
-// with a weight specifying some relative probability
-// density.
-type SampleFunc func() (model3d.Coord3D, float64)
-
 // A Material determines how light bounces off a locally
 // flat surface.
 type Material interface {
@@ -37,15 +32,21 @@ type Material interface {
 	Reflect(normal, source, dest model3d.Coord3D) Color
 
 	// SampleSource samples a random source vector for a
-	// given dest vector.
+	// given dest vector, possibly with a non-uniform
+	// distribution.
 	//
 	// The main purpose of SampleSource is to compute a
 	// the mean outgoing light using importance sampling.
 	//
-	// The second return value is a weight, which should
-	// be equal to the ratio of the sampling density to
-	// the uniform density over the unit sphere.
-	SampleSource(normal, dest model3d.Coord3D) (model3d.Coord3D, float64)
+	// The densities returned by SourceDensity correspond
+	// to this sampling distribution.
+	SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D
+
+	// SourceDensity computes the density ratio of
+	// arbitrary source directions under the distribution
+	// used by SampleSource(). These ratios measure the
+	// density divided by the density on a unit sphere.
+	SourceDensity(normal, source, dest model3d.Coord3D) float64
 
 	// Luminance is the amount of light directly given off
 	// by the surface in the normal direction.
@@ -72,9 +73,8 @@ func (l *LambertMaterial) Reflect(normal, source, dest model3d.Coord3D) Color {
 	return l.DiffuseColor.Scale(math.Max(0, -normal.Dot(source)))
 }
 
-func (l *LambertMaterial) SampleSource(normal, dest model3d.Coord3D) (model3d.Coord3D, float64) {
-	// Sample with probabilities proportional to
-	// Reflect() magnitude.
+func (l *LambertMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
+	// Sample with probabilities proportional to the BRDF.
 	u := rand.Float64()
 	lat := math.Acos(math.Sqrt(u))
 	lon := rand.Float64() * 2 * math.Pi
@@ -83,12 +83,11 @@ func (l *LambertMaterial) SampleSource(normal, dest model3d.Coord3D) (model3d.Co
 
 	lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
 	point := normal.Scale(-math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
-	weight := 1 / (4 * math.Sqrt(u))
 
-	return point, weight
+	return point
 }
 
-func (l *LambertMaterial) sourceDensity(normal, source model3d.Coord3D) float64 {
+func (l *LambertMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
 	normalDot := -normal.Dot(source)
 	if normalDot < 0 {
 		return 0
@@ -141,27 +140,27 @@ func (p *PhongMaterial) Reflect(normal, source, dest model3d.Coord3D) Color {
 }
 
 // SampleSource uses importance sampling to sample in
-// proportion to the amount of light reflected from a
-// given direction.
+// proportion to the reflection weight of a direction.
 //
 // If there is a diffuse lighting term, it is mixed in for
 // some fraction of the samples.
-func (p *PhongMaterial) SampleSource(normal, dest model3d.Coord3D) (model3d.Coord3D, float64) {
-	// If there are both specular and diffuse components,
-	// we mix together these two distributions.
-	var sourceSample model3d.Coord3D
+func (p *PhongMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
 	if (p.DiffuseColor == Color{}) || rand.Intn(2) == 0 {
-		sourceSample = p.sampleSpecular(normal, dest)
+		return p.sampleSpecular(normal, dest)
 	} else {
-		sourceSample, _ = (&LambertMaterial{}).SampleSource(normal, dest)
+		return (&LambertMaterial{}).SampleSource(normal, dest)
 	}
+}
 
-	phongWeight := p.sourceDensity(normal, sourceSample, dest)
+// SourceDensity gets the density of the SampleSource
+// distribution.
+func (p *PhongMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
+	phongWeight := p.specularDensity(normal, source, dest)
 	if (p.DiffuseColor == Color{}) {
-		return sourceSample, 1 / phongWeight
+		return phongWeight
 	}
-	lambertWeight := (&LambertMaterial{}).sourceDensity(normal, sourceSample)
-	return sourceSample, 2 / (phongWeight + lambertWeight)
+	lambertWeight := (&LambertMaterial{}).SourceDensity(normal, source, dest)
+	return (phongWeight + lambertWeight) / 2
 }
 
 // sampleSpecular samples source vectors weighted to
@@ -217,7 +216,7 @@ func (p *PhongMaterial) sampleSpecular(normal, dest model3d.Coord3D) model3d.Coo
 	return reflection.Scale(math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
 }
 
-func (p *PhongMaterial) sourceDensity(normal, source, dest model3d.Coord3D) float64 {
+func (p *PhongMaterial) specularDensity(normal, source, dest model3d.Coord3D) float64 {
 	reflection := normal.Reflect(source).Scale(-1)
 	reflectionDot := reflection.Dot(dest)
 	if reflectionDot < 0 {

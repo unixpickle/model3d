@@ -56,7 +56,8 @@ func testMaterialSampling(t *testing.T, m Material) {
 
 	var expected Color
 	for i := 0; i < 1000000; i++ {
-		source, weight := m.SampleSource(normal, dest)
+		source := m.SampleSource(normal, dest)
+		weight := 1 / m.SourceDensity(normal, source, dest)
 		reflection := m.Reflect(normal, source, dest)
 		color := reflection.Mul(sourceColorFunc(source)).Scale(weight)
 		expected = expected.Add(color)

@@ -72,7 +72,8 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 		return color.Add(mat.Ambience())
 	}
 	nextDest := ray.Direction.Normalize().Scale(-1)
-	nextSource, weight := mat.SampleSource(coll.Normal, nextDest)
+	nextSource := mat.SampleSource(coll.Normal, nextDest)
+	weight := 1 / mat.SourceDensity(coll.Normal, nextSource, nextDest)
 	reflectWeight := mat.Reflect(coll.Normal, nextSource, nextDest)
 	nextRay := r.bounceRay(point, nextSource.Scale(-1))
 	nextColor := r.castRay(obj, nextRay, depth+1)
