@@ -2,6 +2,8 @@ package render3d
 
 import (
 	"math/rand"
+	"runtime"
+	"sync"
 
 	"github.com/unixpickle/model3d"
 )
@@ -46,19 +48,35 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 	maxX := float64(img.Width) - 1
 	maxY := float64(img.Height) - 1
 	caster := r.Camera.Caster(maxX, maxY)
-	ray := model3d.Ray{Origin: r.Camera.Origin}
+
+	coords := make(chan [3]int, img.Width*img.Height)
 	var idx int
-	for y := 0.0; y <= maxY; y++ {
-		for x := 0.0; x <= maxX; x++ {
-			ray.Direction = caster(x, y)
-			var color Color
-			for i := 0; i < r.NumSamples; i++ {
-				color = color.Add(r.castRay(obj, &ray, 0))
-			}
-			img.Data[idx] = color.Scale(1 / float64(r.NumSamples))
+	for y := 0; y < img.Width; y++ {
+		for x := 0; x < img.Height; x++ {
+			coords <- [3]int{x, y, idx}
 			idx++
 		}
 	}
+	close(coords)
+
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ray := model3d.Ray{Origin: r.Camera.Origin}
+			for c := range coords {
+				ray.Direction = caster(float64(c[0]), float64(c[1]))
+				var color Color
+				for i := 0; i < r.NumSamples; i++ {
+					color = color.Add(r.castRay(obj, &ray, 0))
+				}
+				img.Data[c[2]] = color.Scale(1 / float64(r.NumSamples))
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *model3d.Ray,

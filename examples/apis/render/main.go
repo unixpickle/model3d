@@ -89,7 +89,7 @@ func main() {
 		FocusPointProbs: []float64{0.5},
 
 		MaxDepth:   4,
-		NumSamples: 20,
+		NumSamples: 50,
 	}
 
 	img := render3d.NewImage(200, 200)
