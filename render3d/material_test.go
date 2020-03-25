@@ -1,6 +1,7 @@
 package render3d
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/unixpickle/model3d"
@@ -13,22 +14,20 @@ func TestLambertMaterialSampling(t *testing.T) {
 }
 
 func TestPhongMaterialSampling(t *testing.T) {
-	testMaterialSampling(t, &PhongMaterial{
-		Alpha:         0,
-		SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
-	})
-	testMaterialSampling(t, &PhongMaterial{
-		Alpha:         0.5,
-		SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
-	})
-	testMaterialSampling(t, &PhongMaterial{
-		Alpha:         2,
-		SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
-	})
-	testMaterialSampling(t, &PhongMaterial{
-		Alpha:         2,
-		SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
-		DiffuseColor:  Color{X: 0.3, Y: 0.2, Z: 0.5},
+	for _, alpha := range []float64{0, 0.5, 2} {
+		t.Run(fmt.Sprintf("Alpha%.1f", alpha), func(t *testing.T) {
+			testMaterialSampling(t, &PhongMaterial{
+				Alpha:         alpha,
+				SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
+			})
+		})
+	}
+	t.Run("Diffuse", func(t *testing.T) {
+		testMaterialSampling(t, &PhongMaterial{
+			Alpha:         2,
+			SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
+			DiffuseColor:  Color{X: 0.3, Y: 0.2, Z: 0.5},
+		})
 	})
 }
 

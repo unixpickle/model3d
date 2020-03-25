@@ -88,6 +88,14 @@ func (l *LambertMaterial) SampleSource(normal, dest model3d.Coord3D) (model3d.Co
 	return point, weight
 }
 
+func (l *LambertMaterial) sourceDensity(normal, source model3d.Coord3D) float64 {
+	normalDot := -normal.Dot(source)
+	if normalDot < 0 {
+		return 0
+	}
+	return 4 * normalDot
+}
+
 func (l *LambertMaterial) Luminance() Color {
 	return l.LuminanceColor
 }
@@ -139,26 +147,43 @@ func (p *PhongMaterial) Reflect(normal, source, dest model3d.Coord3D) Color {
 // If there is a diffuse lighting term, it is mixed in for
 // some fraction of the samples.
 func (p *PhongMaterial) SampleSource(normal, dest model3d.Coord3D) (model3d.Coord3D, float64) {
-	// If there is a diffuse term, make sure to sample
-	// from it enough.
-	// Mixing two sampling distributions is fine, since
-	// the weights all still average to the right thing.
-	if (p.DiffuseColor != Color{}) {
-		return (&LambertMaterial{}).SampleSource(normal, dest)
+	// If there are both specular and diffuse components,
+	// we mix together these two distributions.
+	var sourceSample model3d.Coord3D
+	if (p.DiffuseColor == Color{}) || rand.Intn(2) == 0 {
+		sourceSample = p.sampleSpecular(normal, dest)
+	} else {
+		sourceSample, _ = (&LambertMaterial{}).SampleSource(normal, dest)
 	}
 
-	// Create polar coordinates around the reflection, and
-	// use alpha to decide the concentration.
-	//
-	// p(lat) ~ sin(lat) * cos(lat)^alpha
-	// P(lat<x) ~ 1 - cos(lat)^(alpha+1)
-	//
-	// to sample from lat using uniform v, we can do:
-	// v = 1 - cos(lat)^(alpha+1)
-	// lat = acos((1 - v)^(1/(alpha+1)))
-	// let 1 - v be a new random variable v:
-	// lat = acos(v^(1/(alpha+1)))
+	phongWeight := p.sourceDensity(normal, sourceSample, dest)
+	if (p.DiffuseColor == Color{}) {
+		return sourceSample, 1 / phongWeight
+	}
+	lambertWeight := (&LambertMaterial{}).sourceDensity(normal, sourceSample)
+	return sourceSample, 2 / (phongWeight + lambertWeight)
+}
 
+// sampleSpecular samples source vectors weighted to
+// emphasize specular reflections.
+func (p *PhongMaterial) sampleSpecular(normal, dest model3d.Coord3D) model3d.Coord3D {
+	// Create a probability density matching the
+	// specular part of the BRDF.
+	//
+	//     p(cos(lat)=x) = x^alpha * (alpha + 1)
+	//     p(cos(lat)<x) = x^(alpha+1)
+	//     p(lat<t) = p(cos(lat)>cos(t)) = 1 - cos(t)^(alpha+1)
+	//
+	// Now we can convert this distribution into a func of
+	// a uniform random variable, v:
+	//
+	//     lat = acos((1-v)^(1/(alpha+1)))
+	//
+	// Since 1-v is also a uniform random variable, we
+	// will simply use:
+	//
+	//     lat = acos(v^(1/(alpha+1)))
+	//
 	// Let's do a change of variables to figure out the
 	// proper weights:
 	//
@@ -189,10 +214,17 @@ func (p *PhongMaterial) SampleSource(normal, dest model3d.Coord3D) (model3d.Coor
 	lat := math.Acos(math.Pow(v, 1/(p.Alpha+1)))
 
 	lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
-	point := reflection.Scale(math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
-	weight := math.Pow(v, 1/(p.Alpha+1)-1) / (2 * (p.Alpha + 1))
+	return reflection.Scale(math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
+}
 
-	return point, weight
+func (p *PhongMaterial) sourceDensity(normal, source, dest model3d.Coord3D) float64 {
+	reflection := normal.Reflect(source).Scale(-1)
+	reflectionDot := reflection.Dot(dest)
+	if reflectionDot < 0 {
+		return 0
+	}
+	v := math.Pow(reflectionDot, p.Alpha+1)
+	return (2 * (p.Alpha + 1)) / math.Pow(v, 1/(p.Alpha+1)-1)
 }
 
 func (p *PhongMaterial) Luminance() Color {
