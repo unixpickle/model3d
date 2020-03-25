@@ -48,7 +48,7 @@ func testMaterialSampling(t *testing.T, m Material) {
 	}
 
 	var actual Color
-	for i := 0; i < 500000; i++ {
+	for i := 0; i < 1000000; i++ {
 		source := model3d.NewCoord3DRandUnit()
 		reflection := m.Reflect(normal, source, dest)
 		color := reflection.Mul(sourceColorFunc(source))
@@ -56,7 +56,7 @@ func testMaterialSampling(t *testing.T, m Material) {
 	}
 
 	var expected Color
-	for i := 0; i < 500000; i++ {
+	for i := 0; i < 1000000; i++ {
 		source, weight := m.SampleSource(normal, dest)
 		reflection := m.Reflect(normal, source, dest)
 		color := reflection.Mul(sourceColorFunc(source)).Scale(weight)
