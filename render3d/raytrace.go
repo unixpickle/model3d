@@ -1,6 +1,8 @@
 package render3d
 
 import (
+	"math/rand"
+
 	"github.com/unixpickle/model3d"
 )
 
@@ -11,6 +13,16 @@ const DefaultEpsilon = 1e-8
 type RecursiveRayTracer struct {
 	Camera *Camera
 	Lights []*PointLight
+
+	// FocusPoints are functions which cause rays to
+	// bounce more in certain directions, with the aim of
+	// reducing variance with no bias.
+	FocusPoints []FocusPoint
+
+	// FocusPointProbs stores, for each FocusPoint, the
+	// probability that this focus point is used to sample
+	// a ray (rather than the BRDF).
+	FocusPointProbs []float64
 
 	// MaxDepth is the maximum number of recursions.
 	// Setting to 0 is almost equivalent to RayCast, but
@@ -51,7 +63,13 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 
 func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *model3d.Ray,
 	coll model3d.RayCollision, mat Material, depth int) Color {
+	dest := ray.Direction.Normalize().Scale(-1)
 	color := mat.Luminance()
+	if depth == 0 {
+		// Only add ambient light directly to object, not to
+		// recursive rays.
+		color = color.Add(mat.Ambience())
+	}
 	for _, l := range r.Lights {
 		lightDirection := l.Origin.Sub(point)
 
@@ -61,23 +79,52 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 			continue
 		}
 
-		scale := mat.BRDF(coll.Normal, point.Sub(l.Origin).Normalize(),
-			ray.Origin.Sub(point).Normalize())
+		scale := mat.BRDF(coll.Normal, point.Sub(l.Origin).Normalize(), dest)
 		lightDist := lightDirection.Norm()
 		color = color.Add(l.ColorAtDistance(lightDist).Mul(scale))
 	}
 	if depth >= r.MaxDepth {
-		// Only add ambient light directly to object, not to
-		// recursive rays.
-		return color.Add(mat.Ambience())
+		return color
 	}
-	nextDest := ray.Direction.Normalize().Scale(-1)
-	nextSource := mat.SampleSource(coll.Normal, nextDest)
-	weight := 1 / mat.SourceDensity(coll.Normal, nextSource, nextDest)
-	reflectWeight := mat.BRDF(coll.Normal, nextSource, nextDest)
+	nextSource := r.sampleNextSource(point, coll.Normal, dest, mat)
+	weight := 1 / r.sourceDensity(point, coll.Normal, nextSource, dest, mat)
+	reflectWeight := mat.BRDF(coll.Normal, nextSource, dest)
 	nextRay := r.bounceRay(point, nextSource.Scale(-1))
 	nextColor := r.castRay(obj, nextRay, depth+1)
 	return color.Add(nextColor.Mul(reflectWeight).Scale(weight))
+}
+
+func (r *RecursiveRayTracer) sampleNextSource(point, normal, dest model3d.Coord3D,
+	mat Material) model3d.Coord3D {
+	if len(r.FocusPoints) == 0 {
+		return mat.SampleSource(normal, dest)
+	}
+
+	p := rand.Float64()
+	for i, prob := range r.FocusPointProbs {
+		p -= prob
+		if p < 0 {
+			return r.FocusPoints[i].SampleFocus(point)
+		}
+	}
+
+	return mat.SampleSource(normal, dest)
+}
+
+func (r *RecursiveRayTracer) sourceDensity(point, normal, source, dest model3d.Coord3D,
+	mat Material) float64 {
+	if len(r.FocusPoints) == 0 {
+		return mat.SourceDensity(normal, source, dest)
+	}
+
+	matProb := 1.0
+	var prob float64
+	for i, focusProb := range r.FocusPointProbs {
+		prob += focusProb * r.FocusPoints[i].FocusDensity(point, source)
+		matProb -= focusProb
+	}
+
+	return prob + matProb*mat.SourceDensity(normal, source, dest)
 }
 
 func (r *RecursiveRayTracer) castRay(obj Object, ray *model3d.Ray, depth int) Color {
