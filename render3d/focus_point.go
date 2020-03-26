@@ -16,7 +16,8 @@ type FocusPoint interface {
 	SampleFocus(point model3d.Coord3D) model3d.Coord3D
 
 	// FocusDensity computes the probability density ratio
-	// of sampling the given direction from a point.
+	// of sampling the given direction from a point,
+	// relative to density on a unit sphere.
 	FocusDensity(point, direction model3d.Coord3D) float64
 }
 

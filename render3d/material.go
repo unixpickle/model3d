@@ -12,6 +12,10 @@ import (
 type Material interface {
 	// BRDF gets the amount of light that bounces off the
 	// surface into a given direction.
+	// It differs slightly from the usual meaning of BRDF,
+	// since it may include refractions into the surface.
+	// Thus, the BRDF is a function on the entire sphere,
+	// not just a hemisphere.
 	//
 	// Both arguments should be unit vectors.
 	//
@@ -19,16 +23,18 @@ type Material interface {
 	// light is coming in and hitting the surface.
 	//
 	// The dest argument specifies the direction in which
-	// the light is to bounce, and where we would like to
-	// know the intensity.
+	// the light is to reflect or refract, and where we
+	// would like to know the intensity.
 	//
 	// Returns a multiplicative mask for incoming light.
 	//
 	// The outgoing flux should be less than or equal to
 	// the incoming flux.
 	// Thus, the outgoing Color should be, on expectation
-	// over random unit source vectors, less than 1 in all
+	// over random unit dest vectors, less than 1 in all
 	// components.
+	// This expectation is taken over the entire sphere,
+	// not just over a hemisphere.
 	BRDF(normal, source, dest model3d.Coord3D) Color
 
 	// SampleSource samples a random source vector for a
@@ -45,7 +51,8 @@ type Material interface {
 	// SourceDensity computes the density ratio of
 	// arbitrary source directions under the distribution
 	// used by SampleSource(). These ratios measure the
-	// density divided by the density on a unit hemisphere.
+	// density divided by the density on a unit sphere.
+	// Thus, they measure density per steradian.
 	SourceDensity(normal, source, dest model3d.Coord3D) float64
 
 	// Emission is the amount of light directly given off
@@ -70,7 +77,8 @@ func (l *LambertMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 	if dest.Dot(normal) < 0 {
 		return Color{}
 	}
-	return l.DiffuseColor.Scale(math.Max(0, -normal.Dot(source)))
+	// Multiply by 2 since half the sphere is zero.
+	return l.DiffuseColor.Scale(2 * math.Max(0, -normal.Dot(source)))
 }
 
 func (l *LambertMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
@@ -92,7 +100,7 @@ func (l *LambertMaterial) SourceDensity(normal, source, dest model3d.Coord3D) fl
 	if normalDot < 0 {
 		return 0
 	}
-	return 2 * normalDot
+	return 4 * normalDot
 }
 
 func (l *LambertMaterial) Emission() Color {
@@ -127,7 +135,7 @@ func (p *PhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 
 	color := Color{}
 	if p.DiffuseColor != color {
-		color = p.DiffuseColor.Scale(sourceDot)
+		color = p.DiffuseColor.Scale(2 * sourceDot)
 	}
 
 	reflection := normal.Reflect(source).Scale(-1)
@@ -138,7 +146,7 @@ func (p *PhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 	intensity := sourceDot * math.Pow(refDot, p.Alpha)
 	// Divide by (integral from x=0 to pi/2 of sin(x)*cos(x)^alpha)
 	intensity *= (1 + p.Alpha)
-	return color.Add(p.SpecularColor.Scale(intensity))
+	return color.Add(p.SpecularColor.Scale(2 * intensity))
 }
 
 // SampleSource uses importance sampling to sample in
@@ -225,7 +233,7 @@ func (p *PhongMaterial) specularDensity(normal, source, dest model3d.Coord3D) fl
 		return 0
 	}
 	v := math.Pow(reflectionDot, p.Alpha+1)
-	return (p.Alpha + 1) / math.Pow(v, 1/(p.Alpha+1)-1)
+	return 2 * (p.Alpha + 1) / math.Pow(v, 1/(p.Alpha+1)-1)
 }
 
 func (p *PhongMaterial) Emission() Color {
