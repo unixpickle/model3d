@@ -11,8 +11,8 @@ const (
 	Scale     = 0.003
 	Width     = 682 * Scale
 	Height    = 573 * Scale
-	Depth     = 0.05
-	TextDepth = 0.07
+	Depth     = 0.06
+	TextDepth = 0.1
 )
 
 func main() {
