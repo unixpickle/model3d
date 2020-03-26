@@ -29,10 +29,10 @@ func (r *RayCaster) Render(img *Image, obj Object) {
 			point := ray.Origin.Add(ray.Direction.Scale(collision.Scale))
 			color := material.Ambient().Add(material.Emission())
 			for _, l := range r.Lights {
-				dist := l.Origin.Sub(point).Norm()
-				scale := material.BRDF(collision.Normal, point.Sub(l.Origin).Normalize(),
+				brdf := material.BRDF(collision.Normal, point.Sub(l.Origin).Normalize(),
 					ray.Origin.Sub(point).Normalize())
-				color = color.Add(l.ColorAtDistance(dist).Mul(scale))
+				p2l := l.Origin.Sub(point)
+				color = color.Add(l.ShadeCollision(collision.Normal, p2l).Mul(brdf))
 			}
 			img.Data[idx-1] = color
 		}

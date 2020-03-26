@@ -74,25 +74,19 @@ type LambertMaterial struct {
 }
 
 func (l *LambertMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
-	if dest.Dot(normal) < 0 {
+	if dest.Dot(normal) < 0 || source.Dot(normal) > 0 {
 		return Color{}
 	}
 	// Multiply by 2 since half the sphere is zero.
-	return l.DiffuseColor.Scale(2 * math.Max(0, -normal.Dot(source)))
+	return l.DiffuseColor.Scale(2)
 }
 
 func (l *LambertMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
-	// Sample with probabilities proportional to the BRDF.
-	u := rand.Float64()
-	lat := math.Acos(math.Sqrt(u))
-	lon := rand.Float64() * 2 * math.Pi
-
-	xAxis, zAxis := normal.OrthoBasis()
-
-	lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
-	point := normal.Scale(-math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
-
-	return point
+	c := model3d.NewCoord3DRandUnit()
+	if c.Dot(normal) > 0 {
+		c = c.Scale(-1)
+	}
+	return c
 }
 
 func (l *LambertMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
@@ -100,7 +94,7 @@ func (l *LambertMaterial) SourceDensity(normal, source, dest model3d.Coord3D) fl
 	if normalDot < 0 {
 		return 0
 	}
-	return 4 * normalDot
+	return 2
 }
 
 func (l *LambertMaterial) Emission() Color {
@@ -135,7 +129,8 @@ func (p *PhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 
 	color := Color{}
 	if p.DiffuseColor != color {
-		color = p.DiffuseColor.Scale(2 * sourceDot)
+		// Scale by 2 because of hemisphere restriction.
+		color = p.DiffuseColor.Scale(2)
 	}
 
 	reflection := normal.Reflect(source).Scale(-1)
@@ -143,9 +138,12 @@ func (p *PhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 	if refDot < 0 {
 		return color
 	}
-	intensity := sourceDot * math.Pow(refDot, p.Alpha)
+	intensity := math.Pow(refDot, p.Alpha)
+
 	// Divide by (integral from x=0 to pi/2 of sin(x)*cos(x)^alpha)
 	intensity *= (1 + p.Alpha)
+
+	// Scale by 2 because of hemisphere restriction.
 	return color.Add(p.SpecularColor.Scale(2 * intensity))
 }
 

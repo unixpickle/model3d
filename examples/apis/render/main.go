@@ -55,7 +55,7 @@ func main() {
 			Material: &render3d.LambertMaterial{
 				// Make it really bright so it lights the scene
 				// adequately.
-				EmissionColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(50),
+				EmissionColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(10),
 			},
 		},
 	}

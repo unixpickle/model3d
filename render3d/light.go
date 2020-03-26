@@ -1,6 +1,10 @@
 package render3d
 
-import "github.com/unixpickle/model3d"
+import (
+	"math"
+
+	"github.com/unixpickle/model3d"
+)
 
 // Color is an RGB color, where components are X, Y, and Z
 // respectively.
@@ -33,4 +37,20 @@ func (p *PointLight) ColorAtDistance(distance float64) Color {
 		return p.Color
 	}
 	return p.Color.Scale(1 / (distance * distance))
+}
+
+// ShadeCollision determines a scaled color for a surface
+// light collision.
+func (p *PointLight) ShadeCollision(normal, pointToLight model3d.Coord3D) Color {
+	dist := pointToLight.Norm()
+	color := p.ColorAtDistance(dist)
+
+	// Multiply by a density correction that comes from
+	// lambertian shading.
+	// The 0.5 comes from the fact that the light is
+	// always sampled, while it should only be sampled on
+	// one half of the hemisphere.
+	density := 0.5 * math.Max(0, normal.Dot(pointToLight.Scale(1/dist)))
+
+	return color.Scale(density)
 }

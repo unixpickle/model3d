@@ -97,9 +97,8 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 			continue
 		}
 
-		scale := mat.BRDF(coll.Normal, point.Sub(l.Origin).Normalize(), dest)
-		lightDist := lightDirection.Norm()
-		color = color.Add(l.ColorAtDistance(lightDist).Mul(scale))
+		brdf := mat.BRDF(coll.Normal, point.Sub(l.Origin).Normalize(), dest)
+		color = color.Add(l.ShadeCollision(coll.Normal, lightDirection).Mul(brdf))
 	}
 	if depth >= r.MaxDepth {
 		return color
