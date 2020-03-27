@@ -281,9 +281,9 @@ type RefractPhongMaterial struct {
 }
 
 func (r *RefractPhongMaterial) refract(normal, source model3d.Coord3D) model3d.Coord3D {
-	sinePart := source.Sub(normal.Scale(normal.Dot(source)))
+	sinePart := source.ProjectOut(normal)
 
-	sineScale := r.Alpha
+	sineScale := r.IndexOfRefraction
 	cosinePart := normal
 	if normal.Dot(source) < 0 {
 		sineScale = 1 / sineScale
@@ -301,23 +301,7 @@ func (r *RefractPhongMaterial) refract(normal, source model3d.Coord3D) model3d.C
 }
 
 func (r *RefractPhongMaterial) refractInverse(normal, dest model3d.Coord3D) model3d.Coord3D {
-	sinePart := dest.Sub(normal.Scale(normal.Dot(dest)))
-
-	sineScale := 1 / r.Alpha
-	cosinePart := normal
-	if normal.Dot(dest) < 0 {
-		sineScale = 1 / sineScale
-		cosinePart = cosinePart.Scale(-1)
-	}
-
-	sinePart = sinePart.Scale(sineScale)
-	sineNorm := sinePart.Norm()
-	if math.Abs(sineNorm) > 1 {
-		// Total internal reflection.
-		return normal.Reflect(dest).Scale(-1)
-	}
-	cosinePart = cosinePart.Scale(math.Sqrt(1 - sineNorm*sineNorm))
-	return sinePart.Add(cosinePart)
+	return r.refract(normal, dest.Scale(-1)).Scale(-1)
 }
 
 func (r *RefractPhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {

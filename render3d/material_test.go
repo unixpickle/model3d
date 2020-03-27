@@ -33,13 +33,15 @@ func TestPhongMaterialSampling(t *testing.T) {
 
 func TestRefractPhongMaterialSampling(t *testing.T) {
 	for _, alpha := range []float64{0, 0.5, 2} {
-		t.Run(fmt.Sprintf("Alpha%.1f", alpha), func(t *testing.T) {
-			testMaterialSampling(t, &RefractPhongMaterial{
-				Alpha:             alpha,
-				IndexOfRefraction: 1.3,
-				RefractColor:      Color{X: 1, Y: 0.9, Z: 0.5},
+		for _, index := range []float64{1.3, 0.7} {
+			t.Run(fmt.Sprintf("Alpha%.1fIndex%.1f", alpha, index), func(t *testing.T) {
+				testMaterialSampling(t, &RefractPhongMaterial{
+					Alpha:             alpha,
+					IndexOfRefraction: index,
+					RefractColor:      Color{X: 1, Y: 0.9, Z: 0.5},
+				})
 			})
-		})
+		}
 	}
 }
 
