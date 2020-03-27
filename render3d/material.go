@@ -74,7 +74,7 @@ type LambertMaterial struct {
 }
 
 func (l *LambertMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
-	if dest.Dot(normal) < 0 || source.Dot(normal) > 0 {
+	if dest.Dot(normal) < 0 {
 		return Color{}
 	}
 	// Multiply by 2 since half the sphere is zero.
@@ -82,11 +82,17 @@ func (l *LambertMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
 }
 
 func (l *LambertMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
-	c := model3d.NewCoord3DRandUnit()
-	if c.Dot(normal) > 0 {
-		c = c.Scale(-1)
-	}
-	return c
+	// Sample with probabilities proportional to the BRDF.
+	u := rand.Float64()
+	lat := math.Acos(math.Sqrt(u))
+	lon := rand.Float64() * 2 * math.Pi
+
+	xAxis, zAxis := normal.OrthoBasis()
+
+	lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
+	point := normal.Scale(-math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
+
+	return point
 }
 
 func (l *LambertMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
@@ -94,7 +100,7 @@ func (l *LambertMaterial) SourceDensity(normal, source, dest model3d.Coord3D) fl
 	if normalDot < 0 {
 		return 0
 	}
-	return 2
+	return 4 * normalDot
 }
 
 func (l *LambertMaterial) Emission() Color {
