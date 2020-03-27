@@ -181,6 +181,27 @@ func (p *PhongMaterial) SourceDensity(normal, source, dest model3d.Coord3D) floa
 // sampleSpecular samples source vectors weighted to
 // emphasize specular reflections.
 func (p *PhongMaterial) sampleSpecular(normal, dest model3d.Coord3D) model3d.Coord3D {
+	reflection := normal.Reflect(dest).Scale(-1)
+	return sampleAroundDirection(p.Alpha, reflection)
+}
+
+func (p *PhongMaterial) specularDensity(normal, source, dest model3d.Coord3D) float64 {
+	reflection := normal.Reflect(dest).Scale(-1)
+	return densityAroundDirection(p.Alpha, reflection, source)
+}
+
+func (p *PhongMaterial) Emission() Color {
+	return p.EmissionColor
+}
+
+func (p *PhongMaterial) Ambient() Color {
+	return p.AmbientColor
+}
+
+// sampleAroundDirection samples directions pointing near
+// direction, with nearness having more weight for higher
+// alpha.
+func sampleAroundDirection(alpha float64, direction model3d.Coord3D) model3d.Coord3D {
 	// Create a probability density matching the
 	// specular part of the BRDF.
 	//
@@ -218,33 +239,175 @@ func (p *PhongMaterial) sampleSpecular(normal, dest model3d.Coord3D) model3d.Coo
 	//     1/2 * v^(1/(alpha+1)-1) / (alpha + 1)
 	//
 
-	reflection := normal.Reflect(dest).Scale(-1)
-	xAxis, zAxis := reflection.OrthoBasis()
+	xAxis, zAxis := direction.OrthoBasis()
 
 	u := rand.Float64()
 	v := rand.Float64()
 
 	lon := 2 * math.Pi * u
-	lat := math.Acos(math.Pow(v, 1/(p.Alpha+1)))
+	lat := math.Acos(math.Pow(v, 1/(alpha+1)))
 
 	lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
-	return reflection.Scale(math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
+	return direction.Scale(math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
 }
 
-func (p *PhongMaterial) specularDensity(normal, source, dest model3d.Coord3D) float64 {
-	reflection := normal.Reflect(source).Scale(-1)
-	reflectionDot := reflection.Dot(dest)
-	if reflectionDot < 0 {
+// densityAroundDirection gets the density for
+// sampleAroundDirection.
+func densityAroundDirection(alpha float64, direction, sample model3d.Coord3D) float64 {
+	dot := direction.Dot(sample)
+	if dot < 0 {
 		return 0
 	}
-	v := math.Pow(reflectionDot, p.Alpha+1)
-	return 2 * (p.Alpha + 1) / math.Pow(v, 1/(p.Alpha+1)-1)
+	v := math.Pow(dot, alpha+1)
+	return 2 * (alpha + 1) / math.Pow(v, 1/(alpha+1)-1)
 }
 
-func (p *PhongMaterial) Emission() Color {
-	return p.EmissionColor
+// RefractPhongMaterial is a material that refracts some
+// amount of its incoming into itself, with an
+// approximation similar to PhongMaterial.
+type RefractPhongMaterial struct {
+	// IndexOfRefraction is the index of refraction of
+	// this material. Values greater than one simulate
+	// materials like water or glass, where light travels
+	// more slowly than in space.
+	IndexOfRefraction float64
+
+	// Alpha controls the concentration of the refracted
+	// rays.
+	Alpha float64
+
+	// RefractColor is the mask used for refracted flux.
+	RefractColor Color
 }
 
-func (p *PhongMaterial) Ambient() Color {
-	return p.AmbientColor
+func (r *RefractPhongMaterial) refract(normal, source model3d.Coord3D) model3d.Coord3D {
+	sinePart := source.Sub(normal.Scale(normal.Dot(source)))
+
+	sineScale := r.Alpha
+	cosinePart := normal
+	if normal.Dot(source) < 0 {
+		sineScale = 1 / sineScale
+		cosinePart = cosinePart.Scale(-1)
+	}
+
+	sinePart = sinePart.Scale(sineScale)
+	sineNorm := sinePart.Norm()
+	if math.Abs(sineNorm) > 1 {
+		// Total internal reflection.
+		return normal.Reflect(source).Scale(-1)
+	}
+	cosinePart = cosinePart.Scale(math.Sqrt(1 - sineNorm*sineNorm))
+	return sinePart.Add(cosinePart)
+}
+
+func (r *RefractPhongMaterial) refractInverse(normal, dest model3d.Coord3D) model3d.Coord3D {
+	sinePart := dest.Sub(normal.Scale(normal.Dot(dest)))
+
+	sineScale := 1 / r.Alpha
+	cosinePart := normal
+	if normal.Dot(dest) < 0 {
+		sineScale = 1 / sineScale
+		cosinePart = cosinePart.Scale(-1)
+	}
+
+	sinePart = sinePart.Scale(sineScale)
+	sineNorm := sinePart.Norm()
+	if math.Abs(sineNorm) > 1 {
+		// Total internal reflection.
+		return normal.Reflect(dest).Scale(-1)
+	}
+	cosinePart = cosinePart.Scale(math.Sqrt(1 - sineNorm*sineNorm))
+	return sinePart.Add(cosinePart)
+}
+
+func (r *RefractPhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
+	refracted := r.refract(normal, source)
+	scale := math.Pow(math.Max(0, refracted.Dot(dest)), r.Alpha)
+	scale *= r.Alpha + 1
+	return r.RefractColor.Scale(2 * scale)
+}
+
+func (r *RefractPhongMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
+	// Mix in some uniform sampling.
+	// Inverting and then sampling around the inverse
+	// causes very bad samples for total internal
+	// reflection since we totally ignore certain source
+	// directions.
+	if rand.Intn(2) == 0 {
+		return model3d.NewCoord3DRandUnit()
+	}
+	invDest := r.refractInverse(normal, dest)
+	return sampleAroundDirection(r.Alpha, invDest)
+}
+
+func (r *RefractPhongMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
+	invDest := r.refractInverse(normal, dest)
+	return 0.5 + 0.5*(densityAroundDirection(r.Alpha, invDest, source))
+}
+
+func (r *RefractPhongMaterial) Emission() Color {
+	return Color{}
+}
+
+func (r *RefractPhongMaterial) Ambient() Color {
+	return Color{}
+}
+
+// A JoinedMaterial adds the BRDFs of multiple materials.
+//
+// It also importance samples from each BRDF according to
+// pre-determined probabilities.
+type JoinedMaterial struct {
+	Materials []Material
+
+	// Probs contains probabilities for importance
+	// sampling each material.
+	// The probabilities should sum to 1.
+	Probs []float64
+}
+
+func (j *JoinedMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
+	var res Color
+	for _, m := range j.Materials {
+		res = res.Add(m.BRDF(normal, source, dest))
+	}
+	return res
+}
+
+func (j *JoinedMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
+	if len(j.Probs) != len(j.Materials) {
+		panic("mismatched probabilities and materials")
+	}
+	p := rand.Float64()
+	for i, subProb := range j.Probs {
+		p -= subProb
+		if p < 0 || i == len(j.Probs)-1 {
+			return j.Materials[i].SampleSource(normal, dest)
+		}
+	}
+	panic("unreachable")
+}
+
+func (j *JoinedMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
+	var density float64
+	for i, subProb := range j.Probs {
+		density += subProb * j.Materials[i].SourceDensity(normal, source, dest)
+	}
+	return density
+}
+
+func (j *JoinedMaterial) Emission() Color {
+	var res Color
+	for _, m := range j.Materials {
+		res = res.Add(m.Emission())
+	}
+	return res
+}
+
+func (j *JoinedMaterial) Ambient() Color {
+	var res Color
+	for _, m := range j.Materials {
+		res = res.Add(m.Ambient())
+	}
+	return res
 }

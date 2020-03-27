@@ -31,6 +31,18 @@ func TestPhongMaterialSampling(t *testing.T) {
 	})
 }
 
+func TestRefractPhongMaterialSampling(t *testing.T) {
+	for _, alpha := range []float64{0, 0.5, 2} {
+		t.Run(fmt.Sprintf("Alpha%.1f", alpha), func(t *testing.T) {
+			testMaterialSampling(t, &RefractPhongMaterial{
+				Alpha:             alpha,
+				IndexOfRefraction: 1.3,
+				RefractColor:      Color{X: 1, Y: 0.9, Z: 0.5},
+			})
+		})
+	}
+}
+
 func testMaterialSampling(t *testing.T, m Material) {
 	sourceColorFunc := func(source model3d.Coord3D) Color {
 		return Color{
