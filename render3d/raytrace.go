@@ -98,7 +98,7 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 			continue
 		}
 
-		brdf := mat.BRDF(coll.Normal, point.Sub(l.Origin).Normalize(), dest)
+		brdf := mat.BSDF(coll.Normal, point.Sub(l.Origin).Normalize(), dest)
 		color = color.Add(l.ShadeCollision(coll.Normal, lightDirection).Mul(brdf))
 	}
 	if depth >= r.MaxDepth {
@@ -107,7 +107,7 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 	nextSource := r.sampleNextSource(point, coll.Normal, dest, mat)
 	weight := 1 / r.sourceDensity(point, coll.Normal, nextSource, dest, mat)
 	weight *= math.Abs(nextSource.Dot(coll.Normal))
-	reflectWeight := mat.BRDF(coll.Normal, nextSource, dest)
+	reflectWeight := mat.BSDF(coll.Normal, nextSource, dest)
 	nextRay := r.bounceRay(point, nextSource.Scale(-1))
 	nextColor := r.castRay(obj, nextRay, depth+1)
 	return color.Add(nextColor.Mul(reflectWeight).Scale(weight))

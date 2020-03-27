@@ -10,11 +10,11 @@ import (
 // A Material determines how light bounces off a locally
 // flat surface.
 type Material interface {
-	// BRDF gets the amount of light that bounces off the
+	// BSDF gets the amount of light that bounces off the
 	// surface into a given direction.
 	// It differs slightly from the usual meaning of BRDF,
 	// since it may include refractions into the surface.
-	// Thus, the BRDF is a function on the entire sphere,
+	// Thus, the BSDF is a function on the entire sphere,
 	// not just a hemisphere.
 	//
 	// Both arguments should be unit vectors.
@@ -35,7 +35,7 @@ type Material interface {
 	// components.
 	// This expectation is taken over the entire sphere,
 	// not just over a hemisphere.
-	BRDF(normal, source, dest model3d.Coord3D) Color
+	BSDF(normal, source, dest model3d.Coord3D) Color
 
 	// SampleSource samples a random source vector for a
 	// given dest vector, possibly with a non-uniform
@@ -73,7 +73,7 @@ type LambertMaterial struct {
 	EmissionColor Color
 }
 
-func (l *LambertMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
+func (l *LambertMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 	if dest.Dot(normal) < 0 || source.Dot(normal) > 0 {
 		return Color{}
 	}
@@ -127,7 +127,7 @@ type PhongMaterial struct {
 	AmbientColor  Color
 }
 
-func (p *PhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
+func (p *PhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 	destDot := dest.Dot(normal)
 	sourceDot := -source.Dot(normal)
 	if destDot < 0 || sourceDot < 0 {
@@ -203,7 +203,7 @@ func (p *PhongMaterial) Ambient() Color {
 // alpha.
 func sampleAroundDirection(alpha float64, direction model3d.Coord3D) model3d.Coord3D {
 	// Create a probability density matching the
-	// specular part of the BRDF.
+	// specular part of the BSDF.
 	//
 	//     p(cos(lat)=x) = x^alpha * (alpha + 1)
 	//     p(cos(lat)<x) = x^(alpha+1)
@@ -304,7 +304,7 @@ func (r *RefractPhongMaterial) refractInverse(normal, dest model3d.Coord3D) mode
 	return r.refract(normal, dest.Scale(-1)).Scale(-1)
 }
 
-func (r *RefractPhongMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
+func (r *RefractPhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 	refracted := r.refract(normal, source)
 	scale := math.Pow(math.Max(0, refracted.Dot(dest)), r.Alpha)
 	scale *= r.Alpha + 1
@@ -337,9 +337,9 @@ func (r *RefractPhongMaterial) Ambient() Color {
 	return Color{}
 }
 
-// A JoinedMaterial adds the BRDFs of multiple materials.
+// A JoinedMaterial adds the BSDFs of multiple materials.
 //
-// It also importance samples from each BRDF according to
+// It also importance samples from each BSDF according to
 // pre-determined probabilities.
 type JoinedMaterial struct {
 	Materials []Material
@@ -350,10 +350,10 @@ type JoinedMaterial struct {
 	Probs []float64
 }
 
-func (j *JoinedMaterial) BRDF(normal, source, dest model3d.Coord3D) Color {
+func (j *JoinedMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 	var res Color
 	for _, m := range j.Materials {
-		res = res.Add(m.BRDF(normal, source, dest))
+		res = res.Add(m.BSDF(normal, source, dest))
 	}
 	return res
 }
