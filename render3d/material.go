@@ -7,7 +7,7 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
-const cosineEpsilon = 1e-4
+const cosineEpsilon = 1e-8
 
 // A Material determines how light bounces off a locally
 // flat surface.
@@ -340,7 +340,7 @@ func (r *RefractPhongMaterial) SampleSource(normal, dest model3d.Coord3D) model3
 	// causes very bad samples for total internal
 	// reflection since we totally ignore certain source
 	// directions.
-	if rand.Intn(2) == 0 {
+	if rand.Intn(10) == 0 {
 		return model3d.NewCoord3DRandUnit()
 	}
 	invDest := r.refractInverse(normal, dest)
@@ -349,7 +349,7 @@ func (r *RefractPhongMaterial) SampleSource(normal, dest model3d.Coord3D) model3
 
 func (r *RefractPhongMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
 	invDest := r.refractInverse(normal, dest)
-	return 0.5 + 0.5*(densityAroundDirection(r.Alpha, invDest, source))
+	return 0.1 + 0.9*(densityAroundDirection(r.Alpha, invDest, source))
 }
 
 func (r *RefractPhongMaterial) Emission() Color {
