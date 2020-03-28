@@ -46,32 +46,44 @@ func TestRefractPhongMaterialSampling(t *testing.T) {
 	}
 }
 
-func TestRefractPhongMaterialIntegral(t *testing.T) {
+func TestRefractPhongMaterialFlux(t *testing.T) {
 	mat := &RefractPhongMaterial{
-		Alpha:             100.0,
+		Alpha: 1000.0,
+		// This flux test stops being passed for higher
+		// indices of refraction, where a lot of flux is
+		// lost due to approximation errors when a ray
+		// enters the material (but not exits).
 		IndexOfRefraction: 1.3,
 		RefractColor:      Color{X: 1, Y: 1, Z: 1},
 	}
-	var totalFlux1 float64
-	var totalFlux2 float64
-	var count float64
-	for i := 0; i < 10000000; i++ {
-		dest := model3d.NewCoord3DRandUnit()
-		normal := model3d.NewCoord3DRandUnit()
-		source := mat.SampleSource(normal, dest)
-		weight := 1 / mat.SourceDensity(normal, source, dest)
-		if math.Abs(source.Dot(normal)) < 1e-3 || math.Abs(dest.Dot(normal)) < 1e-3 {
-			i--
-			continue
+
+	measureFlux := func(normal, source model3d.Coord3D) float64 {
+		var totalFlux1 float64
+		var count float64
+		for i := 0; i < 10000000; i++ {
+			dest := mat.SampleSource(normal, source)
+			weight := 1 / mat.SourceDensity(normal, dest, source)
+			if math.Abs(source.Dot(normal)) < 1e-3 || math.Abs(dest.Dot(normal)) < 1e-3 {
+				i--
+				continue
+			}
+			totalFlux1 += weight * mat.BSDF(normal, source, dest).X * math.Abs(dest.Dot(normal))
+			count++
 		}
-		totalFlux1 += weight * mat.BSDF(normal, source, dest).X * math.Abs(dest.Dot(normal))
-		totalFlux2 += weight * mat.BSDF(normal, dest, source).X * math.Abs(source.Dot(normal))
-		count++
+		return totalFlux1 / count
 	}
-	totalFlux1 /= count
-	totalFlux2 /= count
-	if math.Abs(totalFlux1-totalFlux2) > 1e-2 {
-		t.Error("incoming and outgoing flux should match:", totalFlux1, totalFlux2)
+
+	normal := model3d.NewCoord3DRandUnit()
+	source := normal.Add(model3d.NewCoord3DRandUnit().Scale(0.4)).Normalize()
+	flux1 := measureFlux(normal, source)
+	source = normal.Add(model3d.NewCoord3DRandUnit().Scale(0.4)).Normalize().Scale(-1)
+	flux2 := measureFlux(normal, source)
+
+	if math.Abs(flux1-flux2) > 1e-2 {
+		t.Error("flux on both sides of normal should match:", flux1, flux2)
+	}
+	if math.Abs(1-(flux1+flux2)/2) > 0.02 {
+		t.Error("flux should be nearly 1, but got:", (flux1+flux2)/2)
 	}
 }
 
