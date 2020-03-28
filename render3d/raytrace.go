@@ -114,7 +114,7 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 	weight *= math.Abs(nextSource.Dot(coll.Normal))
 	reflectWeight := mat.BSDF(coll.Normal, nextSource, dest)
 	nextRay := r.bounceRay(point, nextSource.Scale(-1))
-	nextScale := scale * reflectWeight.Sum() * weight
+	nextScale := scale * reflectWeight.Sum() / 3 * weight
 	nextColor := r.castRay(obj, nextRay, depth+1, nextScale)
 	return color.Add(nextColor.Mul(reflectWeight).Scale(weight))
 }
