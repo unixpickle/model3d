@@ -35,6 +35,11 @@ type RecursiveRayTracer struct {
 	// NumSamples is the number of rays to sample.
 	NumSamples int
 
+	// Cutoff is the maximum brightness for which
+	// recursion is performed. If small but non-zero, the
+	// number of rays traced can be reduced.
+	Cutoff float64
+
 	// Epsilon is a small distance used to move away from
 	// surfaces before bouncing new rays.
 	// If nil, DefaultEpsilon is used.
@@ -70,7 +75,7 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 				ray.Direction = caster(float64(c[0]), float64(c[1]))
 				var color Color
 				for i := 0; i < r.NumSamples; i++ {
-					color = color.Add(r.castRay(obj, &ray, 0))
+					color = color.Add(r.castRay(obj, &ray, 0, 1))
 				}
 				img.Data[c[2]] = color.Scale(1 / float64(r.NumSamples))
 			}
@@ -81,10 +86,10 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 }
 
 func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *model3d.Ray,
-	coll model3d.RayCollision, mat Material, depth int) Color {
+	coll model3d.RayCollision, mat Material, depth int, scale float64) Color {
 	dest := ray.Direction.Normalize().Scale(-1)
 	color := mat.Emission()
-	if depth == 0 {
+	if depth == 0 || scale < r.Cutoff {
 		// Only add ambient light directly to object, not to
 		// recursive rays.
 		color = color.Add(mat.Ambient())
@@ -109,7 +114,8 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 	weight *= math.Abs(nextSource.Dot(coll.Normal))
 	reflectWeight := mat.BSDF(coll.Normal, nextSource, dest)
 	nextRay := r.bounceRay(point, nextSource.Scale(-1))
-	nextColor := r.castRay(obj, nextRay, depth+1)
+	nextScale := scale * reflectWeight.Sum() * weight
+	nextColor := r.castRay(obj, nextRay, depth+1, nextScale)
 	return color.Add(nextColor.Mul(reflectWeight).Scale(weight))
 }
 
@@ -146,13 +152,13 @@ func (r *RecursiveRayTracer) sourceDensity(point, normal, source, dest model3d.C
 	return prob + matProb*mat.SourceDensity(normal, source, dest)
 }
 
-func (r *RecursiveRayTracer) castRay(obj Object, ray *model3d.Ray, depth int) Color {
+func (r *RecursiveRayTracer) castRay(obj Object, ray *model3d.Ray, depth int, scale float64) Color {
 	collision, material, ok := obj.Cast(ray)
 	if !ok {
 		return Color{}
 	}
 	point := ray.Origin.Add(ray.Direction.Scale(collision.Scale))
-	return r.recurse(obj, point, ray, collision, material, depth)
+	return r.recurse(obj, point, ray, collision, material, depth, scale)
 }
 
 func (r *RecursiveRayTracer) bounceRay(point model3d.Coord3D, dir model3d.Coord3D) *model3d.Ray {

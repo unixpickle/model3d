@@ -94,6 +94,11 @@ func (c Coord) Max(c1 Coord) Coord {
 	return Coord{math.Max(c.X, c1.X), math.Max(c.Y, c1.Y)}
 }
 
+// Sum sums the elements of c.
+func (c Coord) Sum() float64 {
+	return c.X + c.Y
+}
+
 // Normalize gets a unit vector from c.
 func (c Coord) Normalize() Coord {
 	return c.Scale(1 / c.Norm())

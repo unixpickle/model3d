@@ -181,6 +181,11 @@ func (c Coord3D) Max(c1 Coord3D) Coord3D {
 	return Coord3D{math.Max(c.X, c1.X), math.Max(c.Y, c1.Y), math.Max(c.Z, c1.Z)}
 }
 
+// Sum sums the elements of c.
+func (c Coord3D) Sum() float64 {
+	return c.X + c.Y + c.Z
+}
+
 // Normalize gets a unit vector from c.
 func (c Coord3D) Normalize() Coord3D {
 	return c.Scale(1 / c.Norm())
