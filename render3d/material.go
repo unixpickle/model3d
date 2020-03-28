@@ -7,6 +7,8 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
+const cosineEpsilon = 1e-4
+
 // A Material determines how light bounces off a locally
 // flat surface.
 type Material interface {
@@ -31,10 +33,9 @@ type Material interface {
 	// The outgoing flux should be less than or equal to
 	// the incoming flux.
 	// Thus, the outgoing Color should be, on expectation
-	// over random unit dest vectors, less than 1 in all
+	// over random unit dest vectors weighted by the
+	// cosine of the outgoing angle, less than 1 in all
 	// components.
-	// This expectation is taken over the entire sphere,
-	// not just over a hemisphere.
 	BSDF(normal, source, dest model3d.Coord3D) Color
 
 	// SampleSource samples a random source vector for a
@@ -125,6 +126,10 @@ type PhongMaterial struct {
 	DiffuseColor  Color
 	EmissionColor Color
 	AmbientColor  Color
+
+	// NoFluxCorrection can be set to true to disable
+	// the max-Phong denominator.
+	NoFluxCorrection bool
 }
 
 func (p *PhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
@@ -150,8 +155,19 @@ func (p *PhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 	// Divide by (integral from x=0 to pi/2 of sin(x)*cos(x)^alpha)
 	intensity *= (1 + p.Alpha)
 
+	if !p.NoFluxCorrection {
+		intensity /= maximumCosine(sourceDot, destDot)
+	}
+
 	// Scale by 2 because of hemisphere restriction.
 	return color.Add(p.SpecularColor.Scale(2 * intensity))
+}
+
+func maximumCosine(cos1, cos2 float64) float64 {
+	cos1 = math.Abs(cos1)
+	cos2 = math.Abs(cos2)
+	res := math.Max(cos1, cos2)
+	return math.Max(res, cosineEpsilon)
 }
 
 // SampleSource uses importance sampling to sample in
@@ -278,6 +294,10 @@ type RefractPhongMaterial struct {
 
 	// RefractColor is the mask used for refracted flux.
 	RefractColor Color
+
+	// NoFluxCorrection can be set to true to disable a
+	// max-Phong denominator.
+	NoFluxCorrection bool
 }
 
 func (r *RefractPhongMaterial) refract(normal, source model3d.Coord3D) model3d.Coord3D {
@@ -308,6 +328,9 @@ func (r *RefractPhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color 
 	refracted := r.refract(normal, source)
 	scale := math.Pow(math.Max(0, refracted.Dot(dest)), r.Alpha)
 	scale *= r.Alpha + 1
+	if !r.NoFluxCorrection {
+		scale /= maximumCosine(source.Dot(normal), dest.Dot(normal))
+	}
 	return r.RefractColor.Scale(2 * scale)
 }
 
