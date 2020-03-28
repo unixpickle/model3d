@@ -281,6 +281,14 @@ func densityAroundDirection(alpha float64, direction, sample model3d.Coord3D) fl
 // RefractPhongMaterial is a material that refracts some
 // amount of its incoming into itself, with an
 // approximation similar to PhongMaterial.
+//
+// This material is not a physically-based model, and as
+// such may cause light energy to be lost for higher
+// indices of refraction.
+// Also, it does not have a symmetrical BSDF for non-unit
+// indices of refraction, since concentration of light is
+// gained or lost depending on the direction hitting the
+// normal.
 type RefractPhongMaterial struct {
 	// IndexOfRefraction is the index of refraction of
 	// this material. Values greater than one simulate
