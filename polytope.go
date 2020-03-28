@@ -60,6 +60,19 @@ func (c ConvexPolytope) Mesh() *Mesh {
 			addConvexFace(m, vertices, c[i1].Normal)
 		}
 	}
+
+	// Sometimes more than three planes intersect, in
+	// which case a bunch of nearly duplicate triangles
+	// are created.
+	m = m.Repair(epsilon)
+
+	// Remove zero-area triangles.
+	m.Iterate(func(t *Triangle) {
+		if t[0] == t[1] || t[1] == t[2] || t[0] == t[2] {
+			m.Remove(t)
+		}
+	})
+
 	return m
 }
 
@@ -103,7 +116,7 @@ func (c ConvexPolytope) vertex(i1, i2, i3 int, epsilon float64) (Coord3D, bool) 
 		if i == i1 || i == i2 || i == i3 {
 			continue
 		}
-		if l.Normal.Dot(solution) > l.Max+epsilon/l.Normal.Norm() {
+		if l.Normal.Dot(solution) > l.Max+epsilon*l.Normal.Norm() {
 			return solution, false
 		}
 	}
@@ -154,8 +167,8 @@ func addConvexFace(m *Mesh, vertices []Coord3D, normal Coord3D) {
 		return angles[i] < angles[j]
 	}, vertices)
 
-	for i := 0; i < len(vertices); i++ {
-		t := &Triangle{vertices[i], vertices[(i+1)%len(vertices)], center}
+	for i := 2; i < len(vertices); i++ {
+		t := &Triangle{vertices[0], vertices[i-1], vertices[i]}
 		if t.Normal().Dot(normal) < 0 {
 			t[0], t[1] = t[1], t[0]
 		}
