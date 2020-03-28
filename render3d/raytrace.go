@@ -89,7 +89,7 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 	coll model3d.RayCollision, mat Material, depth int, scale float64) Color {
 	dest := ray.Direction.Normalize().Scale(-1)
 	color := mat.Emission()
-	if depth == 0 || scale < r.Cutoff {
+	if depth == 0 {
 		// Only add ambient light directly to object, not to
 		// recursive rays.
 		color = color.Add(mat.Ambient())
@@ -153,6 +153,9 @@ func (r *RecursiveRayTracer) sourceDensity(point, normal, source, dest model3d.C
 }
 
 func (r *RecursiveRayTracer) castRay(obj Object, ray *model3d.Ray, depth int, scale float64) Color {
+	if scale < r.Cutoff {
+		return Color{}
+	}
 	collision, material, ok := obj.Cast(ray)
 	if !ok {
 		return Color{}
