@@ -325,26 +325,13 @@ func (r *RefractPhongMaterial) refractInverse(normal, dest model3d.Coord3D) mode
 }
 
 func (r *RefractPhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
-	var totalScale float64
-	// Enforce symmetry of the BSDF.
-	//
-	// As a result, the BSDFs will no longer integrate to
-	// exactly 1 (i.e. energy conservation appears broken).
-	// However, the flux is scaled based on how much space
-	// is being squeezed by the refraction.
-	// The incoming/outgoing flux is scaled in accordance
-	// with the index of refraction: flux2/flux1 = iof^2.
-	for i := 0; i < 2; i++ {
-		refracted := r.refract(normal, source)
-		scale := math.Pow(math.Max(0, refracted.Dot(dest)), r.Alpha)
-		scale *= r.Alpha + 1
-		if !r.NoFluxCorrection {
-			scale /= maximumCosine(source.Dot(normal), dest.Dot(normal))
-		}
-		totalScale += scale
-		source, dest = dest, source
+	refracted := r.refract(normal, source)
+	scale := math.Pow(math.Max(0, refracted.Dot(dest)), r.Alpha)
+	scale *= r.Alpha + 1
+	if !r.NoFluxCorrection {
+		scale /= maximumCosine(source.Dot(normal), dest.Dot(normal))
 	}
-	return r.RefractColor.Scale(totalScale)
+	return r.RefractColor.Scale(scale * 2)
 }
 
 func (r *RefractPhongMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {

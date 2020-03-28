@@ -46,25 +46,32 @@ func TestRefractPhongMaterialSampling(t *testing.T) {
 	}
 }
 
-func TestRefractPhongMaterialBidir(t *testing.T) {
+func TestRefractPhongMaterialIntegral(t *testing.T) {
 	mat := &RefractPhongMaterial{
-		Alpha:             2.0,
+		Alpha:             100.0,
 		IndexOfRefraction: 1.3,
 		RefractColor:      Color{X: 1, Y: 1, Z: 1},
 	}
-	for i := 0; i < 1000; i++ {
-		source := model3d.NewCoord3DRandUnit()
+	var totalFlux1 float64
+	var totalFlux2 float64
+	var count float64
+	for i := 0; i < 10000000; i++ {
 		dest := model3d.NewCoord3DRandUnit()
 		normal := model3d.NewCoord3DRandUnit()
+		source := mat.SampleSource(normal, dest)
+		weight := 1 / mat.SourceDensity(normal, source, dest)
 		if math.Abs(source.Dot(normal)) < 1e-3 || math.Abs(dest.Dot(normal)) < 1e-3 {
 			i--
 			continue
 		}
-		color1 := mat.BSDF(normal, source, dest)
-		color2 := mat.BSDF(normal, dest, source)
-		if color1.Sub(color2).Norm() > 1e-5 {
-			t.Errorf("source->dest=%f but dest->source=%f", color1.X, color2.X)
-		}
+		totalFlux1 += weight * mat.BSDF(normal, source, dest).X * math.Abs(dest.Dot(normal))
+		totalFlux2 += weight * mat.BSDF(normal, dest, source).X * math.Abs(source.Dot(normal))
+		count++
+	}
+	totalFlux1 /= count
+	totalFlux2 /= count
+	if math.Abs(totalFlux1-totalFlux2) > 1e-2 {
+		t.Error("incoming and outgoing flux should match:", totalFlux1, totalFlux2)
 	}
 }
 
