@@ -278,37 +278,24 @@ func densityAroundDirection(alpha float64, direction, sample model3d.Coord3D) fl
 	return 2 * (alpha + 1) / math.Pow(v, 1/(alpha+1)-1)
 }
 
-// RefractPhongMaterial is a material that refracts some
-// amount of its incoming into itself, with an
-// approximation similar to PhongMaterial.
+// RefractMaterial is an approximate refraction material
+// based on a delta function.
 //
-// This material is not a physically-based model, and as
-// such may cause light energy to be lost for higher
-// indices of refraction.
-// Also, it does not have a symmetrical BSDF for non-unit
-// indices of refraction, since concentration of light is
-// gained or lost depending on the direction hitting the
-// normal.
-type RefractPhongMaterial struct {
+// Unlike other BSDFs, the BSDF of RefractMaterial is
+// asymmetric, since energy is concentrated due to
+// refraction.
+type RefractMaterial struct {
 	// IndexOfRefraction is the index of refraction of
 	// this material. Values greater than one simulate
 	// materials like water or glass, where light travels
 	// more slowly than in space.
 	IndexOfRefraction float64
 
-	// Alpha controls the concentration of the refracted
-	// rays.
-	Alpha float64
-
 	// RefractColor is the mask used for refracted flux.
 	RefractColor Color
-
-	// NoFluxCorrection can be set to true to disable a
-	// max-Phong denominator.
-	NoFluxCorrection bool
 }
 
-func (r *RefractPhongMaterial) refract(normal, source model3d.Coord3D) model3d.Coord3D {
+func (r *RefractMaterial) refract(normal, source model3d.Coord3D) model3d.Coord3D {
 	sinePart := source.ProjectOut(normal)
 
 	sineScale := r.IndexOfRefraction
@@ -328,43 +315,74 @@ func (r *RefractPhongMaterial) refract(normal, source model3d.Coord3D) model3d.C
 	return sinePart.Add(cosinePart)
 }
 
-func (r *RefractPhongMaterial) refractInverse(normal, dest model3d.Coord3D) model3d.Coord3D {
+func (r *RefractMaterial) refractInverse(normal, dest model3d.Coord3D) model3d.Coord3D {
 	return r.refract(normal, dest.Scale(-1)).Scale(-1)
 }
 
-func (r *RefractPhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
+func (r *RefractMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
+	return r.RefractColor.Scale(r.bsdfScale(normal, source, dest))
+}
+
+func (r *RefractMaterial) bsdfScale(normal, source, dest model3d.Coord3D) float64 {
 	refracted := r.refract(normal, source)
-	scale := math.Pow(math.Max(0, refracted.Dot(dest)), r.Alpha)
-	scale *= r.Alpha + 1
-	if !r.NoFluxCorrection {
-		scale /= maximumCosine(source.Dot(normal), dest.Dot(normal))
+	delta := r.cosineDelta(normal, source, dest)
+	if dest.Dot(refracted) < 1-delta {
+		return 0
 	}
-	return r.RefractColor.Scale(scale * 2)
+	scale := 1 / maximumCosine(source.Dot(normal), dest.Dot(normal))
+
+	// delta/2 is the spanned fraction of the sphere
+	// for which we return non-zero.
+	return scale * 2 / delta
 }
 
-func (r *RefractPhongMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
-	// Mix in some uniform sampling.
-	// Inverting and then sampling around the inverse
-	// causes very bad samples for total internal
-	// reflection since we totally ignore certain source
-	// directions.
-	if rand.Intn(10) == 0 {
-		return model3d.NewCoord3DRandUnit()
+func (r *RefractMaterial) cosineDelta(normal, source, dest model3d.Coord3D) float64 {
+	delta := cosineEpsilon
+
+	// Area of the patch is changed for energy focus.
+	sourceSign := source.Dot(normal)
+	destSign := dest.Dot(normal)
+	if sourceSign != destSign {
+		// Reflection, no change in delta.
+	} else if sourceSign < 0 {
+		// Entering solid, area is concentrated.
+		delta /= r.IndexOfRefraction
+	} else {
+		// Leaving solid, area is spread out.
+		delta *= r.IndexOfRefraction
 	}
-	invDest := r.refractInverse(normal, dest)
-	return sampleAroundDirection(r.Alpha, invDest)
+
+	return delta
 }
 
-func (r *RefractPhongMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
-	invDest := r.refractInverse(normal, dest)
-	return 0.1 + 0.9*(densityAroundDirection(r.Alpha, invDest, source))
+func (r *RefractMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
+	// Sample deterministically, since all vectors around
+	// this neighborhood have the same BRDF.
+	return r.refractInverse(normal, dest)
 }
 
-func (r *RefractPhongMaterial) Emission() Color {
+func (r *RefractMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
+	// Perfectly cancel out the BRDF probability
+	// density, giving unchanged intensities for
+	// most incident angles.
+	//
+	// Note that it would actually be rather difficult to
+	// give a density over angles that would reflect into
+	// the dest direction, due to internal reflections and
+	// the like.
+	refracted := r.refract(normal, source)
+	delta := r.cosineDelta(normal, source, dest)
+	if dest.Dot(refracted) < 1-delta {
+		return 0
+	}
+	return 2 / delta
+}
+
+func (r *RefractMaterial) Emission() Color {
 	return Color{}
 }
 
-func (r *RefractPhongMaterial) Ambient() Color {
+func (r *RefractMaterial) Ambient() Color {
 	return Color{}
 }
 

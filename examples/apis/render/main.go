@@ -38,8 +38,7 @@ func main() {
 			Collider: LoadDiamond(),
 			Material: &render3d.JoinedMaterial{
 				Materials: []render3d.Material{
-					&render3d.RefractPhongMaterial{
-						Alpha:             50.0,
+					&render3d.RefractMaterial{
 						IndexOfRefraction: 1.3,
 						RefractColor:      render3d.Color{X: 0.9, Y: 0.9, Z: 0.9},
 					},
