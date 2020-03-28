@@ -2,6 +2,7 @@ package render3d
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/unixpickle/model3d"
@@ -41,6 +42,28 @@ func TestRefractPhongMaterialSampling(t *testing.T) {
 					RefractColor:      Color{X: 1, Y: 0.9, Z: 0.5},
 				})
 			})
+		}
+	}
+}
+
+func TestRefractPhongMaterialBidir(t *testing.T) {
+	mat := &RefractPhongMaterial{
+		Alpha:             2.0,
+		IndexOfRefraction: 1.3,
+		RefractColor:      Color{X: 1, Y: 1, Z: 1},
+	}
+	for i := 0; i < 1000; i++ {
+		source := model3d.NewCoord3DRandUnit()
+		dest := model3d.NewCoord3DRandUnit()
+		normal := model3d.NewCoord3DRandUnit()
+		if math.Abs(source.Dot(normal)) < 1e-3 || math.Abs(dest.Dot(normal)) < 1e-3 {
+			i--
+			continue
+		}
+		color1 := mat.BSDF(normal, source, dest)
+		color2 := mat.BSDF(normal, dest, source)
+		if color1.Sub(color2).Norm() > 1e-5 {
+			t.Errorf("source->dest=%f but dest->source=%f", color1.X, color2.X)
 		}
 	}
 }

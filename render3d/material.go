@@ -325,13 +325,19 @@ func (r *RefractPhongMaterial) refractInverse(normal, dest model3d.Coord3D) mode
 }
 
 func (r *RefractPhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
-	refracted := r.refract(normal, source)
-	scale := math.Pow(math.Max(0, refracted.Dot(dest)), r.Alpha)
-	scale *= r.Alpha + 1
-	if !r.NoFluxCorrection {
-		scale /= maximumCosine(source.Dot(normal), dest.Dot(normal))
+	var totalScale float64
+	// Enforce symmetry of the BSDF.
+	for i := 0; i < 2; i++ {
+		refracted := r.refract(normal, source)
+		scale := math.Pow(math.Max(0, refracted.Dot(dest)), r.Alpha)
+		scale *= r.Alpha + 1
+		if !r.NoFluxCorrection {
+			scale /= maximumCosine(source.Dot(normal), dest.Dot(normal))
+		}
+		totalScale += scale
+		source, dest = dest, source
 	}
-	return r.RefractColor.Scale(2 * scale)
+	return r.RefractColor.Scale(totalScale)
 }
 
 func (r *RefractPhongMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
