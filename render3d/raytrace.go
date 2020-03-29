@@ -93,7 +93,7 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 						dy := gen.Float64() - 0.5
 						ray.Direction = caster(float64(c[0])+dx, float64(c[1])+dy)
 					}
-					color = color.Add(r.castRay(gen, obj, &ray, 0, 1))
+					color = color.Add(r.recurse(gen, obj, &ray, 0, Color{X: 1, Y: 1, Z: 1}))
 				}
 				img.Data[c[2]] = color.Scale(1 / float64(r.NumSamples))
 				progressCh <- struct{}{}
@@ -118,14 +118,23 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 	}
 }
 
-func (r *RecursiveRayTracer) recurse(gen *rand.Rand, obj Object, point model3d.Coord3D,
-	ray *model3d.Ray, coll model3d.RayCollision, mat Material, depth int, scale float64) Color {
+func (r *RecursiveRayTracer) recurse(gen *rand.Rand, obj Object, ray *model3d.Ray,
+	depth int, scale Color) Color {
+	if scale.Sum()/3 < r.Cutoff {
+		return Color{}
+	}
+	collision, material, ok := obj.Cast(ray)
+	if !ok {
+		return Color{}
+	}
+	point := ray.Origin.Add(ray.Direction.Scale(collision.Scale))
+
 	dest := ray.Direction.Normalize().Scale(-1)
-	color := mat.Emission()
+	color := material.Emission()
 	if depth == 0 {
 		// Only add ambient light directly to object, not to
 		// recursive rays.
-		color = color.Add(mat.Ambient())
+		color = color.Add(material.Ambient())
 	}
 	for _, l := range r.Lights {
 		lightDirection := l.Origin.Sub(point)
@@ -136,20 +145,21 @@ func (r *RecursiveRayTracer) recurse(gen *rand.Rand, obj Object, point model3d.C
 			continue
 		}
 
-		brdf := mat.BSDF(coll.Normal, point.Sub(l.Origin).Normalize(), dest)
-		color = color.Add(l.ShadeCollision(coll.Normal, lightDirection).Mul(brdf))
+		brdf := material.BSDF(collision.Normal, point.Sub(l.Origin).Normalize(), dest)
+		color = color.Add(l.ShadeCollision(collision.Normal, lightDirection).Mul(brdf))
 	}
 	if depth >= r.MaxDepth {
 		return color
 	}
-	nextSource := r.sampleNextSource(gen, point, coll.Normal, dest, mat)
-	weight := 1 / r.sourceDensity(point, coll.Normal, nextSource, dest, mat)
-	weight *= math.Abs(nextSource.Dot(coll.Normal))
-	reflectWeight := mat.BSDF(coll.Normal, nextSource, dest)
+	nextSource := r.sampleNextSource(gen, point, collision.Normal, dest, material)
+	weight := 1 / r.sourceDensity(point, collision.Normal, nextSource, dest, material)
+	weight *= math.Abs(nextSource.Dot(collision.Normal))
+	reflectWeight := material.BSDF(collision.Normal, nextSource, dest)
 	nextRay := r.bounceRay(point, nextSource.Scale(-1))
-	nextScale := scale * reflectWeight.Sum() / 3 * weight
-	nextColor := r.castRay(gen, obj, nextRay, depth+1, nextScale)
-	return color.Add(nextColor.Mul(reflectWeight).Scale(weight))
+	nextMask := reflectWeight.Scale(weight)
+	nextScale := scale.Mul(nextMask)
+	nextColor := r.recurse(gen, obj, nextRay, depth+1, nextScale)
+	return color.Add(nextColor.Mul(nextMask))
 }
 
 func (r *RecursiveRayTracer) sampleNextSource(gen *rand.Rand, point, normal, dest model3d.Coord3D,
@@ -183,19 +193,6 @@ func (r *RecursiveRayTracer) sourceDensity(point, normal, source, dest model3d.C
 	}
 
 	return prob + matProb*mat.SourceDensity(normal, source, dest)
-}
-
-func (r *RecursiveRayTracer) castRay(gen *rand.Rand, obj Object, ray *model3d.Ray, depth int,
-	scale float64) Color {
-	if scale < r.Cutoff {
-		return Color{}
-	}
-	collision, material, ok := obj.Cast(ray)
-	if !ok {
-		return Color{}
-	}
-	point := ray.Origin.Add(ray.Direction.Scale(collision.Scale))
-	return r.recurse(gen, obj, point, ray, collision, material, depth, scale)
 }
 
 func (r *RecursiveRayTracer) bounceRay(point model3d.Coord3D, dir model3d.Coord3D) *model3d.Ray {
