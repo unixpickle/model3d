@@ -102,15 +102,31 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 // NewMeshRect creates a new mesh around the rectangular
 // bounds.
 func NewMeshRect(min, max Coord3D) *Mesh {
-	var system ConvexPolytope
-	for i := 0; i < 3; i++ {
-		var vecArr [3]float64
-		vecArr[i] = 1
-		axis := NewCoord3DArray(vecArr)
-		system = append(system, &LinearConstraint{Normal: axis, Max: max.Array()[i]})
-		system = append(system, &LinearConstraint{Normal: axis.Scale(-1), Max: -min.Array()[i]})
+	mesh := NewMesh()
+	addFace := func(p1, p2, p3 Coord3D) {
+		p4 := p2.Add(p3).Sub(p1)
+		mesh.Add(&Triangle{p1, p3, p2})
+		mesh.Add(&Triangle{p2, p3, p4})
 	}
-	return system.Mesh()
+
+	delta := max.Sub(min)
+	dx := Coord3D{X: delta.X}
+	dy := Coord3D{Y: delta.Y}
+	dz := Coord3D{Z: delta.Z}
+
+	// Front and back faces.
+	addFace(min, min.Add(dz), min.Add(dx))
+	addFace(max, max.Sub(dx), max.Sub(dz))
+
+	// Left and right faces.
+	addFace(min, min.Add(dy), min.Add(dz))
+	addFace(max, max.Sub(dz), max.Sub(dy))
+
+	// Top and bottom faces.
+	addFace(min, min.Add(dx), min.Add(dy))
+	addFace(max, max.Sub(dy), max.Sub(dx))
+
+	return mesh
 }
 
 // Add adds the triangle t to the mesh.
