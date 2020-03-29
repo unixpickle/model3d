@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"os"
 
@@ -96,11 +97,16 @@ func main() {
 
 		MaxDepth:   5,
 		NumSamples: 400,
-		Cutoff:     0.01,
+		Cutoff:     1e-4,
+
+		LogFunc: func(p float64) {
+			fmt.Printf("\rRendering %.1f%%...", p*100)
+		},
 	}
 
 	img := render3d.NewImage(200, 200)
 	renderer.Render(img, object)
+	fmt.Println()
 	img.Save("output.png")
 }
 

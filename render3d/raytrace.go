@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
 
@@ -44,6 +45,10 @@ type RecursiveRayTracer struct {
 	// surfaces before bouncing new rays.
 	// If nil, DefaultEpsilon is used.
 	Epsilon float64
+
+	// LogFunc, if specified, is called periodically with
+	// progress information.
+	LogFunc func(frac float64)
 }
 
 // Render renders the object to an image.
@@ -65,6 +70,8 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 	}
 	close(coords)
 
+	progressCh := make(chan struct{}, 1)
+
 	var wg sync.WaitGroup
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
@@ -78,11 +85,26 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 					color = color.Add(r.castRay(obj, &ray, 0, 1))
 				}
 				img.Data[c[2]] = color.Scale(1 / float64(r.NumSamples))
+				progressCh <- struct{}{}
 			}
 		}()
 	}
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(progressCh)
+	}()
+
+	updateInterval := essentials.MaxInt(1, img.Width*img.Height/1000)
+	var pixelsComplete int
+	for _ = range progressCh {
+		if r.LogFunc != nil {
+			pixelsComplete++
+			if pixelsComplete%updateInterval == 0 {
+				r.LogFunc(float64(pixelsComplete) / float64(img.Width*img.Height))
+			}
+		}
+	}
 }
 
 func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *model3d.Ray,
