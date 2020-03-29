@@ -370,17 +370,11 @@ func (r *RefractMaterial) SampleSource(gen *rand.Rand, normal,
 }
 
 func (r *RefractMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
-	// Perfectly cancel out the BRDF probability
-	// density, giving unchanged intensities for
-	// most incident angles.
-	//
-	// Note that it would actually be rather difficult to
-	// give a density over angles that would reflect into
-	// the dest direction, due to internal reflections and
-	// the like.
-	refracted := r.refract(normal, source)
-	delta := r.cosineDelta(normal, source, dest)
-	if dest.Dot(refracted) < 1-delta {
+	// Get the density, assuming we intended to sample
+	// around a small section of source vectors.
+	refracted := r.refractInverse(normal, dest)
+	delta := r.cosineDelta(normal, source.Scale(-1), dest.Scale(-1))
+	if source.Dot(refracted) < 1-delta {
 		return 0
 	}
 	return 2 / delta
