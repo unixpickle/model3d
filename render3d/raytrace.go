@@ -89,8 +89,8 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 				var color Color
 				for i := 0; i < r.NumSamples; i++ {
 					if r.Antialias != 0 {
-						dx := gen.Float64() - 0.5
-						dy := gen.Float64() - 0.5
+						dx := r.Antialias * (gen.Float64() - 0.5)
+						dy := r.Antialias * (gen.Float64() - 0.5)
 						ray.Direction = caster(float64(c[0])+dx, float64(c[1])+dy)
 					}
 					color = color.Add(r.recurse(gen, obj, &ray, 0, Color{X: 1, Y: 1, Z: 1}))
