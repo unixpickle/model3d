@@ -100,7 +100,7 @@ func main() {
 		Antialias:  1.0,
 		Cutoff:     1e-4,
 
-		LogFunc: func(p float64) {
+		LogFunc: func(p, samples float64) {
 			fmt.Printf("\rRendering %.1f%%...", p*100)
 		},
 	}

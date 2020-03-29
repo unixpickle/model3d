@@ -36,6 +36,27 @@ type RecursiveRayTracer struct {
 	// NumSamples is the number of rays to sample.
 	NumSamples int
 
+	// MinSamples and MaxStddev control early stopping for
+	// pixel sampling. If they are both non-zero, then
+	// MinSamples rays are sampled, and then more rays are
+	// sampled until the pixel standard deviation goes
+	// below MaxStddev, or NumSamples samples are taken.
+	MinSamples int
+	MaxStddev  float64
+
+	// OversaturatedStddevs controls how few samples are
+	// taken at bright parts of the scene.
+	//
+	// If specified, a pixel may stop being sampled after
+	// MinSamples samples if the brightness of that pixel
+	// is more than OversaturatedStddevs standard
+	// deviations above the maximum brightness (1.0).
+	//
+	// This can override MaxStddev, since bright parts of
+	// the image may have high standard deviations despite
+	// having uninteresting specific values.
+	OversaturatedStddevs float64
+
 	// Cutoff is the maximum brightness for which
 	// recursion is performed. If small but non-zero, the
 	// number of rays traced can be reduced.
@@ -53,7 +74,13 @@ type RecursiveRayTracer struct {
 
 	// LogFunc, if specified, is called periodically with
 	// progress information.
-	LogFunc func(frac float64)
+	//
+	// The frac argument specifies the fraction of pixels
+	// which have been colored.
+	//
+	// The sampleRate argument specifies the mean number
+	// of rays traced per pixel.
+	LogFunc func(frac float64, sampleRate float64)
 }
 
 // Render renders the object to an image.
@@ -75,7 +102,7 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 	}
 	close(coords)
 
-	progressCh := make(chan struct{}, 1)
+	progressCh := make(chan int, 1)
 
 	var wg sync.WaitGroup
 	for i := 0; i < runtime.NumCPU(); i++ {
@@ -83,20 +110,10 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 		go func() {
 			defer wg.Done()
 			gen := rand.New(rand.NewSource(rand.Int63()))
-			ray := model3d.Ray{Origin: r.Camera.Origin}
 			for c := range coords {
-				ray.Direction = caster(float64(c[0]), float64(c[1]))
-				var color Color
-				for i := 0; i < r.NumSamples; i++ {
-					if r.Antialias != 0 {
-						dx := r.Antialias * (gen.Float64() - 0.5)
-						dy := r.Antialias * (gen.Float64() - 0.5)
-						ray.Direction = caster(float64(c[0])+dx, float64(c[1])+dy)
-					}
-					color = color.Add(r.recurse(gen, obj, &ray, 0, Color{X: 1, Y: 1, Z: 1}))
-				}
-				img.Data[c[2]] = color.Scale(1 / float64(r.NumSamples))
-				progressCh <- struct{}{}
+				color, numSamples := r.estimateColor(gen, obj, float64(c[0]), float64(c[1]), caster)
+				img.Data[c[2]] = color
+				progressCh <- numSamples
 			}
 		}()
 	}
@@ -108,14 +125,66 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 
 	updateInterval := essentials.MaxInt(1, img.Width*img.Height/1000)
 	var pixelsComplete int
-	for _ = range progressCh {
+	var samplesTaken int
+	for n := range progressCh {
 		if r.LogFunc != nil {
 			pixelsComplete++
+			samplesTaken += n
 			if pixelsComplete%updateInterval == 0 {
-				r.LogFunc(float64(pixelsComplete) / float64(img.Width*img.Height))
+				r.LogFunc(float64(pixelsComplete)/float64(img.Width*img.Height),
+					float64(samplesTaken)/float64(pixelsComplete))
 			}
 		}
 	}
+}
+
+func (r *RecursiveRayTracer) estimateColor(gen *rand.Rand, obj Object, x, y float64,
+	caster func(x, y float64) model3d.Coord3D) (sampleMean Color, numSamples int) {
+	ray := model3d.Ray{Origin: r.Camera.Origin}
+	ray.Direction = caster(x, y)
+	var colorSum Color
+	var colorSqSum Color
+
+SampleLoop:
+	for numSamples = 0; numSamples < r.NumSamples; numSamples++ {
+		if r.Antialias != 0 {
+			dx := r.Antialias * (gen.Float64() - 0.5)
+			dy := r.Antialias * (gen.Float64() - 0.5)
+			ray.Direction = caster(x+dx, y+dy)
+		}
+		sampleColor := r.recurse(gen, obj, &ray, 0, Color{X: 1, Y: 1, Z: 1})
+		colorSum = colorSum.Add(sampleColor)
+
+		if r.MinSamples == 0 || r.MaxStddev == 0 {
+			continue
+		}
+
+		colorSqSum = colorSqSum.Add(sampleColor.Mul(sampleColor))
+
+		if numSamples < r.MinSamples || numSamples < 2 {
+			continue
+		}
+
+		mean := colorSum.Scale(1 / float64(numSamples))
+		variance := colorSqSum.Scale(1 / float64(numSamples)).Sub(mean.Mul(mean))
+		besselCorrection := float64(numSamples) / float64(numSamples-1)
+		meanArr := mean.Array()
+		for i, variance := range variance.Array() {
+			stddev := math.Sqrt(variance) * besselCorrection
+			switch true {
+			case stddev < r.MaxStddev:
+			case r.OversaturatedStddevs != 0 &&
+				meanArr[i]-r.OversaturatedStddevs*stddev > 1:
+			default:
+				continue SampleLoop
+			}
+		}
+
+		// Early stopping due to statistical constraints
+		// being satisfied.
+		break
+	}
+	return colorSum.Scale(1 / float64(numSamples)), numSamples
 }
 
 func (r *RecursiveRayTracer) recurse(gen *rand.Rand, obj Object, ray *model3d.Ray,
