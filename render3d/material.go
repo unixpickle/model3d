@@ -289,8 +289,8 @@ func densityAroundDirection(alpha float64, direction, sample model3d.Coord3D) fl
 // based on a delta function.
 //
 // Unlike other BSDFs, the BSDF of RefractMaterial is
-// asymmetric, since energy is concentrated due to
-// refraction.
+// asymmetric, since energy is concentrated and spread out
+// due to refraction.
 type RefractMaterial struct {
 	// IndexOfRefraction is the index of refraction of
 	// this material. Values greater than one simulate
@@ -332,40 +332,23 @@ func (r *RefractMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 
 func (r *RefractMaterial) bsdfScale(normal, source, dest model3d.Coord3D) float64 {
 	refracted := r.refract(normal, source)
-	delta := r.cosineDelta(normal, source, dest)
-	if dest.Dot(refracted) < 1-delta {
+	if dest.Dot(refracted) < 1-cosineEpsilon {
 		return 0
 	}
-	scale := 1 / maximumCosine(source.Dot(normal), dest.Dot(normal))
 
-	// delta/2 is the spanned fraction of the sphere
+	// Correct for change in flux going out vs coming in,
+	// making the integral of the outgoing flux approx 1.
+	scale := 1 / math.Max(cosineEpsilon, math.Abs(dest.Dot(normal)))
+
+	// eps/2 is the spanned fraction of the sphere
 	// for which we return non-zero.
-	return scale * 2 / delta
-}
-
-func (r *RefractMaterial) cosineDelta(normal, source, dest model3d.Coord3D) float64 {
-	delta := cosineEpsilon
-
-	// Area of the patch is changed for energy focus.
-	sourceSign := source.Dot(normal)
-	destSign := dest.Dot(normal)
-	if sourceSign != destSign {
-		// Reflection, no change in delta.
-	} else if sourceSign < 0 {
-		// Entering solid, area is concentrated.
-		delta /= r.IndexOfRefraction
-	} else {
-		// Leaving solid, area is spread out.
-		delta *= r.IndexOfRefraction
-	}
-
-	return delta
+	return scale * 2 / cosineEpsilon
 }
 
 func (r *RefractMaterial) SampleSource(gen *rand.Rand, normal,
 	dest model3d.Coord3D) model3d.Coord3D {
 	// Sample deterministically, since all vectors around
-	// this neighborhood have the same BRDF.
+	// this neighborhood have the same BSDF.
 	return r.refractInverse(normal, dest)
 }
 
@@ -373,11 +356,10 @@ func (r *RefractMaterial) SourceDensity(normal, source, dest model3d.Coord3D) fl
 	// Get the density, assuming we intended to sample
 	// around a small section of source vectors.
 	refracted := r.refractInverse(normal, dest)
-	delta := r.cosineDelta(normal, source.Scale(-1), dest.Scale(-1))
-	if source.Dot(refracted) < 1-delta {
+	if source.Dot(refracted) < 1-cosineEpsilon {
 		return 0
 	}
-	return 2 / delta
+	return 2 / cosineEpsilon
 }
 
 func (r *RefractMaterial) Emission() Color {
