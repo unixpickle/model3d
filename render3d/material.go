@@ -47,7 +47,11 @@ type Material interface {
 	//
 	// The densities returned by SourceDensity correspond
 	// to this sampling distribution.
-	SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D
+	//
+	// The gen argument is used for sampling.
+	// This is more efficient than using a shared RNG for
+	// multithreaded rendering.
+	SampleSource(gen *rand.Rand, normal, dest model3d.Coord3D) model3d.Coord3D
 
 	// SourceDensity computes the density ratio of
 	// arbitrary source directions under the distribution
@@ -82,12 +86,13 @@ func (l *LambertMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 	return l.DiffuseColor.Scale(2)
 }
 
-func (l *LambertMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
+func (l *LambertMaterial) SampleSource(gen *rand.Rand, normal,
+	dest model3d.Coord3D) model3d.Coord3D {
 	// Sample with probabilities proportional to the cosine
 	// property (Lamert's law).
-	u := rand.Float64()
+	u := gen.Float64()
 	lat := math.Acos(math.Sqrt(u))
-	lon := rand.Float64() * 2 * math.Pi
+	lon := gen.Float64() * 2 * math.Pi
 
 	xAxis, zAxis := normal.OrthoBasis()
 
@@ -175,11 +180,11 @@ func maximumCosine(cos1, cos2 float64) float64 {
 //
 // If there is a diffuse lighting term, it is mixed in for
 // some fraction of the samples.
-func (p *PhongMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
+func (p *PhongMaterial) SampleSource(gen *rand.Rand, normal, dest model3d.Coord3D) model3d.Coord3D {
 	if (p.DiffuseColor == Color{}) || rand.Intn(2) == 0 {
-		return p.sampleSpecular(normal, dest)
+		return p.sampleSpecular(gen, normal, dest)
 	} else {
-		return (&LambertMaterial{}).SampleSource(normal, dest)
+		return (&LambertMaterial{}).SampleSource(gen, normal, dest)
 	}
 }
 
@@ -196,9 +201,10 @@ func (p *PhongMaterial) SourceDensity(normal, source, dest model3d.Coord3D) floa
 
 // sampleSpecular samples source vectors weighted to
 // emphasize specular reflections.
-func (p *PhongMaterial) sampleSpecular(normal, dest model3d.Coord3D) model3d.Coord3D {
+func (p *PhongMaterial) sampleSpecular(gen *rand.Rand, normal,
+	dest model3d.Coord3D) model3d.Coord3D {
 	reflection := normal.Reflect(dest).Scale(-1)
-	return sampleAroundDirection(p.Alpha, reflection)
+	return sampleAroundDirection(gen, p.Alpha, reflection)
 }
 
 func (p *PhongMaterial) specularDensity(normal, source, dest model3d.Coord3D) float64 {
@@ -217,7 +223,8 @@ func (p *PhongMaterial) Ambient() Color {
 // sampleAroundDirection samples directions pointing near
 // direction, with nearness having more weight for higher
 // alpha.
-func sampleAroundDirection(alpha float64, direction model3d.Coord3D) model3d.Coord3D {
+func sampleAroundDirection(gen *rand.Rand, alpha float64,
+	direction model3d.Coord3D) model3d.Coord3D {
 	// Create a probability density matching the
 	// specular part of the BSDF.
 	//
@@ -257,8 +264,8 @@ func sampleAroundDirection(alpha float64, direction model3d.Coord3D) model3d.Coo
 
 	xAxis, zAxis := direction.OrthoBasis()
 
-	u := rand.Float64()
-	v := rand.Float64()
+	u := gen.Float64()
+	v := gen.Float64()
 
 	lon := 2 * math.Pi * u
 	lat := math.Acos(math.Pow(v, 1/(alpha+1)))
@@ -355,7 +362,8 @@ func (r *RefractMaterial) cosineDelta(normal, source, dest model3d.Coord3D) floa
 	return delta
 }
 
-func (r *RefractMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
+func (r *RefractMaterial) SampleSource(gen *rand.Rand, normal,
+	dest model3d.Coord3D) model3d.Coord3D {
 	// Sample deterministically, since all vectors around
 	// this neighborhood have the same BRDF.
 	return r.refractInverse(normal, dest)
@@ -407,7 +415,8 @@ func (j *JoinedMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 	return res
 }
 
-func (j *JoinedMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coord3D {
+func (j *JoinedMaterial) SampleSource(gen *rand.Rand, normal,
+	dest model3d.Coord3D) model3d.Coord3D {
 	if len(j.Probs) != len(j.Materials) {
 		panic("mismatched probabilities and materials")
 	}
@@ -415,7 +424,7 @@ func (j *JoinedMaterial) SampleSource(normal, dest model3d.Coord3D) model3d.Coor
 	for i, subProb := range j.Probs {
 		p -= subProb
 		if p < 0 || i == len(j.Probs)-1 {
-			return j.Materials[i].SampleSource(normal, dest)
+			return j.Materials[i].SampleSource(gen, normal, dest)
 		}
 	}
 	panic("unreachable")

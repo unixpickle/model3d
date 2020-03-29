@@ -93,7 +93,7 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 						dy := gen.Float64() - 0.5
 						ray.Direction = caster(float64(c[0])+dx, float64(c[1])+dy)
 					}
-					color = color.Add(r.castRay(obj, &ray, 0, 1))
+					color = color.Add(r.castRay(gen, obj, &ray, 0, 1))
 				}
 				img.Data[c[2]] = color.Scale(1 / float64(r.NumSamples))
 				progressCh <- struct{}{}
@@ -118,8 +118,8 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 	}
 }
 
-func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *model3d.Ray,
-	coll model3d.RayCollision, mat Material, depth int, scale float64) Color {
+func (r *RecursiveRayTracer) recurse(gen *rand.Rand, obj Object, point model3d.Coord3D,
+	ray *model3d.Ray, coll model3d.RayCollision, mat Material, depth int, scale float64) Color {
 	dest := ray.Direction.Normalize().Scale(-1)
 	color := mat.Emission()
 	if depth == 0 {
@@ -142,31 +142,31 @@ func (r *RecursiveRayTracer) recurse(obj Object, point model3d.Coord3D, ray *mod
 	if depth >= r.MaxDepth {
 		return color
 	}
-	nextSource := r.sampleNextSource(point, coll.Normal, dest, mat)
+	nextSource := r.sampleNextSource(gen, point, coll.Normal, dest, mat)
 	weight := 1 / r.sourceDensity(point, coll.Normal, nextSource, dest, mat)
 	weight *= math.Abs(nextSource.Dot(coll.Normal))
 	reflectWeight := mat.BSDF(coll.Normal, nextSource, dest)
 	nextRay := r.bounceRay(point, nextSource.Scale(-1))
 	nextScale := scale * reflectWeight.Sum() / 3 * weight
-	nextColor := r.castRay(obj, nextRay, depth+1, nextScale)
+	nextColor := r.castRay(gen, obj, nextRay, depth+1, nextScale)
 	return color.Add(nextColor.Mul(reflectWeight).Scale(weight))
 }
 
-func (r *RecursiveRayTracer) sampleNextSource(point, normal, dest model3d.Coord3D,
+func (r *RecursiveRayTracer) sampleNextSource(gen *rand.Rand, point, normal, dest model3d.Coord3D,
 	mat Material) model3d.Coord3D {
 	if len(r.FocusPoints) == 0 {
-		return mat.SampleSource(normal, dest)
+		return mat.SampleSource(gen, normal, dest)
 	}
 
 	p := rand.Float64()
 	for i, prob := range r.FocusPointProbs {
 		p -= prob
 		if p < 0 {
-			return r.FocusPoints[i].SampleFocus(point)
+			return r.FocusPoints[i].SampleFocus(gen, point)
 		}
 	}
 
-	return mat.SampleSource(normal, dest)
+	return mat.SampleSource(gen, normal, dest)
 }
 
 func (r *RecursiveRayTracer) sourceDensity(point, normal, source, dest model3d.Coord3D,
@@ -185,7 +185,8 @@ func (r *RecursiveRayTracer) sourceDensity(point, normal, source, dest model3d.C
 	return prob + matProb*mat.SourceDensity(normal, source, dest)
 }
 
-func (r *RecursiveRayTracer) castRay(obj Object, ray *model3d.Ray, depth int, scale float64) Color {
+func (r *RecursiveRayTracer) castRay(gen *rand.Rand, obj Object, ray *model3d.Ray, depth int,
+	scale float64) Color {
 	if scale < r.Cutoff {
 		return Color{}
 	}
@@ -194,7 +195,7 @@ func (r *RecursiveRayTracer) castRay(obj Object, ray *model3d.Ray, depth int, sc
 		return Color{}
 	}
 	point := ray.Origin.Add(ray.Direction.Scale(collision.Scale))
-	return r.recurse(obj, point, ray, collision, material, depth, scale)
+	return r.recurse(gen, obj, point, ray, collision, material, depth, scale)
 }
 
 func (r *RecursiveRayTracer) bounceRay(point model3d.Coord3D, dir model3d.Coord3D) *model3d.Ray {

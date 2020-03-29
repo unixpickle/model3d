@@ -2,6 +2,7 @@ package render3d
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/unixpickle/model3d"
@@ -55,8 +56,9 @@ func testMaterialSampling(t *testing.T, m Material) {
 	}
 
 	var expected Color
+	gen := rand.New(rand.NewSource(rand.Int63()))
 	for i := 0; i < 4000000; i++ {
-		source := m.SampleSource(normal, dest)
+		source := m.SampleSource(gen, normal, dest)
 		weight := 1 / m.SourceDensity(normal, source, dest)
 		reflection := m.BSDF(normal, source, dest)
 		color := reflection.Mul(sourceColorFunc(source)).Scale(weight)

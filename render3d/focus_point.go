@@ -1,6 +1,8 @@
 package render3d
 
 import (
+	"math/rand"
+
 	"github.com/unixpickle/model3d"
 )
 
@@ -13,7 +15,7 @@ type FocusPoint interface {
 	// SampleFocus takes in a given point (i.e. a ray
 	// origin) and samples a unit direction facing into
 	// this point from some source.
-	SampleFocus(point model3d.Coord3D) model3d.Coord3D
+	SampleFocus(gen *rand.Rand, point model3d.Coord3D) model3d.Coord3D
 
 	// FocusDensity computes the probability density ratio
 	// of sampling the given direction from a point,
@@ -33,13 +35,13 @@ type PhongFocusPoint struct {
 
 // SampleFocus samples a point that is more
 // concentrated in the direction of Target.
-func (p *PhongFocusPoint) SampleFocus(point model3d.Coord3D) model3d.Coord3D {
+func (p *PhongFocusPoint) SampleFocus(gen *rand.Rand, point model3d.Coord3D) model3d.Coord3D {
 	if p.Target == point {
 		return model3d.NewCoord3DRandUnit()
 	}
 	normal := p.Target.Sub(point).Normalize()
 	mat := PhongMaterial{Alpha: p.Alpha}
-	return mat.SampleSource(normal, normal)
+	return mat.SampleSource(gen, normal, normal)
 }
 
 // FocusDensity gives the probability density ratio for
