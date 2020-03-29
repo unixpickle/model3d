@@ -97,6 +97,7 @@ func main() {
 
 		MaxDepth:   5,
 		NumSamples: 400,
+		Antialias:  1.0,
 		Cutoff:     1e-4,
 
 		LogFunc: func(p float64) {

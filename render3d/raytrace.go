@@ -41,6 +41,11 @@ type RecursiveRayTracer struct {
 	// number of rays traced can be reduced.
 	Cutoff float64
 
+	// Antialias, if non-zero, specifies a fraction of a
+	// pixel to perturb every ray's origin.
+	// Thus, 1 is maximum, and 0 means no change.
+	Antialias float64
+
 	// Epsilon is a small distance used to move away from
 	// surfaces before bouncing new rays.
 	// If nil, DefaultEpsilon is used.
@@ -77,11 +82,17 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			gen := rand.New(rand.NewSource(rand.Int63()))
 			ray := model3d.Ray{Origin: r.Camera.Origin}
 			for c := range coords {
 				ray.Direction = caster(float64(c[0]), float64(c[1]))
 				var color Color
 				for i := 0; i < r.NumSamples; i++ {
+					if r.Antialias != 0 {
+						dx := gen.Float64() - 0.5
+						dy := gen.Float64() - 0.5
+						ray.Direction = caster(float64(c[0])+dx, float64(c[1])+dy)
+					}
 					color = color.Add(r.castRay(obj, &ray, 0, 1))
 				}
 				img.Data[c[2]] = color.Scale(1 / float64(r.NumSamples))
