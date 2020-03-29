@@ -167,10 +167,15 @@ SampleLoop:
 
 		mean := colorSum.Scale(1 / float64(numSamples))
 		variance := colorSqSum.Scale(1 / float64(numSamples)).Sub(mean.Mul(mean))
-		besselCorrection := float64(numSamples) / float64(numSamples-1)
+		populationRescale := math.Sqrt(float64(numSamples)) / float64(numSamples-1)
 		meanArr := mean.Array()
 		for i, variance := range variance.Array() {
-			stddev := math.Sqrt(variance) * besselCorrection
+			if variance < 0 {
+				// Variance is so low that our estimate is
+				// actually negative due to rounding error.
+				continue
+			}
+			stddev := math.Sqrt(variance) * populationRescale
 			switch true {
 			case stddev < r.MaxStddev:
 			case r.OversaturatedStddevs != 0 &&
