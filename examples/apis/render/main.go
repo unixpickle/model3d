@@ -105,6 +105,8 @@ func main() {
 		},
 	}
 
+	fmt.Println("Ray variance:", renderer.RayVariance(object, 200, 200, 5))
+
 	img := render3d.NewImage(200, 200)
 	renderer.Render(img, object)
 	fmt.Println()

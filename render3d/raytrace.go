@@ -138,6 +138,52 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 	}
 }
 
+// RayVariance estimates the variance of the color
+// components in the rendered image for a single ray path.
+// It is intended to be used to quickly judge how well
+// importance sampling is working.
+//
+// The variance is averaged over every color component in
+// the image.
+func (r *RecursiveRayTracer) RayVariance(obj Object, width, height, samples int) float64 {
+	if samples < 2 {
+		panic("need to take at least two samples")
+	}
+
+	maxX := float64(width) - 1
+	maxY := float64(height) - 1
+	caster := r.Camera.Caster(maxX, maxY)
+
+	var totalVariance float64
+	var totalCount float64
+
+	gen := rand.New(rand.NewSource(rand.Int63()))
+	for x := 0; x < width; x++ {
+		for y := 0; y < height; y++ {
+			ray := model3d.Ray{
+				Origin:    r.Camera.Origin,
+				Direction: caster(float64(x), float64(y)),
+			}
+			var colorSum Color
+			var colorSqSum Color
+			for i := 0; i < samples; i++ {
+				sampleColor := r.recurse(gen, obj, &ray, 0, Color{X: 1, Y: 1, Z: 1})
+				colorSum = colorSum.Add(sampleColor)
+				colorSqSum = colorSqSum.Add(sampleColor.Mul(sampleColor))
+			}
+			mean := colorSum.Scale(1 / float64(samples))
+			variance := colorSqSum.Scale(1 / float64(samples)).Sub(mean.Mul(mean))
+
+			// Bessel's correction.
+			variance = variance.Scale(float64(samples) / float64(samples-1))
+
+			totalVariance += variance.Sum()
+			totalCount += 3
+		}
+	}
+	return totalVariance / totalCount
+}
+
 func (r *RecursiveRayTracer) estimateColor(gen *rand.Rand, obj Object, x, y float64,
 	caster func(x, y float64) model3d.Coord3D) (sampleMean Color, numSamples int) {
 	ray := model3d.Ray{Origin: r.Camera.Origin}
