@@ -15,17 +15,21 @@ import (
 	"math"
 	"os"
 
+	"github.com/unixpickle/model3d/toolbox3d"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model2d"
 )
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "Usage: fix_mask <mask.stl> <output.stl>")
+	if len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "Usage: fix_mask <mask.stl> <output.stl> <ring.stl>")
 		os.Exit(1)
 	}
 	inputPath := os.Args[1]
 	outputPath := os.Args[2]
+	ringPath := os.Args[3]
 
 	log.Println("Loading input mesh...")
 	r, err := os.Open(inputPath)
@@ -38,6 +42,9 @@ func main() {
 	mesh = AutoRotate(mesh)
 	mesh = FixSupport(mesh)
 	mesh.SaveGroupedSTL(outputPath)
+
+	ringMesh := CreateFilterRing(mesh)
+	ringMesh.SaveGroupedSTL(ringPath)
 }
 
 // FixSupport slightly moves up triangles which require
@@ -155,4 +162,124 @@ func RotateMesh(m *model3d.Mesh, angle float64) *model3d.Mesh {
 		Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{X: 1}, angle),
 	}
 	return m.MapCoords(rotation.Apply)
+}
+
+// CreateFilterRing creates a piece of plastic that fits
+// into the filter section and holds the filter in place.
+func CreateFilterRing(m *model3d.Mesh) *model3d.Mesh {
+	collider := model3d.MeshToCollider(m)
+
+	// Pick a z-axis where we can slice the ring.
+	sliceZ := 2 + m.Min().Z
+	// Scale up the bitmap to get accurate resolution.
+	const scale = 20
+
+	log.Println("Tracing ring outline...")
+	min := m.Min()
+	size := m.Max().Sub(min)
+	bitmap := model2d.NewBitmap(int(size.X*scale), int(size.Y*scale))
+	for y := 0; y < bitmap.Height; y++ {
+		for x := 0; x < bitmap.Width; x++ {
+			realX := min.X + float64(x)/scale
+			realY := min.Y + float64(y)/scale
+			numColl := collider.RayCollisions(&model3d.Ray{
+				Origin:    model3d.Coord3D{X: realX, Y: realY, Z: sliceZ},
+				Direction: model3d.Coord3D{X: 1},
+			}, nil)
+			numColl1 := collider.RayCollisions(&model3d.Ray{
+				Origin:    model3d.Coord3D{X: realX, Y: realY, Z: sliceZ},
+				Direction: model3d.Coord3D{X: -1},
+			}, nil)
+			bitmap.Set(x, y, numColl == 2 && numColl1 == 2)
+		}
+	}
+
+	solid := NewRingSolid(bitmap, scale)
+	squeeze := toolbox3d.AxisSqueeze{
+		Axis:  toolbox3d.AxisZ,
+		Min:   1,
+		Max:   4.5,
+		Ratio: 0.1,
+	}
+	log.Println("Creating mesh...")
+	mesh := squeeze.SolidToMesh(solid, 0.1, 0, -1, 5)
+	log.Println("Done creating mesh...")
+	mesh = mesh.FlattenBase(0)
+	mesh = mesh.EliminateCoplanar(1e-8)
+	return mesh
+}
+
+type RingSolid struct {
+	Collider model2d.Collider
+	Scale    float64
+
+	MinVal model3d.Coord3D
+	MaxVal model3d.Coord3D
+}
+
+func NewRingSolid(bmp *model2d.Bitmap, scale float64) *RingSolid {
+	min := model3d.Coord3D{X: math.Inf(1), Y: math.Inf(1)}
+	max := min.Scale(-1)
+	for y := 0; y < bmp.Height; y++ {
+		for x := 0; x < bmp.Width; x++ {
+			if !bmp.Get(x, y) {
+				continue
+			}
+			coord := model3d.Coord3D{X: float64(x) / scale, Y: float64(y) / scale}
+			min = min.Min(coord)
+			max = max.Max(coord)
+		}
+	}
+	return &RingSolid{
+		Collider: model2d.MeshToCollider(bmp.Mesh().Blur(0.25)),
+		Scale:    scale,
+		MinVal:   min.Sub(model3d.Coord3D{X: 1, Y: 1}),
+		MaxVal:   max.Add(model3d.Coord3D{X: 1, Y: 1, Z: 8}),
+	}
+}
+
+func (r *RingSolid) Min() model3d.Coord3D {
+	return r.MinVal
+}
+
+func (r *RingSolid) Max() model3d.Coord3D {
+	return r.MaxVal
+}
+
+func (r *RingSolid) Contains(c model3d.Coord3D) bool {
+	if !model3d.InBounds(r, c) {
+		return false
+	}
+
+	c2d := c.Coord2D().Scale(r.Scale)
+
+	innerInset := 2.0
+
+	// Grid on the hole.
+	if c.Z < 1.0 && model2d.ColliderContains(r.Collider, c2d, (innerInset-0.01)*r.Scale) {
+		mid := r.Max().Mid(r.Min())
+		mid1 := r.Max().Mid(mid)
+		mid2 := r.Min().Mid(mid)
+		for _, mp := range []model3d.Coord3D{mid, mid1, mid2} {
+			if math.Abs(c.X-mp.X) < 1.0 || math.Abs(c.Y-mp.Y) < 1.0 {
+				return true
+			}
+		}
+	}
+
+	if model2d.ColliderContains(r.Collider, c2d, innerInset*r.Scale) {
+		return false
+	}
+
+	inset := 0.5
+	if c.Z > 7 {
+		inset -= c.Z - 7
+	}
+
+	if inset > 0 {
+		return model2d.ColliderContains(r.Collider, c2d, inset*r.Scale)
+	}
+
+	return model2d.ColliderContains(r.Collider, c2d, 0) ||
+		r.Collider.CircleCollision(c2d, -inset*r.Scale)
 }
