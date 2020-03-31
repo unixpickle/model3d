@@ -1,6 +1,7 @@
 package render3d
 
 import (
+	"math"
 	"math/rand"
 
 	"github.com/unixpickle/model3d"
@@ -65,4 +66,76 @@ func (p *PhongFocusPoint) focusMaterial(mat Material) bool {
 		return p.MaterialFilter(mat)
 	}
 	return true
+}
+
+// SphereFocusPoint uses a distribution that samples rays
+// which hit a specific sphere.
+type SphereFocusPoint struct {
+	// Center and Radius controls the position and size of
+	// the sphere to sample.
+	Center model3d.Coord3D
+	Radius float64
+
+	// MaterialFilter, if non-nil, is called to see if a
+	// given material needs to be focused on a light.
+	MaterialFilter func(m Material) bool
+}
+
+// SampleFocus samples a point that is more
+// concentrated in the direction of Target.
+func (s *SphereFocusPoint) SampleFocus(gen *rand.Rand, mat Material, point, normal,
+	dest model3d.Coord3D) model3d.Coord3D {
+	if s.Center == point || !s.focusMaterial(mat) {
+		return mat.SampleSource(gen, normal, dest)
+	}
+	minCos, dir := s.focusInfo(point)
+	return sampleAroundUniform(gen, minCos, dir)
+}
+
+// FocusDensity gives the probability density ratio for
+// the given direction.
+func (s *SphereFocusPoint) FocusDensity(mat Material, point, normal, source,
+	dest model3d.Coord3D) float64 {
+	if s.Center == point || !s.focusMaterial(mat) {
+		return mat.SourceDensity(normal, source, dest)
+	}
+	minCos, dir := s.focusInfo(point)
+	return densityAroundUniform(minCos, dir, source)
+}
+
+func (s *SphereFocusPoint) focusMaterial(mat Material) bool {
+	if s.MaterialFilter != nil {
+		return s.MaterialFilter(mat)
+	}
+	return true
+}
+
+func (s *SphereFocusPoint) focusInfo(point model3d.Coord3D) (minCos float64, dir model3d.Coord3D) {
+	direction := point.Sub(s.Center)
+	theta := math.Atan2(s.Radius, direction.Norm())
+	return math.Cos(theta), direction.Normalize()
+}
+
+func sampleAroundUniform(gen *rand.Rand, minCos float64,
+	direction model3d.Coord3D) model3d.Coord3D {
+	// p(theta) ~ sin(theta)
+	// p(theta < x) = (1 - cos(theta)) / (1 - minCos)
+	// let alpha = 1/(1-minCos)
+	// u = (1 - cos(theta)) * alpha
+	// theta = acos(1-u/alpha)
+
+	lat := math.Acos(1 - gen.Float64()*(1-minCos))
+	lon := gen.Float64() * 2 * math.Pi
+
+	xAxis, zAxis := direction.OrthoBasis()
+
+	lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
+	return direction.Scale(math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
+}
+
+func densityAroundUniform(minCos float64, direction, sample model3d.Coord3D) float64 {
+	if direction.Dot(sample) < minCos {
+		return 0
+	}
+	return 2 / (1 - minCos)
 }
