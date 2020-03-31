@@ -271,7 +271,7 @@ func (r *RingSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 
-	inset := 0.5
+	inset := 0.1
 	if c.Z > 7 {
 		inset -= c.Z - 7
 	}
