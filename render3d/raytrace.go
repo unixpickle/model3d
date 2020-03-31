@@ -246,7 +246,7 @@ func (r *RecursiveRayTracer) sampleNextSource(gen *rand.Rand, point, normal, des
 	for i, prob := range r.FocusPointProbs {
 		p -= prob
 		if p < 0 {
-			return r.FocusPoints[i].SampleFocus(gen, point)
+			return r.FocusPoints[i].SampleFocus(gen, mat, point, normal, dest)
 		}
 	}
 
@@ -262,7 +262,7 @@ func (r *RecursiveRayTracer) sourceDensity(point, normal, source, dest model3d.C
 	matProb := 1.0
 	var prob float64
 	for i, focusProb := range r.FocusPointProbs {
-		prob += focusProb * r.FocusPoints[i].FocusDensity(point, source)
+		prob += focusProb * r.FocusPoints[i].FocusDensity(mat, point, normal, source, dest)
 		matProb -= focusProb
 	}
 

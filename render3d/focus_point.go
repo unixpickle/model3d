@@ -12,15 +12,16 @@ import (
 // Focus points perform importance sampling such that the
 // point or object of interest is sampled more.
 type FocusPoint interface {
-	// SampleFocus takes in a given point (i.e. a ray
-	// origin) and samples a unit direction facing into
-	// this point from some source.
-	SampleFocus(gen *rand.Rand, point model3d.Coord3D) model3d.Coord3D
+	// SampleFocus samples a source direction for a
+	// collision, focusing on some aspect of a scene.
+	SampleFocus(gen *rand.Rand, mat Material, point,
+		normal, dest model3d.Coord3D) model3d.Coord3D
 
 	// FocusDensity computes the probability density ratio
-	// of sampling the given direction from a point,
+	// of sampling the source direction from a point,
 	// relative to density on a unit sphere.
-	FocusDensity(point, direction model3d.Coord3D) float64
+	FocusDensity(mat Material, point, normal, source,
+		dest model3d.Coord3D) float64
 }
 
 // A PhongFocusPoint uses a distribution proportional to
@@ -35,22 +36,22 @@ type PhongFocusPoint struct {
 
 // SampleFocus samples a point that is more
 // concentrated in the direction of Target.
-func (p *PhongFocusPoint) SampleFocus(gen *rand.Rand, point model3d.Coord3D) model3d.Coord3D {
+func (p *PhongFocusPoint) SampleFocus(gen *rand.Rand, mat Material, point, normal,
+	dest model3d.Coord3D) model3d.Coord3D {
 	if p.Target == point {
-		return model3d.NewCoord3DRandUnit()
+		return mat.SampleSource(gen, normal, dest)
 	}
-	normal := p.Target.Sub(point).Normalize()
-	mat := PhongMaterial{Alpha: p.Alpha}
-	return mat.SampleSource(gen, normal, normal)
+	direction := point.Sub(p.Target).Normalize()
+	return sampleAroundDirection(gen, p.Alpha, direction)
 }
 
 // FocusDensity gives the probability density ratio for
 // the given direction.
-func (p *PhongFocusPoint) FocusDensity(point, direction model3d.Coord3D) float64 {
+func (p *PhongFocusPoint) FocusDensity(mat Material, point, normal, source,
+	dest model3d.Coord3D) float64 {
 	if p.Target == point {
-		return 1
+		return mat.SourceDensity(normal, source, dest)
 	}
-	normal := p.Target.Sub(point).Normalize()
-	mat := PhongMaterial{Alpha: p.Alpha}
-	return mat.SourceDensity(normal, direction, normal)
+	direction := point.Sub(p.Target).Normalize()
+	return densityAroundDirection(p.Alpha, direction, source)
 }
