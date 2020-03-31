@@ -90,7 +90,18 @@ func main() {
 		FocusPoints: []render3d.FocusPoint{
 			&render3d.PhongFocusPoint{
 				Target: model3d.Coord3D{X: 0, Y: 6, Z: 6.9},
-				Alpha:  10.0,
+				Alpha:  40.0,
+				MaterialFilter: func(m render3d.Material) bool {
+					if _, ok := m.(*render3d.LambertMaterial); ok {
+						return true
+					} else if phong, ok := m.(*render3d.PhongMaterial); ok {
+						return phong.DiffuseColor.Sum() > 0
+					} else {
+						// Don't focus sharp materials like refraction
+						// and specular-only phong materials.
+						return false
+					}
+				},
 			},
 		},
 		FocusPointProbs: []float64{0.3},
