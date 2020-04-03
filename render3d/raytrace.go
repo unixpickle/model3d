@@ -260,8 +260,8 @@ func (r *RecursiveRayTracer) recurse(gen *rand.Rand, obj Object, ray *model3d.Ra
 		lightDirection := l.Origin.Sub(point)
 
 		shadowRay := r.bounceRay(point, lightDirection)
-		collision, _, ok := obj.Cast(shadowRay)
-		if ok && collision.Scale < 1 {
+		shadowCollision, _, ok := obj.Cast(shadowRay)
+		if ok && shadowCollision.Scale < 1 {
 			continue
 		}
 
