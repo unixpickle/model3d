@@ -85,6 +85,51 @@ func (m *MeshSmoother) Smooth(mesh *Mesh) *Mesh {
 	return im.Mesh()
 }
 
+// VoxelSmoother uses hard-constraints on top of gradient
+// descent to minimize the surface area of a mesh while
+// keeping vertices within a square region of space.
+//
+// This is based on the surface nets algorithm.
+//
+// Also see MeshSmoother, which is similar but more
+// general-purpose.
+type VoxelSmoother struct {
+	StepSize   float64
+	Iterations int
+
+	// MaxDistance is the maximum L_infinity distance a
+	// vertex must move.
+	MaxDistance float64
+}
+
+// Smooth applies gradient descent to smooth the mesh.
+func (v *VoxelSmoother) Smooth(mesh *Mesh) *Mesh {
+	im := newIndexMesh(mesh)
+	origins := append([]Coord3D{}, im.Coords...)
+	newCoords := append([]Coord3D{}, im.Coords...)
+	for step := 0; step < v.Iterations; step++ {
+		for i := range im.Triangles {
+			indexTri := im.Triangles[i]
+			t := im.Triangle(i)
+			for i, grad := range t.AreaGradient() {
+				j := indexTri[i]
+				newCoords[j] = newCoords[j].Add(grad.Scale(-v.StepSize))
+			}
+		}
+		for i, c := range newCoords {
+			o := origins[i]
+			constraint := Coord3D{X: v.MaxDistance, Y: v.MaxDistance, Z: v.MaxDistance}
+			c = c.Max(o.Sub(constraint))
+			c = c.Min(o.Add(constraint))
+			newCoords[i] = c
+			im.Coords[i] = c
+		}
+		copy(im.Coords, newCoords)
+	}
+
+	return im.Mesh()
+}
+
 type indexMesh struct {
 	Coords    []Coord3D
 	Triangles [][3]int
