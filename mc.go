@@ -1,5 +1,9 @@
 package model3d
 
+import (
+	"sort"
+)
+
 // MarchingCubes turns a Solid into a surface mesh using a
 // corrected marching cubes algorithm.
 func MarchingCubes(s Solid, delta float64) *Mesh {
@@ -123,6 +127,22 @@ func allMcRotations() []mcRotation {
 	for rotation := range resMap {
 		result = append(result, rotation)
 	}
+
+	// Make the rotation order deterministic and fairly
+	// sensible.
+	sort.Slice(result, func(i, j int) bool {
+		r1 := result[i]
+		r2 := result[j]
+		for k := range r1 {
+			if r1[k] < r2[k] {
+				return true
+			} else if r1[k] > r2[k] {
+				return false
+			}
+		}
+		return false
+	})
+
 	return result
 }
 
