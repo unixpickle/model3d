@@ -1,14 +1,11 @@
 package model3d
 
 import (
-	"fmt"
 	"testing"
 )
 
 func TestMarchingCubesDeterminism(t *testing.T) {
 	table1 := mcLookupTable()
-	fmt.Println(allMcRotations())
-	fmt.Println(allMcRotations())
 	for i := 0; i < 10; i++ {
 		table2 := mcLookupTable()
 		for key, value1 := range table1 {
