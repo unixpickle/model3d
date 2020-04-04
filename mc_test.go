@@ -42,23 +42,3 @@ func TestMarchingCubesRandom(t *testing.T) {
 		}
 	}
 }
-
-type cachedRandomSolid struct {
-	randomSolid
-	Cache map[Coord3D]bool
-}
-
-func newCachedRandomSolid() *cachedRandomSolid {
-	return &cachedRandomSolid{
-		Cache: map[Coord3D]bool{},
-	}
-}
-
-func (c *cachedRandomSolid) Contains(coord Coord3D) bool {
-	if cache, ok := c.Cache[coord]; ok {
-		return cache
-	}
-	result := c.randomSolid.Contains(coord)
-	c.Cache[coord] = result
-	return result
-}
