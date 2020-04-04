@@ -494,7 +494,7 @@ func (s *solidCache) NumInteriorCorners(x, y, z int) int {
 	for k := z; k < z+2; k++ {
 		for j := y; j < y+2; j++ {
 			for i := x; i < x+2; i++ {
-				if s.cornerValue(i, j, k) {
+				if s.CornerValue(i, j, k) {
 					res++
 				}
 			}
@@ -503,7 +503,7 @@ func (s *solidCache) NumInteriorCorners(x, y, z int) int {
 	return res
 }
 
-func (s *solidCache) cornerValue(x, y, z int) bool {
+func (s *solidCache) CornerValue(x, y, z int) bool {
 	if z >= s.startZ && z < s.startZ+s.cachedZ {
 		return s.values[s.spacer.CornerIndex(x, y, z-s.startZ)]
 	}
@@ -520,7 +520,7 @@ func (s *solidCache) cornerValue(x, y, z int) bool {
 		s.fillTailValues(shift)
 	}
 
-	return s.cornerValue(x, y, z)
+	return s.CornerValue(x, y, z)
 }
 
 func (s *solidCache) fillTailValues(numTail int) {

@@ -1,5 +1,51 @@
 package model3d
 
+// MarchingCubes turns a Solid into a surface mesh using a
+// corrected marching cubes algorithm.
+func MarchingCubes(s Solid, delta float64) *Mesh {
+	table := mcLookupTable()
+
+	spacer := newSquareSpacer(s, delta)
+	cache := newSolidCache(s, spacer)
+
+	mesh := NewMesh()
+
+	spacer.IterateSquares(func(x, y, z int) {
+		var intersections mcIntersections
+		mask := mcIntersections(1)
+		for i := 0; i < 2; i++ {
+			for j := 0; j < 2; j++ {
+				for k := 0; k < 2; k++ {
+					x1 := x + k
+					y1 := y + j
+					z1 := z + i
+					if cache.CornerValue(x1, y1, z1) {
+						if x1 == 0 || x1 == len(spacer.Xs)-1 ||
+							y1 == 0 || y1 == len(spacer.Ys)-1 ||
+							z1 == 0 || z1 == len(spacer.Zs)-1 {
+							panic("solid is true outside of bounds")
+						}
+						intersections |= mask
+					}
+					mask <<= 1
+				}
+			}
+		}
+
+		triangles := table[intersections]
+		if len(triangles) > 0 {
+			min := spacer.CornerCoord(x, y, z)
+			max := spacer.CornerCoord(x+1, y+1, z+1)
+			corners := mcCornerCoordinates(min, max)
+			for _, t := range triangles {
+				mesh.Add(t.Triangle(corners))
+			}
+		}
+	})
+
+	return mesh
+}
+
 // mcCorner is a corner index on a cube used for marching
 // cubes.
 //
@@ -27,6 +73,22 @@ package model3d
 //      0                           1
 //
 type mcCorner uint8
+
+// mcCornerCoordinates gets the coordinates of all eight
+// corners for a cube.
+func mcCornerCoordinates(min, max Coord3D) [8]Coord3D {
+	return [8]Coord3D{
+		min,
+		{X: max.X, Y: min.Y, Z: min.Z},
+		{X: min.X, Y: max.Y, Z: min.Z},
+		{X: max.X, Y: max.Y, Z: min.Z},
+
+		{X: min.X, Y: min.Y, Z: max.Z},
+		{X: max.X, Y: min.Y, Z: max.Z},
+		{X: min.X, Y: max.Y, Z: max.Z},
+		max,
+	}
+}
 
 // mcRotation represents a cube rotation for marching
 // cubes.
@@ -107,6 +169,16 @@ func (m mcRotation) ApplyIntersections(i mcIntersections) mcIntersections {
 // The triangle is ordered in counter-clockwise order when
 // looked upon from the outside.
 type mcTriangle [6]mcCorner
+
+// Triangle creates a real triangle out of the mcTriangle,
+// given the corner coordinates.
+func (m mcTriangle) Triangle(corners [8]Coord3D) *Triangle {
+	return &Triangle{
+		corners[m[0]].Mid(corners[m[1]]),
+		corners[m[2]].Mid(corners[m[3]]),
+		corners[m[4]].Mid(corners[m[5]]),
+	}
+}
 
 // mcIntersections represents which corners on a cube are
 // inside of a solid.
