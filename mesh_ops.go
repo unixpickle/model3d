@@ -406,14 +406,16 @@ func (m *Mesh) SelfIntersections() int {
 // in the direction of the normal.
 func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
 	collider := MeshToCollider(m)
+	solid := NewColliderSolid(collider)
 	numFlipped := 0
 	newMesh := NewMesh()
+
 	m.Iterate(func(t *Triangle) {
 		t1 := *t
 		normal := t.Normal()
 		center := t[0].Add(t[1]).Add(t[2]).Scale(1.0 / 3)
-		origin := center.Add(normal.Scale(epsilon))
-		if collider.RayCollisions(&Ray{Origin: origin, Direction: normal}, nil)%2 == 1 {
+		movedOut := center.Add(normal.Scale(epsilon))
+		if solid.Contains(movedOut) {
 			numFlipped++
 			t1[0], t1[1] = t1[1], t1[0]
 		}
