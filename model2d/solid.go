@@ -50,11 +50,11 @@ func ScaleSolid(solid Solid, s float64) Solid {
 }
 
 func (s *scaledSolid) Min() Coord {
-	return s.Solid.Min().Scale(s.Scale)
+	return s.Solid.Min().Scale(1 / s.Scale)
 }
 
 func (s *scaledSolid) Max() Coord {
-	return s.Solid.Max().Scale(s.Scale)
+	return s.Solid.Max().Scale(1 / s.Scale)
 }
 
 func (s *scaledSolid) Contains(c Coord) bool {
