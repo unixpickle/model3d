@@ -286,6 +286,8 @@ func (r *RecursiveRayTracer) sampleNextSource(gen *rand.Rand, point, normal, des
 	mat Material) model3d.Coord3D {
 	if len(r.FocusPoints) == 0 {
 		return mat.SampleSource(gen, normal, dest)
+	} else if len(r.FocusPoints) != len(r.FocusPointProbs) {
+		panic("FocusPoints and FocusPointProbs must match in length")
 	}
 
 	p := rand.Float64()
