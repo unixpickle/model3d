@@ -28,30 +28,35 @@ const (
 func main() {
 	if _, err := os.Stat("stand.stl"); os.IsNotExist(err) {
 		log.Println("Creating stand...")
-		mesh := model3d.SolidToMesh(StandSolid(), 0.01, 0, -1, 10)
+		mesh := model3d.MarchingCubesSearch(StandSolid(), 0.01, 8)
 		mesh.SaveGroupedSTL("stand.stl")
 		model3d.SaveRandomGrid("stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 	}
 
 	if _, err := os.Stat("cone_stand.stl"); os.IsNotExist(err) {
 		log.Println("Creating stand (cone)...")
-		mesh := model3d.SolidToMesh(ConeStandSolid(), 0.01, 0, -1, 10)
+		mesh := model3d.MarchingCubesSearch(ConeStandSolid(), 0.01, 8)
 		mesh.SaveGroupedSTL("cone_stand.stl")
 		model3d.SaveRandomGrid("cone_stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 	}
 
 	if _, err := os.Stat("leg.stl"); os.IsNotExist(err) {
 		log.Println("Creating leg...")
-		mesh := model3d.SolidToMesh(LegSolid(), 0.01, 0, -1, 10)
+		transform := &toolbox3d.AxisSqueeze{
+			Axis:  toolbox3d.AxisZ,
+			Min:   1,
+			Max:   LegLength - 1,
+			Ratio: 0.1,
+		}
+		mesh := model3d.MarchingCubesSearch(transform.ApplySolid(LegSolid()), 0.01, 8)
+		mesh = mesh.MapCoords(transform.Inverse().Apply)
 		mesh.SaveGroupedSTL("leg.stl")
 		model3d.SaveRandomGrid("leg.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 	}
 
 	if _, err := os.Stat("top.stl"); os.IsNotExist(err) {
 		log.Println("Creating top...")
-		mesh := model3d.SolidToMesh(TopSolid(), 0.01, 0, -1, 20)
-		log.Println("Flattening base...")
-		mesh = mesh.FlattenBase(0)
+		mesh := model3d.MarchingCubesSearch(TopSolid(), 0.01, 8)
 		log.Println("Eliminating co-planar...")
 		mesh = mesh.EliminateCoplanar(1e-8)
 		mesh.SaveGroupedSTL("top.stl")
