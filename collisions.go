@@ -588,7 +588,7 @@ func (s *SolidCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
 	fracStep := s.Epsilon / r.Direction.Norm()
 	intersections := 0
 	contained := s.Solid.Contains(r.Origin)
-	for t := minFrac; t < maxFrac; t += fracStep {
+	for t := minFrac; t <= maxFrac+fracStep; t += fracStep {
 		c := r.Origin.Add(r.Direction.Scale(t))
 		newContained := s.Solid.Contains(c)
 		if newContained != contained {
@@ -617,7 +617,7 @@ func (s *SolidCollider) FirstRayCollision(r *Ray) (RayCollision, bool) {
 	}
 	fracStep := s.Epsilon / r.Direction.Norm()
 	startInside := s.Solid.Contains(r.Origin)
-	for t := minFrac; t < maxFrac; t += fracStep {
+	for t := minFrac; t <= maxFrac+fracStep; t += fracStep {
 		c := r.Origin.Add(r.Direction.Scale(t))
 		if s.Solid.Contains(c) != startInside {
 			return s.collision(r, t-fracStep, t, startInside), true
@@ -760,7 +760,7 @@ func pointToBoundsDistSquared(center Coord3D, min, max Coord3D) float64 {
 }
 
 func rayCollisionWithBounds(r *Ray, min, max Coord3D) (minFrac, maxFrac float64) {
-	minFrac = math.Inf(-1)
+	minFrac = 0
 	maxFrac = math.Inf(1)
 	for axis := 0; axis < 3; axis++ {
 		origin := r.Origin.Array()[axis]

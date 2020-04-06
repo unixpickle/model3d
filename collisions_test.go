@@ -225,6 +225,90 @@ func TestMeshRayCollisionsConsistency(t *testing.T) {
 	}
 }
 
+func TestSolidCollider(t *testing.T) {
+	// Create a non-trivial, non-convex solid.
+	solid := JoinedSolid{
+		&CylinderSolid{
+			P1:     Coord3D{X: 0.3, Y: 0.3, Z: -1},
+			P2:     Coord3D{X: -0.3, Y: -0.3, Z: 1},
+			Radius: 0.3,
+		},
+		&SphereSolid{
+			Center: Coord3D{X: 0.1},
+			Radius: 0.3,
+		},
+	}
+
+	// Use a mesh as our ground-truth collider.
+	mesh := MarchingCubesSearch(solid, 0.005, 8)
+	ground := MeshToCollider(mesh)
+
+	collider := &SolidCollider{
+		Solid:               solid,
+		Epsilon:             0.005,
+		BisectCount:         32,
+		NormalSamples:       16,
+		NormalBisectEpsilon: 1e-5,
+	}
+
+	verifiedCollisions := func(c Collider, r *Ray) ([]RayCollision, bool) {
+		var result []RayCollision
+		c.RayCollisions(r, func(rc RayCollision) {
+			result = append(result, rc)
+		})
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].Scale < result[j].Scale
+		})
+		scaleDelta := 0.02 / r.Direction.Norm()
+		lastScale := 0.0
+		for _, x := range result {
+			if x.Scale-lastScale < scaleDelta {
+				// Collisions are too close together, so
+				// neither the mesh nor the SolidCollider
+				// are expected to be accurate.
+				return nil, false
+			}
+			lastScale = x.Scale
+		}
+		return result, true
+	}
+
+	for i := 0; i < 10000; i++ {
+		ray := &Ray{
+			Origin: NewCoord3DRandNorm().Scale(0.5),
+			// Explicitly test non-unit directions.
+			Direction: NewCoord3DRandNorm(),
+		}
+
+		if i == 0 {
+			// Special ray that broke the code in the past colliding
+			// very close to the bounding box.
+			ray.Origin = Coord3D{-0.20424398336871702, -0.14223091122768425, 0.6248593138047999}
+			ray.Direction = Coord3D{-1.592256851550497, -0.6710011000343341, 1.2010483574169686}
+		}
+
+		actual, ok := verifiedCollisions(collider, ray)
+		if !ok {
+			continue
+		}
+		expected, ok := verifiedCollisions(ground, ray)
+		if !ok {
+			continue
+		}
+		if len(actual) != len(expected) {
+			t.Error("intersection count mismatch: expected", len(expected), "but got", len(actual),
+				"=> expected:", expected, "actual:", actual)
+		} else {
+			for i, x := range expected {
+				a := actual[i]
+				if math.Abs(x.Scale-a.Scale) > 0.01 || x.Normal.Dot(a.Normal) < 0 {
+					t.Error("expected", expected, "but got", actual)
+				}
+			}
+		}
+	}
+}
+
 func BenchmarkMeshToCollider(b *testing.B) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1
