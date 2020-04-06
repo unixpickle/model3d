@@ -243,6 +243,5 @@ func (c *Cylinder) CastAll(r *model3d.Ray, f func(model3d.RayCollision, Material
 			}
 			f(coll, mat)
 		}
-		break
 	}
 }
