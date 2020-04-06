@@ -586,15 +586,15 @@ func (s *SolidCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
 		return 0
 	}
 	fracStep := s.Epsilon / r.Direction.Norm()
-	contained := false
 	intersections := 0
+	contained := s.Solid.Contains(r.Origin)
 	for t := minFrac; t < maxFrac; t += fracStep {
 		c := r.Origin.Add(r.Direction.Scale(t))
 		newContained := s.Solid.Contains(c)
 		if newContained != contained {
 			intersections++
 			if f != nil {
-				f(s.collision(r, t-fracStep, t))
+				f(s.collision(r, t-fracStep, t, contained))
 			}
 		}
 		contained = newContained
@@ -616,16 +616,20 @@ func (s *SolidCollider) FirstRayCollision(r *Ray) (RayCollision, bool) {
 		return RayCollision{}, false
 	}
 	fracStep := s.Epsilon / r.Direction.Norm()
+	startInside := s.Solid.Contains(r.Origin)
 	for t := minFrac; t < maxFrac; t += fracStep {
 		c := r.Origin.Add(r.Direction.Scale(t))
-		if s.Solid.Contains(c) {
-			return s.collision(r, t-fracStep, t), true
+		if s.Solid.Contains(c) != startInside {
+			return s.collision(r, t-fracStep, t, startInside), true
 		}
 	}
 	return RayCollision{}, false
 }
 
-func (s *SolidCollider) collision(r *Ray, min, max float64) RayCollision {
+func (s *SolidCollider) collision(r *Ray, min, max float64, startInside bool) RayCollision {
+	if startInside {
+		min, max = max, min
+	}
 	scale := s.bisectCollision(r, min, max)
 	normal := s.approximateNormal(r.Origin.Add(r.Direction.Scale(scale)))
 	return RayCollision{Scale: scale, Normal: normal}
