@@ -1,5 +1,7 @@
 package model2d
 
+import "math"
+
 // BezierCurve implements an arbitrarily high-dimensional
 // Bezier curve.
 type BezierCurve []Coord
@@ -13,4 +15,54 @@ func (b BezierCurve) Eval(t float64) Coord {
 		return b[0].Scale(1 - t).Add(b[1].Scale(t))
 	}
 	return b[:len(b)-1].Eval(t).Scale(1 - t).Add(b[1:].Eval(t).Scale(t))
+}
+
+// EvalX finds the y value that occurs at the given x
+// value, assuming that the curve is monotonic in x.
+//
+// If the y value cannot be found, NaN is returned.
+func (b BezierCurve) EvalX(x float64) float64 {
+	t := b.InverseX(x)
+	if math.IsNaN(t) {
+		return t
+	}
+	return b.Eval(t).Y
+}
+
+// InverseX gets the t value between 0 and 1 where the x
+// value is equal to some x, assuming the curve is
+// monotonic in x.
+//
+// If the t cannot be found, NaN is returned.
+func (b BezierCurve) InverseX(x float64) float64 {
+	lowT := 0.0
+	highT := 1.0
+	eval0 := b.Eval(0).X <= x
+	eval1 := b.Eval(1).X <= x
+	if eval0 == eval1 {
+		return math.NaN()
+	} else if eval1 {
+		highT, lowT = lowT, highT
+	}
+
+	for i := 0; i < 63; i++ {
+		t := (lowT + highT) / 2
+		if b.Eval(t).X <= x {
+			lowT = t
+		} else {
+			highT = t
+		}
+	}
+
+	return (lowT + highT) / 2
+}
+
+// Transpose generates a BezierCurve where x and y are
+// swapped.
+func (b BezierCurve) Transpose() BezierCurve {
+	var res BezierCurve
+	for _, c := range b {
+		res = append(res, Coord{X: c.Y, Y: c.X})
+	}
+	return res
 }
