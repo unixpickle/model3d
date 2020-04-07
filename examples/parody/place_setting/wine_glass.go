@@ -6,17 +6,17 @@ import (
 )
 
 const (
-	WineGlassCupWidth     = 1.5
-	WineGlassCupHeight    = 1.5
-	WineGlassCupMinRadius = 0.2
-	WineGlassCupTopRadius = 1.3 / 2
-	WineGlassCupThickness = 0.05
+	WineGlassCupWidth     = 3.0
+	WineGlassCupHeight    = 3.0
+	WineGlassCupMinRadius = 0.4
+	WineGlassCupTopRadius = 1.3
+	WineGlassCupThickness = 0.08
 
-	WineGlassBaseWidth      = 1.0
-	WineGlassBaseHeight     = 0.05
-	WineGlassStemRadius     = 0.1
-	WineGlassStemHeight     = 1.2
-	WineGlassStemTransition = 0.25
+	WineGlassBaseWidth      = 2.5
+	WineGlassBaseHeight     = 0.15
+	WineGlassStemRadius     = 0.2
+	WineGlassStemHeight     = 2.4
+	WineGlassStemTransition = 0.5
 )
 
 func CreateWineGlass() model3d.Solid {
@@ -79,6 +79,7 @@ func (w WineGlassStem) Contains(c model3d.Coord3D) bool {
 		// Transition to base.
 		curve := model2d.BezierCurve{
 			{X: 0, Y: WineGlassBaseWidth / 2},
+			{X: WineGlassBaseHeight, Y: WineGlassBaseWidth / 2},
 			{X: WineGlassBaseHeight, Y: WineGlassStemRadius},
 			{X: WineGlassStemTransition, Y: WineGlassStemRadius},
 		}
