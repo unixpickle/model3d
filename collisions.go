@@ -654,7 +654,6 @@ func (s *SolidCollider) bisectCollision(r *Ray, min, max float64) float64 {
 func (s *SolidCollider) approximateNormal(c Coord3D) Coord3D {
 	count := s.NormalSamples
 	if count == 0 {
-		// Default taken from SolidNormal.
 		count = 40
 	}
 	if s.NormalBisectEpsilon == 0 || count < 5 {

@@ -25,27 +25,24 @@ func main() {
 		P2:         model3d.Coord3D{Z: Height / 2},
 		Radius:     ScrewRadius,
 		GrooveSize: ScrewGrooveSize,
-	}
-	pointedScrew := PointedSolid{
-		Solid:  screw,
-		Center: model3d.Coord3D{Z: Height / 2},
+		Pointed:    true,
 	}
 
 	log.Println("Building poop solid...")
 	poop := &model3d.SubtractedSolid{
 		Positive: PoopSolid(),
-		Negative: pointedScrew,
+		Negative: screw,
 	}
 
 	log.Println("Building poop mesh...")
-	mesh := model3d.SolidToMesh(poop, 0.01, 0, -1, 10)
+	mesh := model3d.MarchingCubesSearch(poop, 0.01, 8)
 	mesh.SaveGroupedSTL("poop.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 
 	log.Println("Building steak mesh...")
 	screw.P1, screw.P2 = screw.P2, screw.P1
 	screw.Radius -= ScrewSlack
-	mesh = model3d.SolidToMesh(pointedScrew, 0.01, 0, -1, 10)
+	mesh = model3d.MarchingCubesSearch(screw, 0.01, 8)
 	mesh.SaveGroupedSTL("steak.stl")
 	model3d.SaveRandomGrid("steak.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 }
@@ -83,11 +80,7 @@ func PoopSolid() model3d.Solid {
 			InnerRadius: 0.25 * Radius,
 		},
 	}
-	mesh := model3d.SolidToMesh(constructed, 0.011, 0, -1, 5)
-	for i := 0; i < 5; i++ {
-		log.Printf("- lasso solid %d/5...", i)
-		mesh = mesh.LassoSolid(constructed, 0.005, 4, 100, 0.2)
-	}
+	mesh := model3d.MarchingCubesSearch(constructed, 0.01, 8)
 
 	// Remove internal gaps, leaving only the external shell.
 	topTriangle := &model3d.Triangle{}
@@ -114,9 +107,7 @@ func PoopSolid() model3d.Solid {
 		}
 	})
 
-	// Clip off bottom to remove need for supports, and
-	// to avoid a rough surface that occurs due to
-	// rounding.
+	// Clip off bottom to remove need for supports.
 	return &model3d.SubtractedSolid{
 		Positive: model3d.NewColliderSolid(model3d.MeshToCollider(mesh)),
 		Negative: &model3d.RectSolid{

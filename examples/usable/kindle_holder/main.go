@@ -15,11 +15,8 @@ const (
 )
 
 func main() {
-	mesh := model3d.SolidToMesh(HolderSolid{}, 0.025, 0, -1, 10)
-	for i := 0; i < 3; i++ {
-		mesh = mesh.LassoSolid(HolderSolid{}, 0.01, 3, 300, 0.3)
-	}
-	mesh = mesh.EliminateCoplanar(1e-8)
+	mesh := model3d.MarchingCubesSearch(HolderSolid{}, 0.025, 16)
+	mesh = mesh.EliminateCoplanar(1e-5)
 	mesh.SaveGroupedSTL("kindle_holder.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }
