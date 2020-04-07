@@ -23,12 +23,18 @@ func TestBezierInverseX(t *testing.T) {
 	}
 
 	for _, curve := range curves {
-		for i := 0; i < 10; i++ {
-			xValue := rand.Float64()*1.9 + 1.05
-			tValue := curve.InverseX(xValue)
-			if math.Abs(xValue-curve.Eval(tValue).X) > 1e-8 {
-				t.Errorf("invalid inverse for x: %f", xValue)
+		testX := func(x float64) {
+			tValue := curve.InverseX(x)
+			if math.IsNaN(tValue) {
+				t.Errorf("unexpected NaN for x: %f", x)
+			} else if math.Abs(x-curve.Eval(tValue).X) > 1e-8 {
+				t.Errorf("invalid inverse for x: %f", x)
 			}
+		}
+		testX(1)
+		testX(3)
+		for i := 0; i < 10; i++ {
+			testX(rand.Float64()*1.9 + 1.05)
 		}
 		if !math.IsNaN(curve.InverseX(0.5)) {
 			t.Error("not NaN before bounds")

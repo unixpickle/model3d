@@ -37,8 +37,15 @@ func (b BezierCurve) EvalX(x float64) float64 {
 func (b BezierCurve) InverseX(x float64) float64 {
 	lowT := 0.0
 	highT := 1.0
-	eval0 := b.Eval(0).X <= x
-	eval1 := b.Eval(1).X <= x
+	x0 := b.Eval(0).X
+	x1 := b.Eval(1).X
+	if x0 == x {
+		return 0
+	} else if x1 == x {
+		return 1
+	}
+	eval0 := x0 <= x
+	eval1 := x1 <= x
 	if eval0 == eval1 {
 		return math.NaN()
 	} else if eval1 {
