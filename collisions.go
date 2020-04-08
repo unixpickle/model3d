@@ -26,6 +26,23 @@ type RayCollision struct {
 	// The normal pointing outward from the surface at the
 	// point of collision.
 	Normal Coord3D
+
+	// Extra contains additional, implementation-specific
+	// information about the collision.
+	//
+	// For an example, see TriangleCollision.
+	Extra interface{}
+}
+
+// TriangleCollision is triangle-specific collision
+// information.
+type TriangleCollision struct {
+	// The triangle that reported the collision.
+	Triangle *Triangle
+
+	// Barycentric coordinates in the triangle,
+	// corresponding to the corners.
+	Barycentric [3]float64
 }
 
 // A Collider is a surface which can detect intersections
@@ -173,10 +190,12 @@ func GroupedTrianglesToCollider(tris []*Triangle) TriangleCollider {
 
 // FirstRayCollision gets the ray collision if there is
 // one.
+//
+// The Extra field is a *TriangleCollision.
 func (t *Triangle) FirstRayCollision(r *Ray) (RayCollision, bool) {
-	collides, scale := t.rayCollision(r)
-	if collides && scale >= 0 {
-		return RayCollision{Scale: scale, Normal: t.Normal()}, true
+	info, scale := t.rayCollision(r)
+	if info != nil && scale >= 0 {
+		return RayCollision{Scale: scale, Normal: t.Normal(), Extra: info}, true
 	} else {
 		return RayCollision{}, false
 	}
@@ -184,18 +203,20 @@ func (t *Triangle) FirstRayCollision(r *Ray) (RayCollision, bool) {
 
 // RayCollisions calls f (if non-nil) with a collision (if
 // applicable) and returns the collisions count (0 or 1).
+//
+// The Extra field is a *TriangleCollision.
 func (t *Triangle) RayCollisions(r *Ray, f func(RayCollision)) int {
-	collides, scale := t.rayCollision(r)
-	if !collides || scale < 0 {
+	info, scale := t.rayCollision(r)
+	if info == nil || scale < 0 {
 		return 0
 	}
 	if f != nil {
-		f(RayCollision{Scale: scale, Normal: t.Normal()})
+		f(RayCollision{Scale: scale, Normal: t.Normal(), Extra: info})
 	}
 	return 1
 }
 
-func (t *Triangle) rayCollision(r *Ray) (collides bool, scale float64) {
+func (t *Triangle) rayCollision(r *Ray) (tc *TriangleCollision, scale float64) {
 	v1 := t[1].Sub(t[0])
 	v2 := t[2].Sub(t[0])
 	matrix := Matrix3{
@@ -204,11 +225,18 @@ func (t *Triangle) rayCollision(r *Ray) (collides bool, scale float64) {
 		v1.Z, v2.Z, r.Direction.Z,
 	}
 	if math.Abs(matrix.Det()) < 1e-8*t.Area()*r.Direction.Norm() {
-		return false, 0
+		return nil, 0
 	}
 	matrix.InvertInPlace()
 	result := matrix.MulColumn(r.Origin.Sub(t[0]))
-	return result.X >= 0 && result.Y >= 0 && result.X+result.Y <= 1, -result.Z
+	barycentric := [3]float64{1 - (result.X + result.Y), result.X, result.Y}
+	if barycentric[0] >= 0 && barycentric[1] >= 0 && barycentric[2] >= 0 {
+		tc = &TriangleCollision{
+			Triangle:    t,
+			Barycentric: barycentric,
+		}
+	}
+	return tc, -result.Z
 }
 
 // SphereCollision checks if any part of the triangle is
@@ -230,8 +258,8 @@ func (t *Triangle) SphereCollision(c Coord3D, r float64) bool {
 		Origin:    c,
 		Direction: t.Normal(),
 	}
-	inside, frac := t.rayCollision(ray)
-	return inside && math.Abs(frac) < r
+	info, frac := t.rayCollision(ray)
+	return info != nil && math.Abs(frac) < r
 }
 
 func segmentEntersSphere(p1, p2, c Coord3D, r float64) bool {

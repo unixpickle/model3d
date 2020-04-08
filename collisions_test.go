@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"reflect"
 	"sort"
 	"testing"
 )
@@ -188,8 +189,21 @@ func TestMeshRayCollisions(t *testing.T) {
 
 		for i, a := range actual {
 			x := expected[i]
-			if a != x {
+			if !reflect.DeepEqual(a, x) {
 				t.Error("collision mismatch")
+			}
+		}
+
+		// Check the barycentric coordinates.
+		for _, a := range actual {
+			tc := a.Extra.(*TriangleCollision)
+			var baryCoord Coord3D
+			for i, c := range tc.Triangle {
+				baryCoord = baryCoord.Add(c.Scale(tc.Barycentric[i]))
+			}
+			actualCoord := ray.Origin.Add(ray.Direction.Scale(a.Scale))
+			if actualCoord.Dist(baryCoord) > 1e-8 {
+				t.Errorf("invalid barycentric coordinates: %v", tc.Barycentric)
 			}
 		}
 	}
