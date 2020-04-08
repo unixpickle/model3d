@@ -23,12 +23,12 @@ const (
 
 func main() {
 	log.Println("Generating swirl design...")
-	mesh := model3d.SolidToMesh(TrashCanSolid{}, Height/100, 1, 0.8, 5)
+	mesh := model3d.MarchingCubesSearch(TrashCanSolid{}, Height/200, 8)
 	ioutil.WriteFile("trash_swirl.stl", mesh.EncodeSTL(), 0755)
 	model3d.SaveRandomGrid("rendering_swirl.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 
 	log.Println("Generating bulge design...")
-	mesh = model3d.SolidToMesh(TrashCanSolid{Bulge: true}, Height/100, 1, 0.8, 5)
+	mesh = model3d.MarchingCubesSearch(TrashCanSolid{Bulge: true}, Height/200, 8)
 	ioutil.WriteFile("trash_bulge.stl", mesh.EncodeSTL(), 0755)
 	model3d.SaveRandomGrid("rendering_bulge.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 }

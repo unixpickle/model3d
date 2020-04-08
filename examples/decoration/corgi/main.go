@@ -69,11 +69,11 @@ var (
 )
 
 func main() {
-	log.Println("creating body solid...")
-	model := SmoothJoin(0.1, MakeBody(), MakeHeadNeck(), MakeLegs(), MakeHindLegMuscles(),
+	log.Println("creating solid...")
+	solid := SmoothJoin(0.1, MakeBody(), MakeHeadNeck(), MakeLegs(), MakeHindLegMuscles(),
 		MakeSnout(), MakeNub(), MakeEars())
 	log.Println("creating mesh...")
-	mesh := model3d.SolidToMesh(model, 0.01, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 
 	colors := MakeColorer()
 

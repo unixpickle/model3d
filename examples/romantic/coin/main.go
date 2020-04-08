@@ -44,7 +44,7 @@ func main() {
 		Radius:    radius,
 	}
 
-	m := model3d.SolidToMesh(solid, radius/40, 3, 0.8, 5)
+	m := model3d.MarchingCubesSearch(solid, radius/200, 8)
 
 	essentials.Must(ioutil.WriteFile(outFile, m.EncodeSTL(), 0755))
 	essentials.Must(model3d.SaveRandomGrid(renderFile, model3d.MeshToCollider(m), 4, 4, 200, 200))

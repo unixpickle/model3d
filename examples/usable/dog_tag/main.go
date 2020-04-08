@@ -25,7 +25,7 @@ func main() {
 		),
 	}
 	log.Println("Creating mesh...")
-	mesh := model3d.SolidToMesh(solid, 0.005, 0, 0, 0)
+	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
 	log.Println("Smoothing...")
 	mesh = mesh.SmoothAreas(0.05, 50)
 	log.Println("Flattening...")

@@ -42,7 +42,7 @@ func main() {
 			Center: pole.P2,
 		})
 	}
-	mesh := model3d.SolidToMesh(solid, 0.05, 2, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.0125, 8)
 	essentials.Must(mesh.SaveGroupedSTL("menorah.stl"))
 
 	img := image.NewGray(image.Rect(0, 0, 500, 400))

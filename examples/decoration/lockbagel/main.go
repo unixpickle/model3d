@@ -38,7 +38,7 @@ func main() {
 }
 
 func CreateLock() *model3d.Mesh {
-	return model3d.SolidToMesh(LockSolid{}, 0.05, 3, 0.8, 3)
+	return model3d.MarchingCubesSearch(LockSolid{}, 0.006, 8)
 }
 
 type LockSolid struct{}
@@ -79,10 +79,7 @@ func (l LockSolid) Contains(c model3d.Coord3D) bool {
 }
 
 func CreateBagel() *model3d.Mesh {
-	// A random delta so that we don't get any weird
-	// resonance/rounding artifacts with the shape of the
-	// solid.
-	return model3d.SolidToMesh(BagelSolid{}, 0.02613232, 2, 0.8, 3)
+	return model3d.MarchingCubesSearch(BagelSolid{}, 0.005, 8)
 }
 
 type BagelSolid struct{}

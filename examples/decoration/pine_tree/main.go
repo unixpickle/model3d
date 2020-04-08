@@ -23,7 +23,7 @@ const (
 
 func main() {
 	log.Println("Creating mesh...")
-	mesh := model3d.SolidToMesh(TreeSolid{}, 0.015, 0, -1, 30)
+	mesh := model3d.MarchingCubesSearch(TreeSolid{}, 0.015, 8).SmoothAreas(0.1, 30)
 	log.Println("Exporting...")
 	mesh.SaveGroupedSTL("pine.stl")
 	log.Println("Rendering...")

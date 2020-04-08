@@ -74,22 +74,13 @@ func main() {
 		},
 	}
 
-	smoother := &model3d.MeshSmoother{
-		StepSize:           0.1,
-		Iterations:         40,
-		ConstraintDistance: 0.01,
-		ConstraintWeight:   0.02,
-	}
-
 	log.Println("Creating lid mesh...")
-	lidMesh := model3d.SolidToMesh(lidSolid, 0.005, 0, 0, 0)
-	lidMesh = smoother.Smooth(lidMesh)
+	lidMesh := model3d.MarchingCubesSearch(lidSolid, 0.005, 8)
 	log.Println("Saving lid mesh...")
 	lidMesh.SaveGroupedSTL("qh_lid.stl")
 
 	log.Println("Creating body mesh...")
-	bodyMesh := model3d.SolidToMesh(bodySolid, 0.005, 0, 0, 0)
-	bodyMesh = smoother.Smooth(bodyMesh)
+	bodyMesh := model3d.MarchingCubesSearch(bodySolid, 0.005, 8)
 	log.Println("Saving body mesh...")
 	bodyMesh.SaveGroupedSTL("qh_body.stl")
 

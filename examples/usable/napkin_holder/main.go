@@ -33,7 +33,7 @@ func main() {
 			MaxVal: model3d.Coord3D{X: SideSize, Y: Thickness, Z: Depth},
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.01, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 	log.Println("Eliminating co-planar...")
 	mesh = mesh.EliminateCoplanar(1e-8)
 	mesh = mesh.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {

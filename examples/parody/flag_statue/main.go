@@ -19,7 +19,7 @@ func main() {
 	}
 
 	log.Println("Creating mesh...")
-	m := model3d.SolidToMesh(solid, 0.02, 0, -1, 5)
+	m := model3d.MarchingCubesSearch(solid, 0.02, 8).Blur(-1, -1, -1, -1, -1)
 
 	log.Println("Saving mesh...")
 	m.SaveGroupedSTL("statue.stl")

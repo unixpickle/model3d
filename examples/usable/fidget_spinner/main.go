@@ -61,7 +61,7 @@ func main() {
 		},
 	}
 
-	mesh := model3d.SolidToMesh(axle, 0.05, 4, 1.0, 3)
+	mesh := model3d.MarchingCubesSearch(axle, 0.003, 8)
 
 	body := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
@@ -128,7 +128,7 @@ func main() {
 			},
 		},
 	}
-	mesh.AddMesh(model3d.SolidToMesh(body, 0.05, 4, 1.0, 5))
+	mesh.AddMesh(model3d.MarchingCubesSearch(body, 0.003, 8))
 
 	ioutil.WriteFile("spinner.stl", mesh.EncodeSTL(), 0755)
 

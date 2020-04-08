@@ -50,16 +50,7 @@ func main() {
 	}
 
 	log.Println("Creating mesh...")
-	mesh := model3d.SolidToMesh(solid, 0.01, 0, 0, 0)
-
-	log.Println("Smoothing mesh...")
-	smoother := model3d.MeshSmoother{
-		StepSize:           0.1,
-		Iterations:         50,
-		ConstraintDistance: 0.01,
-		ConstraintWeight:   0.01,
-	}
-	mesh = smoother.Smooth(mesh)
+	mesh := model3d.MarchingCubesSearch(solid, 0.02, 8)
 
 	log.Println("Saving STL...")
 	mesh.SaveGroupedSTL("castle.stl")

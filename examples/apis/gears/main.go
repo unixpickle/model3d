@@ -55,7 +55,7 @@ func CreateGear(teeth int, path string, invert bool) {
 			GrooveSize: ScrewGrooveSize,
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.004, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.004, 8)
 	mesh.SaveGroupedSTL(path)
 }
 
@@ -78,7 +78,7 @@ func CreatePole() {
 			GrooveSize: ScrewGrooveSize,
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.004, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.004, 8)
 	mesh.SaveGroupedSTL("pole.stl")
 }
 
@@ -116,6 +116,6 @@ func CreateHolder() {
 			},
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.015, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.015, 8)
 	mesh.SaveGroupedSTL("holder.stl")
 }

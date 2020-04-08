@@ -48,12 +48,12 @@ func main() {
 		},
 	}
 	split := &SplitSolid{Solid: solid, Top: true}
-	topMesh := model3d.SolidToMesh(split, 0.01, 0, -1, 20)
+	topMesh := model3d.MarchingCubesSearch(split, 0.01, 8)
 	topMesh.SaveGroupedSTL("top.stl")
 	model3d.SaveRandomGrid("top.png", model3d.MeshToCollider(topMesh), 3, 3, 300, 300)
 
 	split.Top = false
-	bottomMesh := model3d.SolidToMesh(split, 0.01, 0, -1, 20)
+	bottomMesh := model3d.MarchingCubesSearch(split, 0.01, 8)
 	bottomMesh = bottomMesh.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
 		c.Z, c.X = -c.Z, -c.X
 		return c
@@ -67,7 +67,7 @@ func main() {
 	dowel.MaxVal.Y -= DowelSlack / 2
 	// Accommodate for pointed tip.
 	dowel.MaxVal.Z -= DowelSize*2 + DowelSlack
-	mesh := model3d.SolidToMesh(dowel, 0.01, 0, -1, 10)
+	mesh := model3d.MarchingCubesSearch(dowel, 0.01, 8)
 	mesh = mesh.FlattenBase(math.Pi * 0.49)
 	mesh.SaveGroupedSTL("dowel.stl")
 }

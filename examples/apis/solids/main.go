@@ -1,8 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
-
 	"github.com/unixpickle/model3d"
 )
 
@@ -20,6 +18,6 @@ func main() {
 			InnerRadius: 0.1,
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.05, 3, 0.8, 7)
-	ioutil.WriteFile("output.stl", mesh.EncodeSTL(), 0755)
+	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
+	mesh.SaveGroupedSTL("output.stl")
 }

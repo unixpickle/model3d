@@ -3,6 +3,8 @@ package model3d
 import (
 	"math"
 	"sort"
+
+	"github.com/unixpickle/essentials"
 )
 
 // MarchingCubes turns a Solid into a surface mesh using a
@@ -429,4 +431,144 @@ var baseTriangleTable = map[mcIntersections][]mcTriangle{
 		{0, 2, 0, 1, 0, 4},
 	},
 	newMcIntersections(0, 1, 2, 3, 4, 5, 6, 7): []mcTriangle{},
+}
+
+type squareSpacer struct {
+	Xs []float64
+	Ys []float64
+	Zs []float64
+}
+
+func newSquareSpacer(s Solid, delta float64) *squareSpacer {
+	var xs, ys, zs []float64
+	min := s.Min()
+	max := s.Max()
+	for x := min.X - delta; x <= max.X+delta; x += delta {
+		xs = append(xs, x)
+	}
+	for y := min.Y - delta; y <= max.Y+delta; y += delta {
+		ys = append(ys, y)
+	}
+	for z := min.Z - delta; z <= max.Z+delta; z += delta {
+		zs = append(zs, z)
+	}
+	return &squareSpacer{Xs: xs, Ys: ys, Zs: zs}
+}
+
+func (s *squareSpacer) IterateSquares(f func(x, y, z int)) {
+	for z := 0; z < len(s.Zs)-1; z++ {
+		for y := 0; y < len(s.Ys)-1; y++ {
+			for x := 0; x < len(s.Xs)-1; x++ {
+				f(x, y, z)
+			}
+		}
+	}
+}
+
+func (s *squareSpacer) NumSquares() int {
+	return (len(s.Xs) - 1) * (len(s.Ys) - 1) * (len(s.Zs) - 1)
+}
+
+func (s *squareSpacer) SquareIndex(x, y, z int) int {
+	return x + y*(len(s.Xs)-1) + z*(len(s.Xs)-1)*(len(s.Ys)-1)
+}
+
+func (s *squareSpacer) CornerCoord(x, y, z int) Coord3D {
+	return Coord3D{X: s.Xs[x], Y: s.Ys[y], Z: s.Zs[z]}
+}
+
+func (s *squareSpacer) IterateCorners(f func(x, y, z int)) {
+	for z := range s.Zs {
+		for y := range s.Ys {
+			for x := range s.Xs {
+				f(x, y, z)
+			}
+		}
+	}
+}
+
+func (s *squareSpacer) NumCorners() int {
+	return len(s.Xs) * len(s.Ys) * len(s.Zs)
+}
+
+func (s *squareSpacer) CornerIndex(x, y, z int) int {
+	return x + y*len(s.Xs) + z*len(s.Xs)*len(s.Ys)
+}
+
+func (s *squareSpacer) IndexToCorner(idx int) (int, int, int) {
+	x := idx % len(s.Xs)
+	idx /= len(s.Xs)
+	y := idx % len(s.Ys)
+	z := idx / len(s.Ys)
+	return x, y, z
+}
+
+type solidCache struct {
+	spacer *squareSpacer
+	solid  Solid
+
+	startZ  int
+	strideZ int
+	cachedZ int
+	values  []bool
+}
+
+func newSolidCache(solid Solid, spacer *squareSpacer) *solidCache {
+	cachedZ := essentials.MinInt(len(spacer.Zs), 10)
+	strideZ := len(spacer.Xs) * len(spacer.Ys)
+	cache := &solidCache{
+		spacer:  spacer,
+		solid:   solid,
+		strideZ: strideZ,
+		cachedZ: cachedZ,
+		values:  make([]bool, strideZ*cachedZ),
+	}
+	cache.fillTailValues(cachedZ)
+	return cache
+}
+
+func (s *solidCache) NumInteriorCorners(x, y, z int) int {
+	var res int
+	for k := z; k < z+2; k++ {
+		for j := y; j < y+2; j++ {
+			for i := x; i < x+2; i++ {
+				if s.CornerValue(i, j, k) {
+					res++
+				}
+			}
+		}
+	}
+	return res
+}
+
+func (s *solidCache) CornerValue(x, y, z int) bool {
+	if z >= s.startZ && z < s.startZ+s.cachedZ {
+		return s.values[s.spacer.CornerIndex(x, y, z-s.startZ)]
+	}
+
+	newStart := essentials.MinInt(essentials.MaxInt(0, z-s.cachedZ/2),
+		len(s.spacer.Zs)-s.cachedZ)
+	shift := newStart - s.startZ
+	s.startZ = newStart
+	if shift < 0 || shift >= s.cachedZ {
+		// Start the cache all over again.
+		s.fillTailValues(s.cachedZ)
+	} else {
+		copy(s.values, s.values[shift*s.strideZ:])
+		s.fillTailValues(shift)
+	}
+
+	return s.CornerValue(x, y, z)
+}
+
+func (s *solidCache) fillTailValues(numTail int) {
+	idx := (s.cachedZ - numTail) * s.strideZ
+	for _, z := range s.spacer.Zs[s.startZ+s.cachedZ-numTail:][:numTail] {
+		for _, y := range s.spacer.Ys {
+			for _, x := range s.spacer.Xs {
+				s.values[idx] = s.solid.Contains(Coord3D{X: x, Y: y, Z: z})
+				idx++
+			}
+		}
+	}
 }

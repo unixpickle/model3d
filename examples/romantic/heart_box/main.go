@@ -32,7 +32,8 @@ func main() {
 	)
 
 	log.Println("Creating box...")
-	mesh := model3d.SolidToMesh(&BoxSolid{Outline: outline, Sections: sections}, 0.02, 0, -1, 10)
+	mesh := model3d.MarchingCubesSearch(&BoxSolid{Outline: outline, Sections: sections}, 0.02, 8)
+	mesh = mesh.SmoothAreas(0.1, 20)
 	log.Println(" - flattening base...")
 	mesh = mesh.FlattenBase(0)
 	log.Println(" - saving...")
@@ -41,7 +42,8 @@ func main() {
 	model3d.SaveRandomGrid("rendering_box.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 
 	log.Println("Creating lid...")
-	mesh = model3d.SolidToMesh(&LidSolid{Outline: outline}, 0.02, 0, -1, 20)
+	mesh = model3d.MarchingCubesSearch(&LidSolid{Outline: outline}, 0.02, 8)
+	mesh = mesh.SmoothAreas(0.1, 20)
 	log.Println(" - flattening base...")
 	mesh = mesh.FlattenBase(0)
 	log.Println(" - saving...")

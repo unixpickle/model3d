@@ -40,7 +40,7 @@ func main() {
 		Negative: bite,
 	}
 
-	mesh := model3d.SolidToMesh(solid, 0.025, 3, 0.8, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8).SmoothAreas(0.1, 5)
 
 	sig := NewSignature()
 	vertexColor := func(c model3d.Coord3D) [3]float64 {

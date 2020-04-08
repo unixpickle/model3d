@@ -21,10 +21,10 @@ const (
 func SmoothJoin(constraint float64, solids ...model3d.Solid) model3d.Solid {
 	sdfs := make([]model3d.SDF, len(solids))
 	for i, solid := range solids {
-		subMesh := model3d.SolidToMesh(solid, smoothJoinSDFDelta, 0, -1, 5)
+		subMesh := model3d.MarchingCubesSearch(solid, smoothJoinSDFDelta, 8)
 		sdfs[i] = model3d.MeshToSDF(subMesh)
 	}
-	mesh := model3d.SolidToMesh(model3d.JoinedSolid(solids), smoothJoinDelta, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(model3d.JoinedSolid(solids), smoothJoinDelta, 8)
 	sdfCache := map[model3d.Coord3D]float64{}
 	smoother := &model3d.MeshSmoother{
 		StepSize:   0.1,

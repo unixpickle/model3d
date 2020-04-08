@@ -24,7 +24,7 @@ const (
 
 func main() {
 	box := NewBoxSolid()
-	mesh := model3d.SolidToMesh(box, 0.01, 0, -1, 20)
+	mesh := model3d.MarchingCubesSearch(box, 0.01, 8)
 	mesh.SaveGroupedSTL("box.stl")
 	model3d.SaveRandomGrid("rendering_box.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 
@@ -39,7 +39,7 @@ func main() {
 			GrooveSize: ScrewGroove,
 		},
 	}
-	mesh = model3d.SolidToMesh(lid, 0.0075, 0, -1, 20)
+	mesh = model3d.MarchingCubesSearch(lid, 0.0075, 8)
 	mesh.SaveGroupedSTL("lid.stl")
 	model3d.SaveRandomGrid("rendering_lid.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 
@@ -56,7 +56,7 @@ func main() {
 			GrooveSize: ScrewGroove,
 		},
 	}
-	mesh = model3d.SolidToMesh(handle, 0.005, 0, -1, 10)
+	mesh = model3d.MarchingCubesSearch(handle, 0.005, 8)
 	mesh.SaveGroupedSTL("handle.stl")
 	model3d.SaveRandomGrid("rendering_handle.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 

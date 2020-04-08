@@ -9,7 +9,7 @@ import (
 
 func PropellerMesh() *model3d.Mesh {
 	solid := PropellerSolid()
-	mesh := model3d.SolidToMesh(solid, 0.015, 0, -1, 10)
+	mesh := model3d.MarchingCubesSearch(solid, 0.015, 8)
 	return mesh
 }
 

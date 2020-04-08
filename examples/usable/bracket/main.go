@@ -71,7 +71,7 @@ func main() {
 			},
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 1, 1, 0.8, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.5, 8)
 	ioutil.WriteFile("bracket.stl", mesh.EncodeSTL(), 0755)
 
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)

@@ -174,7 +174,7 @@ func MakeLid() {
 			},
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.1, 3, 0.8, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.0125, 8)
 	mesh = ScaleUp(mesh)
 	ioutil.WriteFile("lid.stl", mesh.EncodeSTL(), 0755)
 }
@@ -193,7 +193,7 @@ func MakeHandle() {
 			GrooveSize: 0.05,
 		},
 	}
-	mesh := model3d.SolidToMesh(screw, 0.015, 2, 0.8, 5)
+	mesh := model3d.MarchingCubesSearch(screw, 0.004, 8)
 	mesh = ScaleUp(mesh)
 	ioutil.WriteFile("screw.stl", mesh.EncodeSTL(), 0755)
 
@@ -213,7 +213,7 @@ func MakeHandle() {
 			GrooveSize: 0.05,
 		},
 	}
-	mesh = model3d.SolidToMesh(handle, 0.015, 2, 0.8, 5)
+	mesh = model3d.MarchingCubesSearch(handle, 0.004, 8)
 	mesh = ScaleUp(mesh)
 	ioutil.WriteFile("handle.stl", mesh.EncodeSTL(), 0755)
 }

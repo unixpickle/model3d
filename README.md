@@ -8,7 +8,7 @@ The [examples](examples) directory has a lot of examples for how to use this lib
 
 # APIs
 
-The main API in this project is the Solid API. A Solid is a simple interface:
+The main abstraction for 3D modeling is the `Solid` interface. A `Solid` implements these methods:
 
 ```go
 type Solid interface {
@@ -20,4 +20,4 @@ type Solid interface {
 
 In essence, a Solid represents an object as a boolean function. Therefore, it is very easy to compose solids, construct solids with code, construct solids out of images/other models, etc.
 
-Once you have a Solid that you want to print/render, you can convert it into a Mesh using the `SolidToMesh()` API found in [solid_to_mesh.go](solid_to_mesh.go).
+Once you have a Solid that you want to print/render, you can convert it into a `Mesh` using marching cubes. In particular, the recommended `MarchingCubesSearch()` API creates tight-fitting, smooth triangle meshes from an arbitrary `Solid`.

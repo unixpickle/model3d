@@ -41,7 +41,7 @@ func main() {
 		BaseSolid{},
 	}
 
-	mesh := model3d.SolidToMesh(solid, 0.01, 0, -1, 30)
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8).SmoothAreas(0.1, 20)
 	mesh.SaveGroupedSTL("flower.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }

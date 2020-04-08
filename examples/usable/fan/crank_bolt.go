@@ -7,7 +7,7 @@ import (
 
 func CrankBoltMesh() *model3d.Mesh {
 	solid := CrankBoltSolid()
-	mesh := model3d.SolidToMesh(solid, 0.005, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
 	return mesh
 }
 

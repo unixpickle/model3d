@@ -1,6 +1,7 @@
 package model3d
 
 import (
+	"math/rand"
 	"testing"
 )
 
@@ -49,4 +50,18 @@ func BenchmarkMarchingCubes(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		MarchingCubes(solid, 0.025)
 	}
+}
+
+type randomSolid struct{}
+
+func (r randomSolid) Min() Coord3D {
+	return Coord3D{}
+}
+
+func (r randomSolid) Max() Coord3D {
+	return Coord3D{X: 1, Y: 1, Z: 1}
+}
+
+func (r randomSolid) Contains(c Coord3D) bool {
+	return InBounds(r, c) && rand.Intn(4) == 0
 }

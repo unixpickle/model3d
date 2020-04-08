@@ -1,8 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
-
 	"github.com/unixpickle/model3d"
 )
 
@@ -12,6 +10,6 @@ func main() {
 	}, 50)
 	collider := model3d.MeshToCollider(m)
 	solid := model3d.NewColliderSolid(collider)
-	m1 := model3d.SolidToMesh(solid, 0.1, 2, 0.8, 2)
-	ioutil.WriteFile("sphere.stl", m1.EncodeSTL(), 0755)
+	m1 := model3d.MarchingCubesSearch(solid, 0.025, 8)
+	m1.SaveGroupedSTL("sphere.stl")
 }

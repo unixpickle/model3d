@@ -27,7 +27,7 @@ func main() {
 	log.Println("Creating solid...")
 	solid := NewHeartSolid()
 	log.Println("Creating mesh...")
-	mesh := model3d.SolidToMesh(solid, 0.05, 1, 0.8, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.025, 8)
 	log.Println("Simplifying mesh...")
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println("Saving mesh...")

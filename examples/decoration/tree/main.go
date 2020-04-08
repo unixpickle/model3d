@@ -34,7 +34,7 @@ func main() {
 		solid = append(solid, branch)
 	}
 
-	mesh := model3d.SolidToMesh(solid, 0.01, 1, 0.8, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 	ioutil.WriteFile("tree.stl", mesh.EncodeSTL(), 0755)
 
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)

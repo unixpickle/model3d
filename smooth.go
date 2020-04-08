@@ -22,7 +22,7 @@ type MeshSmoother struct {
 	// which the origin constraint will take effect.
 	// This allows points to move freely a little bit
 	// without being constrained at all, which is good
-	// for meshes created with SolidToMesh().
+	// for sharp meshes created from voxel grids.
 	//
 	// If this is 0, then points will always be pulled
 	// towards their origin by a factor of

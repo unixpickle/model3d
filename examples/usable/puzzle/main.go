@@ -30,7 +30,7 @@ const (
 func main() {
 	if _, err := os.Stat("board.stl"); os.IsNotExist(err) {
 		log.Println("Creating board...")
-		mesh := model3d.SolidToMesh(BoardSolid(), 0.01, 0, -1, 10)
+		mesh := model3d.MarchingCubesSearch(BoardSolid(), 0.01, 8)
 		log.Println("Eliminating co-planar polygons...")
 		mesh = mesh.EliminateCoplanar(1e-8)
 		mesh.SaveGroupedSTL("board.stl")
@@ -38,7 +38,7 @@ func main() {
 
 	if _, err := os.Stat("piece.stl"); os.IsNotExist(err) {
 		log.Println("Creating piece...")
-		mesh := model3d.SolidToMesh(PieceSolid(FullPieceBottomSize), 0.005, 0, -1, 10)
+		mesh := model3d.MarchingCubesSearch(PieceSolid(FullPieceBottomSize), 0.005, 8)
 		log.Println("Eliminating co-planar polygons...")
 		mesh = mesh.EliminateCoplanar(1e-8)
 		mesh.SaveGroupedSTL("piece.stl")
@@ -46,7 +46,7 @@ func main() {
 
 	if _, err := os.Stat("small_piece.stl"); os.IsNotExist(err) {
 		log.Println("Creating small piece...")
-		mesh := model3d.SolidToMesh(PieceSolid(SmallPieceBottomSize), 0.005, 0, -1, 10)
+		mesh := model3d.MarchingCubesSearch(PieceSolid(SmallPieceBottomSize), 0.005, 8)
 		log.Println("Eliminating co-planar polygons...")
 		mesh = mesh.EliminateCoplanar(1e-8)
 		mesh.SaveGroupedSTL("small_piece.stl")

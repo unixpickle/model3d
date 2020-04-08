@@ -91,7 +91,7 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 		P2:     Coord3D{0, 0, 1},
 		Radius: 0.5,
 	}
-	m1 := SolidToMesh(cyl, 0.1, 2, 0.8, 1)
+	m1 := MarchingCubesSearch(cyl, 0.025, 8)
 	m2 := m1.EliminateCoplanar(1e-5)
 	if len(m2.triangles) >= len(m1.triangles) {
 		t.Fatal("reduction failed")
@@ -139,7 +139,7 @@ func TestMeshFlattenBase(t *testing.T) {
 				MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5},
 			},
 		}
-		m := SolidToMesh(solid, 0.025, 0, -1, 5)
+		m := MarchingCubesSearch(solid, 0.025, 8).Blur(-1, -1, -1, -1, -1)
 		flat := m.FlattenBase(0)
 		c1 := NewColliderSolid(MeshToCollider(m))
 		c2 := NewColliderSolid(MeshToCollider(flat))
@@ -195,7 +195,7 @@ func BenchmarkEliminateCoplanar(b *testing.B) {
 		P2:     Coord3D{0, 1, 1},
 		Radius: 0.5,
 	}
-	mesh := SolidToMesh(cyl, 0.1, 2, 0.8, 1)
+	mesh := MarchingCubesSearch(cyl, 0.025, 8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		mesh.EliminateCoplanar(1e-5)
@@ -210,7 +210,7 @@ func BenchmarkMeshFlattenBase(b *testing.B) {
 			MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5},
 		},
 	}
-	m := SolidToMesh(solid, 0.025, 0, -1, 20)
+	m := MarchingCubesSearch(solid, 0.025, 8).Blur(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		m.FlattenBase(0)

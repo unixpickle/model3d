@@ -21,7 +21,7 @@ func main() {
 			GrooveSize: 0.05,
 		},
 	}
-	mesh := model3d.SolidToMesh(screw, 0.015, 2, 0.8, 5)
+	mesh := model3d.MarchingCubesSearch(screw, 0.004, 8)
 	ioutil.WriteFile("screw.stl", mesh.EncodeSTL(), 0755)
 
 	hole := &model3d.SubtractedSolid{
@@ -37,6 +37,6 @@ func main() {
 			GrooveSize: 0.05,
 		},
 	}
-	mesh = model3d.SolidToMesh(hole, 0.02, 2, 0.8, 5)
+	mesh = model3d.MarchingCubesSearch(hole, 0.005, 8)
 	ioutil.WriteFile("hole.stl", mesh.EncodeSTL(), 0755)
 }

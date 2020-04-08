@@ -34,7 +34,7 @@ func main() {
 		},
 	}
 	log.Println("Creating mesh...")
-	mesh := model3d.SolidToMesh(solid, 0.005, 0, -1, 10)
+	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
 	log.Println("Eliminate co-planar...")
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println("Saving body mesh...")
@@ -56,7 +56,7 @@ func main() {
 		},
 	}
 	log.Println("Creating handle...")
-	mesh = model3d.SolidToMesh(handleSolid, 0.005, 0, -1, 10)
+	mesh = model3d.MarchingCubesSearch(handleSolid, 0.005, 8)
 	mesh.SaveGroupedSTL("handle.stl")
 }
 

@@ -12,7 +12,7 @@ func TestMeshSDFConsistency(t *testing.T) {
 		InnerRadius: 0.2,
 		OuterRadius: 0.7,
 	}
-	mesh := SolidToMesh(solid, 0.02, 0, -1, 3)
+	mesh := MarchingCubesSearch(solid, 0.02, 8)
 
 	approxSDF := ColliderToSDF(MeshToCollider(mesh), 64)
 	exactSDF := MeshToSDF(mesh)
@@ -34,7 +34,7 @@ func BenchmarkMeshSDFs(b *testing.B) {
 		InnerRadius: 0.2,
 		OuterRadius: 0.7,
 	}
-	mesh := SolidToMesh(solid, 0.02, 0, -1, 3)
+	mesh := MarchingCubesSearch(solid, 0.02, 8)
 
 	approxSDF := ColliderToSDF(MeshToCollider(mesh), 64)
 	exactSDF := MeshToSDF(mesh)

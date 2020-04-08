@@ -30,7 +30,7 @@ func main() {
 			},
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.01, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 	mesh.SaveGroupedSTL("mesh.stl")
 }
 

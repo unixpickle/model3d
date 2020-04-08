@@ -1,14 +1,11 @@
 package main
 
 import (
-	"image/png"
 	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
-	"os"
 
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
 
@@ -27,15 +24,11 @@ func main() {
 	}
 	collider := model3d.MeshToCollider(m)
 	solid := model3d.NewColliderSolidHollow(collider, 0.1)
-	m1 := model3d.SolidToMesh(solid, 0.01, 0, 0.8, 5)
+	m1 := model3d.MarchingCubesSearch(solid, 0.01, 8).Blur(-1)
 	ioutil.WriteFile("rose.stl", m1.EncodeSTL(), 0755)
 
 	log.Println("Generating rendering...")
-	image := model3d.RenderRandomGrid(model3d.MeshToCollider(m1), 3, 3, 300, 300)
-	w, err := os.Create("preview.png")
-	essentials.Must(err)
-	defer w.Close()
-	png.Encode(w, image)
+	model3d.SaveRandomGrid("preview.png", model3d.MeshToCollider(m1), 3, 3, 300, 300)
 }
 
 // RingFunction is one conic surface originating from the

@@ -37,7 +37,7 @@ func main() {
 				Z: StickyHeight},
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.1, 3, 0, 0)
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 	ioutil.WriteFile("razor_holder.stl", mesh.EncodeSTL(), 0755)
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 }

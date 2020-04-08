@@ -65,8 +65,11 @@ func main() {
 
 	if _, err := os.Stat("infill_cube.stl"); os.IsNotExist(err) {
 		log.Println("Creating infill cube for filling in top screws...")
-		mesh := model3d.SolidToMesh(InfillCubeSolid(), 0.1, 0, 0, 0)
-		mesh = mesh.EliminateCoplanar(1e-8)
+		mesh := model3d.NewMeshRect(model3d.Coord3D{}, model3d.Coord3D{
+			X: FootRadius * 2,
+			Y: FootRadius * 2,
+			Z: ScrewLength + ScrewRadius,
+		})
 		mesh.SaveGroupedSTL("infill_cube.stl")
 	}
 }
@@ -220,16 +223,6 @@ func TopSolid() model3d.Solid {
 			P2:         model3d.Coord3D{Z: ScrewLength},
 			Radius:     ScrewRadius,
 			GrooveSize: ScrewGrooves,
-		},
-	}
-}
-
-func InfillCubeSolid() model3d.Solid {
-	return &model3d.RectSolid{
-		MaxVal: model3d.Coord3D{
-			X: FootRadius * 2,
-			Y: FootRadius * 2,
-			Z: ScrewLength + ScrewRadius,
 		},
 	}
 }

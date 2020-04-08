@@ -70,14 +70,6 @@ func (a *AxisSqueeze) Inverse() model3d.Transform {
 	}
 }
 
-// SolidToMesh is like model3d.SolidToMesh(), but it
-// creates a the mesh with a squeezed sampling grid.
-func (a *AxisSqueeze) SolidToMesh(s model3d.Solid, delta float64, subdivisions int,
-	blurFrac float64, blurIters int) *model3d.Mesh {
-	m := model3d.SolidToMesh(a.ApplySolid(s), delta, subdivisions, blurFrac, blurIters)
-	return m.Transform(a.Inverse())
-}
-
 type axisSqueezeSolid struct {
 	min     model3d.Coord3D
 	max     model3d.Coord3D

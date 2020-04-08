@@ -6,7 +6,7 @@ import (
 
 func SpineMesh() *model3d.Mesh {
 	solid := SpineSolid()
-	mesh := model3d.SolidToMesh(solid, 0.015, 0, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.015, 8)
 	return mesh
 }
 

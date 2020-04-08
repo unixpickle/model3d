@@ -22,7 +22,7 @@ const (
 
 func main() {
 	solid := model3d.JoinedSolid{NewBaseSolid(), NewGlobeSolid()}
-	mesh := model3d.SolidToMesh(solid, 0.01, 1, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 	ioutil.WriteFile("my_world.stl", mesh.EncodeSTL(), 0755)
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 }

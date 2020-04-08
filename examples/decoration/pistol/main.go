@@ -23,7 +23,7 @@ func main() {
 			OuterRadius: 0.8,
 		},
 	}
-	mesh := model3d.SolidToMesh(solid, 0.05, 2, -1, 30)
+	mesh := model3d.MarchingCubesSearch(solid, 0.02, 8)
 	mesh.SaveGroupedSTL("pistol.stl")
 }
 

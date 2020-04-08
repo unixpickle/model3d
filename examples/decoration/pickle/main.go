@@ -37,7 +37,7 @@ func main() {
 		}
 	}
 
-	mesh := model3d.SolidToMesh(solid, 0.025, 2, 0.8, 8)
+	mesh := model3d.MarchingCubesSearch(solid, 0.006, 8).SmoothAreas(0.1, 10)
 
 	if !Color {
 		ioutil.WriteFile("pickle.stl", mesh.EncodeSTL(), 0755)

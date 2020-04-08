@@ -41,7 +41,7 @@ func main() {
 		MinVal: offset,
 		MaxVal: solid.Max().Sub(offset),
 	})
-	mesh := model3d.SolidToMesh(solid, 0.01, 2, -1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.0025, 8)
 	ioutil.WriteFile("cube.stl", mesh.EncodeSTL(), 0755)
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
 }

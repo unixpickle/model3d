@@ -26,7 +26,7 @@ func main() {
 		HersheyKissSolid{Center: model3d.Coord3D{X: PrintSize - 0.8, Y: PrintSize - 0.9,
 			Z: PrintThickness}},
 	}
-	m := model3d.SolidToMesh(fullSolid, 0.01, 0, -1, 10)
+	m := model3d.MarchingCubesSearch(fullSolid, 0.01, 8).Blur(-1, -1, -1, -1, -1)
 	m = m.FlattenBase(0)
 	m.SaveGroupedSTL("kiss.stl")
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(m), 3, 3, 300, 300)

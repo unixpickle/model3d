@@ -94,14 +94,7 @@ func CreateStand(diamond *model3d.Mesh) {
 		},
 		Negative: solid,
 	}
-	mesh := model3d.SolidToMesh(standSolid, 0.01, 0, 0, 0)
-	smoother := &model3d.MeshSmoother{
-		StepSize:           0.1,
-		Iterations:         200,
-		ConstraintDistance: 0.01,
-		ConstraintWeight:   0.1,
-	}
-	mesh = smoother.Smooth(mesh)
+	mesh := model3d.MarchingCubesSearch(standSolid, 0.01, 8)
 	mesh = mesh.FlattenBase(0)
 
 	mesh.SaveGroupedSTL("stand.stl")

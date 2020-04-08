@@ -47,8 +47,8 @@ func main() {
 		return [3]float64{79.0 / 255, 53.0 / 255, 0}
 	}
 
-	mesh := model3d.SolidToMesh(base, 0.05, 2, 0.8, 5)
-	mesh.AddMesh(model3d.SolidToMesh(lid, 0.05, 2, 0.8, 5))
+	mesh := model3d.MarchingCubesSearch(base, 0.02, 8)
+	mesh.AddMesh(model3d.MarchingCubesSearch(lid, 0.02, 8))
 	ioutil.WriteFile("pumpkin.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
 }
 

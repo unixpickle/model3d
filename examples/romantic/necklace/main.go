@@ -28,24 +28,15 @@ const (
 )
 
 func main() {
-	smoother := model3d.MeshSmoother{
-		StepSize:           0.1,
-		Iterations:         20,
-		ConstraintDistance: 0.0025,
-		ConstraintWeight:   0.3,
-	}
-
 	log.Println("Creating link mesh...")
 	solid := LinkSolid{}
-	link := model3d.SolidToMesh(solid, 0.005, 0, 0, 0)
-	link = smoother.Smooth(link)
+	link := model3d.MarchingCubesSearch(solid, 0.005, 8)
 	link = link.FlattenBase(0)
 	link = link.EliminateCoplanar(1e-8)
 	VerifyMesh(link)
 
 	log.Println("Creating hook mesh...")
-	hook := model3d.SolidToMesh(HookSolid{}, 0.005, 0, 0, 0)
-	hook = smoother.Smooth(hook)
+	hook := model3d.MarchingCubesSearch(HookSolid{}, 0.005, 8)
 	hook = hook.FlattenBase(0)
 	hook = hook.EliminateCoplanar(1e-8)
 	VerifyMesh(hook)
