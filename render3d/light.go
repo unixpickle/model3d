@@ -6,8 +6,11 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
-// Color is an RGB color, where components are X, Y, and Z
-// respectively.
+// Color is a linear RGB color, where X, Y, and Z store R,
+// G, and B respectively.
+//
+// Note that these colors are NOT sRGB (the standard),
+// since sRGB values do not represent linear brightness.
 //
 // Colors should be positive, but they are not bounded on
 // the positive side, since light isn't in the real world.
@@ -16,6 +19,37 @@ type Color = model3d.Coord3D
 // ClampColor clamps the color into the range [0, 1].
 func ClampColor(c Color) Color {
 	return c.Max(Color{}).Min(Color{X: 1, Y: 1, Z: 1})
+}
+
+// NewColor creates a Color with a given brightness.
+func NewColor(b float64) Color {
+	return Color{X: b, Y: b, Z: b}
+}
+
+// NewColorRGB creates a Color from sRGB values.
+func NewColorRGB(r, g, b float64) Color {
+	return Color{X: gammaExpand(r), Y: gammaExpand(g), Z: gammaExpand(b)}
+}
+
+// RGB gets sRGB values for a Color.
+func RGB(c Color) (float64, float64, float64) {
+	return gammaCompress(c.X), gammaCompress(c.Y), gammaCompress(c.Z)
+}
+
+func gammaCompress(u float64) float64 {
+	if u <= 0.0031308 {
+		return 12.92 * u
+	} else {
+		return 1.055*math.Pow(u, 1/2.4) - 0.055
+	}
+}
+
+func gammaExpand(u float64) float64 {
+	if u <= 0.04045 {
+		return u / 12.92
+	} else {
+		return math.Pow((u-0.055)/1.055, 2.4)
+	}
 }
 
 // A PointLight is a light eminating from a point and

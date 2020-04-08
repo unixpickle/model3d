@@ -19,7 +19,7 @@ func main() {
 			Radius: 2,
 			Material: &render3d.PhongMaterial{
 				Alpha:         20.0,
-				SpecularColor: render3d.Color{X: 1, Y: 1, Z: 1},
+				SpecularColor: render3d.NewColor(1),
 			},
 		},
 
@@ -29,8 +29,8 @@ func main() {
 			Radius: 1,
 			Material: &render3d.PhongMaterial{
 				Alpha:         10.0,
-				SpecularColor: render3d.Color{X: 0.3, Y: 0.3, Z: 0.3},
-				DiffuseColor:  render3d.Color{X: 0.7, Y: 0.1, Z: 0.1},
+				SpecularColor: render3d.NewColor(0.3),
+				DiffuseColor:  render3d.NewColorRGB(1.0, 0.1, 0.1),
 			},
 		},
 
@@ -41,11 +41,11 @@ func main() {
 				Materials: []render3d.Material{
 					&render3d.RefractMaterial{
 						IndexOfRefraction: 1.3,
-						RefractColor:      render3d.Color{X: 0.9, Y: 0.9, Z: 0.9},
+						RefractColor:      render3d.NewColor(0.9),
 					},
 					&render3d.PhongMaterial{
 						Alpha:         50.0,
-						SpecularColor: render3d.Color{X: 0.1, Y: 0.1, Z: 0.1},
+						SpecularColor: render3d.NewColor(0.1),
 					},
 				},
 				Probs: []float64{0.9, 0.1},
@@ -61,7 +61,7 @@ func main() {
 				).MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul),
 			),
 			Material: &render3d.LambertMaterial{
-				DiffuseColor: render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
+				DiffuseColor: render3d.NewColor(0.8),
 			},
 		},
 
@@ -76,7 +76,7 @@ func main() {
 			Material: &render3d.LambertMaterial{
 				// Make it really bright so it lights the scene
 				// adequately.
-				EmissionColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(50),
+				EmissionColor: render3d.NewColor(30),
 			},
 		},
 	}

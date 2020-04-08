@@ -58,10 +58,11 @@ func (i *Image) RGBA() *image.RGBA {
 			c := ClampColor(i.Data[idx])
 			idx++
 
+			r, g, b := RGB(c)
 			res.SetRGBA(x, y, color.RGBA{
-				R: uint8(c.X * (256.0 - 0.001)),
-				G: uint8(c.Y * (256.0 - 0.001)),
-				B: uint8(c.Z * (256.0 - 0.001)),
+				R: uint8(r * (256.0 - 0.001)),
+				G: uint8(g * (256.0 - 0.001)),
+				B: uint8(b * (256.0 - 0.001)),
 				A: 0xff,
 			})
 		}
@@ -82,8 +83,15 @@ func (i *Image) Gray() *image.Gray {
 			c := ClampColor(i.Data[idx])
 			idx++
 
-			res.SetGray(x, y, color.Gray{
-				Y: uint8((c.X + c.Y + c.Z) * (256.0/3.0 - 0.001)),
+			// Use RGB because not all colors are
+			// perceived as equally bright, and the image
+			// library knows how to weight them.
+			r, g, b := RGB(c)
+			res.Set(x, y, color.RGBA{
+				R: uint8(r * (256.0 - 0.001)),
+				G: uint8(g * (256.0 - 0.001)),
+				B: uint8(b * (256.0 - 0.001)),
+				A: 0xff,
 			})
 		}
 	}
