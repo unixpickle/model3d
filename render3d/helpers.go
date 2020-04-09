@@ -60,6 +60,36 @@ func Objectify(obj interface{}, colorFunc ColorFunc) Object {
 	}
 }
 
+// SaveRendering renders a 3D object from the given point
+// and saves the image to a file.
+//
+// The camera will automatically face the center of the
+// object's bounding box.
+//
+// The obj argument must be supported by Objectify.
+//
+// If colorFunc is non-nil, it is used to determine the
+// color for the visible parts of the model.
+func SaveRendering(path string, obj interface{}, origin model3d.Coord3D, width, height int,
+	colorFunc ColorFunc) error {
+	object := Objectify(obj, colorFunc)
+	image := NewImage(width, height)
+
+	min, max := object.Min(), object.Max()
+	center := min.Mid(max)
+	caster := RayCaster{
+		Camera: NewCameraAt(origin, center, 0),
+		Lights: []*PointLight{
+			&PointLight{
+				Origin: center.Add(origin.Sub(center).Scale(1000)),
+				Color:  NewColor(1.0),
+			},
+		},
+	}
+	caster.Render(image, object)
+	return image.Save(path)
+}
+
 // SaveRandomGrid renders a 3D object from a variety of
 // randomized angles and saves the grid of renderings to a
 // file.
