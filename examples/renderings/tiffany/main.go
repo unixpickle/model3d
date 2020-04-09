@@ -13,30 +13,38 @@ func main() {
 		NewGlobe(),
 		NewWalls(),
 		CreateTable(),
-		CreateLight(),
+		CreateLamp(),
+		CreateWallLights(),
 	}
 
 	renderer := render3d.RecursiveRayTracer{
 		Camera: render3d.NewCameraAt(model3d.Coord3D{Y: -13, Z: 2},
 			model3d.Coord3D{Y: 0, Z: 2}, math.Pi/3.6),
 
-		// Focus towards the area light.
-		FocusPoints: []render3d.FocusPoint{
-			&render3d.SphereFocusPoint{
-				Center: model3d.Coord3D{Z: 5},
-				Radius: 1,
-			},
-		},
-		FocusPointProbs: []float64{0.5},
+		MaxDepth: 5,
 
-		MaxDepth:   5,
-		NumSamples: 400,
-		Antialias:  1.0,
-		Cutoff:     1e-4,
+		NumSamples:           200,
+		MinSamples:           200,
+		MaxStddev:            0.05,
+		OversaturatedStddevs: 3,
+
+		Antialias: 1.0,
+		Cutoff:    1e-4,
 
 		LogFunc: func(p, samples float64) {
 			fmt.Printf("\rRendering %.1f%%...", p*100)
 		},
+	}
+
+	ceilingLights := NewWalls().Lights
+	for _, l := range ceilingLights {
+		point := l.Cylinder.P1
+		renderer.FocusPoints = append(renderer.FocusPoints, &render3d.PhongFocusPoint{
+			Alpha:  50,
+			Target: point,
+		})
+		renderer.FocusPointProbs = append(renderer.FocusPointProbs,
+			0.3/float64(len(ceilingLights)))
 	}
 
 	fmt.Println("Ray variance:", renderer.RayVariance(scene, 200, 200, 5))
@@ -66,15 +74,5 @@ func CreateTable() render3d.Object {
 			model3d.Coord3D{X: -2.8, Y: 2, Z: -1.2}),
 		createPiece(model3d.Coord3D{X: 2.8, Y: -2, Z: -5},
 			model3d.Coord3D{X: 3, Y: 2, Z: -1.2}),
-	}
-}
-
-func CreateLight() render3d.Object {
-	return &render3d.Sphere{
-		Center: model3d.Coord3D{Z: 6},
-		Radius: 1.3,
-		Material: &render3d.LambertMaterial{
-			EmissionColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(200),
-		},
 	}
 }

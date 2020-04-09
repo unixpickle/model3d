@@ -45,9 +45,9 @@ func (g *Globe) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 	red, green, blue, _ := g.Image.At(point.Geo()).RGBA()
 	material = &render3d.PhongMaterial{
 		Alpha:         5,
-		SpecularColor: render3d.Color{X: 0.1, Y: 0.1, Z: 0.1},
-		DiffuseColor: render3d.Color{X: float64(red) / 0xffff, Y: float64(green) / 0xffff,
-			Z: float64(blue) / 0xffff}.Scale(0.9),
+		SpecularColor: render3d.NewColor(0.1),
+		DiffuseColor: render3d.NewColorRGB(float64(red)/0xffff, float64(green)/0xffff,
+			float64(blue)/0xffff).Scale(0.9),
 	}
 	return collision, material, ok
 }
