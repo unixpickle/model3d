@@ -72,10 +72,36 @@ func NewCameraAt(source, dest model3d.Coord3D, fov float64) *Camera {
 // Arguments to the resulting function are x and y values
 // ranging from [0, imageWidth] and [0, imageHeight].
 func (c *Camera) Caster(imageWidth, imageHeight float64) func(x, y float64) model3d.Coord3D {
+	x, y, z := c.axes(imageWidth, imageHeight)
+	cx, cy := imageWidth/2, imageHeight/2
+	return func(imgX, imgY float64) model3d.Coord3D {
+		outX := x.Scale((imgX - cx) / cx)
+		outY := y.Scale((imgY - cy) / cy)
+		return outX.Add(outY).Add(z)
+	}
+}
+
+// Uncaster produces a function that converts spatial
+// coordinates to screen coordinates using a perspective
+// projection.
+func (c *Camera) Uncaster(imageWidth, imageHeight float64) func(model3d.Coord3D) (float64,
+	float64) {
+	x, y, z := c.axes(imageWidth, imageHeight)
+	invMat := model3d.NewMatrix3Columns(x, y, z).Inverse()
+
+	cx, cy := imageWidth/2, imageHeight/2
+	return func(coord model3d.Coord3D) (float64, float64) {
+		xyz := invMat.MulColumn(coord.Sub(c.Origin))
+		xy := xyz.Coord2D().Scale(1 / xyz.Z)
+		return xy.X*cx + cx, xy.Y*cy + cy
+	}
+}
+
+func (c *Camera) axes(imageWidth, imageHeight float64) (x, y, z model3d.Coord3D) {
 	planeDistance := 1 / math.Tan(c.FieldOfView/2)
 
-	x, y := c.ScreenX, c.ScreenY
-	z := x.Cross(y).Normalize()
+	x, y = c.ScreenX, c.ScreenY
+	z = x.Cross(y).Normalize()
 	if imageWidth > imageHeight {
 		y = y.Scale(imageHeight / imageWidth)
 	} else {
@@ -83,10 +109,5 @@ func (c *Camera) Caster(imageWidth, imageHeight float64) func(x, y float64) mode
 	}
 	z = z.Scale(planeDistance)
 
-	cx, cy := imageWidth/2, imageHeight/2
-	return func(imgX, imgY float64) model3d.Coord3D {
-		outX := x.Scale((imgX - cx) / cx)
-		outY := y.Scale((imgY - cy) / cy)
-		return outX.Add(outY).Add(z)
-	}
+	return
 }
