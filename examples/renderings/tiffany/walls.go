@@ -46,6 +46,14 @@ func NewWalls() *Walls {
 	}
 }
 
+func (w *Walls) Min() model3d.Coord3D {
+	return w.Base.Min()
+}
+
+func (w *Walls) Max() model3d.Coord3D {
+	return w.Base.Max().Add(model3d.Coord3D{Z: CeilingLightDepth})
+}
+
 func (w *Walls) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, bool) {
 	collision, material, ok := w.Base.Cast(r)
 	if !ok || math.Abs(collision.Normal.Z+1) < 1e-8 {

@@ -1,13 +1,13 @@
 package render3d
 
 import (
-	"math"
-
 	"github.com/unixpickle/model3d"
 )
 
 // An Object is a renderable 3D object.
 type Object interface {
+	model3d.Bounder
+
 	// Cast finds the first collision with ray r.
 	//
 	// It returns not only the ray collision, but also the
@@ -25,6 +25,16 @@ type ColliderObject struct {
 	Material Material
 }
 
+// Min gets the minimum of the bounding box.
+func (c *ColliderObject) Min() model3d.Coord3D {
+	return c.Collider.Min()
+}
+
+// Max gets the minimum of the bounding box.
+func (c *ColliderObject) Max() model3d.Coord3D {
+	return c.Collider.Max()
+}
+
 // Cast returns the first ray collision.
 func (c *ColliderObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, bool) {
 	coll, ok := c.Collider.FirstRayCollision(r)
@@ -33,6 +43,24 @@ func (c *ColliderObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, b
 
 // A JoinedObject combines multiple Objects.
 type JoinedObject []Object
+
+// Min gets the minimum of the bounding box.
+func (j JoinedObject) Min() model3d.Coord3D {
+	min := j[0].Min()
+	for _, x := range j[1:] {
+		min = min.Min(x.Min())
+	}
+	return min
+}
+
+// Max gets the minimum of the bounding box.
+func (j JoinedObject) Max() model3d.Coord3D {
+	max := j[0].Max()
+	for _, x := range j[1:] {
+		max = max.Max(x.Max())
+	}
+	return max
+}
 
 // Cast casts the ray onto the objects and chooses the
 // closest ray collision.
@@ -48,40 +76,4 @@ func (j JoinedObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, bool
 		}
 	}
 	return coll, mat, found
-}
-
-// A Plane is an Object implementing an infinity, flat
-// plane.
-//
-// Points x on the plane satisfy: x*Normal - Bias = 0.
-type Plane struct {
-	Normal   model3d.Coord3D
-	Bias     float64
-	Material Material
-}
-
-// Cast gets the collision with r and the plane.
-func (p *Plane) Cast(r *model3d.Ray) (model3d.RayCollision, Material, bool) {
-	// Want to solve for t such that:
-	//
-	//     (o+t*d)*n - b = 0
-	//     o*n + t*(d*n) - b = 0
-	//     t = (b - o*n) / (d*n)
-	//
-	dDot := r.Direction.Dot(p.Normal)
-
-	// Rays parallel to plane have no intersection.
-	if math.Abs(dDot) < 1e-8*r.Direction.Norm()*p.Normal.Norm() {
-		return model3d.RayCollision{}, nil, false
-	}
-
-	scale := (p.Bias - r.Origin.Dot(p.Normal)) / dDot
-	if scale < 0 {
-		return model3d.RayCollision{}, nil, false
-	}
-
-	return model3d.RayCollision{
-		Scale:  scale,
-		Normal: p.Normal.Normalize(),
-	}, p.Material, true
 }

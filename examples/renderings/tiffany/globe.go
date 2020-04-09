@@ -12,8 +12,8 @@ import (
 )
 
 type Globe struct {
+	render3d.Object
 	Image *toolbox3d.Equirect
-	Base  render3d.Object
 }
 
 func NewGlobe() *Globe {
@@ -25,7 +25,7 @@ func NewGlobe() *Globe {
 
 	return &Globe{
 		Image: toolbox3d.NewEquirect(mapImage),
-		Base: &render3d.ColliderObject{
+		Object: &render3d.ColliderObject{
 			Collider: &model3d.Sphere{
 				Center: model3d.Coord3D{Z: 0.5},
 				Radius: 1.5,
@@ -35,7 +35,7 @@ func NewGlobe() *Globe {
 }
 
 func (g *Globe) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, bool) {
-	collision, material, ok := g.Base.Cast(r)
+	collision, material, ok := g.Object.Cast(r)
 	if !ok {
 		return collision, material, ok
 	}
