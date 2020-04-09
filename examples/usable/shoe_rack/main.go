@@ -18,10 +18,10 @@ const (
 func main() {
 	length := NumPoles * PoleSpacing
 	solid := model3d.JoinedSolid{
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MaxVal: model3d.Coord3D{X: BaseSize, Y: length, Z: BaseThickness},
 		},
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{X: BaseSize, Y: length/2 - PoleSpacing/2, Z: 0},
 			MaxVal: model3d.Coord3D{X: BaseSize * 2, Y: length/2 + PoleSpacing/2, Z: BaseThickness},
 		},
@@ -29,7 +29,7 @@ func main() {
 	for i := 0; i < NumPoles; i++ {
 		y := float64(i)*PoleSpacing + PoleSpacing/2
 		x := BaseSize / 2
-		solid = append(solid, &model3d.CylinderSolid{
+		solid = append(solid, &model3d.Cylinder{
 			P1:     model3d.Coord3D{X: x, Y: y, Z: BaseThickness},
 			P2:     model3d.Coord3D{X: x, Y: y, Z: BaseThickness + PoleLength},
 			Radius: PoleRadius,

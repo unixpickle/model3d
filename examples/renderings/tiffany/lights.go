@@ -21,10 +21,12 @@ func CreateLamp() render3d.Object {
 	for _, x := range []float64{-4, 4} {
 		res = append(res,
 			// Base
-			&render3d.Cylinder{
-				P1:     model3d.Coord3D{X: x, Y: 6, Z: -5},
-				P2:     model3d.Coord3D{X: x, Y: 6, Z: -4.9},
-				Radius: 0.5,
+			&render3d.ColliderObject{
+				Collider: &model3d.Cylinder{
+					P1:     model3d.Coord3D{X: x, Y: 6, Z: -5},
+					P2:     model3d.Coord3D{X: x, Y: 6, Z: -4.9},
+					Radius: 0.5,
+				},
 				Material: &render3d.PhongMaterial{
 					Alpha:         10,
 					SpecularColor: render3d.NewColor(0.5),
@@ -32,10 +34,12 @@ func CreateLamp() render3d.Object {
 				},
 			},
 			// Pole
-			&render3d.Cylinder{
-				P1:     model3d.Coord3D{X: x, Y: 6, Z: -4.9},
-				P2:     model3d.Coord3D{X: x, Y: 6, Z: 0},
-				Radius: 0.2,
+			&render3d.ColliderObject{
+				Collider: &model3d.Cylinder{
+					P1:     model3d.Coord3D{X: x, Y: 6, Z: -4.9},
+					P2:     model3d.Coord3D{X: x, Y: 6, Z: 0},
+					Radius: 0.2,
+				},
 				Material: &render3d.PhongMaterial{
 					Alpha:         10,
 					SpecularColor: render3d.NewColor(0.5),
@@ -43,10 +47,12 @@ func CreateLamp() render3d.Object {
 				},
 			},
 			// Shade
-			&render3d.Cylinder{
-				P1:     model3d.Coord3D{X: x, Y: 6, Z: 0},
-				P2:     model3d.Coord3D{X: x, Y: 6, Z: 2},
-				Radius: 0.8,
+			&render3d.ColliderObject{
+				Collider: &model3d.Cylinder{
+					P1:     model3d.Coord3D{X: x, Y: 6, Z: 0},
+					P2:     model3d.Coord3D{X: x, Y: 6, Z: 2},
+					Radius: 0.8,
+				},
 				Material: &render3d.LambertMaterial{
 					EmissionColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(LampBrightness),
 				},
@@ -75,13 +81,13 @@ func CreateWallLights() render3d.Object {
 }
 
 type CeilingLight struct {
-	Cylinder *render3d.Cylinder
+	Cylinder *model3d.Cylinder
 }
 
 func (c *CeilingLight) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, bool) {
 	var found bool
 	var coll model3d.RayCollision
-	c.Cylinder.CastAll(r, func(rc model3d.RayCollision, m render3d.Material) {
+	c.Cylinder.RayCollisions(r, func(rc model3d.RayCollision) {
 		p := r.Origin.Add(r.Direction.Scale(rc.Scale))
 		if math.Abs(p.Z-c.Cylinder.P1.Z) < 1e-8 {
 			return

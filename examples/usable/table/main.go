@@ -86,44 +86,44 @@ func StandSolid() model3d.Solid {
 	return model3d.JoinedSolid{
 		&model3d.SubtractedSolid{
 			Positive: model3d.JoinedSolid{
-				&model3d.SphereSolid{
+				&model3d.Sphere{
 					Center: topCenter,
 					Radius: FootRadius,
 				},
-				&model3d.CylinderSolid{
+				&model3d.Cylinder{
 					P1:     topCenter,
 					P2:     corners[0],
 					Radius: PoleThickness,
 				},
-				&model3d.CylinderSolid{
+				&model3d.Cylinder{
 					P1:     topCenter,
 					P2:     corners[1],
 					Radius: PoleThickness,
 				},
-				&model3d.CylinderSolid{
+				&model3d.Cylinder{
 					P1:     topCenter,
 					P2:     corners[2],
 					Radius: PoleThickness,
 				},
-				&model3d.SphereSolid{
+				&model3d.Sphere{
 					Center: corners[0],
 					Radius: FootRadius,
 				},
-				&model3d.SphereSolid{
+				&model3d.Sphere{
 					Center: corners[1],
 					Radius: FootRadius,
 				},
-				&model3d.SphereSolid{
+				&model3d.Sphere{
 					Center: corners[2],
 					Radius: FootRadius,
 				},
 			},
 			Negative: model3d.JoinedSolid{
-				&model3d.RectSolid{
+				&model3d.Rect{
 					MinVal: model3d.Coord3D{X: -StandRadius * 2, Y: -StandRadius * 2, Z: StandRadius},
 					MaxVal: model3d.Coord3D{X: StandRadius * 2, Y: StandRadius * 2, Z: StandRadius * 2},
 				},
-				&model3d.RectSolid{
+				&model3d.Rect{
 					MinVal: model3d.Coord3D{X: -StandRadius * 2, Y: -StandRadius * 2, Z: -StandRadius},
 					MaxVal: model3d.Coord3D{X: StandRadius * 2, Y: StandRadius * 2, Z: 0},
 				},
@@ -177,19 +177,19 @@ func (c ConeSolid) Contains(coord model3d.Coord3D) bool {
 func LegSolid() model3d.Solid {
 	return &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P2:     model3d.Coord3D{Z: LegLength},
 				Radius: PoleThickness,
 			},
 			&toolbox3d.Ramp{
-				Solid: &model3d.CylinderSolid{
+				Solid: &model3d.Cylinder{
 					P2:     model3d.Coord3D{Z: FootRadius},
 					Radius: FootRadius,
 				},
 				P1: model3d.Coord3D{Z: FootRadius},
 			},
 			&toolbox3d.Ramp{
-				Solid: &model3d.CylinderSolid{
+				Solid: &model3d.Cylinder{
 					P1:     model3d.Coord3D{Z: LegLength - FootRadius},
 					P2:     model3d.Coord3D{Z: LegLength},
 					Radius: FootRadius,
@@ -215,7 +215,7 @@ func LegSolid() model3d.Solid {
 
 func TopSolid() model3d.Solid {
 	return &model3d.SubtractedSolid{
-		Positive: &model3d.CylinderSolid{
+		Positive: &model3d.Cylinder{
 			P2:     model3d.Coord3D{Z: ScrewLength},
 			Radius: TopRadius,
 		},

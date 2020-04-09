@@ -19,7 +19,7 @@ const (
 func GenerateBase() model3d.Solid {
 	extra := model3d.Coord3D{X: 1, Y: 1}.Scale(BaseChunkSize)
 	return model3d.IntersectedSolid{
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{X: -BaseLength / 2, Y: -BaseWidth / 2, Z: 0}.Sub(extra),
 			MaxVal: model3d.Coord3D{X: BaseLength / 2, Y: BaseWidth / 2,
 				Z: BaseHeight + BaseChunkSize}.Add(extra),

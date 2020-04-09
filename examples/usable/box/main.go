@@ -133,7 +133,7 @@ func MakeLid() {
 	cy := Depth/2 + SideThickness
 	solid := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
-			&model3d.RectSolid{
+			&model3d.Rect{
 				MinVal: model3d.Coord3D{},
 				MaxVal: model3d.Coord3D{
 					X: Width + SideThickness*2,
@@ -141,7 +141,7 @@ func MakeLid() {
 					Z: SideThickness,
 				},
 			},
-			&model3d.RectSolid{
+			&model3d.Rect{
 				MinVal: model3d.Coord3D{
 					X: SideThickness + TopSpacing,
 					Y: SideThickness + TopSpacing,
@@ -155,12 +155,12 @@ func MakeLid() {
 			},
 		},
 		Negative: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{X: cx, Y: cy},
 				P2:     model3d.Coord3D{X: cx, Y: cy, Z: SideThickness},
 				Radius: ScrewHoleSize,
 			},
-			&model3d.RectSolid{
+			&model3d.Rect{
 				MinVal: model3d.Coord3D{
 					X: SideThickness + TopSpacing + HolderThickness,
 					Y: SideThickness + TopSpacing + HolderThickness,
@@ -181,7 +181,7 @@ func MakeLid() {
 
 func MakeHandle() {
 	screw := model3d.JoinedSolid{
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
 			P2:     model3d.Coord3D{Z: 0.2},
 			Radius: 0.25,
@@ -199,7 +199,7 @@ func MakeHandle() {
 
 	handle := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Z: 0.2},
 				P2:     model3d.Coord3D{Z: HandleHeight},
 				Radius: 0.4,

@@ -87,7 +87,7 @@ func CreateStand(diamond *model3d.Mesh) {
 	solid := model3d.NewColliderSolid(model3d.MeshToCollider(diamond))
 
 	standSolid := &model3d.SubtractedSolid{
-		Positive: &model3d.CylinderSolid{
+		Positive: &model3d.Cylinder{
 			P1:     model3d.Coord3D{Z: solid.Min().Z},
 			P2:     model3d.Coord3D{Z: solid.Min().Z + 0.5},
 			Radius: 1.0,

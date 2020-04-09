@@ -33,28 +33,28 @@ func main() {
 
 	axle := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Z: -Thickness},
 				P2:     model3d.Coord3D{Z: Thickness},
 				Radius: AxleRadius,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Z: -Thickness},
 				P2:     model3d.Coord3D{Z: -Thickness * 1.5},
 				Radius: 0.3,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Z: Thickness},
 				P2:     model3d.Coord3D{Z: Thickness * 1.5},
 				Radius: 0.3,
 			},
 		},
 		Negative: model3d.JoinedSolid{
-			&model3d.SphereSolid{
+			&model3d.Sphere{
 				Center: model3d.Coord3D{Z: -Thickness*1.5 - 1.0},
 				Radius: 1.05,
 			},
-			&model3d.SphereSolid{
+			&model3d.Sphere{
 				Center: model3d.Coord3D{Z: Thickness*1.5 + 1.0},
 				Radius: 1.05,
 			},
@@ -65,17 +65,17 @@ func main() {
 
 	body := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Z: -Thickness + PartSpacing},
 				P2:     model3d.Coord3D{Z: Thickness - PartSpacing},
 				Radius: 0.4,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Y: -0.6, Z: -Thickness + PartSpacing},
 				P2:     model3d.Coord3D{Y: -0.6, Z: Thickness - PartSpacing},
 				Radius: 0.4,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1: model3d.Coord3D{
 					X: -0.6 * math.Sin(math.Pi*2/3),
 					Y: -0.6 * math.Cos(math.Pi*2/3),
@@ -88,7 +88,7 @@ func main() {
 				},
 				Radius: 0.4,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1: model3d.Coord3D{
 					X: -0.6 * math.Sin(math.Pi*4/3),
 					Y: -0.6 * math.Cos(math.Pi*4/3),
@@ -103,7 +103,7 @@ func main() {
 			},
 		},
 		Negative: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Z: -Thickness + PartSpacing},
 				P2:     model3d.Coord3D{Z: Thickness - PartSpacing},
 				Radius: AxleRadius + PartSpacing,

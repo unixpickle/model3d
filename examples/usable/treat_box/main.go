@@ -44,7 +44,7 @@ func main() {
 	model3d.SaveRandomGrid("rendering_lid.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 
 	handle := model3d.JoinedSolid{
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
 			P2:     model3d.Coord3D{Z: HandleHeight},
 			Radius: HandleRadius,

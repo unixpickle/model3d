@@ -20,15 +20,15 @@ func main() {
 	log.Println("Creating main mesh...")
 	solid := model3d.JoinedSolid{
 		inscription,
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{X: SideSize, Y: SideSize, Z: Thickness},
 		},
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{Z: Depth - Thickness},
 			MaxVal: model3d.Coord3D{X: SideSize, Y: SideSize, Z: Depth},
 		},
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{X: SideSize, Y: Thickness, Z: Depth},
 		},

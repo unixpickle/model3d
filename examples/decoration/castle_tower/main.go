@@ -29,7 +29,7 @@ func main() {
 			&toolbox3d.Ramp{
 				P1: model3d.Coord3D{Z: 2},
 				P2: model3d.Coord3D{Z: 3.2},
-				Solid: &model3d.CylinderSolid{
+				Solid: &model3d.Cylinder{
 					P1:     model3d.Coord3D{Z: 2},
 					P2:     model3d.Coord3D{Z: 3.2},
 					Radius: 1.2,
@@ -40,7 +40,7 @@ func main() {
 		&TopBlocks{Height: 0.3, Radius: 1.2},
 	}
 	solid := model3d.JoinedSolid{
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{X: -3.7, Y: -1.2, Z: -0.2},
 			MaxVal: model3d.Coord3D{X: 3.7, Y: 1.2, Z: 0},
 		},

@@ -13,7 +13,7 @@ import (
 
 type Globe struct {
 	Image *toolbox3d.Equirect
-	Base  *render3d.Sphere
+	Base  render3d.Object
 }
 
 func NewGlobe() *Globe {
@@ -25,9 +25,11 @@ func NewGlobe() *Globe {
 
 	return &Globe{
 		Image: toolbox3d.NewEquirect(mapImage),
-		Base: &render3d.Sphere{
-			Center: model3d.Coord3D{Z: 0.5},
-			Radius: 1.5,
+		Base: &render3d.ColliderObject{
+			Collider: &model3d.Sphere{
+				Center: model3d.Coord3D{Z: 0.5},
+				Radius: 1.5,
+			},
 		},
 	}
 }
@@ -37,8 +39,8 @@ func (g *Globe) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 	if !ok {
 		return collision, material, ok
 	}
-	point := r.Origin.Add(r.Direction.Scale(collision.Scale)).Sub(g.Base.Center)
 
+	point := collision.Normal
 	point = model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, -math.Pi/2).MulColumn(point)
 	point.Y, point.Z = point.Z, -point.Y
 

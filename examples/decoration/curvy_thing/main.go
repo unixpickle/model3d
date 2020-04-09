@@ -19,7 +19,7 @@ const (
 func main() {
 	log.Println("Creating solid...")
 	solid := model3d.JoinedSolid{
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{X: -BaseWidth / 2, Y: -BaseDepth / 2, Z: -Radius},
 			MaxVal: model3d.Coord3D{X: BaseWidth / 2, Y: BaseDepth / 2, Z: Radius},
 		},

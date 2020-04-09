@@ -16,22 +16,22 @@ func SpineSolid() model3d.Solid {
 	thickVec := model3d.Coord3D{Z: SpineThickness + SpineWasherSize}
 	return &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
-			&model3d.RectSolid{
+			&model3d.Rect{
 				MaxVal: model3d.Coord3D{X: SpineWidth, Y: SpineLength, Z: SpineThickness},
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     center1,
 				P2:     center1.Add(thickVec),
 				Radius: SpineWasherRadius,
 			},
 		},
 		Negative: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     center1,
 				P2:     center1.Add(thickVec),
 				Radius: HoleRadius,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     center2,
 				P2:     center2.Add(thickVec),
 				Radius: HoleRadius,

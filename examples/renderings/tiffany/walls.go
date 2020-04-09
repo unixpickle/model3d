@@ -25,7 +25,7 @@ func NewWalls() *Walls {
 	for x := -3; x <= 3; x += 3 {
 		for y := -5; y <= 4; y += 3 {
 			lights = append(lights, &CeilingLight{
-				Cylinder: &render3d.Cylinder{
+				Cylinder: &model3d.Cylinder{
 					P1: model3d.Coord3D{X: float64(x), Y: float64(y), Z: mesh.Max().Z},
 					P2: model3d.Coord3D{X: float64(x), Y: float64(y),
 						Z: mesh.Max().Z + CeilingLightDepth},

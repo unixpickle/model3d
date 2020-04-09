@@ -12,7 +12,7 @@ func CreateFrame() model3d.Solid {
 
 	// Side walls.
 	for _, x := range []float64{-FrameThickness, DrawerWidth} {
-		solid = append(solid, &model3d.RectSolid{
+		solid = append(solid, &model3d.Rect{
 			MinVal: model3d.Coord3D{X: x, Z: -FrameThickness},
 			MaxVal: model3d.Coord3D{
 				X: x + FrameThickness,
@@ -24,7 +24,7 @@ func CreateFrame() model3d.Solid {
 
 	// Top/bottom walls.
 	for _, z := range []float64{-FrameThickness, DrawerHeight * DrawerCount} {
-		solid = append(solid, &model3d.RectSolid{
+		solid = append(solid, &model3d.Rect{
 			MinVal: model3d.Coord3D{X: -FrameThickness, Z: z},
 			MaxVal: model3d.Coord3D{
 				X: DrawerWidth + FrameThickness,
@@ -38,7 +38,7 @@ func CreateFrame() model3d.Solid {
 	wallMin := solid.Min()
 	wallMin.Y = solid.Max().Y - FrameThickness
 	solid = append(solid, &model3d.SubtractedSolid{
-		Positive: &model3d.RectSolid{
+		Positive: &model3d.Rect{
 			MinVal: wallMin,
 			MaxVal: solid.Max(),
 		},
@@ -111,7 +111,7 @@ func CreateFoot(x, y float64) model3d.Solid {
 	center := model3d.Coord3D{X: x, Y: y, Z: -FrameThickness}
 	halfSize := model3d.Coord3D{X: FrameFootWidth / 2, Y: FrameFootWidth / 2}
 	return &toolbox3d.Ramp{
-		Solid: &model3d.RectSolid{
+		Solid: &model3d.Rect{
 			MinVal: center.Sub(halfSize).Sub(model3d.Coord3D{Z: FrameFootHeight}),
 			MaxVal: center.Add(halfSize),
 		},

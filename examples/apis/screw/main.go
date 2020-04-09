@@ -9,7 +9,7 @@ import (
 
 func main() {
 	screw := model3d.JoinedSolid{
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
 			P2:     model3d.Coord3D{Z: 0.2},
 			Radius: 0.2,
@@ -25,7 +25,7 @@ func main() {
 	ioutil.WriteFile("screw.stl", mesh.EncodeSTL(), 0755)
 
 	hole := &model3d.SubtractedSolid{
-		Positive: &model3d.CylinderSolid{
+		Positive: &model3d.Cylinder{
 			P1:     model3d.Coord3D{},
 			P2:     model3d.Coord3D{Z: 1.0},
 			Radius: 0.4,

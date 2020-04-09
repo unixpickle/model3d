@@ -19,10 +19,10 @@ const (
 func main() {
 	solid := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
-			&model3d.RectSolid{
+			&model3d.Rect{
 				MaxVal: model3d.Coord3D{X: BracketSize, Z: BracketHeight, Y: BracketDepth},
 			},
-			&model3d.RectSolid{
+			&model3d.Rect{
 				MinVal: model3d.Coord3D{X: BracketSize - (HolePadding+HoleRadius)*2},
 				MaxVal: model3d.Coord3D{
 					X: BracketSize,
@@ -30,10 +30,10 @@ func main() {
 					Y: HoleDepth,
 				},
 			},
-			&model3d.RectSolid{
+			&model3d.Rect{
 				MaxVal: model3d.Coord3D{X: BracketDepth, Z: BracketHeight, Y: BracketSize},
 			},
-			&model3d.RectSolid{
+			&model3d.Rect{
 				MinVal: model3d.Coord3D{Y: BracketSize - (HolePadding+HoleRadius)*2},
 				MaxVal: model3d.Coord3D{
 					Y: BracketSize,
@@ -43,7 +43,7 @@ func main() {
 			},
 		},
 		Negative: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1: model3d.Coord3D{
 					X: BracketSize - (HolePadding + HoleRadius),
 					Z: BracketHeight / 2,
@@ -56,7 +56,7 @@ func main() {
 				},
 				Radius: HoleRadius,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1: model3d.Coord3D{
 					X: 0,
 					Z: BracketHeight / 2,

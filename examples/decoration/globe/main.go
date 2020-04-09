@@ -20,7 +20,7 @@ const (
 )
 
 func main() {
-	dowel := &model3d.RectSolid{
+	dowel := &model3d.Rect{
 		MinVal: model3d.Coord3D{
 			X: -DowelSize,
 			Y: -DowelSize,

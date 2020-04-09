@@ -22,7 +22,7 @@ const (
 )
 
 func main() {
-	trunk := &model3d.CylinderSolid{
+	trunk := &model3d.Cylinder{
 		P1:     model3d.Coord3D{},
 		P2:     model3d.Coord3D{Y: 2},
 		Radius: 0.15,
@@ -40,7 +40,7 @@ func main() {
 	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
 }
 
-func CreateBranches(branch *model3d.CylinderSolid, depthRemaining int) []*model3d.CylinderSolid {
+func CreateBranches(branch *model3d.Cylinder, depthRemaining int) []*model3d.Cylinder {
 	if depthRemaining == 0 {
 		return nil
 	}
@@ -62,7 +62,7 @@ func CreateBranches(branch *model3d.CylinderSolid, depthRemaining int) []*model3
 
 	initAngle := rand.Float64() * math.Pi * 2
 
-	result := []*model3d.CylinderSolid{}
+	result := []*model3d.Cylinder{}
 	for i := 0; i < BranchFactor; i++ {
 		origin := branch.P1.Add(v.Scale(minDist + (maxDist-minDist)*rand.Float64()))
 		theta := initAngle + math.Pi*2*float64(i)/BranchFactor
@@ -73,7 +73,7 @@ func CreateBranches(branch *model3d.CylinderSolid, depthRemaining int) []*model3
 
 		sizeFrac := 0.5 * (rand.Float64() + 1)
 		newLen := branchLen * LengthFactor * sizeFrac
-		newBranch := &model3d.CylinderSolid{
+		newBranch := &model3d.Cylinder{
 			P1:     origin,
 			P2:     origin.Add(direction.Scale(newLen)),
 			Radius: branch.Radius * RadiusFactor * sizeFrac,

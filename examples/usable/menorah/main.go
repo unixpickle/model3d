@@ -22,16 +22,16 @@ const (
 func main() {
 	solid := model3d.JoinedSolid{
 		&model3d.SubtractedSolid{
-			Positive: &model3d.SphereSolid{
+			Positive: &model3d.Sphere{
 				Center: model3d.Coord3D{Z: -0.2},
 				Radius: 0.9,
 			},
-			Negative: &model3d.RectSolid{
+			Negative: &model3d.Rect{
 				MinVal: model3d.Coord3D{X: -1, Y: -1, Z: -2},
 				MaxVal: model3d.Coord3D{X: 1, Y: 1, Z: 0},
 			},
 		},
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{X: -2, Y: -0.9, Z: -0.3},
 			MaxVal: model3d.Coord3D{X: 2, Y: 0.9, Z: 0},
 		},

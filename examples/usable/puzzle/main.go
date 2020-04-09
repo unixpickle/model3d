@@ -56,27 +56,27 @@ func main() {
 func BoardSolid() model3d.Solid {
 	bottomSize := WallThickness*2 + HolderSize*4 + TrackSize*4
 	solid := model3d.JoinedSolid{
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{X: bottomSize, Y: bottomSize, Z: BottomThickness},
 		},
 
 		// Front and back sides
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{X: bottomSize, Y: WallThickness, Z: TotalThickness},
 		},
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{Y: bottomSize - WallThickness},
 			MaxVal: model3d.Coord3D{X: bottomSize, Y: bottomSize, Z: TotalThickness},
 		},
 
 		// Left and right sides
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
 			MaxVal: model3d.Coord3D{Y: bottomSize, X: WallThickness, Z: TotalThickness},
 		},
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{X: bottomSize - WallThickness},
 			MaxVal: model3d.Coord3D{Y: bottomSize, X: bottomSize, Z: TotalThickness},
 		},
@@ -85,7 +85,7 @@ func BoardSolid() model3d.Solid {
 	// Create all edge holders.
 	for x := 0; x < 5; x++ {
 		for y := 0; y < 5; y++ {
-			rect := &model3d.RectSolid{
+			rect := &model3d.Rect{
 				MinVal: model3d.Coord3D{
 					X: WallThickness - HolderSize/2 + float64(x)*(HolderSize+TrackSize),
 					Y: WallThickness - HolderSize/2 + float64(y)*(HolderSize+TrackSize),
@@ -111,7 +111,7 @@ func BoardSolid() model3d.Solid {
 			if !(x == 0 || x == 4 || y == 0 || y == 4) {
 				// Non-side edge holders need something to
 				// hold them up.
-				solid = append(solid, &model3d.CylinderSolid{
+				solid = append(solid, &model3d.Cylinder{
 					P1:     model3d.Coord3D{X: p2.X, Y: p2.Y},
 					P2:     p2,
 					Radius: PoleRadius,
@@ -126,7 +126,7 @@ func BoardSolid() model3d.Solid {
 func PieceSolid(bottomSize float64) model3d.Solid {
 	center := PieceSize / 2
 	return model3d.JoinedSolid{
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: model3d.Coord3D{Z: BottomThickness},
 			MaxVal: model3d.Coord3D{
 				X: PieceSize,
@@ -134,7 +134,7 @@ func PieceSolid(bottomSize float64) model3d.Solid {
 				Z: BottomThickness + PieceThickness,
 			},
 		},
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1: model3d.Coord3D{X: center, Y: center, Z: BottomThickness},
 			P2: model3d.Coord3D{
 				X: center,
@@ -144,7 +144,7 @@ func PieceSolid(bottomSize float64) model3d.Solid {
 			Radius: PoleRadius,
 		},
 		&toolbox3d.Ramp{
-			Solid: &model3d.RectSolid{
+			Solid: &model3d.Rect{
 				MinVal: model3d.Coord3D{
 					X: center - bottomSize/2,
 					Y: center - bottomSize/2,

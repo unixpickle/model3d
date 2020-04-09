@@ -54,12 +54,12 @@ func main() {
 		},
 	}
 	bodySolid := &model3d.SubtractedSolid{
-		Positive: &model3d.CylinderSolid{
+		Positive: &model3d.Cylinder{
 			P2:     model3d.Coord3D{Z: Height},
 			Radius: OuterDiameter / 2,
 		},
 		Negative: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Z: OuterDiameter - InnerDiameter},
 				P2:     model3d.Coord3D{Z: Height},
 				Radius: InnerDiameter / 2,

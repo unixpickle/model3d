@@ -93,35 +93,35 @@ func main() {
 func MakeColorer() *Colorer {
 	res := &Colorer{}
 
-	res.Add(&model3d.SphereSolid{
+	res.Add(&model3d.Sphere{
 		Center: model3d.Coord3D{X: ButtColorSphereX, Z: ButtColorSphereZ},
 		Radius: ButtColorSphereRadius,
 	}, ButtFur)
 
-	res.Add(&model3d.SphereSolid{
+	res.Add(&model3d.Sphere{
 		Center: model3d.Coord3D{X: BodyLength / 2, Z: BellyColorSphereZ},
 		Radius: BellyColorSphereRadius,
 	}, WhiteFur)
 
-	res.Add(&model3d.RectSolid{
+	res.Add(&model3d.Rect{
 		MinVal: model3d.Coord3D{X: math.Inf(-1), Y: math.Inf(-1), Z: BrownMinZ},
 		MaxVal: model3d.Coord3D{X: BrownMaxX, Y: math.Inf(1), Z: math.Inf(1)},
 	}, BrownFur)
 
-	res.Add(&model3d.RectSolid{
+	res.Add(&model3d.Rect{
 		MinVal: model3d.Coord3D{X: math.Inf(-1), Y: math.Inf(-1), Z: BrownMinZ},
 		MaxVal: model3d.Coord3D{X: BrownMaxX, Y: math.Inf(1), Z: math.Inf(1)},
 	}, BrownFur)
 
 	for _, y := range []float64{HeadColorSphereY, -HeadColorSphereY} {
-		res.Add(&model3d.SphereSolid{
+		res.Add(&model3d.Sphere{
 			Center: model3d.Coord3D{X: HeadColorSphereX, Y: y, Z: HeadColorSphereZ},
 			Radius: HeadColorSphereRadius,
 		}, BrownFur)
 	}
 
 	// Default to white.
-	res.Add(&model3d.RectSolid{
+	res.Add(&model3d.Rect{
 		MinVal: model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(math.Inf(-1)),
 		MaxVal: model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(math.Inf(1)),
 	}, WhiteFur)
@@ -131,14 +131,14 @@ func MakeColorer() *Colorer {
 
 func MakeBody() model3d.Solid {
 	return model3d.JoinedSolid{
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P2:     model3d.Coord3D{X: BodyLength},
 			Radius: BodyRadius,
 		},
-		&model3d.SphereSolid{
+		&model3d.Sphere{
 			Radius: BodyRadius,
 		},
-		&model3d.SphereSolid{
+		&model3d.Sphere{
 			Center: model3d.Coord3D{X: BodyLength},
 			Radius: BodyRadius,
 		},
@@ -147,13 +147,13 @@ func MakeBody() model3d.Solid {
 
 func MakeHeadNeck() model3d.Solid {
 	return model3d.JoinedSolid{
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1: model3d.Coord3D{X: BodyLength},
 			P2: model3d.Coord3D{X: BodyLength + NeckLength*math.Cos(NeckTheta),
 				Z: NeckLength * math.Sin(NeckTheta)},
 			Radius: NeckRadius,
 		},
-		&model3d.SphereSolid{
+		&model3d.Sphere{
 			Center: model3d.Coord3D{X: BodyLength + NeckLength*math.Cos(NeckTheta),
 				Z: NeckLength * math.Sin(NeckTheta)},
 			Radius: HeadRadius,
@@ -178,7 +178,7 @@ func MakeLegs() model3d.Solid {
 	bottomZ := LegMinZ
 	for _, x := range []float64{HindLegX, BodyLength} {
 		for _, y := range []float64{y1, -y1} {
-			res = append(res, &model3d.CylinderSolid{
+			res = append(res, &model3d.Cylinder{
 				P1:     model3d.Coord3D{X: x, Y: y},
 				P2:     model3d.Coord3D{X: x, Y: y, Z: bottomZ},
 				Radius: LegRadius,
@@ -201,7 +201,7 @@ func MakeSnout() model3d.Solid {
 }
 
 func MakeNub() model3d.Solid {
-	return &model3d.SphereSolid{
+	return &model3d.Sphere{
 		Center: model3d.Coord3D{X: NubXOffset, Z: BodyRadius - NubRadius},
 		Radius: NubRadius,
 	}
@@ -288,8 +288,8 @@ func (s *SnoutSolid) Contains(c model3d.Coord3D) bool {
 	return c2.Norm() < 1
 }
 
-func (s *SnoutSolid) boundingCylinder() *model3d.CylinderSolid {
-	return &model3d.CylinderSolid{
+func (s *SnoutSolid) boundingCylinder() *model3d.Cylinder {
+	return &model3d.Cylinder{
 		P1:     s.P1,
 		P2:     s.P2,
 		Radius: SnoutLargeRadius,
@@ -332,8 +332,8 @@ func (e *EarSolid) Contains(c model3d.Coord3D) bool {
 		math.Abs(yAxis.Dot(c)) < EarThickness/2
 }
 
-func (e *EarSolid) boundingCylinder() *model3d.CylinderSolid {
-	return &model3d.CylinderSolid{
+func (e *EarSolid) boundingCylinder() *model3d.Cylinder {
+	return &model3d.Cylinder{
 		P1:     e.Base,
 		P2:     e.Tip,
 		Radius: EarWidth / 2,

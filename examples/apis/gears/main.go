@@ -61,12 +61,12 @@ func CreateGear(teeth int, path string, invert bool) {
 
 func CreatePole() {
 	solid := model3d.JoinedSolid{
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
 			P2:     model3d.Coord3D{Z: 0.2},
 			Radius: PoleBaseRadius,
 		},
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1:     model3d.Coord3D{Z: 0.2},
 			P2:     model3d.Coord3D{Z: 0.6 + PoleSlack},
 			Radius: PoleSize,
@@ -91,7 +91,7 @@ func CreateHolder() {
 	c3.Y += HoleClearance
 	thickness := model3d.Coord3D{Z: 0.4}
 	solid := &model3d.SubtractedSolid{
-		Positive: &model3d.RectSolid{
+		Positive: &model3d.Rect{
 			MaxVal: model3d.Coord3D{
 				X: Module*(40+30) + padding*2 + HoleClearance,
 				Y: Module*(40+20) + padding*2 + HoleClearance,
@@ -99,17 +99,17 @@ func CreateHolder() {
 			},
 		},
 		Negative: model3d.JoinedSolid{
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     c1,
 				P2:     c1.Add(thickness),
 				Radius: HoleSize,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     c2,
 				P2:     c2.Add(thickness),
 				Radius: HoleSize,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     c3,
 				P2:     c3.Add(thickness),
 				Radius: HoleSize,

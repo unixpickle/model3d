@@ -23,7 +23,7 @@ func CrankGearSolid() model3d.Solid {
 					GearAddendum, GearDedendum, LargeGearTeeth),
 				Angle: GearHelicalAngle,
 			},
-			&model3d.CylinderSolid{
+			&model3d.Cylinder{
 				P1:     handlePoint,
 				P2:     handlePoint.Add(model3d.Coord3D{Z: CrankHandleLength}),
 				Radius: CrankHandleRadius,

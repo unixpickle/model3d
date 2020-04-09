@@ -14,9 +14,11 @@ func main() {
 	// Join all the objects into a mega-object.
 	object := render3d.JoinedObject{
 		// Mirror ball.
-		&render3d.Sphere{
-			Center: model3d.Coord3D{X: 2, Y: 7, Z: 0},
-			Radius: 2,
+		&render3d.ColliderObject{
+			Collider: &model3d.Sphere{
+				Center: model3d.Coord3D{X: 2, Y: 7, Z: 0},
+				Radius: 2,
+			},
 			Material: &render3d.PhongMaterial{
 				Alpha:         20.0,
 				SpecularColor: render3d.NewColor(1),
@@ -24,9 +26,11 @@ func main() {
 		},
 
 		// Red ball.
-		&render3d.Sphere{
-			Center: model3d.Coord3D{X: -2, Y: 5.5, Z: -1},
-			Radius: 1,
+		&render3d.ColliderObject{
+			Collider: &model3d.Sphere{
+				Center: model3d.Coord3D{X: -2, Y: 5.5, Z: -1},
+				Radius: 1,
+			},
 			Material: &render3d.PhongMaterial{
 				Alpha:         10.0,
 				SpecularColor: render3d.NewColor(0.3),

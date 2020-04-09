@@ -16,7 +16,7 @@ func CreateDrawer() model3d.Solid {
 
 	result := model3d.JoinedSolid{
 		// Bottom face.
-		&model3d.RectSolid{
+		&model3d.Rect{
 			MinVal: min,
 			MaxVal: model3d.Coord3D{X: max.X, Y: max.Y, Z: min.Z + DrawerBottom},
 		},
@@ -24,7 +24,7 @@ func CreateDrawer() model3d.Solid {
 
 	// Side faces.
 	for _, x := range []float64{min.X, max.X - DrawerThickness} {
-		result = append(result, &model3d.RectSolid{
+		result = append(result, &model3d.Rect{
 			MinVal: model3d.Coord3D{X: x, Y: min.Y, Z: min.Z},
 			MaxVal: model3d.Coord3D{X: x + DrawerThickness, Y: max.Y, Z: max.Z},
 		})
@@ -32,7 +32,7 @@ func CreateDrawer() model3d.Solid {
 
 	// Front/back faces.
 	for _, y := range []float64{min.Y, max.Y - DrawerThickness} {
-		result = append(result, &model3d.RectSolid{
+		result = append(result, &model3d.Rect{
 			MinVal: model3d.Coord3D{X: min.X, Y: y, Z: min.Z},
 			MaxVal: model3d.Coord3D{X: max.X, Y: y + DrawerThickness, Z: max.Z},
 		})

@@ -15,7 +15,7 @@ func PropellerMesh() *model3d.Mesh {
 
 func PropellerSolid() model3d.Solid {
 	positive := model3d.JoinedSolid{
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P2:     model3d.Coord3D{Z: BladeDepth},
 			Radius: PropellerHubRadius,
 		},

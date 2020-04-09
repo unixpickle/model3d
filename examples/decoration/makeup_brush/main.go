@@ -24,7 +24,7 @@ func main() {
 	solid := model3d.JoinedSolid{
 		BrushSolid{},
 		// Rounded bottom for brush.
-		&model3d.SphereSolid{
+		&model3d.Sphere{
 			Center: model3d.Coord3D{Z: -HandleHeight},
 			Radius: HandleBottomRadius,
 		},

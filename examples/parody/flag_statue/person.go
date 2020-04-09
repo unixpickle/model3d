@@ -106,13 +106,13 @@ func (p *PersonSolid) Contains(c model3d.Coord3D) bool {
 	}
 
 	topSolid := model3d.JoinedSolid{
-		&model3d.SphereSolid{
+		&model3d.Sphere{
 			Center: model3d.Coord3D{
 				Z: PersonLegHeight + PersonTorsoHeight + PersonHeadOffset,
 			},
 			Radius: PersonHeadRadius,
 		},
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1: model3d.Coord3D{
 				X: -PersonTorsoWidth + PersonShoulder,
 				Z: PersonLegHeight + PersonTorsoHeight - PersonShoulder,
@@ -123,7 +123,7 @@ func (p *PersonSolid) Contains(c model3d.Coord3D) bool {
 			},
 			Radius: PersonArmRadius,
 		},
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1: model3d.Coord3D{
 				X: PersonTorsoWidth - PersonShoulder,
 				Z: PersonLegHeight + PersonTorsoHeight - PersonShoulder,
@@ -139,8 +139,8 @@ func (p *PersonSolid) Contains(c model3d.Coord3D) bool {
 	return topSolid.Contains(c)
 }
 
-func (p *PersonSolid) boundingCylinder() *model3d.CylinderSolid {
-	return &model3d.CylinderSolid{
+func (p *PersonSolid) boundingCylinder() *model3d.Cylinder {
+	return &model3d.Cylinder{
 		P1:     p.P1,
 		P2:     p.P2,
 		Radius: PersonRadius,

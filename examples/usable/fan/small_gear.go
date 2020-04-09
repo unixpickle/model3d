@@ -19,7 +19,7 @@ func SmallGearSolid() model3d.Solid {
 				GearAddendum, GearDedendum, SmallGearTeeth),
 			Angle: -GearHelicalAngle,
 		},
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P2:     model3d.Coord3D{Z: SpineThickness + SpineWasherSize + PoleExtraLength},
 			Radius: PoleRadius,
 		},

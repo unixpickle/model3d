@@ -8,10 +8,10 @@ func main() {
 	// A solid representing a sphere with a cylinder taken
 	// out of the side.
 	solid := &model3d.SubtractedSolid{
-		Positive: &model3d.SphereSolid{
+		Positive: &model3d.Sphere{
 			Radius: 0.5,
 		},
-		Negative: &model3d.CylinderSolid{
+		Negative: &model3d.Cylinder{
 			P1:     model3d.Coord3D{Y: 0.3, Z: -0.5},
 			P2:     model3d.Coord3D{Y: 0.3, Z: 0.5},
 			Radius: 0.3,

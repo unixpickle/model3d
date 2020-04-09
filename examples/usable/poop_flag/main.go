@@ -49,7 +49,7 @@ func main() {
 
 func PoopSolid() model3d.Solid {
 	tip := &PointedSolid{
-		Solid: &model3d.RectSolid{
+		Solid: &model3d.Rect{
 			MinVal: model3d.Coord3D{Z: Radius * 0.85, X: -Radius * 0.3, Y: -Radius * 0.3},
 			MaxVal: model3d.Coord3D{Z: Radius * 1.15, X: Radius * 0.3, Y: Radius * 0.3},
 		},
@@ -57,23 +57,23 @@ func PoopSolid() model3d.Solid {
 	}
 	constructed := model3d.JoinedSolid{
 		tip,
-		&model3d.CylinderSolid{
+		&model3d.Cylinder{
 			P1:     model3d.Coord3D{Z: -Radius * 0.25},
 			P2:     model3d.Coord3D{Z: Radius * 0.25},
 			Radius: Radius,
 		},
-		&model3d.TorusSolid{
+		&model3d.Torus{
 			Axis:        model3d.Coord3D{Z: 1},
 			OuterRadius: Radius,
 			InnerRadius: 0.25 * Radius,
 		},
-		&model3d.TorusSolid{
+		&model3d.Torus{
 			Center:      model3d.Coord3D{Z: Radius * 0.35},
 			Axis:        model3d.Coord3D{Z: 1},
 			OuterRadius: Radius * 0.7,
 			InnerRadius: 0.25 * Radius,
 		},
-		&model3d.TorusSolid{
+		&model3d.Torus{
 			Center:      model3d.Coord3D{Z: Radius * 0.65},
 			Axis:        model3d.Coord3D{Z: 1},
 			OuterRadius: Radius * 0.35,
@@ -110,7 +110,7 @@ func PoopSolid() model3d.Solid {
 	// Clip off bottom to remove need for supports.
 	return &model3d.SubtractedSolid{
 		Positive: model3d.NewColliderSolid(model3d.MeshToCollider(mesh)),
-		Negative: &model3d.RectSolid{
+		Negative: &model3d.Rect{
 			MinVal: model3d.Coord3D{X: -Radius * 2, Y: -Radius * 2, Z: -Radius * 0.3},
 			MaxVal: model3d.Coord3D{X: Radius * 2, Y: Radius * 2, Z: -Radius * 0.15},
 		},

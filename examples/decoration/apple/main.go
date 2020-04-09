@@ -14,7 +14,7 @@ import (
 const AppleHeight = 1.0
 
 func main() {
-	bite := &model3d.TorusSolid{
+	bite := &model3d.Torus{
 		Center:      model3d.Coord3D{X: -1.7, Y: 0, Z: AppleHeight / 2},
 		Axis:        model3d.Coord3D{Z: 1},
 		OuterRadius: 1.0,
@@ -23,7 +23,7 @@ func main() {
 	biggerBite := *bite
 	biggerBite.InnerRadius += 0.01
 
-	stem := &model3d.CylinderSolid{
+	stem := &model3d.Cylinder{
 		P1:     model3d.Coord3D{Z: AppleHeight / 2},
 		P2:     model3d.Coord3D{Z: AppleHeight * 1.1},
 		Radius: AppleHeight / 30,

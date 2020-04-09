@@ -16,7 +16,7 @@ const (
 func main() {
 	solid := model3d.JoinedSolid{
 		Body{},
-		&model3d.TorusSolid{
+		&model3d.Torus{
 			Center:      model3d.Coord3D{X: Length - HandleThickness - 0.2, Y: Width / 2, Z: Width + 0.2},
 			Axis:        model3d.Coord3D{Y: 1},
 			InnerRadius: 0.1,
