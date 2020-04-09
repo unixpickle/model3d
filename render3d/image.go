@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/unixpickle/essentials"
 )
 
 type Image struct {
@@ -26,6 +27,21 @@ func NewImage(width, height int) *Image {
 		Data:   make([]Color, width*height),
 		Width:  width,
 		Height: height,
+	}
+}
+
+// CopyFrom copies the image img into this image at the
+// given coordinates x, y in i.
+//
+// This can be used to copy a smaller image i1 into a
+// larger image i.
+func (i *Image) CopyFrom(i1 *Image, x, y int) {
+	copyWidth := essentials.MinInt(i1.Width, i.Width-x)
+	copyHeight := essentials.MinInt(i1.Height, i.Height-x)
+	for row := 0; row < copyHeight; row++ {
+		destIdx := (row+y)*i.Width + x
+		sourceIdx := row * i1.Width
+		copy(i.Data[destIdx:destIdx+copyWidth], i1.Data[sourceIdx:])
 	}
 }
 
