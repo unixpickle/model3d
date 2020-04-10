@@ -5,6 +5,8 @@ import (
 	"log"
 	"math"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/model3d"
 )
 
@@ -86,8 +88,8 @@ func main() {
 	)
 
 	log.Println("rendering...")
-	model3d.SaveRandomGridColor("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300,
-		colors.VertexColor)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300,
+		render3d.TriangleColorFunc(colors.TriangleColor))
 }
 
 func MakeColorer() *Colorer {

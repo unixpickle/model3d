@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -29,7 +30,7 @@ func main() {
 	m := model3d.MarchingCubesSearch(fullSolid, 0.01, 8).Blur(-1, -1, -1, -1, -1)
 	m = m.FlattenBase(0)
 	m.SaveGroupedSTL("kiss.stl")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(m), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", m, 3, 3, 300, nil)
 }
 
 type TextSolid struct {

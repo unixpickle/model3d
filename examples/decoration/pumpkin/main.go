@@ -7,6 +7,8 @@ import (
 	"math"
 	"os"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
@@ -50,6 +52,7 @@ func main() {
 	mesh := model3d.MarchingCubesSearch(base, 0.02, 8)
 	mesh.AddMesh(model3d.MarchingCubesSearch(lid, 0.02, 8))
 	ioutil.WriteFile("pumpkin.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, render3d.TriangleColorFunc(colorFunc))
 }
 
 type PumpkinSolid struct {

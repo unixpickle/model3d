@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/model3d"
@@ -30,14 +31,14 @@ func main() {
 		log.Println("Creating stand...")
 		mesh := model3d.MarchingCubesSearch(StandSolid(), 0.01, 8)
 		mesh.SaveGroupedSTL("stand.stl")
-		model3d.SaveRandomGrid("stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+		render3d.SaveRandomGrid("stand.png", mesh, 3, 3, 300, nil)
 	}
 
 	if _, err := os.Stat("cone_stand.stl"); os.IsNotExist(err) {
 		log.Println("Creating stand (cone)...")
 		mesh := model3d.MarchingCubesSearch(ConeStandSolid(), 0.01, 8)
 		mesh.SaveGroupedSTL("cone_stand.stl")
-		model3d.SaveRandomGrid("cone_stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+		render3d.SaveRandomGrid("cone_stand.png", mesh, 3, 3, 300, nil)
 	}
 
 	if _, err := os.Stat("leg.stl"); os.IsNotExist(err) {
@@ -51,7 +52,7 @@ func main() {
 		mesh := model3d.MarchingCubesSearch(transform.ApplySolid(LegSolid()), 0.01, 8)
 		mesh = mesh.MapCoords(transform.Inverse().Apply)
 		mesh.SaveGroupedSTL("leg.stl")
-		model3d.SaveRandomGrid("leg.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+		render3d.SaveRandomGrid("leg.png", mesh, 3, 3, 300, nil)
 	}
 
 	if _, err := os.Stat("top.stl"); os.IsNotExist(err) {
@@ -60,7 +61,7 @@ func main() {
 		log.Println("Eliminating co-planar...")
 		mesh = mesh.EliminateCoplanar(1e-8)
 		mesh.SaveGroupedSTL("top.stl")
-		model3d.SaveRandomGrid("top.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+		render3d.SaveRandomGrid("top.png", mesh, 3, 3, 300, nil)
 	}
 
 	if _, err := os.Stat("infill_cube.stl"); os.IsNotExist(err) {

@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -56,7 +57,7 @@ func main() {
 
 	log.Println("Saving results...")
 	mesh.SaveGroupedSTL("rock.stl")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
 func AddConstraint(r model3d.ConvexPolytope) model3d.ConvexPolytope {

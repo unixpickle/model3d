@@ -12,6 +12,7 @@ import (
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 func main() {
@@ -47,7 +48,7 @@ func main() {
 	m := model3d.MarchingCubesSearch(solid, radius/200, 8)
 
 	essentials.Must(ioutil.WriteFile(outFile, m.EncodeSTL(), 0755))
-	essentials.Must(model3d.SaveRandomGrid(renderFile, model3d.MeshToCollider(m), 4, 4, 200, 200))
+	essentials.Must(render3d.SaveRandomGrid(renderFile, m, 4, 4, 200, nil))
 }
 
 type CoinSolid struct {

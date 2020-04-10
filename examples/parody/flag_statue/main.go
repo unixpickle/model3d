@@ -1,14 +1,10 @@
 package main
 
 import (
-	"image"
-	"image/png"
 	"log"
-	"math"
-	"os"
 
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 func main() {
@@ -25,15 +21,5 @@ func main() {
 	m.SaveGroupedSTL("statue.stl")
 
 	log.Println("Saving rendering...")
-	img := image.NewGray(image.Rect(0, 0, 900, 900))
-	model3d.RenderRayCast(model3d.MeshToCollider(m), img,
-		model3d.Coord3D{Y: -10, Z: 5.5},
-		model3d.Coord3D{X: 1},
-		model3d.Coord3D{Z: -1, Y: -0.3},
-		model3d.Coord3D{Z: -0.3, Y: 1},
-		math.Pi/5)
-	f, err := os.Create("rendering.png")
-	essentials.Must(err)
-	defer f.Close()
-	png.Encode(f, img)
+	render3d.SaveRendering("rendering.png", m, model3d.Coord3D{Y: -10, Z: 5.5}, 900, 900, nil)
 }

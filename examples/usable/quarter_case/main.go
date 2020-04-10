@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -85,8 +86,8 @@ func main() {
 	bodyMesh.SaveGroupedSTL("qh_body.stl")
 
 	log.Println("Rendering...")
-	model3d.SaveRandomGrid("rendering_lid.png", model3d.MeshToCollider(lidMesh), 3, 3, 300, 300)
-	model3d.SaveRandomGrid("rendering_body.png", model3d.MeshToCollider(bodyMesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering_lid.png", lidMesh, 3, 3, 300, nil)
+	render3d.SaveRandomGrid("rendering_body.png", bodyMesh, 3, 3, 300, nil)
 }
 
 type PreviewCutout struct{}

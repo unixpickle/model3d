@@ -6,6 +6,7 @@ import (
 
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -35,7 +36,7 @@ func main() {
 
 	log.Println("Saving results...")
 	mesh.SaveGroupedSTL("curvy_thing.stl")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
 type TubeSolid struct {

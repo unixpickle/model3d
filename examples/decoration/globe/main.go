@@ -5,6 +5,8 @@ import (
 	"math"
 	"os"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/toolbox3d"
@@ -50,7 +52,7 @@ func main() {
 	split := &SplitSolid{Solid: solid, Top: true}
 	topMesh := model3d.MarchingCubesSearch(split, 0.01, 8)
 	topMesh.SaveGroupedSTL("top.stl")
-	model3d.SaveRandomGrid("top.png", model3d.MeshToCollider(topMesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("top.png", model3d.MeshToCollider(topMesh), 3, 3, 300, nil)
 
 	split.Top = false
 	bottomMesh := model3d.MarchingCubesSearch(split, 0.01, 8)
@@ -59,7 +61,7 @@ func main() {
 		return c
 	})
 	bottomMesh.SaveGroupedSTL("bottom.stl")
-	model3d.SaveRandomGrid("bottom.png", model3d.MeshToCollider(bottomMesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("bottom.png", model3d.MeshToCollider(bottomMesh), 3, 3, 300, nil)
 
 	dowel.MinVal.X += DowelSlack / 2
 	dowel.MinVal.Y += DowelSlack / 2

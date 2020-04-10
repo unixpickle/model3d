@@ -1,11 +1,30 @@
 package render3d
 
-import "github.com/unixpickle/model3d"
+import (
+	"math"
+
+	"github.com/unixpickle/model3d"
+)
+
+const helperFieldOfView = math.Pi / 3.6
 
 // ColorFunc determines a color for collisions on a
 // surface. It is used for convenience methods where
 // specifying a material would be too cumbersome.
 type ColorFunc func(c model3d.Coord3D, rc model3d.RayCollision) Color
+
+// TriangleColorFunc creates a ColorFunc from a function
+// that colors triangles.
+// This can be used for compatibility with
+// model3d.EncodeMaterialOBJ.
+//
+// This only works when rendering meshes or triangles.
+func TriangleColorFunc(f func(t *model3d.Triangle) [3]float64) ColorFunc {
+	return func(_ model3d.Coord3D, rc model3d.RayCollision) Color {
+		c := f(rc.Extra.(*model3d.TriangleCollision).Triangle)
+		return NewColorRGB(c[0], c[1], c[2])
+	}
+}
 
 type colorFuncObject struct {
 	Object
@@ -16,10 +35,12 @@ func (c *colorFuncObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, 
 	rc, mat, ok := c.Object.Cast(r)
 	if ok && c.ColorFunc != nil {
 		p := r.Origin.Add(r.Direction.Scale(rc.Scale))
+		color := c.ColorFunc(p, rc)
 		mat = &PhongMaterial{
 			Alpha:         10,
 			SpecularColor: NewColor(0.1),
-			DiffuseColor:  c.ColorFunc(p, rc),
+			DiffuseColor:  color.Scale(0.9),
+			AmbientColor:  color.Scale(0.1),
 		}
 	}
 	return rc, mat, ok
@@ -48,7 +69,8 @@ func Objectify(obj interface{}, colorFunc ColorFunc) Object {
 				Material: &PhongMaterial{
 					Alpha:         10,
 					SpecularColor: NewColor(0.1),
-					DiffuseColor:  NewColorRGB(224.0/255, 209.0/255, 0),
+					DiffuseColor:  NewColorRGB(224.0/255, 209.0/255, 0).Scale(0.9),
+					AmbientColor:  NewColorRGB(224.0/255, 209.0/255, 0).Scale(0.1),
 				},
 			},
 			ColorFunc: colorFunc,
@@ -78,7 +100,7 @@ func SaveRendering(path string, obj interface{}, origin model3d.Coord3D, width, 
 	min, max := object.Min(), object.Max()
 	center := min.Mid(max)
 	caster := RayCaster{
-		Camera: NewCameraAt(origin, center, 0),
+		Camera: NewCameraAt(origin, center, helperFieldOfView),
 		Lights: []*PointLight{
 			&PointLight{
 				Origin: center.Add(origin.Sub(center).Scale(1000)),
@@ -140,7 +162,7 @@ func directionalCamera(object Object, direction model3d.Coord3D) *Camera {
 	maxDist := baseline * 1e4
 	for i := 0; i < 32; i++ {
 		d := (minDist + maxDist) / 2
-		cam := NewCameraAt(center.Add(direction.Scale(d)), center, 0)
+		cam := NewCameraAt(center.Add(direction.Scale(d)), center, helperFieldOfView)
 		uncaster := cam.Uncaster(1, 1)
 		contained := true
 		for _, x := range []float64{min.X, max.X} {
@@ -160,5 +182,5 @@ func directionalCamera(object Object, direction model3d.Coord3D) *Camera {
 		}
 	}
 
-	return NewCameraAt(center.Add(direction.Scale(maxDist)), center, 0)
+	return NewCameraAt(center.Add(direction.Scale(maxDist)), center, helperFieldOfView)
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -39,7 +40,7 @@ func main() {
 	log.Println(" - saving...")
 	mesh.SaveGroupedSTL("box.stl")
 	log.Println(" - rendering...")
-	model3d.SaveRandomGrid("rendering_box.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering_box.png", mesh, 3, 3, 300, nil)
 
 	log.Println("Creating lid...")
 	mesh = model3d.MarchingCubesSearch(&LidSolid{Outline: outline}, 0.02, 8)
@@ -49,7 +50,7 @@ func main() {
 	log.Println(" - saving...")
 	mesh.SaveGroupedSTL("lid.stl")
 	log.Println(" - rendering...")
-	model3d.SaveRandomGrid("rendering_lid.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering_lid.png", mesh, 3, 3, 300, nil)
 }
 
 type BoxSolid struct {

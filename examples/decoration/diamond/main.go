@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -19,7 +20,7 @@ func main() {
 	log.Println("Exporting diamond...")
 	mesh := system.Mesh()
 	mesh.SaveGroupedSTL("diamond.stl")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 
 	CreateStand(mesh)
 }
@@ -98,5 +99,5 @@ func CreateStand(diamond *model3d.Mesh) {
 	mesh = mesh.FlattenBase(0)
 
 	mesh.SaveGroupedSTL("stand.stl")
-	model3d.SaveRandomGrid("rendering_stand.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering_stand.png", mesh, 3, 3, 300, nil)
 }

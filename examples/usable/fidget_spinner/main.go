@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"image"
 	_ "image/jpeg"
-	"image/png"
 	"io/ioutil"
 	"log"
 	"math"
 	"os"
+
+	"github.com/unixpickle/model3d/render3d"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
@@ -129,26 +130,12 @@ func main() {
 		},
 	}
 	mesh.AddMesh(model3d.MarchingCubesSearch(body, 0.003, 8))
+	mesh = mesh.SmoothAreas(0.05, 10)
 
 	ioutil.WriteFile("spinner.stl", mesh.EncodeSTL(), 0755)
 
-	RenderMesh(mesh)
-}
-
-func RenderMesh(m *model3d.Mesh) {
 	log.Println("Saving rendering of mesh...")
-	image := image.NewGray(image.Rect(0, 0, 400, 300))
-	model3d.RenderRayCast(model3d.MeshToCollider(m), image,
-		model3d.Coord3D{X: 0, Y: 1.5, Z: 1.5},
-		model3d.Coord3D{X: 1},
-		model3d.Coord3D{Y: 1, Z: -1},
-		model3d.Coord3D{Y: -1, Z: -1},
-		math.Pi/3,
-	)
-	w, err := os.Create("rendering.png")
-	essentials.Must(err)
-	defer w.Close()
-	essentials.Must(png.Encode(w, image))
+	render3d.SaveRendering("rendering.png", mesh, model3d.Coord3D{Y: 2, Z: 2}, 400, 400, nil)
 }
 
 type EtchedImage struct {

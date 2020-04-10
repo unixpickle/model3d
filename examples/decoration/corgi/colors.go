@@ -1,6 +1,8 @@
 package main
 
-import "github.com/unixpickle/model3d"
+import (
+	"github.com/unixpickle/model3d"
+)
 
 type Colorer struct {
 	Solids []model3d.Solid

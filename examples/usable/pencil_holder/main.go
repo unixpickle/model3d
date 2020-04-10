@@ -10,6 +10,7 @@ import (
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -33,7 +34,7 @@ func main() {
 	log.Println("Saving mesh...")
 	ioutil.WriteFile("pencil_holder.stl", mesh.EncodeSTL(), 0755)
 	log.Println("Saving rendering...")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 4, 4, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", mesh, 4, 4, 300, nil)
 }
 
 type HeartSolid struct {

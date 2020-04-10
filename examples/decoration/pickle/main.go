@@ -8,6 +8,8 @@ import (
 	"math"
 	"os"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
@@ -41,9 +43,12 @@ func main() {
 
 	if !Color {
 		ioutil.WriteFile("pickle.stl", mesh.EncodeSTL(), 0755)
+		render3d.SaveRandomGrid("rendering_nocolor.png", mesh, 3, 3, 300, nil)
 	} else {
 		colorFunc := model3d.VertexColorsToTriangle(inscription.ColorAt)
 		ioutil.WriteFile("pickle.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+		render3d.SaveRandomGrid("rendering_color.png", mesh, 3, 3, 300,
+			render3d.TriangleColorFunc(colorFunc))
 	}
 }
 

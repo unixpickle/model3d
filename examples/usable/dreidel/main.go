@@ -4,6 +4,7 @@ import (
 	"log"
 	"math"
 
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/model3d"
@@ -40,7 +41,7 @@ func main() {
 	log.Println("Saving body mesh...")
 	mesh.SaveGroupedSTL("dreidel.stl")
 	log.Println("Rendering...")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 
 	handleSolid := model3d.JoinedSolid{
 		&model3d.Cylinder{

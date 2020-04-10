@@ -7,6 +7,7 @@ import (
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -104,6 +105,5 @@ func CreateMesh(solid model3d.Solid, name string, resolution float64, ax *toolbo
 	log.Printf("Saving %s mesh...", name)
 	mesh.SaveGroupedSTL(filepath.Join(ModelDir, name+".stl"))
 	log.Printf("Rendering %s mesh...", name)
-	model3d.SaveRandomGrid(filepath.Join(RenderDir, name+".png"), model3d.MeshToCollider(mesh),
-		3, 3, 300, 300)
+	render3d.SaveRandomGrid(filepath.Join(RenderDir, name+".png"), mesh, 3, 3, 300, nil)
 }

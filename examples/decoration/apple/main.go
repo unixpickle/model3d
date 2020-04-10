@@ -7,6 +7,8 @@ import (
 	"math"
 	"os"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
@@ -58,8 +60,8 @@ func main() {
 	colorFunc := model3d.VertexColorsToTriangle(vertexColor)
 
 	ioutil.WriteFile("apple.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
-	model3d.SaveRandomGridColor("rendering.png", model3d.MeshToCollider(mesh),
-		3, 3, 200, 200, vertexColor)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 200,
+		render3d.TriangleColorFunc(colorFunc))
 }
 
 type AppleSolid struct {

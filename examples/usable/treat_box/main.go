@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 
 	"github.com/unixpickle/model3d/toolbox3d"
 
@@ -26,7 +27,7 @@ func main() {
 	box := NewBoxSolid()
 	mesh := model3d.MarchingCubesSearch(box, 0.01, 8)
 	mesh.SaveGroupedSTL("box.stl")
-	model3d.SaveRandomGrid("rendering_box.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering_box.png", mesh, 3, 3, 300, nil)
 
 	center := box.Min().Mid(box.Max())
 	center.Z = 0
@@ -41,7 +42,7 @@ func main() {
 	}
 	mesh = model3d.MarchingCubesSearch(lid, 0.0075, 8)
 	mesh.SaveGroupedSTL("lid.stl")
-	model3d.SaveRandomGrid("rendering_lid.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering_lid.png", mesh, 3, 3, 300, nil)
 
 	handle := model3d.JoinedSolid{
 		&model3d.Cylinder{
@@ -58,7 +59,7 @@ func main() {
 	}
 	mesh = model3d.MarchingCubesSearch(handle, 0.005, 8)
 	mesh.SaveGroupedSTL("handle.stl")
-	model3d.SaveRandomGrid("rendering_handle.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering_handle.png", mesh, 3, 3, 300, nil)
 
 }
 

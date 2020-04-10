@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 
 	"github.com/unixpickle/model3d"
 )
@@ -33,7 +34,7 @@ func main() {
 	}
 	m := model3d.MarchingCubesSearch(solid, 0.0015, 8).Blur(-1, -1, -1, -1, -1)
 	m.SaveGroupedSTL("ring.stl")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(m), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", m, 3, 3, 300, nil)
 }
 
 type RingSolid struct{}

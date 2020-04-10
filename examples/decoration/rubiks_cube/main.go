@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -43,5 +44,5 @@ func main() {
 	})
 	mesh := model3d.MarchingCubesSearch(solid, 0.0025, 8)
 	ioutil.WriteFile("cube.stl", mesh.EncodeSTL(), 0755)
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 200, nil)
 }

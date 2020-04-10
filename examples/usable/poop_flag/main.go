@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/model3d"
@@ -37,14 +38,14 @@ func main() {
 	log.Println("Building poop mesh...")
 	mesh := model3d.MarchingCubesSearch(poop, 0.01, 8)
 	mesh.SaveGroupedSTL("poop.stl")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 200, nil)
 
 	log.Println("Building steak mesh...")
 	screw.P1, screw.P2 = screw.P2, screw.P1
 	screw.Radius -= ScrewSlack
 	mesh = model3d.MarchingCubesSearch(screw, 0.01, 8)
 	mesh.SaveGroupedSTL("steak.stl")
-	model3d.SaveRandomGrid("steak.png", model3d.MeshToCollider(mesh), 3, 3, 200, 200)
+	render3d.SaveRandomGrid("steak.png", mesh, 3, 3, 200, nil)
 }
 
 func PoopSolid() model3d.Solid {

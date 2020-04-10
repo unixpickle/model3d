@@ -5,6 +5,7 @@ import (
 
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -34,7 +35,7 @@ func main() {
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println("Saving...")
 	mesh.SaveGroupedSTL("tag.stl")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
 type Solid struct {

@@ -1,13 +1,11 @@
 package main
 
 import (
-	"image"
-	"image/png"
 	"log"
 	"math"
-	"os"
 
-	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/model3d"
 )
 
@@ -62,14 +60,7 @@ func main() {
 	m.SaveGroupedSTL("necklace.stl")
 
 	log.Println("Saving rendering...")
-	img := image.NewGray(image.Rect(0, 0, 1000, 500))
-	model3d.RenderRayCast(model3d.MeshToCollider(m), img, model3d.Coord3D{Z: 2, Y: -4},
-		model3d.Coord3D{X: 1}, model3d.Coord3D{Y: -0.4, Z: -0.5},
-		model3d.Coord3D{Y: 0.5, Z: -0.4}, math.Pi/2)
-	f, err := os.Create("rendering.png")
-	essentials.Must(err)
-	defer f.Close()
-	png.Encode(f, img)
+	render3d.SaveRendering("rendering.png", m, model3d.Coord3D{Z: 4, Y: -8}, 1000, 500, nil)
 
 	log.Println("Verifying mesh...")
 	VerifyMesh(m)

@@ -7,6 +7,7 @@ import (
 	"math/rand"
 
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const NumStops = 100
@@ -28,7 +29,7 @@ func main() {
 	ioutil.WriteFile("rose.stl", m1.EncodeSTL(), 0755)
 
 	log.Println("Generating rendering...")
-	model3d.SaveRandomGrid("preview.png", model3d.MeshToCollider(m1), 3, 3, 300, 300)
+	render3d.SaveRendering("preview.png", m1, model3d.Coord3D{Y: -1, Z: 2}, 500, 500, nil)
 }
 
 // RingFunction is one conic surface originating from the

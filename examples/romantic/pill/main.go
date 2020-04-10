@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 )
@@ -135,6 +137,9 @@ func main() {
 		return colorMap[t]
 	}
 	ioutil.WriteFile(outFile, newMesh.EncodeMaterialOBJ(mapColorFunc), 0755)
+
+	render3d.SaveRandomGrid("rendering.png", newMesh, 3, 3, 300,
+		render3d.TriangleColorFunc(mapColorFunc))
 }
 
 func ParseColor(color string) [3]float64 {

@@ -4,6 +4,8 @@ import (
 	"log"
 	"math"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/model3d"
@@ -56,7 +58,7 @@ func main() {
 	mesh.SaveGroupedSTL("castle.stl")
 
 	log.Println("Saving rendering...")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 500, 500)
+	render3d.SaveRendering("rendering.png", mesh, model3d.Coord3D{Y: 7, Z: 5}, 400, 400, nil)
 }
 
 type XBlock struct {

@@ -5,6 +5,8 @@ import (
 	"log"
 	"math"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/model3d"
 )
 
@@ -35,6 +37,8 @@ func main() {
 		return triToColor[t]
 	}
 	ioutil.WriteFile("mesh.zip", m1.EncodeMaterialOBJ(colorFunc), 0755)
+
+	render3d.SaveRandomGrid("rendering.png", m1, 3, 3, 300, render3d.TriangleColorFunc(colorFunc))
 }
 
 func CreateLock() *model3d.Mesh {

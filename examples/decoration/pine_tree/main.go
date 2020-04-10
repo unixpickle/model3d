@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -27,7 +28,7 @@ func main() {
 	log.Println("Exporting...")
 	mesh.SaveGroupedSTL("pine.stl")
 	log.Println("Rendering...")
-	model3d.SaveRandomGrid("rendering.png", model3d.MeshToCollider(mesh), 3, 3, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
 type TreeSolid struct{}

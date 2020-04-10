@@ -1,10 +1,9 @@
 package main
 
 import (
-	"image"
-	"image/png"
 	"math"
-	"os"
+
+	"github.com/unixpickle/model3d/render3d"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
@@ -45,15 +44,7 @@ func main() {
 	mesh := model3d.MarchingCubesSearch(solid, 0.0125, 8)
 	essentials.Must(mesh.SaveGroupedSTL("menorah.stl"))
 
-	img := image.NewGray(image.Rect(0, 0, 500, 400))
-	model3d.RenderRayCast(model3d.MeshToCollider(mesh), img,
-		model3d.Coord3D{Z: 6, Y: -10}, model3d.Coord3D{X: 1},
-		(model3d.Coord3D{Y: -4, Z: -10}).Normalize(),
-		(model3d.Coord3D{Z: -4, Y: 10}).Normalize(), math.Pi/4)
-	w, err := os.Create("rendering.png")
-	essentials.Must(err)
-	defer w.Close()
-	png.Encode(w, img)
+	render3d.SaveRendering("rendering.png", mesh, model3d.Coord3D{Z: 6, Y: -10}, 500, 400, nil)
 }
 
 func GeneratePoles() []*ScewedPole {
