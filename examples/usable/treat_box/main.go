@@ -24,8 +24,15 @@ const (
 )
 
 func main() {
+	ax := &toolbox3d.AxisSqueeze{
+		Axis:  toolbox3d.AxisZ,
+		Min:   Thickness,
+		Max:   BoxHeight * 0.9,
+		Ratio: 0.1,
+	}
 	box := NewBoxSolid()
-	mesh := model3d.MarchingCubesSearch(box, 0.01, 8)
+	mesh := model3d.MarchingCubesSearch(ax.ApplySolid(box), 0.01, 8)
+	mesh = mesh.MapCoords(ax.Inverse().Apply)
 	mesh.SaveGroupedSTL("box.stl")
 	render3d.SaveRandomGrid("rendering_box.png", mesh, 3, 3, 300, nil)
 
