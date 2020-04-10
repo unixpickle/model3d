@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 func main() {
@@ -41,5 +42,5 @@ func main() {
 		// also become inaccurate.
 		NormalBisectEpsilon: 1e-5,
 	}
-	model3d.SaveRandomGrid("rendering.png", collider, 4, 4, 300, 300)
+	render3d.SaveRandomGrid("rendering.png", collider, 4, 4, 300, nil)
 }
