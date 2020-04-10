@@ -30,7 +30,7 @@ func (c *ColliderObject) Min() model3d.Coord3D {
 	return c.Collider.Min()
 }
 
-// Max gets the minimum of the bounding box.
+// Max gets the maximum of the bounding box.
 func (c *ColliderObject) Max() model3d.Coord3D {
 	return c.Collider.Max()
 }
@@ -53,7 +53,7 @@ func (j JoinedObject) Min() model3d.Coord3D {
 	return min
 }
 
-// Max gets the minimum of the bounding box.
+// Max gets the maximum of the bounding box.
 func (j JoinedObject) Max() model3d.Coord3D {
 	max := j[0].Max()
 	for _, x := range j[1:] {
