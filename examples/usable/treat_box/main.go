@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/render3d"
 
@@ -31,9 +33,12 @@ func main() {
 		Ratio: 0.1,
 	}
 	box := NewBoxSolid()
+	log.Println("Creating box mesh...")
 	mesh := model3d.MarchingCubesSearch(ax.ApplySolid(box), 0.01, 8)
 	mesh = mesh.MapCoords(ax.Inverse().Apply)
+	log.Println("Saving box mesh...")
 	mesh.SaveGroupedSTL("box.stl")
+	log.Println("Rendering box...")
 	render3d.SaveRandomGrid("rendering_box.png", mesh, 3, 3, 300, nil)
 
 	center := box.Min().Mid(box.Max())
@@ -47,8 +52,11 @@ func main() {
 			GrooveSize: ScrewGroove,
 		},
 	}
+	log.Println("Creating lid mesh...")
 	mesh = model3d.MarchingCubesSearch(lid, 0.0075, 8)
+	log.Println("Saving lid mesh...")
 	mesh.SaveGroupedSTL("lid.stl")
+	log.Println("Rendering lid...")
 	render3d.SaveRandomGrid("rendering_lid.png", mesh, 3, 3, 300, nil)
 
 	handle := model3d.JoinedSolid{
