@@ -22,3 +22,13 @@ func (m *Mesh) Blur(rate float64) *Mesh {
 		return c.Scale(1 - rate).Add(sum.Scale(rate / count))
 	})
 }
+
+// Smooth is similar to Blur, but it is less sensitive to
+// differences in segment length.
+func (m *Mesh) Smooth(iters int) *Mesh {
+	im := newIndexMesh(m)
+	for i := 0; i < iters; i++ {
+		im.Smooth()
+	}
+	return im.Mesh()
+}
