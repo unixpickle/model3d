@@ -77,7 +77,7 @@ type BoxSolid struct {
 
 func NewBoxSolid() *BoxSolid {
 	bmp := model2d.MustReadBitmap("bone.png", nil)
-	collider := model2d.MeshToCollider(bmp.Mesh())
+	collider := model2d.MeshToCollider(bmp.Mesh().Smooth(20))
 	return &BoxSolid{Bitmap: bmp, Collider: collider}
 }
 
@@ -101,12 +101,12 @@ func (b *BoxSolid) Contains(c model3d.Coord3D) bool {
 }
 
 func (b *BoxSolid) filledContains(c model3d.Coord3D) bool {
-	if c.Min(b.Min()) != b.Min() || c.Max(b.Max()) != b.Max() {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
-	x := int(float64(b.Bitmap.Width) * c.X / b.Max().X)
-	y := int(float64(b.Bitmap.Height) * c.Y / b.Max().Y)
-	return b.Bitmap.Get(x, y)
+	x := float64(b.Bitmap.Width) * c.X / b.Max().X
+	y := float64(b.Bitmap.Height) * c.Y / b.Max().Y
+	return model2d.ColliderContains(b.Collider, model2d.Coord{X: x, Y: y}, 0)
 }
 
 func (b *BoxSolid) containsInset(c model3d.Coord3D, thickness float64) bool {
