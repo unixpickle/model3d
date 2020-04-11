@@ -1,14 +1,13 @@
 package main
 
 import (
-	_ "image/gif"
 	"log"
 	"math"
 	"os"
 
-	"github.com/unixpickle/model3d/toolbox3d"
-
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
@@ -33,7 +32,10 @@ func main() {
 		mesh := model3d.MarchingCubesSearch(BoardSolid(), 0.01, 8)
 		log.Println("Eliminating co-planar polygons...")
 		mesh = mesh.EliminateCoplanar(1e-8)
+		log.Println("Saving board...")
 		mesh.SaveGroupedSTL("board.stl")
+		log.Println("Rendering board...")
+		render3d.SaveRandomGrid("rendering_board.png", mesh, 3, 3, 500, nil)
 	}
 
 	if _, err := os.Stat("piece.stl"); os.IsNotExist(err) {
@@ -41,7 +43,10 @@ func main() {
 		mesh := model3d.MarchingCubesSearch(PieceSolid(FullPieceBottomSize), 0.005, 8)
 		log.Println("Eliminating co-planar polygons...")
 		mesh = mesh.EliminateCoplanar(1e-8)
+		log.Println("Saving piece...")
 		mesh.SaveGroupedSTL("piece.stl")
+		log.Println("Rendering piece...")
+		render3d.SaveRandomGrid("rendering_piece.png", mesh, 3, 3, 300, nil)
 	}
 
 	if _, err := os.Stat("small_piece.stl"); os.IsNotExist(err) {
@@ -49,6 +54,7 @@ func main() {
 		mesh := model3d.MarchingCubesSearch(PieceSolid(SmallPieceBottomSize), 0.005, 8)
 		log.Println("Eliminating co-planar polygons...")
 		mesh = mesh.EliminateCoplanar(1e-8)
+		log.Println("Saving small piece...")
 		mesh.SaveGroupedSTL("small_piece.stl")
 	}
 }
