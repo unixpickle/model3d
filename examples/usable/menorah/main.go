@@ -1,12 +1,11 @@
 package main
 
 import (
+	"log"
 	"math"
 
-	"github.com/unixpickle/model3d/render3d"
-
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -41,9 +40,14 @@ func main() {
 			Center: pole.P2,
 		})
 	}
-	mesh := model3d.MarchingCubesSearch(solid, 0.0125, 8)
-	essentials.Must(mesh.SaveGroupedSTL("menorah.stl"))
 
+	log.Println("Creating mesh...")
+	mesh := model3d.MarchingCubesSearch(solid, 0.0125, 8)
+
+	log.Println("Saving mesh...")
+	mesh.SaveGroupedSTL("menorah.stl")
+
+	log.Println("Saving rendering...")
 	render3d.SaveRendering("rendering.png", mesh, model3d.Coord3D{Z: 6, Y: -10}, 500, 400, nil)
 }
 
