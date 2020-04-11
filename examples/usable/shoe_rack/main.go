@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"log"
 
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -36,8 +36,13 @@ func main() {
 			Radius: PoleRadius,
 		})
 	}
-	mesh := model3d.MarchingCubesSearch(solid, PoleRadius/12.0, 8)
-	ioutil.WriteFile("shoe_rack.stl", mesh.EncodeSTL(), 0755)
 
+	log.Println("Creating mesh...")
+	mesh := model3d.MarchingCubesSearch(solid, PoleRadius/12.0, 8)
+
+	log.Println("Saving mesh...")
+	mesh.SaveGroupedSTL("shoe_rack.stl")
+
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 200, nil)
 }

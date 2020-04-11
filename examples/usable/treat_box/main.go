@@ -3,12 +3,10 @@ package main
 import (
 	"log"
 
+	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/render3d"
-
 	"github.com/unixpickle/model3d/toolbox3d"
-
-	"github.com/unixpickle/model3d"
 )
 
 const (
