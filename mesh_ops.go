@@ -450,8 +450,7 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 // A good value for very precise results is 1e-8.
 func (m *Mesh) EliminateCoplanar(epsilon float64) *Mesh {
 	dec := &decimator{
-		// For co-planar elimination, we don't care as
-		// much about the layout of triangles.
+		FeatureAngle:       math.Acos(1 - epsilon),
 		MinimumAspectRatio: 0.01,
 		Criterion: &normalDecCriterion{
 			CosineEpsilon: epsilon,

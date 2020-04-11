@@ -110,13 +110,17 @@ type normalDecCriterion struct {
 }
 
 func (n *normalDecCriterion) canRemoveVertex(v *decVertex) bool {
-	for _, t := range v.Vertex.Triangles {
-		nDot := t.Triangle().Normal().Dot(v.AvgPlane.Normal)
-		if math.Abs(nDot-1) > n.CosineEpsilon {
-			return false
-		}
+	if v.Simple() {
+		return true
+	} else if v.Edge() {
+		p1 := v.Loop[v.FeatureEndpoints[0]]
+		p2 := v.Loop[v.FeatureEndpoints[1]]
+		v1 := v.Vertex.Sub(p1.Coord3D).Normalize()
+		v2 := v.Vertex.Sub(p2.Coord3D).Normalize()
+		dotProduct := -v1.Dot(v2)
+		return dotProduct > 1-n.CosineEpsilon
 	}
-	return true
+	return false
 }
 
 // decimator decimates meshes using arbitrary criteria.
