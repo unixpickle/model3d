@@ -91,27 +91,19 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 		P2:     Coord3D{0, 0, 1},
 		Radius: 0.5,
 	}
-	m1 := MarchingCubesSearch(cyl, 0.025, 8)
-	m2 := m1.EliminateCoplanar(1e-5)
+	m1 := MarchingCubesSearch(cyl, 0.025, 32)
+	m2 := m1.EliminateCoplanar(1e-8)
 	if len(m2.triangles) >= len(m1.triangles) {
 		t.Fatal("reduction failed")
 	}
 
 	// Make sure the meshes have the same geometries.
-	c1 := MeshToCollider(m1)
-	c2 := MeshToCollider(m2)
+	s1 := MeshToSDF(m1)
+	s2 := MeshToSDF(m2)
 	for i := 0; i < 1000; i++ {
-		ray := &Ray{
-			Origin:    Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
-			Direction: Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
-		}
-		if c1.RayCollisions(ray, nil) != c2.RayCollisions(ray, nil) {
-			t.Fatal("mismatched ray collisions", c1.RayCollisions(ray, nil),
-				c2.RayCollisions(ray, nil))
-		}
-		r := rand.Float64()
-		if c1.SphereCollision(ray.Origin, r) != c2.SphereCollision(ray.Origin, r) {
-			t.Fatal("mismatched sphere collision")
+		origin := NewCoord3DRandNorm()
+		if math.Abs(s1.SDF(origin)-s2.SDF(origin)) > 1e-5 {
+			t.Fatal("mismatched SDFs", s1.SDF(origin), s2.SDF(origin))
 		}
 	}
 }
