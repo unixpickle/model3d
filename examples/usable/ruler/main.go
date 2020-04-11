@@ -1,10 +1,10 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -106,7 +106,10 @@ func main() {
 	mesh, _ = mesh.RepairNormals(1e-8)
 
 	log.Println("Saving mesh...")
-	ioutil.WriteFile("ruler.stl", mesh.EncodeSTL(), 0755)
+	mesh.SaveGroupedSTL("ruler.stl")
+
+	log.Println("Rendering...")
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
 func FlatPoint(x, y float64) model3d.Coord3D {
