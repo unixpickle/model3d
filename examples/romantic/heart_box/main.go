@@ -26,7 +26,7 @@ const (
 
 func main() {
 	outline := model2d.MeshToCollider(
-		model2d.MustReadBitmap("outline.png", nil).FlipY().Mesh().Blur(0.5).Blur(0.5),
+		model2d.MustReadBitmap("outline.png", nil).FlipY().Mesh().Smooth(50),
 	)
 	sections := model2d.MeshToCollider(
 		model2d.MustReadBitmap("sections.png", nil).FlipY().Mesh(),
