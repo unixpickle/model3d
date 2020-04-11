@@ -3,7 +3,6 @@ package main
 import (
 	"image"
 	"image/png"
-	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
@@ -27,12 +27,23 @@ const (
 func main() {
 	log.Println("Creating solid...")
 	solid := NewHeartSolid()
+
 	log.Println("Creating mesh...")
-	mesh := model3d.MarchingCubesSearch(solid, 0.025, 8)
+	ax := &toolbox3d.AxisSqueeze{
+		Axis:  toolbox3d.AxisZ,
+		Min:   BottomThickness,
+		Max:   HolderHeight - 0.1,
+		Ratio: 0.1,
+	}
+	mesh := model3d.MarchingCubesSearch(ax.ApplySolid(solid), 0.01, 8)
+	mesh = mesh.MapCoords(ax.Inverse().Apply)
+
 	log.Println("Simplifying mesh...")
 	mesh = mesh.EliminateCoplanar(1e-8)
+
 	log.Println("Saving mesh...")
-	ioutil.WriteFile("pencil_holder.stl", mesh.EncodeSTL(), 0755)
+	mesh.SaveGroupedSTL("pencil_holder.stl")
+
 	log.Println("Saving rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 4, 4, 300, nil)
 }
