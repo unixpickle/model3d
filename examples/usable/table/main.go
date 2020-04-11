@@ -14,7 +14,7 @@ import (
 const (
 	ScrewRadius  = 0.25
 	ScrewGrooves = 0.05
-	ScrewSlack   = 0.04
+	ScrewSlack   = 0.03
 	ScrewLength  = 0.5
 
 	StandRadius = 3.5
