@@ -37,6 +37,58 @@ func (b *bitmapSolid) Contains(c Coord) bool {
 	return b.B.Get(int(c.X), int(c.Y))
 }
 
+// ColliderSolid is a Solid which uses the even-odd test
+// for a Collider.
+type ColliderSolid struct {
+	collider Collider
+	min      Coord
+	max      Coord
+	inset    float64
+	radius   float64
+}
+
+// NewColliderSolid creates a basic ColliderSolid.
+func NewColliderSolid(c Collider) *ColliderSolid {
+	return &ColliderSolid{collider: c, min: c.Min(), max: c.Max()}
+}
+
+// NewColliderSolidInset creates a ColliderSolid that only
+// reports containment at some distance from the surface.
+func NewColliderSolidInset(c Collider, inset float64) *ColliderSolid {
+	min := c.Min().Add(Coord{X: inset, Y: inset})
+	max := min.Max(c.Max().Sub(Coord{X: inset, Y: inset}))
+	return &ColliderSolid{collider: c, min: min, max: max, inset: inset}
+}
+
+// NewColliderSolidHollow creates a ColliderSolid that
+// only reports containment around the edges.
+func NewColliderSolidHollow(c Collider, r float64) *ColliderSolid {
+	min := c.Min().Sub(Coord{X: r, Y: r})
+	max := c.Max().Add(Coord{X: r, Y: r})
+	return &ColliderSolid{collider: c, min: min, max: max, radius: r}
+}
+
+// Min gets the minimum of the bounding box.
+func (c *ColliderSolid) Min() Coord {
+	return c.min
+}
+
+// Max gets the maximum of the bounding box.
+func (c *ColliderSolid) Max() Coord {
+	return c.max
+}
+
+// Contains checks if coord is in the solid.
+func (c *ColliderSolid) Contains(coord Coord) bool {
+	if !InBounds(c, coord) {
+		return false
+	}
+	if c.radius != 0 {
+		return c.collider.CircleCollision(coord, c.radius)
+	}
+	return ColliderContains(c.collider, coord, c.inset)
+}
+
 type scaledSolid struct {
 	Solid Solid
 	Scale float64
