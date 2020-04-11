@@ -18,6 +18,7 @@ const (
 func main() {
 	log.Println("Creating inscription...")
 	inscription := NewDeepInscription()
+
 	log.Println("Creating main mesh...")
 	solid := model3d.JoinedSolid{
 		inscription,
@@ -35,12 +36,17 @@ func main() {
 		},
 	}
 	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
-	log.Println("Eliminating co-planar...")
+
+	log.Println("Post-processing mesh...")
 	mesh = mesh.EliminateCoplanar(1e-8)
 	mesh = mesh.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
 		return model3d.Coord3D{X: -c.X, Y: c.Z, Z: c.Y}
 	})
+
+	log.Println("Saving mesh...")
 	mesh.SaveGroupedSTL("napkin_holder.stl")
+
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
@@ -53,7 +59,7 @@ type DeepInscription struct {
 func NewDeepInscription() *DeepInscription {
 	bmp := model2d.MustReadBitmap("image.png", nil).FlipY()
 	solid := model2d.BitmapToSolid(bmp)
-	collider := model2d.MeshToCollider(bmp.Mesh())
+	collider := model2d.MeshToCollider(bmp.Mesh().Smooth(40))
 	return &DeepInscription{
 		Collider: collider,
 		Solid:    solid,
