@@ -39,7 +39,7 @@ func (c ConvexPolytope) Contains(coord Coord3D) bool {
 // run, since it is O(n^3) in the constraints.
 func (c ConvexPolytope) Mesh() *Mesh {
 	m := NewMesh()
-	epsilon := c.spacialEpsilon()
+	epsilon := c.spatialEpsilon()
 	for i1 := 0; i1 < len(c); i1++ {
 		vertices := []Coord3D{}
 		for i2 := 0; i2 < len(c)-1; i2++ {
@@ -124,27 +124,16 @@ func (c ConvexPolytope) vertex(i1, i2, i3 int, epsilon float64) (Coord3D, bool) 
 	return solution, true
 }
 
-func (c ConvexPolytope) spacialEpsilon() float64 {
-	var min, max Coord3D
-	var first bool
-	for i := 0; i < len(c)-2; i++ {
-		for j := i + 1; j < len(c)-1; j++ {
-			for k := j + 1; k < len(c); k++ {
-				coord, found := c.vertex(i, j, k, math.Inf(1))
-				if found {
-					if first {
-						min = coord
-						max = coord
-						first = false
-					} else {
-						min = min.Min(coord)
-						max = max.Max(coord)
-					}
-				}
-			}
-		}
+func (c ConvexPolytope) spatialEpsilon() float64 {
+	// Use an epsilon measure that scales as the planes
+	// move further from the origin, since intersections
+	// will likely happen further out and result in larger
+	// floating point errors.
+	var maxMagnitude float64
+	for _, eq := range c {
+		maxMagnitude = math.Max(maxMagnitude, math.Abs(eq.Max)/eq.Normal.Norm())
 	}
-	return max.Sub(min).Norm() * 1e-8
+	return maxMagnitude * 1e-8
 }
 
 func addConvexFace(m *Mesh, vertices []Coord3D, normal Coord3D) {
