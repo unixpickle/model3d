@@ -8,8 +8,8 @@ The container is two pieces: a body and a lid. The body includes slits in the si
 
 Here is the body:
 
-[Rendering of the holder body](rendering_body.png)
+![Rendering of the holder body](rendering_body.png)
 
 Here is the lid:
 
-[Rendering of the holder lid](rendering_lid.png)
+![Rendering of the holder lid](rendering_lid.png)

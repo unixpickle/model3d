@@ -8,8 +8,8 @@ The pieces themselves are blank. This way, you can cut out and tape pictures to 
 
 Rendering of the board itself:
 
-[Board rendering](rendering_board.png)
+![Board rendering](rendering_board.png)
 
 Rendering of a piece:
 
-[Piece rendering](rendering_piece.png)
+![Piece rendering](rendering_piece.png)
