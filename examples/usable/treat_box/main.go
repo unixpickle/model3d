@@ -26,25 +26,46 @@ const (
 )
 
 func main() {
+	bone := ReadBone()
+	CreateBox(bone)
+	CreateLid(bone)
+	CreateHandle()
+}
+
+func ReadBone() model2d.Collider {
+	bmp := model2d.MustReadBitmap("bone.png", nil)
+	scale := BoxWidth / float64(bmp.Width)
+	boneMesh := bmp.Mesh().Smooth(20).MapCoords(func(c model2d.Coord) model2d.Coord {
+		return c.Scale(scale)
+	})
+	return model2d.MeshToCollider(boneMesh)
+}
+
+func CreateBox(bone model2d.Collider) {
 	ax := &toolbox3d.AxisSqueeze{
 		Axis:  toolbox3d.AxisZ,
 		Min:   Thickness,
 		Max:   BoxHeight * 0.9,
 		Ratio: 0.1,
 	}
-	box := NewBoxSolid()
+	box := NewBoxSolid(bone)
+
 	log.Println("Creating box mesh...")
 	mesh := model3d.MarchingCubesSearch(ax.ApplySolid(box), 0.01, 8)
 	mesh = mesh.MapCoords(ax.Inverse().Apply)
+
 	log.Println("Saving box mesh...")
 	mesh.SaveGroupedSTL("box.stl")
+
 	log.Println("Rendering box...")
 	render3d.SaveRandomGrid("rendering_box.png", mesh, 3, 3, 300, nil)
+}
 
-	center := box.Min().Mid(box.Max())
-	center.Z = 0
+func CreateLid(bone model2d.Collider) {
+	mid := bone.Min().Mid(bone.Max())
+	center := model3d.Coord3D{X: mid.X, Y: mid.Y}
 	lid := &model3d.SubtractedSolid{
-		Positive: &LidSolid{BoxSolid: box},
+		Positive: NewLidSolid(bone),
 		Negative: &toolbox3d.ScrewSolid{
 			P1:         center,
 			P2:         center.Add(model3d.Coord3D{Z: Thickness * 2}),
@@ -52,13 +73,18 @@ func main() {
 			GrooveSize: ScrewGroove,
 		},
 	}
+
 	log.Println("Creating lid mesh...")
-	mesh = model3d.MarchingCubesSearch(lid, 0.0075, 8)
+	mesh := model3d.MarchingCubesSearch(lid, 0.0075, 8)
+
 	log.Println("Saving lid mesh...")
 	mesh.SaveGroupedSTL("lid.stl")
+
 	log.Println("Rendering lid...")
 	render3d.SaveRandomGrid("rendering_lid.png", mesh, 3, 3, 300, nil)
+}
 
+func CreateHandle() {
 	handle := model3d.JoinedSolid{
 		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
@@ -72,21 +98,27 @@ func main() {
 			GrooveSize: ScrewGroove,
 		},
 	}
-	mesh = model3d.MarchingCubesSearch(handle, 0.005, 8)
-	mesh.SaveGroupedSTL("handle.stl")
-	render3d.SaveRandomGrid("rendering_handle.png", mesh, 3, 3, 300, nil)
 
+	log.Println("Creating handle mesh...")
+	mesh := model3d.MarchingCubesSearch(handle, 0.005, 8)
+
+	log.Println("Saving handle mesh...")
+	mesh.SaveGroupedSTL("handle.stl")
+
+	log.Println("Rendering handle...")
+	render3d.SaveRandomGrid("rendering_handle.png", mesh, 3, 3, 300, nil)
 }
 
 type BoxSolid struct {
-	Bitmap   *model2d.Bitmap
-	Collider model2d.Collider
+	Outside model2d.Solid
+	Inside  model2d.Solid
 }
 
-func NewBoxSolid() *BoxSolid {
-	bmp := model2d.MustReadBitmap("bone.png", nil)
-	collider := model2d.MeshToCollider(bmp.Mesh().Smooth(20))
-	return &BoxSolid{Bitmap: bmp, Collider: collider}
+func NewBoxSolid(bone model2d.Collider) *BoxSolid {
+	return &BoxSolid{
+		Outside: model2d.NewColliderSolid(bone),
+		Inside:  model2d.NewColliderSolidInset(bone, Thickness),
+	}
 }
 
 func (b *BoxSolid) Min() model3d.Coord3D {
@@ -94,59 +126,41 @@ func (b *BoxSolid) Min() model3d.Coord3D {
 }
 
 func (b *BoxSolid) Max() model3d.Coord3D {
-	depth := BoxWidth * float64(b.Bitmap.Height) / float64(b.Bitmap.Width)
-	return model3d.Coord3D{X: BoxWidth, Y: depth, Z: BoxHeight}
+	return model3d.Coord3D{X: b.Outside.Max().X, Y: b.Outside.Max().Y, Z: BoxHeight}
 }
 
 func (b *BoxSolid) Contains(c model3d.Coord3D) bool {
-	if !b.filledContains(c) {
-		return false
-	}
-	if c.Z <= Thickness {
-		return true
-	}
-	return !b.containsInset(c, Thickness)
-}
-
-func (b *BoxSolid) filledContains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(b, c) {
 		return false
 	}
-	x := float64(b.Bitmap.Width) * c.X / b.Max().X
-	y := float64(b.Bitmap.Height) * c.Y / b.Max().Y
-	return model2d.ColliderContains(b.Collider, model2d.Coord{X: x, Y: y}, 0)
-}
-
-func (b *BoxSolid) containsInset(c model3d.Coord3D, thickness float64) bool {
-	if !b.filledContains(c) {
-		return false
-	}
-	scale := float64(b.Bitmap.Width) / b.Max().X
-	x := float64(b.Bitmap.Width) * c.X / b.Max().X
-	y := float64(b.Bitmap.Height) * c.Y / b.Max().Y
-	return !b.Collider.CircleCollision(model2d.Coord{X: x, Y: y}, thickness*scale)
+	c2 := c.Coord2D()
+	return b.Outside.Contains(c2) && (c.Z <= Thickness || !b.Inside.Contains(c2))
 }
 
 type LidSolid struct {
-	BoxSolid *BoxSolid
+	Outside model2d.Solid
+	Inside  model2d.Solid
+}
+
+func NewLidSolid(bone model2d.Collider) *LidSolid {
+	return &LidSolid{
+		Outside: model2d.NewColliderSolid(bone),
+		Inside:  model2d.NewColliderSolidInset(bone, Thickness+LidSlack),
+	}
 }
 
 func (l *LidSolid) Min() model3d.Coord3D {
-	return l.BoxSolid.Min()
+	return model3d.Coord3D{}
 }
 
 func (l *LidSolid) Max() model3d.Coord3D {
-	res := l.BoxSolid.Max()
-	res.Z = Thickness * 2
-	return res
+	return model3d.Coord3D{X: l.Outside.Max().X, Y: l.Outside.Max().Y, Z: Thickness * 2}
 }
 
 func (l *LidSolid) Contains(c model3d.Coord3D) bool {
-	if c.Z > Thickness*2 {
+	if !model3d.InBounds(l, c) {
 		return false
 	}
-	if c.Z <= Thickness {
-		return l.BoxSolid.Contains(c)
-	}
-	return l.BoxSolid.containsInset(c, Thickness+LidSlack)
+	c2 := c.Coord2D()
+	return l.Inside.Contains(c2) || (c.Z < Thickness && l.Outside.Contains(c2))
 }
