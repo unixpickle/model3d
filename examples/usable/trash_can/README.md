@@ -1,6 +1,6 @@
 # trash can
 
-These are a few cool trash can designs.
+These are a few cool trash can designs. They are implemented as functions in 3D cylindrical coordinates.
 
 "Swirl" design:
 

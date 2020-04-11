@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"math"
 
@@ -25,12 +24,16 @@ const (
 func main() {
 	log.Println("Generating swirl design...")
 	mesh := model3d.MarchingCubesSearch(TrashCanSolid{}, Height/200, 8)
-	ioutil.WriteFile("trash_swirl.stl", mesh.EncodeSTL(), 0755)
+	log.Println("Saving swirl mesh...")
+	mesh.SaveGroupedSTL("trash_swirl.stl")
+	log.Println("Rendering swirl...")
 	render3d.SaveRandomGrid("rendering_swirl.png", mesh, 3, 3, 200, nil)
 
 	log.Println("Generating bulge design...")
 	mesh = model3d.MarchingCubesSearch(TrashCanSolid{Bulge: true}, Height/200, 8)
-	ioutil.WriteFile("trash_bulge.stl", mesh.EncodeSTL(), 0755)
+	log.Println("Saving bulge mesh...")
+	mesh.SaveGroupedSTL("trash_bulge.stl")
+	log.Println("Rendering bulge...")
 	render3d.SaveRandomGrid("rendering_bulge.png", mesh, 3, 3, 200, nil)
 }
 
@@ -49,7 +52,7 @@ func (t TrashCanSolid) Max() model3d.Coord3D {
 }
 
 func (t TrashCanSolid) Contains(c model3d.Coord3D) bool {
-	if c.Min(t.Min()) != t.Min() || c.Max(t.Max()) != t.Max() {
+	if !model3d.InBounds(t, c) {
 		return false
 	}
 	frac := c.Z / Height
@@ -60,7 +63,6 @@ func (t TrashCanSolid) Contains(c model3d.Coord3D) bool {
 	}
 	distAround := theta * (TopRadius + BottomRadius) / 2
 
-	centerDist := (model3d.Coord2D{X: c.X, Y: c.Y}).Norm()
 	bulgeRadius := radius
 	if t.Bulge {
 		bulgeRadius += 0.5 * Bulge * (math.Abs(math.Cos(BulgeRate*c.Z)) +
@@ -68,5 +70,7 @@ func (t TrashCanSolid) Contains(c model3d.Coord3D) bool {
 	} else {
 		bulgeRadius += Bulge * (1 - math.Abs(math.Cos(BulgeRate*distAround)))
 	}
+
+	centerDist := c.Coord2D().Norm()
 	return (c.Z < Thickness || centerDist > radius-Thickness) && centerDist < bulgeRadius
 }
