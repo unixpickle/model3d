@@ -1,16 +1,12 @@
 package main
 
 import (
-	"image"
-	"image/png"
 	"io/ioutil"
 	"math"
-	"os"
 
-	"github.com/unixpickle/model3d/render3d"
-
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const AppleHeight = 1.0
@@ -23,7 +19,7 @@ func main() {
 		InnerRadius: 0.3,
 	}
 	biggerBite := *bite
-	biggerBite.InnerRadius += 0.01
+	biggerBite.InnerRadius += 0.005
 
 	stem := &model3d.Cylinder{
 		P1:     model3d.Coord3D{Z: AppleHeight / 2},
@@ -42,7 +38,7 @@ func main() {
 		Negative: bite,
 	}
 
-	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8).SmoothAreas(0.1, 5)
+	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
 
 	sig := NewSignature()
 	vertexColor := func(c model3d.Coord3D) [3]float64 {
@@ -65,16 +61,16 @@ func main() {
 }
 
 type AppleSolid struct {
-	Image image.Image
+	Image model2d.Solid
 }
 
 func NewAppleSolid() *AppleSolid {
-	r, err := os.Open("half_apple.png")
-	essentials.Must(err)
-	defer r.Close()
-	img, err := png.Decode(r)
-	essentials.Must(err)
-	return &AppleSolid{Image: img}
+	// Read and smooth the apple image to reduce
+	// artifacts from using pixels.
+	mesh := model2d.MustReadBitmap("half_apple.png", nil).FlipY().Mesh().SmoothSq(200)
+	collider := model2d.MeshToCollider(mesh)
+	solid := model2d.NewColliderSolid(collider)
+	return &AppleSolid{Image: model2d.ScaleSolid(solid, AppleHeight/solid.Max().Y)}
 }
 
 func (a *AppleSolid) Min() model3d.Coord3D {
@@ -86,52 +82,38 @@ func (a *AppleSolid) Max() model3d.Coord3D {
 }
 
 func (a *AppleSolid) Contains(c model3d.Coord3D) bool {
-	min := a.Min()
-	max := a.Max()
-	if c.Min(min) != min || c.Max(max) != max {
+	if !model3d.InBounds(a, c) {
 		return false
 	}
-
 	radius := (model3d.Coord2D{X: c.X, Y: c.Y}).Dist(model3d.Coord2D{})
-	imageX := int(math.Round(float64(a.Image.Bounds().Dx()) * (1 - radius/a.width())))
-	imageY := int(math.Round((AppleHeight - c.Z) / a.scale()))
+	if radius < 1e-5 {
+		// Prevent queries directly on the boundary.
+		radius = 1e-5
+	}
+	imageX := a.width() - radius
+	imageY := c.Z
 
-	_, _, _, alpha := a.Image.At(imageX, imageY).RGBA()
-	return alpha > 0xffff/2
-}
-
-func (a *AppleSolid) scale() float64 {
-	return AppleHeight / float64(a.Image.Bounds().Dy())
+	return a.Image.Contains(model2d.Coord{X: imageX, Y: imageY})
 }
 
 func (a *AppleSolid) width() float64 {
-	return AppleHeight * float64(a.Image.Bounds().Dx()) / float64(a.Image.Bounds().Dy())
+	return a.Image.Max().X
 }
 
 type Signature struct {
-	Image image.Image
+	Image *model2d.Bitmap
 }
 
 func NewSignature() *Signature {
-	r, err := os.Open("turing_signature.png")
-	essentials.Must(err)
-	defer r.Close()
-	img, err := png.Decode(r)
-	essentials.Must(err)
-	return &Signature{Image: img}
+	return &Signature{Image: model2d.MustReadBitmap("turing_signature.png", nil)}
 }
 
 func (s *Signature) Contains(c model3d.Coord3D) bool {
 	if c.X > 0 {
 		return false
 	}
-	scale := float64(s.Image.Bounds().Dx()) / 0.5
-	imageX := s.Image.Bounds().Dx()/2 - int(math.Round(c.Y*scale))
-	imageY := s.Image.Bounds().Dy()/2 - int(math.Round((c.Z-AppleHeight/2-0.05)*scale))
-	if imageX < 0 || imageY < 0 || imageX >= s.Image.Bounds().Dx() ||
-		imageY >= s.Image.Bounds().Dy() {
-		return false
-	}
-	_, _, _, a := s.Image.At(imageX, imageY).RGBA()
-	return a > 0xffff/2
+	scale := float64(s.Image.Width) / 0.5
+	imageX := s.Image.Width/2 - int(math.Round(c.Y*scale))
+	imageY := s.Image.Height/2 - int(math.Round((c.Z-AppleHeight/2-0.05)*scale))
+	return s.Image.Get(imageX, imageY)
 }
