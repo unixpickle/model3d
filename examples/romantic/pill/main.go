@@ -2,19 +2,15 @@ package main
 
 import (
 	"flag"
-	"image"
-	_ "image/jpeg"
-	_ "image/png"
 	"io/ioutil"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 
-	"github.com/unixpickle/model3d/render3d"
-
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 func main() {
@@ -38,12 +34,8 @@ func main() {
 		otherColors = append(otherColors, ParseColor(c))
 	}
 
-	r, err := os.Open(patternFile)
-	essentials.Must(err)
-	img, _, err := image.Decode(r)
-	r.Close()
-	essentials.Must(err)
-	imprinter := &Imprinter{Img: img, Radius: radius / 2}
+	bitmap := model2d.MustReadBitmap(patternFile, nil)
+	imprinter := &Imprinter{Img: bitmap, Radius: radius / 2}
 
 	mesh := model3d.NewMeshPolar(func(g model3d.GeoCoord) float64 {
 		return radius
@@ -159,7 +151,7 @@ func ParseColor(color string) [3]float64 {
 }
 
 type Imprinter struct {
-	Img    image.Image
+	Img    *model2d.Bitmap
 	Radius float64
 }
 
@@ -167,12 +159,7 @@ func (i *Imprinter) AlphaAt(y, z float64) bool {
 	if y <= -i.Radius || y >= i.Radius || z <= -i.Radius || z >= i.Radius {
 		return false
 	}
-	imgX := int(math.Round(float64(i.Img.Bounds().Dx()) * (y + i.Radius) / (i.Radius * 2)))
-	imgY := int(math.Round(float64(i.Img.Bounds().Dy()) * (z + i.Radius) / (i.Radius * 2)))
-	_, _, _, a := i.Img.At(imgX, imgY).RGBA()
-	if a < 0xffff/2 {
-		return false
-	} else {
-		return true
-	}
+	imgX := int(math.Round(float64(i.Img.Width) * (y + i.Radius) / (i.Radius * 2)))
+	imgY := int(math.Round(float64(i.Img.Height) * (z + i.Radius) / (i.Radius * 2)))
+	return i.Img.Get(imgX, imgY)
 }
