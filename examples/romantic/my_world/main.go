@@ -3,7 +3,7 @@ package main
 import (
 	"image"
 	"image/png"
-	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/unixpickle/essentials"
@@ -23,8 +23,13 @@ const (
 
 func main() {
 	solid := model3d.JoinedSolid{NewBaseSolid(), NewGlobeSolid()}
+	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
-	ioutil.WriteFile("my_world.stl", mesh.EncodeSTL(), 0755)
+	log.Println("Eliminating co-planar...")
+	mesh = mesh.EliminateCoplanar(1e-8)
+	log.Println("Saving mesh...")
+	mesh.SaveGroupedSTL("my_world.stl")
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 200, nil)
 }
 
