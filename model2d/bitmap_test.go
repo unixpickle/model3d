@@ -47,6 +47,38 @@ func TestBitmapMesh(t *testing.T) {
 		}
 	})
 
+	t.Run("Ordered", func(t *testing.T) {
+		remaining := map[*Segment]bool{}
+		for _, seg := range mesh.SegmentsSlice() {
+			remaining[seg] = true
+		}
+		for len(remaining) > 0 {
+			var next *Segment
+			for s := range remaining {
+				next = s
+				break
+			}
+			delete(remaining, next)
+			lastVertex := next[0]
+			for next != nil {
+				if next[0] != lastVertex {
+					t.Fatal("invalid loop")
+				}
+				lastVertex = next[1]
+				for _, s1 := range mesh.Find(lastVertex) {
+					if s1 == next {
+						continue
+					}
+					next = s1
+				}
+				if !remaining[next] {
+					break
+				}
+				delete(remaining, next)
+			}
+		}
+	})
+
 	t.Run("Singular", func(t *testing.T) {
 		mesh.Iterate(func(s *Segment) {
 			for _, p := range s {
