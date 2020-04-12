@@ -28,7 +28,19 @@ func (m *Mesh) Blur(rate float64) *Mesh {
 func (m *Mesh) Smooth(iters int) *Mesh {
 	im := newIndexMesh(m)
 	for i := 0; i < iters; i++ {
-		im.Smooth()
+		im.Smooth(false)
+	}
+	return im.Mesh()
+}
+
+// SmoothSq is like Smooth, but it minimizes the sum of
+// squared segment lengths rather than the sum of lengths
+// directly.
+// Thus, SmoothSq produces more even segments than Smooth.
+func (m *Mesh) SmoothSq(iters int) *Mesh {
+	im := newIndexMesh(m)
+	for i := 0; i < iters; i++ {
+		im.Smooth(true)
 	}
 	return im.Mesh()
 }

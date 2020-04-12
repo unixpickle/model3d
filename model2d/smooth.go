@@ -29,9 +29,9 @@ func newIndexMesh(m *Mesh) *indexMesh {
 	}
 }
 
-func (i *indexMesh) Smooth() {
-	grad := smoothingGradient(i)
-	stepSize := optimalSmoothingStepSize(i, grad)
+func (i *indexMesh) Smooth(squares bool) {
+	grad := smoothingGradient(i, squares)
+	stepSize := optimalSmoothingStepSize(i, grad, squares)
 	for j, c := range i.Coords {
 		i.Coords[j] = c.Add(grad[j].Scale(stepSize))
 	}
@@ -45,18 +45,21 @@ func (i *indexMesh) Mesh() *Mesh {
 	return res
 }
 
-func smoothingGradient(m *indexMesh) []Coord {
+func smoothingGradient(m *indexMesh, squares bool) []Coord {
 	res := make([]Coord, len(m.Coords))
 	for _, seg := range m.Segments {
 		p1, p2 := m.Coords[seg[0]], m.Coords[seg[1]]
-		p1ToP2 := p2.Sub(p1).Normalize()
+		p1ToP2 := p2.Sub(p1)
+		if !squares {
+			p1ToP2 = p1ToP2.Normalize()
+		}
 		res[seg[0]] = res[seg[0]].Add(p1ToP2)
 		res[seg[1]] = res[seg[1]].Sub(p1ToP2)
 	}
 	return res
 }
 
-func optimalSmoothingStepSize(m *indexMesh, grad []Coord) float64 {
+func optimalSmoothingStepSize(m *indexMesh, grad []Coord, squares bool) float64 {
 	tmpCoords := make([]Coord, len(m.Coords))
 	evalLength := func(stepSize float64) float64 {
 		for j, c := range m.Coords {
@@ -64,7 +67,12 @@ func optimalSmoothingStepSize(m *indexMesh, grad []Coord) float64 {
 		}
 		var result float64
 		for _, s := range m.Segments {
-			result += tmpCoords[s[0]].Dist(tmpCoords[s[1]])
+			d := tmpCoords[s[0]].Dist(tmpCoords[s[1]])
+			if squares {
+				result += d * d
+			} else {
+				result += d
+			}
 		}
 		return result
 	}
