@@ -60,6 +60,9 @@ func smoothingGradient(m *indexMesh, squares bool) []Coord {
 }
 
 func optimalSmoothingStepSize(m *indexMesh, grad []Coord, squares bool) float64 {
+	if squares {
+		return optimalSmoothingStepSizeSquares(m, grad)
+	}
 	tmpCoords := make([]Coord, len(m.Coords))
 	evalLength := func(stepSize float64) float64 {
 		for j, c := range m.Coords {
@@ -68,11 +71,7 @@ func optimalSmoothingStepSize(m *indexMesh, grad []Coord, squares bool) float64 
 		var result float64
 		for _, s := range m.Segments {
 			d := tmpCoords[s[0]].Dist(tmpCoords[s[1]])
-			if squares {
-				result += d * d
-			} else {
-				result += d
-			}
+			result += d
 		}
 		return result
 	}
@@ -98,4 +97,31 @@ func optimalSmoothingStepSize(m *indexMesh, grad []Coord, squares bool) float64 
 	}
 
 	return (minStep + maxStep) / 2
+}
+
+func optimalSmoothingStepSizeSquares(m *indexMesh, grad []Coord) float64 {
+	// Squared length of a segment is:
+	//
+	//     ||(p1+a*g1)-(p2+a*g2)||^2
+	//     = ||(p1-p2) + a*(g1-g2)||^2
+	//     = ||p1-p2||^2 + 2*a*(p1-p2)*(g1-g2) + a^2*||g1-g2||^2
+	//     = poly(a=||g1-g2||^2, b=2*(p1-p2)*(g1-g2), c=||p1-p2||^2)
+	//     Minimum = -b/2a
+	//
+
+	var polyB float64
+	var polyA float64
+
+	for _, s := range m.Segments {
+		p1 := m.Coords[s[0]]
+		p2 := m.Coords[s[1]]
+		g1 := grad[s[0]]
+		g2 := grad[s[1]]
+		gDiff := g1.Sub(g2)
+		pDiff := p1.Sub(p2)
+		polyA += gDiff.Dot(gDiff)
+		polyB += 2 * pDiff.Dot(gDiff)
+	}
+
+	return -polyB / (2 * polyA)
 }
