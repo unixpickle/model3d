@@ -25,16 +25,18 @@ const (
 )
 
 func main() {
+	log.Println("Loading 2D shapes...")
 	outline := model2d.MeshToCollider(
-		model2d.MustReadBitmap("outline.png", nil).FlipY().Mesh().Smooth(50),
+		model2d.MustReadBitmap("outline.png", nil).FlipY().Mesh().SmoothSq(200),
 	)
 	sections := model2d.MeshToCollider(
-		model2d.MustReadBitmap("sections.png", nil).FlipY().Mesh(),
+		model2d.MustReadBitmap("sections.png", nil).FlipY().Mesh().SmoothSq(100),
 	)
 
 	log.Println("Creating box...")
 	mesh := model3d.MarchingCubesSearch(&BoxSolid{Outline: outline, Sections: sections}, 0.02, 8)
-	mesh = mesh.SmoothAreas(0.1, 20)
+	log.Println(" - eliminating co-planar...")
+	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println(" - flattening base...")
 	mesh = mesh.FlattenBase(0)
 	log.Println(" - saving...")
@@ -44,7 +46,8 @@ func main() {
 
 	log.Println("Creating lid...")
 	mesh = model3d.MarchingCubesSearch(&LidSolid{Outline: outline}, 0.02, 8)
-	mesh = mesh.SmoothAreas(0.1, 20)
+	log.Println(" - eliminating co-planar...")
+	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println(" - flattening base...")
 	mesh = mesh.FlattenBase(0)
 	log.Println(" - saving...")
