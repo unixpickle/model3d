@@ -32,3 +32,14 @@ func (m *Mesh) Smooth(iters int) *Mesh {
 	}
 	return im.Mesh()
 }
+
+// Manifold checks if the mesh is manifold, i.e. if every
+// vertex has two segments.
+func (m *Mesh) Manifold() bool {
+	for _, s := range m.getVertexToSegment() {
+		if len(s) != 2 {
+			return false
+		}
+	}
+	return true
+}
