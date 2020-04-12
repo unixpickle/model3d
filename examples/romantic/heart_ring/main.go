@@ -1,12 +1,12 @@
 package main
 
 import (
+	"log"
 	"math"
 
+	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/render3d"
-
-	"github.com/unixpickle/model3d"
 )
 
 const (
@@ -32,8 +32,13 @@ func main() {
 		RingSolid{},
 		NewHeartSolid(),
 	}
+	log.Println("Creating mesh...")
 	m := model3d.MarchingCubesSearch(solid, 0.0015, 8).Blur(-1, -1, -1, -1, -1)
+	log.Println("Eliminating co-planar...")
+	m = m.EliminateCoplanar(1e-8)
+	log.Println("Saving mesh...")
 	m.SaveGroupedSTL("ring.stl")
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", m, 3, 3, 300, nil)
 }
 
@@ -70,11 +75,11 @@ type HeartSolid struct {
 
 func NewHeartSolid() *HeartSolid {
 	m := model2d.MustReadBitmap("heart.png", nil).FlipY().Mesh()
-	m = m.Blur(0.25).Blur(0.25)
+	m = m.SmoothSq(10)
 	outline := model2d.MeshToCollider(m)
 
 	m = model2d.MustReadBitmap("letters.png", nil).FlipY().FlipX().Mesh()
-	m = m.Blur(0.25).Blur(0.25)
+	m = m.SmoothSq(10)
 	engraving := model2d.MeshToCollider(m)
 
 	return &HeartSolid{
