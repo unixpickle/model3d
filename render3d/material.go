@@ -373,7 +373,9 @@ func (r *RefractMaterial) Ambient() Color {
 // HGMaterial implements the Henyey-Greenstein phase
 // function for ray scattering.
 //
-// This material ignores normal directions.
+// This material cancels out the normal cosine term that
+// is introduced by the rendering equation.
+// To ignore normals and not cancel, set IgnoreNormals.
 type HGMaterial struct {
 	// G is a control parameter in [-1, 1].
 	// -1 is backscattering, 1 is forward scattering.
@@ -382,10 +384,16 @@ type HGMaterial struct {
 	// ScatterColor controls how much light is actually
 	// scattered vs. absorbed.
 	ScatterColor Color
+
+	IgnoreNormals bool
 }
 
 func (h *HGMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
-	return h.ScatterColor.Scale(h.cosDensity(source.Dot(dest)))
+	density := h.cosDensity(source.Dot(dest))
+	if !h.IgnoreNormals {
+		density /= math.Max(1e-5, math.Abs(source.Dot(normal)))
+	}
+	return h.ScatterColor.Scale(density)
 }
 
 func (h *HGMaterial) SampleSource(gen *rand.Rand, normal, dest model3d.Coord3D) model3d.Coord3D {

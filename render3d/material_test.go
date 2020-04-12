@@ -37,8 +37,9 @@ func TestHGMaterialBSDF(t *testing.T) {
 	for _, g := range []float64{-0.9, -0.5, 0, 0.5, 0.9} {
 		t.Run(fmt.Sprintf("G%.1f", g), func(t *testing.T) {
 			mat := &HGMaterial{
-				G:            g,
-				ScatterColor: Color{X: 1, Y: 1.0, Z: 1.0},
+				G:             g,
+				ScatterColor:  Color{X: 1.0, Y: 1.0, Z: 1.0},
+				IgnoreNormals: true,
 			}
 			var sum float64
 			var count float64
@@ -60,8 +61,9 @@ func TestHGMaterialSampling(t *testing.T) {
 	for _, g := range []float64{-0.5, 0, 0.5} {
 		t.Run(fmt.Sprintf("G%.1f", g), func(t *testing.T) {
 			testMaterialSampling(t, &HGMaterial{
-				G:            g,
-				ScatterColor: Color{X: 1, Y: 0.9, Z: 0.5},
+				G:             g,
+				ScatterColor:  Color{X: 1, Y: 0.9, Z: 0.5},
+				IgnoreNormals: true,
 			})
 		})
 	}

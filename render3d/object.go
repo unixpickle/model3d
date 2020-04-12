@@ -52,7 +52,10 @@ func (c *ColliderObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, b
 // It is recommended that you use an HGMaterial with this
 // object type.
 //
-// Normals reported for collisions may be anything.
+// Normals reported for collisions are random and have no
+// bearing on how rays are scattered, since the medium
+// simulates complex particles which either reflect or
+// refract light.
 // Hence, materials which use normals should not be
 // employed.
 type ParticipatingMedium struct {
@@ -98,8 +101,10 @@ func (p *ParticipatingMedium) Cast(r *model3d.Ray) (model3d.RayCollision, Materi
 				return model3d.RayCollision{
 					Scale: c.Scale + t,
 
-					// Normal doesn't really mean anything.
-					Normal: c.Normal,
+					// Normal could be anything, but we randomize
+					// it so that the normal cosine term is very
+					// unlikely to be 0.
+					Normal: model3d.NewCoord3DRandUnit(),
 				}, p.Material, true
 			}
 		}
