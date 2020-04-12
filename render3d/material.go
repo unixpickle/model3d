@@ -370,6 +370,67 @@ func (r *RefractMaterial) Ambient() Color {
 	return Color{}
 }
 
+// HGMaterial implements the Henyey-Greenstein phase
+// function for ray scattering.
+//
+// This material ignores normal directions.
+type HGMaterial struct {
+	// G is a control parameter in [-1, 1].
+	// -1 is backscattering, 1 is forward scattering.
+	G float64
+
+	// ScatterColor controls how much light is actually
+	// scattered vs. absorbed.
+	ScatterColor Color
+}
+
+func (h *HGMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
+	return h.ScatterColor.Scale(h.cosDensity(source.Dot(dest)))
+}
+
+func (h *HGMaterial) SampleSource(gen *rand.Rand, normal, dest model3d.Coord3D) model3d.Coord3D {
+	// Based on notes from https://www.astro.umd.edu/~jph/HG_note.pdf.
+	s := gen.Float64()*2 - 1
+	g := h.numericalG()
+	g2 := g * g
+	powTerm := (1 - g2) / (1 + g*s)
+
+	cosTheta := (1 + g2 - powTerm*powTerm) / (2 * g)
+	sinTheta := math.Sqrt(1 - cosTheta*cosTheta)
+	alpha := gen.Float64() * math.Pi * 2
+
+	b1, b2 := dest.OrthoBasis()
+	ortho := b1.Scale(math.Cos(alpha)).Add(b2.Scale(math.Sin(alpha)))
+	return dest.Scale(cosTheta).Add(ortho.Scale(sinTheta))
+}
+
+func (h *HGMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
+	return h.cosDensity(source.Dot(dest))
+}
+
+func (h *HGMaterial) cosDensity(cos float64) float64 {
+	g := h.numericalG()
+	// Based on notes from https://www.astro.umd.edu/~jph/HG_note.pdf.
+	g2 := g * g
+	divisor := 1 + g2 - 2*g*cos
+	return (1 - g2) / math.Pow(divisor, 3.0/2.0)
+}
+
+func (h *HGMaterial) Emission() Color {
+	return Color{}
+}
+
+func (h *HGMaterial) Ambient() Color {
+	return Color{}
+}
+
+func (h *HGMaterial) numericalG() float64 {
+	if math.Abs(h.G) < 1e-8 {
+		return 1e-8
+	}
+	return math.Max(math.Min(h.G, 1-1e-8), -(1 - 1e-8))
+}
+
 // A JoinedMaterial adds the BSDFs of multiple materials.
 //
 // It also importance samples from each BSDF according to

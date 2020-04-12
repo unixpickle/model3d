@@ -2,6 +2,7 @@ package render3d
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"testing"
 
@@ -30,6 +31,40 @@ func TestPhongMaterialSampling(t *testing.T) {
 			DiffuseColor:  Color{X: 0.3, Y: 0.2, Z: 0.5},
 		})
 	})
+}
+
+func TestHGMaterialBSDF(t *testing.T) {
+	for _, g := range []float64{-0.9, -0.5, 0, 0.5, 0.9} {
+		t.Run(fmt.Sprintf("G%.1f", g), func(t *testing.T) {
+			mat := &HGMaterial{
+				G:            g,
+				ScatterColor: Color{X: 1, Y: 1.0, Z: 1.0},
+			}
+			var sum float64
+			var count float64
+			source := model3d.NewCoord3DRandUnit()
+			for i := 0; i < 1000000; i++ {
+				dest := model3d.NewCoord3DRandUnit()
+				sum += mat.BSDF(model3d.Coord3D{}, source, dest).X
+				count++
+			}
+			expectation := sum / count
+			if math.Abs(expectation-1) > 1e-2 {
+				t.Errorf("unexpected mean BSDF: %f", expectation)
+			}
+		})
+	}
+}
+
+func TestHGMaterialSampling(t *testing.T) {
+	for _, g := range []float64{-0.5, 0, 0.5} {
+		t.Run(fmt.Sprintf("G%.1f", g), func(t *testing.T) {
+			testMaterialSampling(t, &HGMaterial{
+				G:            g,
+				ScatterColor: Color{X: 1, Y: 0.9, Z: 0.5},
+			})
+		})
+	}
 }
 
 func testMaterialSampling(t *testing.T, m Material) {
