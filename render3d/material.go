@@ -425,10 +425,10 @@ func (h *HGMaterial) Ambient() Color {
 }
 
 func (h *HGMaterial) numericalG() float64 {
-	if math.Abs(h.G) < 1e-8 {
-		return 1e-8
+	if math.Abs(h.G) < 1e-5 {
+		return 1e-5
 	}
-	return math.Max(math.Min(h.G, 1-1e-8), -(1 - 1e-8))
+	return math.Max(math.Min(h.G, 1-1e-5), -(1 - 1e-5))
 }
 
 // A JoinedMaterial adds the BSDFs of multiple materials.
