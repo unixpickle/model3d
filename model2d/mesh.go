@@ -1,8 +1,10 @@
 package model2d
 
 import (
+	"os"
 	"sort"
 
+	"github.com/pkg/errors"
 	"github.com/unixpickle/essentials"
 )
 
@@ -243,6 +245,19 @@ func (m *Mesh) Max() Coord {
 		}
 	}
 	return result
+}
+
+func (m *Mesh) SaveSVG(path string) error {
+	data := EncodeSVG(m)
+	w, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save SVG")
+	}
+	defer w.Close()
+	if _, err := w.Write(data); err != nil {
+		return errors.Wrap(err, "save SVG")
+	}
+	return nil
 }
 
 func (m *Mesh) getVertexToSegment() map[Coord][]*Segment {
