@@ -1,13 +1,12 @@
 package main
 
 import (
-	"image"
-	"image/png"
 	"io/ioutil"
+	"log"
 	"math"
-	"os"
 
-	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/model2d"
+
 	"github.com/unixpickle/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
@@ -15,23 +14,13 @@ import (
 const Thickness = 0.9
 
 func main() {
-	r, err := os.Open("etching.png")
-	essentials.Must(err)
-	defer r.Close()
-	etching, err := png.Decode(r)
-	essentials.Must(err)
-
 	pumpkin := &model3d.SubtractedSolid{
 		Positive: PumpkinSolid{Scale: 1},
 		Negative: PumpkinSolid{Scale: Thickness},
 	}
 	base := &model3d.SubtractedSolid{
 		Positive: LidSolid{Solid: pumpkin},
-		Negative: EtchSolid{
-			Radius: 1.6,
-			Height: 1.5,
-			Image:  etching,
-		},
+		Negative: NewEtchSolid(),
 	}
 	lid := LidSolid{IsLid: true, Solid: model3d.JoinedSolid{pumpkin, StemSolid{}}}
 
@@ -48,9 +37,14 @@ func main() {
 		return [3]float64{79.0 / 255, 53.0 / 255, 0}
 	}
 
+	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(base, 0.02, 8)
 	mesh.AddMesh(model3d.MarchingCubesSearch(lid, 0.02, 8))
+
+	log.Println("Saving mesh...")
 	ioutil.WriteFile("pumpkin.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, render3d.TriangleColorFunc(colorFunc))
 }
 
@@ -67,6 +61,9 @@ func (p PumpkinSolid) Max() model3d.Coord3D {
 }
 
 func (p PumpkinSolid) Contains(c model3d.Coord3D) bool {
+	if !model3d.InBounds(p, c) {
+		return false
+	}
 	g := c.Geo()
 	r := p.Scale * (1 + 0.1*math.Abs(math.Sin(g.Lon*4)) + 0.5*math.Cos(g.Lat))
 	return c.Norm() <= r
@@ -83,7 +80,7 @@ func (s StemSolid) Max() model3d.Coord3D {
 }
 
 func (s StemSolid) Contains(c model3d.Coord3D) bool {
-	if c.Max(s.Max()) != s.Max() || c.Min(s.Min()) != s.Min() {
+	if !model3d.InBounds(s, c) {
 		return false
 	}
 	c.X -= 0.15 * math.Pow(c.Y-s.Min().Y, 2)
@@ -115,29 +112,35 @@ func (l LidSolid) Contains(c model3d.Coord3D) bool {
 }
 
 type EtchSolid struct {
-	Image  image.Image
+	Solid  model2d.Solid
 	Radius float64
 	Height float64
 }
 
-func (e EtchSolid) Min() model3d.Coord3D {
+func NewEtchSolid() *EtchSolid {
+	bmp := model2d.MustReadBitmap("etching.png", nil)
+	scale := model2d.Coord{X: 1 / float64(bmp.Width), Y: 1 / float64(bmp.Height)}
+	mesh := bmp.Mesh().SmoothSq(50).MapCoords(scale.Mul)
+	return &EtchSolid{
+		Solid:  model2d.NewColliderSolid(model2d.MeshToCollider(mesh)),
+		Radius: 1.6,
+		Height: 1.5,
+	}
+}
+
+func (e *EtchSolid) Min() model3d.Coord3D {
 	return model3d.Coord3D{X: -e.Radius, Y: -e.Height, Z: -e.Radius}
 }
 
-func (e EtchSolid) Max() model3d.Coord3D {
+func (e *EtchSolid) Max() model3d.Coord3D {
 	return e.Min().Scale(-1)
 }
 
-func (e EtchSolid) Contains(c model3d.Coord3D) bool {
-	if c.Min(e.Min()) != e.Min() || c.Max(e.Max()) != e.Max() {
+func (e *EtchSolid) Contains(c model3d.Coord3D) bool {
+	if !model3d.InBounds(e, c) {
 		return false
 	}
-
 	xFrac := c.Geo().Lon/(math.Pi*2) + 0.5
 	yFrac := 1 - (c.Y+e.Height)/(e.Height*2)
-
-	x := int(math.Round(xFrac * float64(e.Image.Bounds().Dx())))
-	y := int(math.Round(yFrac * float64(e.Image.Bounds().Dy())))
-	r, _, _, _ := e.Image.At(x, y).RGBA()
-	return r < 0xffff/2
+	return e.Solid.Contains(model2d.Coord{X: xFrac, Y: yFrac})
 }
