@@ -1,17 +1,12 @@
 package main
 
 import (
-	"image"
-	"image/color"
-	"image/png"
 	"io/ioutil"
-	"math"
-	"os"
+	"log"
 
-	"github.com/unixpickle/model3d/render3d"
-
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 var Green = [3]float64{
@@ -25,6 +20,9 @@ const (
 	PickleWidth  = PickleLength / 2
 )
 
+// Color is a flag to decide which model to produce.
+// Either you can create a colored model, or a cut-out
+// model.
 const Color = false
 
 func main() {
@@ -32,23 +30,37 @@ func main() {
 	solid = &PickleSolid{F: NewPickleFunction()}
 	inscription := NewInscription()
 
-	if !Color {
-		solid = &model3d.SubtractedSolid{
-			Positive: solid,
-			Negative: inscription,
+	for _, color := range []bool{true, false} {
+		if color {
+			log.Print("Creating colored model...")
+		} else {
+			log.Print("Creating uncolored model...")
 		}
-	}
 
-	mesh := model3d.MarchingCubesSearch(solid, 0.006, 8).SmoothAreas(0.1, 10)
+		if !color {
+			solid = &model3d.SubtractedSolid{
+				Positive: solid,
+				Negative: inscription,
+			}
+		}
 
-	if !Color {
-		ioutil.WriteFile("pickle.stl", mesh.EncodeSTL(), 0755)
-		render3d.SaveRandomGrid("rendering_nocolor.png", mesh, 3, 3, 300, nil)
-	} else {
-		colorFunc := model3d.VertexColorsToTriangle(inscription.ColorAt)
-		ioutil.WriteFile("pickle.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
-		render3d.SaveRandomGrid("rendering_color.png", mesh, 3, 3, 300,
-			render3d.TriangleColorFunc(colorFunc))
+		log.Println(" - creating mesh...")
+		mesh := model3d.MarchingCubesSearch(solid, 0.006, 8)
+
+		renderOrigin := mesh.Min().Mid(mesh.Max()).Add(model3d.Coord3D{Z: 2.5, Y: -1})
+		if !color {
+			log.Println(" - saving mesh...")
+			mesh.SaveGroupedSTL("pickle.stl")
+			log.Println(" - rendering...")
+			render3d.SaveRendering("rendering_etched.png", mesh, renderOrigin, 500, 500, nil)
+		} else {
+			log.Println(" - saving mesh...")
+			colorFunc := model3d.VertexColorsToTriangle(inscription.ColorAt)
+			ioutil.WriteFile("pickle.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+			log.Println(" - rendering...")
+			render3d.SaveRendering("rendering_color.png", mesh, renderOrigin, 500, 500,
+				render3d.TriangleColorFunc(colorFunc))
+		}
 	}
 }
 
@@ -57,11 +69,13 @@ type PickleSolid struct {
 }
 
 func (p *PickleSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{Z: -PickleWidth}
+	min := p.F.Collider.Min()
+	return model3d.Coord3D{X: min.X, Y: min.Y, Z: -PickleWidth}
 }
 
 func (p *PickleSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: PickleWidth, Y: PickleLength, Z: PickleWidth}
+	max := p.F.Collider.Max()
+	return model3d.Coord3D{X: max.X, Y: max.Y, Z: PickleWidth}
 }
 
 func (p *PickleSolid) Contains(c model3d.Coord3D) bool {
@@ -72,19 +86,20 @@ func (p *PickleSolid) Contains(c model3d.Coord3D) bool {
 }
 
 type PickleFunction struct {
-	image image.Image
-	cache map[int][2]float64
+	Collider model2d.Collider
+	cache    map[float64][2]float64
 }
 
 func NewPickleFunction() *PickleFunction {
-	r, err := os.Open("pickle.png")
-	essentials.Must(err)
-	defer r.Close()
-	img, err := png.Decode(r)
-	essentials.Must(err)
+	bmp := model2d.MustReadBitmap("pickle.png", nil).FlipY()
+	mesh := bmp.Mesh().SmoothSq(100)
+	mesh = mesh.MapCoords(func(c model2d.Coord) model2d.Coord {
+		return c.Scale(PickleLength / float64(bmp.Height))
+	})
+	collider := model2d.MeshToCollider(mesh)
 	return &PickleFunction{
-		image: img,
-		cache: map[int][2]float64{},
+		Collider: collider,
+		cache:    map[float64][2]float64{},
 	}
 }
 
@@ -99,91 +114,68 @@ func (p *PickleFunction) CenterAt(y float64) float64 {
 }
 
 func (p *PickleFunction) minMaxAt(y float64) (float64, float64) {
-	scale := float64(p.image.Bounds().Dy()) / PickleLength
-
-	// Perform linear interpolation between two y values.
-	idx1 := p.image.Bounds().Dy() - (int(math.Floor(y*scale)) + 1)
-	idx2 := p.image.Bounds().Dy() - (int(math.Ceil(y*scale)) + 1)
-	frac1 := math.Ceil(y*scale) - y*scale
-	frac2 := 1 - frac1
-	min1, max1 := p.getCache(idx1)
-	min2, max2 := p.getCache(idx2)
-	return min1*frac1 + min2*frac2, max1*frac1 + max2*frac2
-}
-
-func (p *PickleFunction) getCache(idx int) (float64, float64) {
-	if idx < 0 || idx >= p.image.Bounds().Dy() {
-		return 0, 0
-	}
-	if val, ok := p.cache[idx]; ok {
+	if val, ok := p.cache[y]; ok {
 		return val[0], val[1]
+	}
+
+	r := &model2d.Ray{
+		Origin:    model2d.Coord{Y: y},
+		Direction: model2d.Coord{X: 1},
 	}
 
 	min := 0.0
 	max := 0.0
-	for x := 0; x < p.image.Bounds().Dx(); x++ {
-		_, g, _, alpha := p.image.At(x, idx).RGBA()
-		if g < 0xffff && alpha == 0xffff {
-			offset := math.Min(1, (1-float64(g)/0xffff)/(1-Green[1]))
-			if min == 0 {
-				min = float64(x) + 1 - offset
-			}
-			max = float64(x) - 1 + offset
+	p.Collider.RayCollisions(r, func(rc model2d.RayCollision) {
+		if rc.Scale < min || min == 0 {
+			min = rc.Scale
 		}
-	}
+		if rc.Scale > max {
+			max = rc.Scale
+		}
+	})
 
-	scale := float64(p.image.Bounds().Dy()) / PickleLength
-	p.cache[idx] = [2]float64{
-		min / scale,
-		max / scale,
-	}
-
-	return p.cache[idx][0], p.cache[idx][1]
+	p.cache[y] = [2]float64{min, max}
+	return min, max
 }
 
 type Inscription struct {
-	image image.Image
+	Solid model2d.Solid
 }
 
 func NewInscription() *Inscription {
-	r, err := os.Open("inscription.png")
-	essentials.Must(err)
-	defer r.Close()
-	img, err := png.Decode(r)
-	essentials.Must(err)
-	return &Inscription{image: img}
+	bmp := model2d.MustReadBitmap("inscription.png", nil).FlipY()
+	mesh := bmp.Mesh().SmoothSq(20)
+	collider := model2d.MeshToCollider(mesh)
+	scale := PickleLength / float64(bmp.Height)
+	return &Inscription{
+		Solid: model2d.ScaleSolid(model2d.NewColliderSolid(collider), scale),
+	}
 }
 
 func (i *Inscription) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -PickleLength, Y: -PickleLength, Z: -PickleLength}
+	min := i.Solid.Min()
+	return model3d.Coord3D{X: min.X, Y: min.Y, Z: -PickleWidth}
 }
 
 func (i *Inscription) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: PickleLength, Y: PickleLength, Z: PickleLength}
+	max := i.Solid.Max()
+	return model3d.Coord3D{X: max.X, Y: max.Y, Z: PickleWidth}
 }
 
 func (i *Inscription) Contains(c model3d.Coord3D) bool {
-	if i.Max().Max(c) != i.Max() || i.Min().Min(c) != i.Min() {
+	if !model3d.InBounds(i, c) {
 		return false
 	}
-	_, _, _, a := i.projectedColor(c).RGBA()
-	return a >= 0xffff/2
+	return i.Solid.Contains(c.Coord2D())
 }
 
 func (i *Inscription) ColorAt(c model3d.Coord3D) [3]float64 {
 	if c.Z < 0 {
 		return Green
 	}
-	r, g, b, a := i.projectedColor(c).RGBA()
-	if a < 0xffff/2 {
+	if i.Solid.Contains(c.Coord2D()) {
+		return [3]float64{1, 1, 1}
+	} else {
 		return Green
 	}
-	return [3]float64{float64(r) / 0xffff, float64(g) / 0xffff, float64(b) / 0xffff}
-}
-
-func (i *Inscription) projectedColor(c model3d.Coord3D) color.Color {
-	scale := float64(i.image.Bounds().Dy()) / PickleLength
-	x := int(math.Round(c.X * scale))
-	y := i.image.Bounds().Dy() - (int(math.Round(c.Y*scale)) + 1)
-	return i.image.At(x, y)
 }
