@@ -16,7 +16,7 @@ const (
 // SmoothJoin joins solids and smooths them out so that
 // they look cleanly joined together.
 //
-// The smoothDist argument controls how close to a joint a
+// The constraint argument controls how close to a joint a
 // point should be to be considered for smoothing.
 func SmoothJoin(constraint float64, solids ...model3d.Solid) model3d.Solid {
 	sdfs := make([]model3d.SDF, len(solids))
