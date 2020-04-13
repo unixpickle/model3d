@@ -2,7 +2,7 @@ package main
 
 import (
 	"image/png"
-	"math"
+	"log"
 	"os"
 
 	"github.com/unixpickle/model3d/render3d"
@@ -50,10 +50,13 @@ func main() {
 		},
 	}
 	split := &SplitSolid{Solid: solid, Top: true}
+
+	log.Print("Creating top...")
 	topMesh := model3d.MarchingCubesSearch(split, 0.01, 8)
 	topMesh.SaveGroupedSTL("top.stl")
-	render3d.SaveRandomGrid("top.png", model3d.MeshToCollider(topMesh), 3, 3, 300, nil)
+	render3d.SaveRandomGrid("rendering_top.png", topMesh, 3, 3, 300, nil)
 
+	log.Print("Creating bottom...")
 	split.Top = false
 	bottomMesh := model3d.MarchingCubesSearch(split, 0.01, 8)
 	bottomMesh = bottomMesh.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
@@ -61,7 +64,7 @@ func main() {
 		return c
 	})
 	bottomMesh.SaveGroupedSTL("bottom.stl")
-	render3d.SaveRandomGrid("bottom.png", model3d.MeshToCollider(bottomMesh), 3, 3, 300, nil)
+	render3d.SaveRandomGrid("rendering_bottom.png", bottomMesh, 3, 3, 300, nil)
 
 	dowel.MinVal.X += DowelSlack / 2
 	dowel.MinVal.Y += DowelSlack / 2
@@ -69,8 +72,7 @@ func main() {
 	dowel.MaxVal.Y -= DowelSlack / 2
 	// Accommodate for pointed tip.
 	dowel.MaxVal.Z -= DowelSize*2 + DowelSlack
-	mesh := model3d.MarchingCubesSearch(dowel, 0.01, 8)
-	mesh = mesh.FlattenBase(math.Pi * 0.49)
+	mesh := model3d.NewMeshRect(dowel.MinVal, dowel.MaxVal)
 	mesh.SaveGroupedSTL("dowel.stl")
 }
 
