@@ -103,28 +103,37 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 // bounds.
 func NewMeshRect(min, max Coord3D) *Mesh {
 	mesh := NewMesh()
-	addFace := func(p1, p2, p3 Coord3D) {
-		p4 := p2.Add(p3).Sub(p1)
+
+	point := func(x, y, z int) Coord3D {
+		res := min
+		if x == 1 {
+			res.X = max.X
+		}
+		if y == 1 {
+			res.Y = max.Y
+		}
+		if z == 1 {
+			res.Z = max.Z
+		}
+		return res
+	}
+
+	addFace := func(p1, p2, p3, p4 Coord3D) {
 		mesh.Add(&Triangle{p1, p3, p2})
 		mesh.Add(&Triangle{p2, p3, p4})
 	}
 
-	delta := max.Sub(min)
-	dx := Coord3D{X: delta.X}
-	dy := Coord3D{Y: delta.Y}
-	dz := Coord3D{Z: delta.Z}
-
 	// Front and back faces.
-	addFace(min, min.Add(dz), min.Add(dx))
-	addFace(max, max.Sub(dx), max.Sub(dz))
+	addFace(min, point(0, 0, 1), point(1, 0, 0), point(1, 0, 1))
+	addFace(max, point(0, 1, 1), point(1, 1, 0), point(0, 1, 0))
 
 	// Left and right faces.
-	addFace(min, min.Add(dy), min.Add(dz))
-	addFace(max, max.Sub(dz), max.Sub(dy))
+	addFace(min, point(0, 1, 0), point(0, 0, 1), point(0, 1, 1))
+	addFace(max, point(1, 1, 0), point(1, 0, 1), point(1, 0, 0))
 
 	// Top and bottom faces.
-	addFace(min, min.Add(dx), min.Add(dy))
-	addFace(max, max.Sub(dy), max.Sub(dx))
+	addFace(min, point(1, 0, 0), point(0, 1, 0), point(1, 1, 0))
+	addFace(max, point(1, 0, 1), point(0, 1, 1), point(0, 0, 1))
 
 	return mesh
 }
