@@ -49,7 +49,7 @@ func CreateBox(bone model2d.Collider) {
 	box := NewBoxSolid(bone)
 
 	log.Println("Creating box mesh...")
-	mesh := model3d.MarchingCubesSearch(ax.ApplySolid(box), 0.01, 8)
+	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, box), 0.01, 8)
 	mesh = mesh.MapCoords(ax.Inverse().Apply)
 
 	log.Println("Saving box mesh...")

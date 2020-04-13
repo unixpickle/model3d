@@ -2,9 +2,51 @@ package model3d
 
 // Transform is an invertible coordinate transformation.
 type Transform interface {
+	// Apply applies the transformation to c.
 	Apply(c Coord3D) Coord3D
-	ApplySolid(s Solid) Solid
+
+	// ApplyBounds gets a new bounding rectangle that is
+	// guaranteed to bound the old bounding rectangle when
+	// it is transformed.
+	ApplyBounds(min, max Coord3D) (Coord3D, Coord3D)
+
+	// Inverse gets an inverse transformation.
+	//
+	// The inverse may not perfectly invert bounds
+	// transformations, since some information may be lost
+	// during such a transformation.
 	Inverse() Transform
+}
+
+// TransformSolid applies t to the solid s to produce a
+// new, transformed solid.
+func TransformSolid(t Transform, s Solid) Solid {
+	min, max := t.ApplyBounds(s.Min(), s.Max())
+	return &transformedSolid{
+		min: min,
+		max: max,
+		s:   s,
+		inv: t.Inverse(),
+	}
+}
+
+type transformedSolid struct {
+	min Coord3D
+	max Coord3D
+	s   Solid
+	inv Transform
+}
+
+func (t *transformedSolid) Min() Coord3D {
+	return t.min
+}
+
+func (t *transformedSolid) Max() Coord3D {
+	return t.max
+}
+
+func (t *transformedSolid) Contains(c Coord3D) bool {
+	return InBounds(t, c) && t.s.Contains(t.inv.Apply(c))
 }
 
 // Translate is a Transform that adds an offset to
@@ -17,36 +59,12 @@ func (t *Translate) Apply(c Coord3D) Coord3D {
 	return c.Add(t.Offset)
 }
 
-func (t *Translate) ApplySolid(s Solid) Solid {
-	return &translatedSolid{
-		offset: t.Offset,
-		min:    s.Min().Add(t.Offset),
-		max:    s.Max().Add(t.Offset),
-		solid:  s,
-	}
+func (t *Translate) ApplyBounds(min, max Coord3D) (Coord3D, Coord3D) {
+	return min.Add(t.Offset), max.Add(t.Offset)
 }
 
 func (t *Translate) Inverse() Transform {
 	return &Translate{Offset: t.Offset.Scale(-1)}
-}
-
-type translatedSolid struct {
-	offset Coord3D
-	min    Coord3D
-	max    Coord3D
-	solid  Solid
-}
-
-func (t *translatedSolid) Min() Coord3D {
-	return t.min
-}
-
-func (t *translatedSolid) Max() Coord3D {
-	return t.max
-}
-
-func (t *translatedSolid) Contains(c Coord3D) bool {
-	return InBounds(t, c) && t.solid.Contains(c.Sub(t.offset))
 }
 
 // Matrix3Transform is a Transform that applies a matrix
@@ -59,9 +77,7 @@ func (m *Matrix3Transform) Apply(c Coord3D) Coord3D {
 	return m.Matrix.MulColumn(c)
 }
 
-func (m *Matrix3Transform) ApplySolid(s Solid) Solid {
-	min := s.Min()
-	max := s.Max()
+func (m *Matrix3Transform) ApplyBounds(min, max Coord3D) (Coord3D, Coord3D) {
 	var newMin, newMax Coord3D
 	for i, x := range []float64{min.X, max.X} {
 		for j, y := range []float64{min.Y, max.Y} {
@@ -76,35 +92,11 @@ func (m *Matrix3Transform) ApplySolid(s Solid) Solid {
 			}
 		}
 	}
-	return &matrix3Solid{
-		inverse: m.Matrix.Inverse(),
-		min:     newMin,
-		max:     newMax,
-		solid:   s,
-	}
+	return newMin, newMax
 }
 
 func (m *Matrix3Transform) Inverse() Transform {
 	return &Matrix3Transform{Matrix: m.Matrix.Inverse()}
-}
-
-type matrix3Solid struct {
-	inverse *Matrix3
-	min     Coord3D
-	max     Coord3D
-	solid   Solid
-}
-
-func (m *matrix3Solid) Min() Coord3D {
-	return m.min
-}
-
-func (m *matrix3Solid) Max() Coord3D {
-	return m.max
-}
-
-func (m *matrix3Solid) Contains(c Coord3D) bool {
-	return InBounds(m, c) && m.solid.Contains(m.inverse.MulColumn(c))
 }
 
 // A JoinedTransform composes transformations from left to
@@ -118,11 +110,11 @@ func (j JoinedTransform) Apply(c Coord3D) Coord3D {
 	return c
 }
 
-func (j JoinedTransform) ApplySolid(s Solid) Solid {
+func (j JoinedTransform) ApplyBounds(min Coord3D, max Coord3D) (Coord3D, Coord3D) {
 	for _, t := range j {
-		s = t.ApplySolid(s)
+		min, max = t.ApplyBounds(min, max)
 	}
-	return s
+	return min, max
 }
 
 func (j JoinedTransform) Inverse() Transform {

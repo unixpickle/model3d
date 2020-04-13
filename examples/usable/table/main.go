@@ -42,14 +42,14 @@ func main() {
 
 	if _, err := os.Stat("leg.stl"); os.IsNotExist(err) {
 		log.Println("Creating leg...")
-		transform := &toolbox3d.AxisSqueeze{
+		ax := &toolbox3d.AxisSqueeze{
 			Axis:  toolbox3d.AxisZ,
 			Min:   1,
 			Max:   LegLength - 1,
 			Ratio: 0.1,
 		}
-		mesh := model3d.MarchingCubesSearch(transform.ApplySolid(LegSolid()), 0.01, 8)
-		mesh = mesh.MapCoords(transform.Inverse().Apply)
+		mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, LegSolid()), 0.01, 8)
+		mesh = mesh.MapCoords(ax.Inverse().Apply)
 		mesh.SaveGroupedSTL("leg.stl")
 		render3d.SaveRandomGrid("leg.png", mesh, 3, 3, 300, nil)
 	}

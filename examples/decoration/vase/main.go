@@ -32,7 +32,7 @@ func main() {
 		Ratio: 0.5,
 	}
 
-	mesh := model3d.MarchingCubesSearch(ax.ApplySolid(VaseSolid{}), 0.015, 8)
+	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, VaseSolid{}), 0.015, 8)
 	mesh = mesh.MapCoords(ax.Inverse().Apply)
 
 	log.Println("Flattening base...")

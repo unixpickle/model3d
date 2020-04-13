@@ -90,7 +90,7 @@ func CreateMesh(solid model3d.Solid, name string, resolution float64, ax *toolbo
 	log.Printf("Creating %s mesh...", name)
 	var mesh *model3d.Mesh
 	if ax != nil {
-		mesh = model3d.MarchingCubesSearch(ax.ApplySolid(solid), resolution, 8)
+		mesh = model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), resolution, 8)
 		mesh = mesh.MapCoords(ax.Inverse().Apply)
 	} else {
 		mesh = model3d.MarchingCubesSearch(solid, resolution, 8)

@@ -194,14 +194,14 @@ func CreateFilterRing(m *model3d.Mesh) *model3d.Mesh {
 	}
 
 	solid := NewRingSolid(bitmap, scale)
-	squeeze := toolbox3d.AxisSqueeze{
+	squeeze := &toolbox3d.AxisSqueeze{
 		Axis:  toolbox3d.AxisZ,
 		Min:   1,
 		Max:   4.5,
 		Ratio: 0.1,
 	}
 	log.Println("Creating mesh...")
-	mesh := model3d.MarchingCubesSearch(squeeze.ApplySolid(solid), 0.1, 8)
+	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(squeeze, solid), 0.1, 8)
 	mesh = mesh.MapCoords(squeeze.Inverse().Apply)
 	log.Println("Done creating mesh...")
 	mesh = mesh.FlattenBase(0)

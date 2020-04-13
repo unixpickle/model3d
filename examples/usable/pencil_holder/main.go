@@ -35,7 +35,7 @@ func main() {
 		Max:   HolderHeight - 0.1,
 		Ratio: 0.1,
 	}
-	mesh := model3d.MarchingCubesSearch(ax.ApplySolid(solid), 0.01, 8)
+	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.01, 8)
 	mesh = mesh.MapCoords(ax.Inverse().Apply)
 
 	log.Println("Simplifying mesh...")

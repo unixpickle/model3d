@@ -67,14 +67,18 @@ func CreateFrame() model3d.Solid {
 	}
 	holes = append(holes, BottomFrameHole{})
 
-	transform := &model3d.Matrix3Transform{
+	rotate := &model3d.Matrix3Transform{
 		Matrix: &model3d.Matrix3{
 			1, 0, 0,
 			0, 0, -1,
 			0, -1, 0,
 		},
 	}
-	return transform.ApplySolid(&model3d.SubtractedSolid{Positive: solid, Negative: holes})
+	return model3d.TransformSolid(rotate,
+		&model3d.SubtractedSolid{
+			Positive: solid,
+			Negative: holes,
+		})
 }
 
 func CreateRidge(z float64, onRight bool) model3d.Solid {

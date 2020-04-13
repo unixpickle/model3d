@@ -49,14 +49,9 @@ func (a *AxisSqueeze) Apply(c model3d.Coord3D) model3d.Coord3D {
 	return model3d.NewCoord3DArray(arr)
 }
 
-// ApplySolid squeezes a solid.
-func (a *AxisSqueeze) ApplySolid(s model3d.Solid) model3d.Solid {
-	return &axisSqueezeSolid{
-		min:     a.Apply(s.Min()),
-		max:     a.Apply(s.Max()),
-		solid:   s,
-		inverse: a.Inverse(),
-	}
+// ApplyBounds squeezes the bounds.
+func (a *AxisSqueeze) ApplyBounds(min, max model3d.Coord3D) (newMin, newMax model3d.Coord3D) {
+	return a.Apply(min), a.Apply(max)
 }
 
 // Inverse creates an AxisSqueeze that undoes the squeeze
@@ -68,23 +63,4 @@ func (a *AxisSqueeze) Inverse() model3d.Transform {
 		Max:   a.Min + (a.Max-a.Min)*a.Ratio,
 		Ratio: 1 / a.Ratio,
 	}
-}
-
-type axisSqueezeSolid struct {
-	min     model3d.Coord3D
-	max     model3d.Coord3D
-	solid   model3d.Solid
-	inverse model3d.Transform
-}
-
-func (a *axisSqueezeSolid) Min() model3d.Coord3D {
-	return a.min
-}
-
-func (a *axisSqueezeSolid) Max() model3d.Coord3D {
-	return a.max
-}
-
-func (a *axisSqueezeSolid) Contains(c model3d.Coord3D) bool {
-	return a.solid.Contains(a.inverse.Apply(c))
 }
