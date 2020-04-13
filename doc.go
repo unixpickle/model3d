@@ -105,8 +105,8 @@
 // programmatically:
 //
 //     * Decimator - polygon reduction.
-//     * Smoother - smoothing for reducing sharp edges or
-//                  corners.
+//     * MeshSmoother - smoothing for reducing sharp
+//                      edges or corners.
 //     * Subdivider - edge-based sub-division to add
 //                    resolution where it is needed.
 //
