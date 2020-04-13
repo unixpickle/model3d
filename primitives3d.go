@@ -98,7 +98,7 @@ func (r *Rect) normalAt(c Coord3D) Coord3D {
 
 // SphereCollision checks if a solid sphere touches any
 // part of the rectangular surface.
-func (r *RectSolid) SphereCollision(c Coord3D, radius float64) bool {
+func (r *Rect) SphereCollision(c Coord3D, radius float64) bool {
 	return math.Abs(r.SDF(c)) <= radius
 }
 
