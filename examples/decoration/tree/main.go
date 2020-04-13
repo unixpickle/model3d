@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"log"
 	"math"
 	"math/rand"
 
@@ -35,9 +35,13 @@ func main() {
 		solid = append(solid, branch)
 	}
 
+	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
-	ioutil.WriteFile("tree.stl", mesh.EncodeSTL(), 0755)
 
+	log.Println("Saving mesh...")
+	mesh.SaveGroupedSTL("tree.stl")
+
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
