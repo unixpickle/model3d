@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"math"
 
 	"github.com/unixpickle/model3d"
@@ -31,7 +30,7 @@ func main() {
 		},
 	}
 	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8).Blur(-1)
-	ioutil.WriteFile("brush.stl", mesh.EncodeSTL(), 0755)
+	mesh.SaveGroupedSTL("brush.stl")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 200, nil)
 }
 
@@ -46,7 +45,7 @@ func (b BrushSolid) Max() model3d.Coord3D {
 }
 
 func (b BrushSolid) Contains(c model3d.Coord3D) bool {
-	if c.Min(b.Min()) != b.Min() || c.Max(b.Max()) != b.Max() {
+	if !model3d.InBounds(b, c) {
 		return false
 	}
 
