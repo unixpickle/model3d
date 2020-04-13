@@ -4,4 +4,4 @@ This is a flower decoration that you can print out in batches and attach to your
 
 # Renderings
 
-[Renderings](rendering.png)
+![Renderings](rendering.png)
