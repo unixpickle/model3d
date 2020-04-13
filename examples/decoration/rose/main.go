@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
@@ -26,10 +25,10 @@ func main() {
 	collider := model3d.MeshToCollider(m)
 	solid := model3d.NewColliderSolidHollow(collider, 0.1)
 	m1 := model3d.MarchingCubesSearch(solid, 0.01, 8).Blur(-1)
-	ioutil.WriteFile("rose.stl", m1.EncodeSTL(), 0755)
+	m1.SaveGroupedSTL("rose.stl")
 
 	log.Println("Generating rendering...")
-	render3d.SaveRendering("preview.png", m1, model3d.Coord3D{Y: -1, Z: 2}, 500, 500, nil)
+	render3d.SaveRendering("rendering.png", m1, model3d.Coord3D{Y: -1, Z: 2}, 500, 500, nil)
 }
 
 // RingFunction is one conic surface originating from the
