@@ -94,8 +94,8 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 
 	coords := make(chan [3]int, img.Width*img.Height)
 	var idx int
-	for y := 0; y < img.Width; y++ {
-		for x := 0; x < img.Height; x++ {
+	for y := 0; y < img.Height; y++ {
+		for x := 0; x < img.Width; x++ {
 			coords <- [3]int{x, y, idx}
 			idx++
 		}
