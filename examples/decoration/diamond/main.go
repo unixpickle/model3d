@@ -96,8 +96,12 @@ func CreateStand(diamond *model3d.Mesh) {
 		Negative: solid,
 	}
 	mesh := model3d.MarchingCubesSearch(standSolid, 0.01, 8)
+	mesh = mesh.EliminateCoplanar(1e-5)
 	mesh = mesh.FlattenBase(0)
 
+	log.Println("Saving stand mesh...")
 	mesh.SaveGroupedSTL("stand.stl")
+
+	log.Println("Rendering stand mesh...")
 	render3d.SaveRandomGrid("rendering_stand.png", mesh, 3, 3, 300, nil)
 }
