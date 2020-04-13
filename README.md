@@ -1,4 +1,4 @@
-# model3d
+# model3d [![GoDoc](https://godoc.org/github.com/unixpickle/model3d?status.svg)](https://godoc.org/github.com/unixpickle/model3d)
 
 This is a collection of tools for programmatically creating and manipulating 3D models, with some focus on 3D printing.
 
