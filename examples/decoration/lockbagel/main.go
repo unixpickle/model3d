@@ -83,37 +83,11 @@ func (l LockSolid) Contains(c model3d.Coord3D) bool {
 }
 
 func CreateBagel() *model3d.Mesh {
-	return model3d.MarchingCubesSearch(BagelSolid{}, 0.005, 8)
-}
-
-type BagelSolid struct{}
-
-func (b BagelSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -0.5, Y: -2, Z: -0.8}
-}
-
-func (b BagelSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: 0.5, Y: 0, Z: 0.8}
-}
-
-func (b BagelSolid) Contains(c model3d.Coord3D) bool {
-	return b.InnerRadiusAt(c) < BagelInnerRadius
-}
-
-func (b BagelSolid) InnerRadiusAt(c model3d.Coord3D) float64 {
-	theta := math.Atan2(c.Z, c.Y+0.85)
-	p := model3d.Coord3D{X: 0, Y: math.Cos(theta)*0.5 - 0.85, Z: math.Sin(theta) * 0.5}
-	return p.Dist(c)
-}
-
-func (b BagelSolid) At(outerTheta, innerTheta, radius float64) model3d.Coord3D {
-	result := model3d.Coord3D{
-		X: 0,
-		Y: math.Cos(outerTheta)*0.5 - 0.85,
-		Z: math.Sin(outerTheta) * 0.5,
+	torus := &model3d.TorusSolid{
+		Center:      model3d.Coord3D{Y: -0.85},
+		Axis:        model3d.Coord3D{X: 1},
+		InnerRadius: BagelInnerRadius,
+		OuterRadius: 0.5,
 	}
-	result.X = math.Cos(innerTheta) * radius
-	result.Y += math.Sin(innerTheta) * math.Cos(outerTheta) * radius
-	result.Z += math.Sin(innerTheta) * math.Sin(outerTheta) * radius
-	return result
+	return model3d.MarchingCubesSearch(torus, 0.005, 8)
 }
