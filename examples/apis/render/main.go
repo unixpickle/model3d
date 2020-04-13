@@ -20,7 +20,7 @@ func main() {
 				Radius: 2,
 			},
 			Material: &render3d.PhongMaterial{
-				Alpha:         20.0,
+				Alpha:         400.0,
 				SpecularColor: render3d.NewColor(1),
 			},
 		},
@@ -33,8 +33,8 @@ func main() {
 			},
 			Material: &render3d.PhongMaterial{
 				Alpha:         10.0,
-				SpecularColor: render3d.NewColor(0.3),
-				DiffuseColor:  render3d.NewColorRGB(1.0, 0.1, 0.1),
+				SpecularColor: render3d.NewColor(0.1),
+				DiffuseColor:  render3d.NewColorRGB(0.95, 0.2, 0.2),
 			},
 		},
 
@@ -80,7 +80,7 @@ func main() {
 			Material: &render3d.LambertMaterial{
 				// Make it really bright so it lights the scene
 				// adequately.
-				EmissionColor: render3d.NewColor(30),
+				EmissionColor: render3d.NewColor(25),
 			},
 		},
 	}
