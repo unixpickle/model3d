@@ -1,9 +1,11 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const (
@@ -30,8 +32,17 @@ func main() {
 			},
 		},
 	}
+
+	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
+	mesh = mesh.EliminateCoplanar(1e-5)
+
+	log.Println("Saving...")
 	mesh.SaveGroupedSTL("mesh.stl")
+
+	log.Println("Rendering...")
+	cameraOrigin := mesh.Max().Mid(mesh.Min()).Add(model3d.Coord3D{Y: -3, Z: 2})
+	render3d.SaveRendering("rendering.png", mesh, cameraOrigin, 300, 300, nil)
 }
 
 type SlopedTriangle struct {
