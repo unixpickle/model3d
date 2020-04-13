@@ -40,6 +40,7 @@ const (
 	LegInset               = 0.15
 	LegRadius              = 0.07
 	LegMinZ                = -0.6
+	HindLegRadius          = 0.09
 	HindLegX               = -0.2
 	HindLegMuscleWidth     = 0.5
 	HindLegMuscleHeight    = 0.6
@@ -178,12 +179,16 @@ func MakeLegs() model3d.Solid {
 	var res model3d.JoinedSolid
 	y1 := -BodyRadius + LegInset
 	bottomZ := LegMinZ
-	for _, x := range []float64{HindLegX, BodyLength} {
+	for i, x := range []float64{HindLegX, BodyLength} {
+		legRadius := LegRadius
+		if i == 0 {
+			legRadius = HindLegRadius
+		}
 		for _, y := range []float64{y1, -y1} {
 			res = append(res, &model3d.Cylinder{
 				P1:     model3d.Coord3D{X: x, Y: y},
 				P2:     model3d.Coord3D{X: x, Y: y, Z: bottomZ},
-				Radius: LegRadius,
+				Radius: legRadius,
 			})
 		}
 	}
