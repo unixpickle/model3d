@@ -5,9 +5,8 @@ import (
 	"log"
 	"math"
 
-	"github.com/unixpickle/model3d/render3d"
-
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const BagelInnerRadius = 0.25

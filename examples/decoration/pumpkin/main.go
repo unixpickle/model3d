@@ -7,10 +7,9 @@ import (
 	"math"
 	"os"
 
-	"github.com/unixpickle/model3d/render3d"
-
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/render3d"
 )
 
 const Thickness = 0.9
