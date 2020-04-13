@@ -228,6 +228,21 @@ func BenchmarkMeshRayCollisions(b *testing.B) {
 	}
 }
 
+func BenchmarkMeshRayCollisionsRect(b *testing.B) {
+	mesh := NewMeshRect(Coord3D{X: -0.3, Y: -0.4, Z: -0.2}, Coord3D{X: 0.4, Y: 0.35, Z: 0.19})
+	collider := MeshToCollider(mesh)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		collider.RayCollisions(&Ray{
+			Direction: Coord3D{
+				X: rand.NormFloat64(),
+				Y: rand.NormFloat64(),
+				Z: rand.NormFloat64(),
+			},
+		}, nil)
+	}
+}
+
 func BenchmarkMeshSphereCollisions(b *testing.B) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1

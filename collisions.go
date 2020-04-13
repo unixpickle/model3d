@@ -201,14 +201,31 @@ type JoinedCollider struct {
 // combines one or more other colliders.
 func NewJoinedCollider(other []Collider) *JoinedCollider {
 	res := &JoinedCollider{
-		colliders: other,
-		min:       other[0].Min(),
-		max:       other[0].Max(),
+		min: other[0].Min(),
+		max: other[0].Max(),
 	}
 	for _, c := range other[1:] {
 		res.min = res.min.Min(c.Min())
 		res.max = res.max.Max(c.Max())
 	}
+
+	// Flatten out other joined colliders with the same
+	// bounds.
+	for _, c := range other {
+		var jc *JoinedCollider
+		switch c := c.(type) {
+		case *JoinedCollider:
+			jc = c
+		case joinedTriangleCollider:
+			jc = c.JoinedCollider
+		}
+		if jc != nil && jc.min == res.min && jc.max == res.max {
+			res.colliders = append(res.colliders, jc.colliders...)
+		} else {
+			res.colliders = append(res.colliders, c)
+		}
+	}
+
 	return res
 }
 
