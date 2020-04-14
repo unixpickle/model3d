@@ -8,8 +8,8 @@ const (
 	CameraY = -5
 	CameraZ = 4
 
-	WineGlassX = -5.4
-	WineGlassY = 10.0
+	WineGlassX = -5.0
+	WineGlassY = 10.5
 
 	PumpkinX = -2
 	PumpkinY = 10
