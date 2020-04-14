@@ -46,6 +46,11 @@ func TestPhongMaterialBSDF(t *testing.T) {
 		Alpha:         1e5,
 		SpecularColor: Color{X: 1, Y: 1, Z: 1},
 	})
+
+	// Make sure diffuse colors work too.
+	testMaterialEnergyConservation(t, &PhongMaterial{
+		DiffuseColor: Color{X: 1, Y: 1, Z: 1},
+	})
 }
 
 func TestHGMaterialBSDF(t *testing.T) {
@@ -59,7 +64,7 @@ func TestHGMaterialBSDF(t *testing.T) {
 			var sum float64
 			var count float64
 			source := model3d.NewCoord3DRandUnit()
-			for i := 0; i < 1000000; i++ {
+			for i := 0; i < 10000000; i++ {
 				dest := model3d.NewCoord3DRandUnit()
 				sum += mat.BSDF(model3d.Coord3D{}, source, dest).X
 				count++
@@ -129,7 +134,7 @@ func testMaterialEnergyConservation(t *testing.T, m Material) {
 
 	var sum float64
 	var count float64
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 4000000; i++ {
 		source := m.SampleSource(gen, normal, dest)
 		weight := 1 / m.SourceDensity(normal, source, dest)
 		areaIn := math.Abs(source.Dot(normal))

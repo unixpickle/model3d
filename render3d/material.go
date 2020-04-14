@@ -83,7 +83,10 @@ func (l *LambertMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 		return Color{}
 	}
 	// Multiply by 2 since half the sphere is zero.
-	return l.DiffuseColor.Scale(2)
+	// Multiply by another 2 so that the outgoing flux is
+	// equal to the incoming flux (the cosine term drops
+	// half the light).
+	return l.DiffuseColor.Scale(4)
 }
 
 func (l *LambertMaterial) SampleSource(gen *rand.Rand, normal,
@@ -146,8 +149,8 @@ func (p *PhongMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
 
 	color := Color{}
 	if p.DiffuseColor != color {
-		// Scale by 2 because of hemisphere restriction.
-		color = p.DiffuseColor.Scale(2)
+		// See LambertMaterial.BSDF() for scale.
+		color = p.DiffuseColor.Scale(4)
 	}
 
 	reflection := normal.Reflect(source).Scale(-1)

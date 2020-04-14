@@ -102,7 +102,7 @@ func (c *CeilingLight) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Mate
 	}
 	coll.Normal = coll.Normal.Scale(-1)
 	mat := &render3d.LambertMaterial{
-		DiffuseColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(0.05),
+		DiffuseColor: render3d.Color{X: 1, Y: 1, Z: 1}.Scale(0.025),
 	}
 	if coll.Normal.Z < -0.5 {
 		mat.EmissionColor = render3d.Color{X: 1, Y: 1, Z: 1}.Scale(CeilingLightBrightness)

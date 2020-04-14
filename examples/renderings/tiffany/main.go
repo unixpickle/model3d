@@ -61,8 +61,8 @@ func CreateTable() render3d.Object {
 			Collider: model3d.MeshToCollider(model3d.NewMeshRect(min, max)),
 			Material: &render3d.PhongMaterial{
 				Alpha:         5,
-				SpecularColor: render3d.Color{X: 0.2, Y: 0.2, Z: 0.2},
-				DiffuseColor:  render3d.Color{X: 0.8, Y: 0.8, Z: 0.8},
+				SpecularColor: render3d.NewColor(0.2),
+				DiffuseColor:  render3d.NewColor(0.4),
 			},
 		}
 	}

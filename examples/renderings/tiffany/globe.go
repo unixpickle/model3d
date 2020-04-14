@@ -49,7 +49,7 @@ func (g *Globe) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 		Alpha:         5,
 		SpecularColor: render3d.NewColor(0.1),
 		DiffuseColor: render3d.NewColorRGB(float64(red)/0xffff, float64(green)/0xffff,
-			float64(blue)/0xffff).Scale(0.9),
+			float64(blue)/0xffff).Scale(0.45),
 	}
 	return collision, material, ok
 }

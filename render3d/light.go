@@ -81,10 +81,10 @@ func (p *PointLight) ShadeCollision(normal, pointToLight model3d.Coord3D) Color 
 
 	// Multiply by a density correction that comes from
 	// lambertian shading.
-	// The 0.5 comes from the fact that the light is
-	// always sampled, while it should only be sampled on
-	// one half of the hemisphere.
-	density := 0.5 * math.Max(0, normal.Dot(pointToLight.Scale(1/dist)))
+	// In essence, when doing simple ray tracing, we want
+	// the brightest part of a lambertian surface to have
+	// the same brightness as the point light.
+	density := 0.25 * math.Max(0, normal.Dot(pointToLight.Scale(1/dist)))
 
 	return color.Scale(density)
 }

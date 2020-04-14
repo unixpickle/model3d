@@ -39,7 +39,7 @@ func NewWalls() *Walls {
 		Base: &render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(mesh),
 			Material: &render3d.LambertMaterial{
-				DiffuseColor: render3d.NewColor(1),
+				DiffuseColor: render3d.NewColor(0.5),
 			},
 		},
 		Lights: lights,
@@ -86,7 +86,7 @@ func (w *Walls) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 			scale = 1.2
 		}
 		material = &render3d.LambertMaterial{
-			DiffuseColor: TiffanyBlue.Scale(scale),
+			DiffuseColor: TiffanyBlue.Scale(scale / 2),
 		}
 	} else if math.Abs(point.X-w.Base.Collider.Min().X) < 1e-8 {
 		// Dotted wall
@@ -99,7 +99,7 @@ func (w *Walls) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 			scale = 1.0
 		}
 		material = &render3d.LambertMaterial{
-			DiffuseColor: TiffanyBlue.Scale(scale),
+			DiffuseColor: TiffanyBlue.Scale(scale / 2),
 		}
 	} else if math.Abs(point.Y-w.Base.Collider.Max().Y) < 1e-8 {
 		// Gray back wall pattern.
@@ -108,7 +108,7 @@ func (w *Walls) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 			scale = 0.9
 		}
 		material = &render3d.LambertMaterial{
-			DiffuseColor: render3d.NewColor(scale),
+			DiffuseColor: render3d.NewColor(scale / 2),
 		}
 	} else if math.Abs(point.Z-w.Base.Collider.Min().Z) < 1e-8 {
 		// Checkerboard floor.
@@ -121,7 +121,7 @@ func (w *Walls) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 		material = &render3d.PhongMaterial{
 			Alpha:         50,
 			SpecularColor: render3d.NewColor(0.1),
-			DiffuseColor:  render3d.NewColor(diffuse),
+			DiffuseColor:  render3d.NewColor(diffuse / 2),
 		}
 	}
 

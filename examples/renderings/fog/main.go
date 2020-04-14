@@ -33,7 +33,7 @@ func main() {
 				).MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul),
 			),
 			Material: &render3d.LambertMaterial{
-				DiffuseColor: render3d.NewColor(0.9),
+				DiffuseColor: render3d.NewColor(0.45),
 			},
 		},
 
@@ -62,7 +62,7 @@ func main() {
 				Alpha:         10.0,
 				SpecularColor: render3d.NewColor(0.1),
 				DiffuseColor: render3d.NewColorRGB(rand.Float64(), rand.Float64(),
-					rand.Float64()).Scale(0.9),
+					rand.Float64()).Scale(0.45),
 			},
 		})
 	}

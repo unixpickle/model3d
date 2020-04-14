@@ -6,7 +6,12 @@ import (
 	"github.com/unixpickle/model3d"
 )
 
-const helperFieldOfView = math.Pi / 3.6
+const (
+	helperFieldOfView = math.Pi / 3.6
+	helperAmbient     = 0.1
+	helperDiffuse     = 0.8
+	helperSpecular    = 0.2
+)
 
 // ColorFunc determines a color for collisions on a
 // surface. It is used for convenience methods where
@@ -38,9 +43,9 @@ func (c *colorFuncObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, 
 		color := c.ColorFunc(p, rc)
 		mat = &PhongMaterial{
 			Alpha:         10,
-			SpecularColor: NewColor(0.1),
-			DiffuseColor:  color.Scale(0.9),
-			AmbientColor:  color.Scale(0.1),
+			SpecularColor: NewColor(helperSpecular),
+			DiffuseColor:  color.Scale(helperDiffuse),
+			AmbientColor:  color.Scale(helperAmbient),
 		}
 	}
 	return rc, mat, ok
@@ -68,9 +73,9 @@ func Objectify(obj interface{}, colorFunc ColorFunc) Object {
 				Collider: obj,
 				Material: &PhongMaterial{
 					Alpha:         10,
-					SpecularColor: NewColor(0.1),
-					DiffuseColor:  NewColorRGB(224.0/255, 209.0/255, 0).Scale(0.9),
-					AmbientColor:  NewColorRGB(224.0/255, 209.0/255, 0).Scale(0.1),
+					SpecularColor: NewColor(helperSpecular),
+					DiffuseColor:  NewColorRGB(224.0/255, 209.0/255, 0).Scale(helperDiffuse),
+					AmbientColor:  NewColorRGB(224.0/255, 209.0/255, 0).Scale(helperAmbient),
 				},
 			},
 			ColorFunc: colorFunc,

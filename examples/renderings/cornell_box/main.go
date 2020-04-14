@@ -34,7 +34,7 @@ func main() {
 			Material: &render3d.PhongMaterial{
 				Alpha:         10.0,
 				SpecularColor: render3d.NewColor(0.1),
-				DiffuseColor:  render3d.NewColorRGB(0.95, 0.2, 0.2),
+				DiffuseColor:  render3d.NewColorRGB(0.95, 0.2, 0.2).Scale(0.5),
 			},
 		},
 
@@ -65,7 +65,7 @@ func main() {
 				).MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul),
 			),
 			Material: &render3d.LambertMaterial{
-				DiffuseColor: render3d.NewColor(0.8),
+				DiffuseColor: render3d.NewColor(0.4),
 			},
 		},
 
