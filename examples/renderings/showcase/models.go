@@ -131,8 +131,10 @@ func ReadWineGlass() render3d.Object {
 	min, max := mesh.Min(), mesh.Max()
 	mesh = mesh.MapCoords(min.Scale(-1).Add)
 	mesh = mesh.MapCoords(model3d.Coord3D{
-		X: WineGlassX - (max.X+min.X)/2,
-		Y: WineGlassY - (max.Y+min.Y)/2,
+		X: WineGlassX - (max.X-min.X)/2,
+		Y: WineGlassY - (max.Y-min.Y)/2,
+		// Make sure rays can hit the ground under the model.
+		Z: 1e-4,
 	}.Add)
 
 	return &render3d.ColliderObject{

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math"
 
@@ -33,21 +32,11 @@ func main() {
 		Ratio: 0.5,
 	}
 
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, VaseSolid{}), 0.02, 8)
+	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, VaseSolid{}), 0.015, 8)
 	mesh = mesh.MapCoords(ax.Inverse().Apply)
 
-	dec := &model3d.Decimator{
-		FeatureAngle:       0.1,
-		PlaneDistance:      4e-4,
-		BoundaryDistance:   1e-5,
-		MinimumAspectRatio: 0.01,
-	}
-	fmt.Println("before", len(mesh.TriangleSlice()))
-	mesh = dec.Decimate(mesh)
-	fmt.Println("after", len(mesh.TriangleSlice()))
-
 	log.Println("Flattening base...")
-	//mesh = mesh.FlattenBase(0)
+	mesh = mesh.FlattenBase(0)
 
 	log.Println("Saving STL...")
 	mesh.SaveGroupedSTL("vase.stl")

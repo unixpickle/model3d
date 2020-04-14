@@ -13,7 +13,7 @@ import (
 const (
 	AdditionSamples = 1000
 	KeepSamples     = 990
-	GridSize        = 10
+	GridSize        = 3
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 			for i := 0; i < 100; i++ {
 				rock = AddConstraint(rock)
 			}
-			min := model3d.Coord3D{X: float64(i)*5.0 + rand.Float64()*4, Y: float64(j)*5.0 + rand.Float64()*4, Z: 0}
+			min := model3d.Coord3D{X: float64(i) * 1.1, Y: float64(j) * 1.1, Z: 0}
 			mesh.AddMesh(rock.Mesh().MapCoords(min.Add))
 		}
 	}

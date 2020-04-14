@@ -24,14 +24,7 @@ func main() {
 	}
 	collider := model3d.MeshToCollider(m)
 	solid := model3d.NewColliderSolidHollow(collider, 0.1)
-	m1 := model3d.MarchingCubesSearch(solid, 0.02, 8)
-	dec := &model3d.Decimator{
-		FeatureAngle:       0.1,
-		PlaneDistance:      4e-4,
-		BoundaryDistance:   1e-5,
-		MinimumAspectRatio: 0.01,
-	}
-	m1 = dec.Decimate(m1)
+	m1 := model3d.MarchingCubesSearch(solid, 0.01, 8).Blur(-1)
 	m1.SaveGroupedSTL("rose.stl")
 
 	log.Println("Generating rendering...")

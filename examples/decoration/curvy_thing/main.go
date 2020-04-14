@@ -32,8 +32,7 @@ func main() {
 		},
 	}
 	log.Println("Creating mesh...")
-	mesh := model3d.MarchingCubesSearch(solid, 0.03, 8)
-	mesh = mesh.EliminateCoplanar(1e-8)
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 
 	log.Println("Saving results...")
 	mesh.SaveGroupedSTL("curvy_thing.stl")
