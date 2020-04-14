@@ -15,6 +15,12 @@ func TestLambertMaterialSampling(t *testing.T) {
 	})
 }
 
+func TestLambertMaterialBSDF(t *testing.T) {
+	testMaterialEnergyConservation(t, &LambertMaterial{
+		DiffuseColor: Color{X: 1, Y: 1, Z: 1},
+	})
+}
+
 func TestPhongMaterialSampling(t *testing.T) {
 	for _, alpha := range []float64{0, 0.5, 2} {
 		t.Run(fmt.Sprintf("Alpha%.1f", alpha), func(t *testing.T) {
@@ -30,6 +36,15 @@ func TestPhongMaterialSampling(t *testing.T) {
 			SpecularColor: Color{X: 1, Y: 0.9, Z: 0.5},
 			DiffuseColor:  Color{X: 0.3, Y: 0.2, Z: 0.5},
 		})
+	})
+}
+
+func TestPhongMaterialBSDF(t *testing.T) {
+	// Only test with a highly reflective surface so we
+	// don't lose energy to cutting.
+	testMaterialEnergyConservation(t, &PhongMaterial{
+		Alpha:         1e5,
+		SpecularColor: Color{X: 1, Y: 1, Z: 1},
 	})
 }
 
@@ -104,5 +119,25 @@ func testMaterialSampling(t *testing.T, m Material) {
 
 	if actual.Sub(expected).Norm() > actual.Norm()*0.01 {
 		t.Errorf("expected %f but got %f", expected, actual)
+	}
+}
+
+func testMaterialEnergyConservation(t *testing.T, m Material) {
+	normal := model3d.NewCoord3DRandUnit()
+	dest := normal.Add(model3d.NewCoord3DRandUnit().Scale(0.2)).Normalize()
+	gen := rand.New(rand.NewSource(1337))
+
+	var sum float64
+	var count float64
+	for i := 0; i < 1000000; i++ {
+		source := m.SampleSource(gen, normal, dest)
+		weight := 1 / m.SourceDensity(normal, source, dest)
+		areaIn := math.Abs(source.Dot(normal))
+		sum += weight * areaIn * m.BSDF(normal, source, dest).X
+		count++
+	}
+	expectation := sum / count
+	if math.Abs(expectation-1) > 1e-2 {
+		t.Errorf("unexpected mean BSDF: %f", expectation)
 	}
 }
