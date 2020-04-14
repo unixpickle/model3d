@@ -28,7 +28,7 @@ func main() {
 	m1.SaveGroupedSTL("rose.stl")
 
 	log.Println("Generating rendering...")
-	render3d.SaveRendering("rendering.png", m1, model3d.Coord3D{Y: -1, Z: 2}, 500, 500, nil)
+	render3d.SaveRendering("rendering.png", m1, model3d.Coord3D{Y: -2, Z: 4}, 500, 500, nil)
 }
 
 // RingFunction is one conic surface originating from the
