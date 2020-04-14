@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math"
@@ -37,9 +38,53 @@ func main() {
 		return [3]float64{79.0 / 255, 53.0 / 255, 0}
 	}
 
+	outsideMesh := model3d.NewMesh()
+	insideMesh := model3d.NewMesh()
+	stemMesh := model3d.NewMesh()
+
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(base, 0.02, 8)
 	mesh.AddMesh(model3d.MarchingCubesSearch(lid, 0.02, 8))
+
+	fmt.Println(mesh.Min(), mesh.Max())
+
+	dec := &model3d.Decimator{
+		FeatureAngle:       0.1,
+		PlaneDistance:      4e-4,
+		BoundaryDistance:   1e-5,
+		MinimumAspectRatio: 0.01,
+	}
+	fmt.Println("before", len(mesh.TriangleSlice()))
+	mesh = dec.Decimate(mesh)
+	fmt.Println("after", len(mesh.TriangleSlice()))
+
+	mesh.Iterate(func(t *model3d.Triangle) {
+		c := t[0]
+		if (PumpkinSolid{Scale: 1.025}).Contains(c) {
+			expectedNormal := t[0].Geo().Coord3D()
+			if math.Abs(expectedNormal.Dot(t.Normal())) > 0.5 {
+				outsideMesh.Add(t)
+			} else {
+				insideMesh.Add(t)
+			}
+		} else {
+			stemMesh.Add(t)
+		}
+	})
+
+	mat := model3d.NewMatrix3Rotation(
+		model3d.Coord3D{X: 1}, math.Pi/2,
+	)
+	mat = model3d.NewMatrix3Rotation(
+		model3d.Coord3D{Z: 1}, -math.Pi/2,
+	).Mul(mat)
+	outsideMesh = outsideMesh.MapCoords(mat.MulColumn)
+	insideMesh = insideMesh.MapCoords(mat.MulColumn)
+	stemMesh = stemMesh.MapCoords(mat.MulColumn)
+
+	outsideMesh.SaveGroupedSTL("pumpkin_outside.stl")
+	insideMesh.SaveGroupedSTL("pumpkin_inside.stl")
+	stemMesh.SaveGroupedSTL("pumpkin_stem.stl")
 
 	log.Println("Saving mesh...")
 	ioutil.WriteFile("pumpkin.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
