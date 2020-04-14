@@ -48,7 +48,7 @@ func gammaExpand(u float64) float64 {
 	if u <= 0.04045 {
 		return u / 12.92
 	} else {
-		return math.Pow((u-0.055)/1.055, 2.4)
+		return math.Pow((u+0.055)/1.055, 2.4)
 	}
 }
 
