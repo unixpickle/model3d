@@ -129,7 +129,10 @@ func testMaterialSampling(t *testing.T, m Material) {
 
 func testMaterialEnergyConservation(t *testing.T, m Material) {
 	normal := model3d.NewCoord3DRandUnit()
-	dest := normal.Add(model3d.NewCoord3DRandUnit().Scale(0.2)).Normalize()
+	var dest model3d.Coord3D
+	for math.Abs(normal.Dot(dest)-0.8) > 0.1 {
+		dest = model3d.NewCoord3DRandUnit()
+	}
 	gen := rand.New(rand.NewSource(1337))
 
 	var sum float64
