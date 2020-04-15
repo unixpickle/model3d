@@ -85,7 +85,7 @@ type SphereFocusPoint struct {
 // concentrated in the direction of Target.
 func (s *SphereFocusPoint) SampleFocus(gen *rand.Rand, mat Material, point, normal,
 	dest model3d.Coord3D) model3d.Coord3D {
-	if s.Center == point || !s.focusMaterial(mat) {
+	if s.Center.Dist(point) < s.Radius || !s.focusMaterial(mat) {
 		return mat.SampleSource(gen, normal, dest)
 	}
 	minCos, dir := s.focusInfo(point)
@@ -96,7 +96,7 @@ func (s *SphereFocusPoint) SampleFocus(gen *rand.Rand, mat Material, point, norm
 // the given direction.
 func (s *SphereFocusPoint) FocusDensity(mat Material, point, normal, source,
 	dest model3d.Coord3D) float64 {
-	if s.Center == point || !s.focusMaterial(mat) {
+	if s.Center.Dist(point) < s.Radius || !s.focusMaterial(mat) {
 		return mat.SourceDensity(normal, source, dest)
 	}
 	minCos, dir := s.focusInfo(point)
@@ -143,6 +143,9 @@ func (s *SphereFocusPoint) focusInfo(point model3d.Coord3D) (minCos float64, dir
 	direction := point.Sub(s.Center)
 	dist := direction.Norm()
 	if dist < s.Radius {
+		// Shouldn't ever happen, but incase the check
+		// in the BSDF fails due to rounding error, let's
+		// have a solution here.
 		return 0, direction.Scale(1 / dist)
 	}
 	ratio := s.Radius / dist
