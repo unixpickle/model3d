@@ -111,9 +111,42 @@ func (s *SphereFocusPoint) focusMaterial(mat Material) bool {
 }
 
 func (s *SphereFocusPoint) focusInfo(point model3d.Coord3D) (minCos float64, dir model3d.Coord3D) {
+	// If we are at a distance d from a sphere, and we shoot
+	// a ray with an angle a (relative to the line going to
+	// the center of the sphere), then this equation models
+	// the distance from the center c to the ray at time t.
+	//
+	//     c = cos(a), s = sin(a)
+	//     x(t) = c*t, y(t) = s*t
+	//     d(t) = (c*t - d)^2 + (s*t)^2
+	//
+	// Now let's minimize d(t):
+	//
+	//     d'(t) = 0 = 2*(c*t - d)*c + 2*(s*t)*s
+	//               = 2*c^2*t - 2*d*c + 2*s^2*t
+	//               = (2*c^2 + 2*s^2)*t - 2*d*c
+	//     t = 2*d*c / (2*c^2 + 2*s^2)
+	//       = 2*d*c / 2 = d*cos(a)
+	//     d(t) = (d*cos(a)^2 - d)^2 + (d*sin(a)*cos(a))^2
+	//          = d^2*cos(a)^4 - 2*d^2*cos(a)^2 + d^2 + d^2*sin(a)^2*cos(a)^2
+	//          = d^2 * (cos(a)^4 - 2*cos(a)^2 + 1 + sin(a)^2*cos(a)^2)
+	//          = d^2 * (1 + cos(a)^2*(cos(a)^2 - 2 + sin(a)^2))
+	//          = d^2 * (1 - cos(a)^2)
+	//
+	// If we want d(t) = r^2, then
+	//
+	//     r^2 = d^2 * (1 - cos(a)^2)
+	//     cos(a)^2 = 1 - r^2 / d^2
+	//     cos(a) = sqrt(1 - r^2/d^2)
+	//
+
 	direction := point.Sub(s.Center)
-	theta := math.Atan2(s.Radius, direction.Norm())
-	return math.Cos(theta), direction.Normalize()
+	dist := direction.Norm()
+	if dist < s.Radius {
+		return 0, direction.Scale(1 / dist)
+	}
+	ratio := s.Radius / dist
+	return math.Sqrt(1 - ratio*ratio), direction.Scale(1 / dist)
 }
 
 func sampleAroundUniform(gen *rand.Rand, minCos float64,
