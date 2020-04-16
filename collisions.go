@@ -3,8 +3,7 @@ package model3d
 import (
 	"math"
 	"math/rand"
-
-	"github.com/unixpickle/essentials"
+	"sort"
 )
 
 // A Ray is a line originating at a point and extending
@@ -92,20 +91,28 @@ func MeshToCollider(m *Mesh) TriangleCollider {
 // This can be used to prepare models for being turned
 // into a collider efficiently.
 func GroupTriangles(tris []*Triangle) {
-	groupTriangles(sortTriangles(tris), 0, tris)
+	groupTriangles(sortTriangles(tris), tris)
 }
 
-func groupTriangles(sortedTris [3][]*flaggedTriangle, axis int, output []*Triangle) {
-	numTris := len(sortedTris[axis])
-	if numTris == 1 {
-		output[0] = sortedTris[axis][0].T
+func groupTriangles(sortedTris [3][]*flaggedTriangle, output []*Triangle) {
+	numTris := len(sortedTris[0])
+	if numTris == 2 {
+		// The area-based splitting criterion doesn't
+		// distinguish between axes, now.
+		output[0] = sortedTris[0][0].T
+		output[1] = sortedTris[0][1].T
+		return
+	} else if numTris == 1 {
+		output[0] = sortedTris[0][0].T
 		return
 	} else if numTris == 0 {
 		return
 	}
 
 	midIdx := numTris / 2
-	for i, t := range sortedTris[axis][:] {
+	axis := bestSplitAxis(sortedTris)
+
+	for i, t := range sortedTris[axis] {
 		t.Flag = i < midIdx
 	}
 
@@ -135,40 +142,104 @@ func groupTriangles(sortedTris [3][]*flaggedTriangle, axis int, output []*Triang
 		separated[0][:midIdx],
 		separated[1][:midIdx],
 		separated[2][:midIdx],
-	}, (axis+1)%3, output[:midIdx])
+	}, output[:midIdx])
 
 	groupTriangles([3][]*flaggedTriangle{
 		separated[0][midIdx:],
 		separated[1][midIdx:],
 		separated[2][midIdx:],
-	}, (axis+1)%3, output[midIdx:])
+	}, output[midIdx:])
+}
+
+func bestSplitAxis(sortedTris [3][]*flaggedTriangle) int {
+	midIdx := len(sortedTris[0]) / 2
+
+	areaForAxis := func(axis int) float64 {
+		return triangleBoundArea(sortedTris[axis][:midIdx]) +
+			triangleBoundArea(sortedTris[axis][midIdx:])
+	}
+
+	axis := 0
+	minArea := areaForAxis(0)
+	for i := 1; i < 3; i++ {
+		if a := areaForAxis(i); a < minArea {
+			minArea = a
+			axis = i
+		}
+	}
+
+	return axis
 }
 
 func sortTriangles(tris []*Triangle) [3][]*flaggedTriangle {
-	ts := make([]*flaggedTriangle, len(tris))
+	// Allocate all of the flaggedTriangles at once all
+	// next to each other in memory.
+	ts := make([]flaggedTriangle, len(tris))
 	for i, t := range tris {
-		ts[i] = &flaggedTriangle{T: t}
+		min, max := t.Min(), t.Max()
+		ts[i] = flaggedTriangle{
+			T:   t,
+			Min: min,
+			Max: max,
+			Mid: min.Mid(max),
+		}
 	}
 
 	var result [3][]*flaggedTriangle
 	for axis := range result {
-		tsCopy := append([]*flaggedTriangle{}, ts...)
+		tsCopy := make([]*flaggedTriangle, len(ts))
+		for i := range ts {
+			tsCopy[i] = &ts[i]
+		}
 		if axis == 0 {
-			essentials.VoodooSort(tsCopy, func(i, j int) bool {
-				return tsCopy[i].T[0].X < tsCopy[j].T[0].X
+			sort.Slice(tsCopy, func(i, j int) bool {
+				return tsCopy[i].Mid.X < tsCopy[j].Mid.X
 			})
 		} else if axis == 1 {
-			essentials.VoodooSort(tsCopy, func(i, j int) bool {
-				return tsCopy[i].T[0].Y < tsCopy[j].T[0].Y
+			sort.Slice(tsCopy, func(i, j int) bool {
+				return tsCopy[i].Mid.Y < tsCopy[j].Mid.Y
 			})
 		} else {
-			essentials.VoodooSort(tsCopy, func(i, j int) bool {
-				return tsCopy[i].T[0].Z < tsCopy[j].T[0].Z
+			sort.Slice(tsCopy, func(i, j int) bool {
+				return tsCopy[i].Mid.Z < tsCopy[j].Mid.Z
 			})
 		}
 		result[axis] = tsCopy
 	}
 	return result
+}
+
+func triangleBoundArea(tris []*flaggedTriangle) float64 {
+	min, max := tris[0].Min, tris[0].Max
+	for i := 1; i < len(tris); i++ {
+		t := tris[i]
+
+		// This is very expanded (unwrapped) vs. using
+		// Min() and Max(), but it is faster and this is
+		// surprisingly a large bottleneck.
+		min1 := t.Min
+		if min1.X < min.X {
+			min.X = min1.X
+		}
+		if min1.Y < min.Y {
+			min.Y = min1.Y
+		}
+		if min1.Z < min.Z {
+			min.Z = min1.Z
+		}
+		max1 := t.Max
+		if max1.X > max.X {
+			max.X = max1.X
+		}
+		if max1.Y > max.Y {
+			max.Y = max1.Y
+		}
+		if max1.Z > max.Z {
+			max.Z = max1.Z
+		}
+	}
+	diff := max.Sub(min)
+	return 2 * (diff.X*(diff.Y+diff.Z) + diff.Y*diff.Z)
 }
 
 // GroupedTrianglesToCollider converts a mesh of triangles
@@ -304,6 +375,9 @@ func (j joinedTriangleCollider) TriangleCollisions(t *Triangle) []Segment {
 
 type flaggedTriangle struct {
 	T    *Triangle
+	Min  Coord3D
+	Max  Coord3D
+	Mid  Coord3D
 	Flag bool
 }
 
