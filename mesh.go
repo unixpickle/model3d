@@ -268,6 +268,12 @@ func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 	return res
 }
 
+// Scale creates a new mesh by scaling the coordinates by
+// a factor s.
+func (m *Mesh) Scale(s float64) *Mesh {
+	return m.MapCoords(Coord3D{X: s, Y: s, Z: s}.Mul)
+}
+
 // MapCoords creates a new mesh by transforming all of the
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
