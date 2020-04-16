@@ -31,7 +31,7 @@ func (d *DomeObject) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Materi
 	brightest := LightDirection.Scale(-1)
 	brightness := 0.2 + 9.0*math.Pow(math.Max(0, rc.Normal.Dot(brightest)), 10.0)
 	mat := &render3d.LambertMaterial{
-		DiffuseColor:  render3d.NewColorRGB(0.5, 0.8, 0.95).Scale(0.2),
+		DiffuseColor:  render3d.NewColorRGB(0.5, 0.8, 0.95).Scale(0.3),
 		EmissionColor: render3d.NewColor(brightness),
 	}
 

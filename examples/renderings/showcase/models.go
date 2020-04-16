@@ -22,8 +22,8 @@ func ReadCurvyThing() render3d.Object {
 		Collider: model3d.MeshToCollider(mesh),
 		Material: &render3d.PhongMaterial{
 			Alpha:         20.0,
-			SpecularColor: render3d.NewColor(0.2),
-			DiffuseColor:  render3d.NewColor(0.8),
+			SpecularColor: render3d.NewColor(0.1),
+			DiffuseColor:  render3d.NewColor(0.7),
 		},
 	}
 }
@@ -143,11 +143,11 @@ func ReadWineGlass() render3d.Object {
 			Materials: []render3d.Material{
 				&render3d.RefractMaterial{
 					IndexOfRefraction: 1.3,
-					RefractColor:      render3d.NewColor(0.8),
+					RefractColor:      render3d.NewColor(0.95),
 				},
 				&render3d.PhongMaterial{
-					Alpha:         50.0,
-					SpecularColor: render3d.NewColor(0.2),
+					Alpha:         100.0,
+					SpecularColor: render3d.NewColor(0.05),
 				},
 			},
 			Probs: []float64{0.8, 0.2},
