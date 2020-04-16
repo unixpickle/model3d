@@ -18,11 +18,6 @@ func CreateFloor() render3d.Object {
 			MinVal: model3d.Coord3D{X: -100, Y: -100, Z: -0.01},
 			MaxVal: model3d.Coord3D{X: 100, Y: 100, Z: 0},
 		},
-		Material: &render3d.PhongMaterial{
-			Alpha:         10.0,
-			SpecularColor: render3d.NewColor(0.1),
-			DiffuseColor:  render3d.NewColor(0.5),
-		},
 	})
 }
 
@@ -85,8 +80,8 @@ func (f *FloorObject) Cast(ray *model3d.Ray) (model3d.RayCollision, render3d.Mat
 		float64(b)/0xffff)
 
 	return rc, &render3d.PhongMaterial{
-		Alpha:         10,
-		SpecularColor: color.Scale(0.1),
-		DiffuseColor:  color.Scale(0.9),
+		Alpha:         100,
+		SpecularColor: color.Scale(0.5),
+		DiffuseColor:  color.Scale(0.5),
 	}, ok
 }
