@@ -243,6 +243,38 @@ func BenchmarkMeshRayCollisionsRect(b *testing.B) {
 	}
 }
 
+func BenchmarkMeshRayCollisionsComplex(b *testing.B) {
+	solid := JoinedSolid{
+		&Sphere{Center: Coord3D{X: 1.0, Y: 0.7, Z: 0.1}, Radius: 0.2},
+		&Sphere{Center: Coord3D{X: 1.3, Y: 0.75, Z: 0}, Radius: 0.22},
+		&Sphere{Center: Coord3D{X: 0.9, Y: 0.2, Z: 0.1}, Radius: 0.3},
+		&Cylinder{P2: Coord3D{X: 3, Y: 3, Z: 3}, Radius: 0.1},
+	}
+	mesh := MarchingCubes(solid, 0.04)
+
+	// Make the mesh 4x more triangles without having to
+	// scan the entire volume more densely.
+	subdiv := NewSubdivider()
+	subdiv.AddFiltered(mesh, func(p1, p2 Coord3D) bool {
+		return true
+	})
+	subdiv.Subdivide(mesh, func(p1, p2 Coord3D) Coord3D {
+		return p1.Mid(p2)
+	})
+
+	collider := MeshToCollider(mesh)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		collider.RayCollisions(&Ray{
+			Direction: Coord3D{
+				X: rand.NormFloat64(),
+				Y: rand.NormFloat64(),
+				Z: rand.NormFloat64(),
+			},
+		}, nil)
+	}
+}
+
 func BenchmarkMeshSphereCollisions(b *testing.B) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1
