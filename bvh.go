@@ -5,6 +5,103 @@ import (
 	"sort"
 )
 
+// BVH represents a (possibly unbalanced) axis-aligned
+// bounding volume hierarchy of triangles.
+//
+// A BVH can be used to accelerate collision detection.
+// See BVHToCollider() for more details.
+//
+// A BVH node is either a leaf (a triangle), or a branch
+// with exactly two children.
+type BVH struct {
+	// Leaf, if non-nil, is the final triangle.
+	Leaf *Triangle
+
+	// Branch, if Leaf is nil, points to two children.
+	Branch [2]*BVH
+}
+
+// NewBVHAreaDensity creates a BVH by minimizing the
+// product of each bounding box's area with the number of
+// triangles contained in the bounding box.
+//
+// This is good for efficient ray collision detection.
+func NewBVHAreaDensity(triangles []*Triangle) *BVH {
+	return newBVH(sortTriangles(triangles), make([]float64, len(triangles)),
+		areaDensityBVHSplit)
+}
+
+func newBVH(sortedTris [3][]*flaggedTriangle, cache []float64,
+	splitter func([]*flaggedTriangle, []float64) (int, float64)) *BVH {
+	numTris := len(sortedTris[0])
+	if numTris == 0 {
+		panic("empty sorted triangles")
+	} else if numTris == 1 {
+		return &BVH{Leaf: sortedTris[0][0].T}
+	} else if numTris == 2 {
+		return &BVH{Branch: [2]*BVH{
+			{Leaf: sortedTris[0][0].T},
+			{Leaf: sortedTris[0][1].T},
+		}}
+	}
+
+	xIndex, xScore := splitter(sortedTris[0], cache)
+	yIndex, yScore := splitter(sortedTris[1], cache)
+	zIndex, zScore := splitter(sortedTris[2], cache)
+
+	var split [2][3][]*flaggedTriangle
+	if xScore < yScore && xScore < zScore {
+		split = splitTriangles(sortedTris, 0, xIndex)
+	} else if yScore < xScore && yScore < zScore {
+		split = splitTriangles(sortedTris, 1, yIndex)
+	} else {
+		split = splitTriangles(sortedTris, 2, zIndex)
+	}
+	return &BVH{
+		Branch: [2]*BVH{
+			newBVH(split[0], cache, splitter),
+			newBVH(split[1], cache, splitter),
+		},
+	}
+}
+
+// areaDensityBVHSplit chooses a split index that
+// minimizes a goodness score, and returns the index and
+// score.
+//
+// The score of a bbox is equal to the surface area times
+// the number of triangles.
+//
+// The cache must contain at least len(tris) entries.
+func areaDensityBVHSplit(tris []*flaggedTriangle, cache []float64) (int, float64) {
+	// Fill the cache with scores going in the other
+	// direction.
+	min, max := tris[len(tris)-1].Min, tris[len(tris)-1].Max
+	for i := len(tris) - 2; i >= 0; i-- {
+		cache[i] = boundsArea(min, max) * float64(len(tris)-i-1)
+		t := tris[i]
+		min = min.Min(t.Min)
+		max = max.Max(t.Max)
+	}
+
+	var bestScore float64
+	var bestIndex int
+
+	min, max = tris[0].Min, tris[0].Max
+	for i := 1; i < len(tris)-1; i++ {
+		t := tris[i]
+		min = min.Min(t.Min)
+		max = max.Max(t.Max)
+		score := boundsArea(min, max)*float64(i) + cache[i]
+		if score < bestScore || i == 1 {
+			bestScore = score
+			bestIndex = i + 1
+		}
+	}
+
+	return bestIndex, bestScore
+}
+
 // GroupTriangles sorts the triangle slice into a balanced
 // bounding volume hierarchy.
 // In particular, the sorted slice can be recursively cut
@@ -39,6 +136,12 @@ func groupTriangles(sortedTris [3][]*flaggedTriangle, output []*Triangle) {
 	midIdx := numTris / 2
 	axis := bestSplitAxis(sortedTris)
 
+	separated := splitTriangles(sortedTris, axis, midIdx)
+	groupTriangles(separated[0], output[:midIdx])
+	groupTriangles(separated[1], output[midIdx:])
+}
+
+func splitTriangles(sortedTris [3][]*flaggedTriangle, axis, midIdx int) [2][3][]*flaggedTriangle {
 	for i, t := range sortedTris[axis] {
 		t.Flag = i < midIdx
 	}
@@ -46,13 +149,14 @@ func groupTriangles(sortedTris [3][]*flaggedTriangle, output []*Triangle) {
 	separated := [3][]*flaggedTriangle{}
 	separated[axis] = sortedTris[axis]
 
+	numTris := len(sortedTris[0])
 	for newAxis := 0; newAxis < 3; newAxis++ {
 		if newAxis == axis {
 			continue
 		}
 		sep := make([]*flaggedTriangle, numTris)
 		idx0 := 0
-		idx1 := numTris / 2
+		idx1 := midIdx
 		for _, t := range sortedTris[newAxis] {
 			if t.Flag {
 				sep[idx0] = t
@@ -65,17 +169,18 @@ func groupTriangles(sortedTris [3][]*flaggedTriangle, output []*Triangle) {
 		separated[newAxis] = sep
 	}
 
-	groupTriangles([3][]*flaggedTriangle{
-		separated[0][:midIdx],
-		separated[1][:midIdx],
-		separated[2][:midIdx],
-	}, output[:midIdx])
-
-	groupTriangles([3][]*flaggedTriangle{
-		separated[0][midIdx:],
-		separated[1][midIdx:],
-		separated[2][midIdx:],
-	}, output[midIdx:])
+	return [2][3][]*flaggedTriangle{
+		{
+			separated[0][:midIdx],
+			separated[1][:midIdx],
+			separated[2][:midIdx],
+		},
+		{
+			separated[0][midIdx:],
+			separated[1][midIdx:],
+			separated[2][midIdx:],
+		},
+	}
 }
 
 func bestSplitAxis(sortedTris [3][]*flaggedTriangle) int {
@@ -165,6 +270,10 @@ func triangleBoundArea(tris []*flaggedTriangle) float64 {
 			max.Z = max1.Z
 		}
 	}
+	return boundsArea(min, max)
+}
+
+func boundsArea(min, max Coord3D) float64 {
 	diff := max.Sub(min)
 	return 2 * (diff.X*(diff.Y+diff.Z) + diff.Y*diff.Z)
 }

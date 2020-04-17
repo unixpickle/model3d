@@ -262,17 +262,28 @@ func BenchmarkMeshRayCollisionsComplex(b *testing.B) {
 		return p1.Mid(p2)
 	})
 
-	collider := MeshToCollider(mesh)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		collider.RayCollisions(&Ray{
-			Direction: Coord3D{
-				X: rand.NormFloat64(),
-				Y: rand.NormFloat64(),
-				Z: rand.NormFloat64(),
-			},
-		}, nil)
+	runCollider := func(b *testing.B, collider Collider) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			collider.RayCollisions(&Ray{
+				Direction: Coord3D{
+					X: rand.NormFloat64(),
+					Y: rand.NormFloat64(),
+					Z: rand.NormFloat64(),
+				},
+			}, nil)
+		}
 	}
+
+	b.Run("Balanced", func(b *testing.B) {
+		collider := MeshToCollider(mesh)
+		runCollider(b, collider)
+	})
+
+	b.Run("Unbalanced", func(b *testing.B) {
+		collider := BVHToCollider(NewBVHAreaDensity(mesh.TriangleSlice()))
+		runCollider(b, collider)
+	})
 }
 
 func BenchmarkMeshSphereCollisions(b *testing.B) {

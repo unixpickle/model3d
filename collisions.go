@@ -102,6 +102,18 @@ func GroupedTrianglesToCollider(tris []*Triangle) TriangleCollider {
 	return joinedTriangleCollider{NewJoinedCollider([]Collider{c1, c2})}
 }
 
+// BVHToCollider converts a BVH into a TriangleCollider in
+// a hierarchical way.
+func BVHToCollider(b *BVH) TriangleCollider {
+	if b.Leaf != nil {
+		return b.Leaf
+	}
+	return joinedTriangleCollider{NewJoinedCollider([]Collider{
+		BVHToCollider(b.Branch[0]),
+		BVHToCollider(b.Branch[1]),
+	})}
+}
+
 // A JoinedCollider wraps multiple other Colliders and
 // only passes along rays and spheres that enter their
 // combined bounding box.
