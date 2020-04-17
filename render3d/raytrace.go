@@ -290,7 +290,7 @@ func (r *RecursiveRayTracer) sampleNextSource(gen *rand.Rand, point, normal, des
 		panic("FocusPoints and FocusPointProbs must match in length")
 	}
 
-	p := rand.Float64()
+	p := gen.Float64()
 	for i, prob := range r.FocusPointProbs {
 		p -= prob
 		if p < 0 {
