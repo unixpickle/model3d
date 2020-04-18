@@ -1,5 +1,7 @@
 package model2d
 
+import "math"
+
 /***************************************
  * NOTE: based off of model3d/mc.go on *
  * Apr 18, 2020.                       *
@@ -36,6 +38,57 @@ func MarchingSquares(s Solid, delta float64) *Mesh {
 	}
 
 	return mesh
+}
+
+// MarchingSquaresSearch is like MarchingSquares, but
+// applies an additional search step to move the vertices
+// along the edges of each square.
+//
+// The tightness of the triangulation will double for
+// every iteration.
+func MarchingSquaresSearch(s Solid, delta float64, iters int) *Mesh {
+	mesh := MarchingSquares(s, delta)
+
+	if iters == 0 {
+		return mesh
+	}
+
+	min := s.Min().Array()
+	return mesh.MapCoords(func(c Coord) Coord {
+		arr := c.Array()
+
+		// Figure out which axis the containing edge spans.
+		axis := -1
+		var falsePoint, truePoint float64
+		for i := 0; i < 2; i++ {
+			modulus := math.Abs(math.Mod(arr[i]-min[i], delta))
+			if modulus > delta/4 && modulus < 3*delta/4 {
+				axis = i
+				falsePoint = arr[i] - modulus
+				truePoint = falsePoint + delta
+				break
+			}
+		}
+		if axis == -1 {
+			panic("vertex not on edge")
+		}
+		if mesh.Find(c)[0].Normal().Array()[axis] > 0 {
+			truePoint, falsePoint = falsePoint, truePoint
+		}
+
+		for i := 0; i < iters; i++ {
+			midPoint := (falsePoint + truePoint) / 2
+			arr[axis] = midPoint
+			if s.Contains(NewCoordArray(arr)) {
+				truePoint = midPoint
+			} else {
+				falsePoint = midPoint
+			}
+		}
+
+		arr[axis] = (falsePoint + truePoint) / 2
+		return NewCoordArray(arr)
+	})
 }
 
 // msCorner represents a corner on a square.
