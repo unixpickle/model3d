@@ -37,6 +37,35 @@ func (b *bitmapSolid) Contains(c Coord) bool {
 	return b.B.Get(int(c.X), int(c.Y))
 }
 
+// JoinedSolid combines one or more other solids into a
+// single union.
+type JoinedSolid []Solid
+
+func (j JoinedSolid) Min() Coord {
+	res := j[0].Min()
+	for _, s := range j[1:] {
+		res = res.Min(s.Min())
+	}
+	return res
+}
+
+func (j JoinedSolid) Max() Coord {
+	res := j[0].Max()
+	for _, s := range j[1:] {
+		res = res.Max(s.Max())
+	}
+	return res
+}
+
+func (j JoinedSolid) Contains(c Coord) bool {
+	for _, s := range j {
+		if s.Contains(c) {
+			return true
+		}
+	}
+	return false
+}
+
 // ColliderSolid is a Solid which uses the even-odd test
 // for a Collider.
 type ColliderSolid struct {
