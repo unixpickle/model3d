@@ -53,6 +53,9 @@ type Collider interface {
 
 // ColliderContains checks if a point is within a Collider
 // and at least margin away from the border.
+//
+// If the margin is negative, points are also conatined if
+// the point is less than -margin away from the surface.
 func ColliderContains(c Collider, coord Coord, margin float64) bool {
 	r := &Ray{
 		Origin: coord,
@@ -62,9 +65,12 @@ func ColliderContains(c Collider, coord Coord, margin float64) bool {
 	}
 	collisions := c.RayCollisions(r, nil)
 	if collisions%2 == 0 {
+		if margin < 0 {
+			return c.CircleCollision(coord, -margin)
+		}
 		return false
 	}
-	return margin == 0 || !c.CircleCollision(coord, margin)
+	return margin <= 0 || !c.CircleCollision(coord, margin)
 }
 
 // RayCollisions calls f (if non-nil) with a collision (if

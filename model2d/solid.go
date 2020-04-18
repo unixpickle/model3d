@@ -54,6 +54,9 @@ func NewColliderSolid(c Collider) *ColliderSolid {
 
 // NewColliderSolidInset creates a ColliderSolid that only
 // reports containment at some distance from the surface.
+//
+// If inset is negative, then the solid is outset from the
+// collider.
 func NewColliderSolidInset(c Collider, inset float64) *ColliderSolid {
 	min := c.Min().Add(Coord{X: inset, Y: inset})
 	max := min.Max(c.Max().Sub(Coord{X: inset, Y: inset}))
