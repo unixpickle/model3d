@@ -108,10 +108,11 @@ func BVHToCollider(b *BVH) TriangleCollider {
 	if b.Leaf != nil {
 		return b.Leaf
 	}
-	return joinedTriangleCollider{NewJoinedCollider([]Collider{
-		BVHToCollider(b.Branch[0]),
-		BVHToCollider(b.Branch[1]),
-	})}
+	other := make([]Collider, len(b.Branch))
+	for i, b1 := range b.Branch {
+		other[i] = BVHToCollider(b1)
+	}
+	return joinedTriangleCollider{NewJoinedCollider(other)}
 }
 
 // A JoinedCollider wraps multiple other Colliders and

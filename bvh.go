@@ -12,18 +12,18 @@ import (
 // See BVHToCollider() for more details.
 //
 // A BVH node is either a leaf (a triangle), or a branch
-// with exactly two children.
+// with two or more children.
 type BVH struct {
 	// Leaf, if non-nil, is the final triangle.
 	Leaf *Triangle
 
 	// Branch, if Leaf is nil, points to two children.
-	Branch [2]*BVH
+	Branch []*BVH
 }
 
 // NewBVHAreaDensity creates a BVH by minimizing the
 // product of each bounding box's area with the number of
-// triangles contained in the bounding box.
+// triangles contained in the bounding box at each branch.
 //
 // This is good for efficient ray collision detection.
 func NewBVHAreaDensity(triangles []*Triangle) *BVH {
@@ -39,7 +39,7 @@ func newBVH(sortedTris [3][]*flaggedTriangle, cache []float64,
 	} else if numTris == 1 {
 		return &BVH{Leaf: sortedTris[0][0].T}
 	} else if numTris == 2 {
-		return &BVH{Branch: [2]*BVH{
+		return &BVH{Branch: []*BVH{
 			{Leaf: sortedTris[0][0].T},
 			{Leaf: sortedTris[0][1].T},
 		}}
@@ -58,7 +58,7 @@ func newBVH(sortedTris [3][]*flaggedTriangle, cache []float64,
 		split = splitTriangles(sortedTris, 2, zIndex)
 	}
 	return &BVH{
-		Branch: [2]*BVH{
+		Branch: []*BVH{
 			newBVH(split[0], cache, splitter),
 			newBVH(split[1], cache, splitter),
 		},
