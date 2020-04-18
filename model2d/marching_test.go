@@ -9,6 +9,10 @@ func TestMarchingSquares(t *testing.T) {
 	solid := BitmapToSolid(testingBitmap())
 
 	testMesh := func(mesh *Mesh) {
+		if !mesh.Manifold() {
+			t.Error("mesh is non-manifold")
+		}
+
 		meshSolid := NewColliderSolid(MeshToCollider(mesh))
 
 		for i := 0; i < 1000; i++ {
