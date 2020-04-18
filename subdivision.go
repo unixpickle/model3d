@@ -1,5 +1,86 @@
 package model3d
 
+// LoopSubdivision subdivides the mesh using the Loop
+// subdivision rule, creating a smoother surface with
+// more triangles.
+//
+// The mesh is subdivided iters times.
+//
+// The mesh must not have singular edges.
+func LoopSubdivision(m *Mesh, iters int) *Mesh {
+	for i := 0; i < iters; i++ {
+		m = loopSubdivision(m)
+	}
+	return m
+}
+
+func loopSubdivision(m *Mesh) *Mesh {
+	edgePoints := map[Segment]Coord3D{}
+	m.Iterate(func(t *Triangle) {
+		for _, seg := range t.Segments() {
+			if _, ok := edgePoints[seg]; ok {
+				continue
+			}
+			ts := m.Find(seg[0], seg[1])
+			if len(ts) != 2 {
+				panic("singular edge detected")
+			}
+			o1 := seg.other(ts[0])
+			o2 := seg.other(ts[1])
+			edgePoints[seg] = seg[0].Add(seg[1]).Scale(3.0 / 8).Add(o1.Add(o2).Scale(1.0 / 8))
+		}
+	})
+
+	cornerPoints := map[Coord3D]Coord3D{}
+	for corner, tris := range m.getVertexToTriangle() {
+		neighbors := map[Coord3D]bool{}
+		for _, t := range tris {
+			for _, c := range t {
+				if c != corner {
+					neighbors[c] = true
+				}
+			}
+		}
+
+		var beta float64
+		if len(neighbors) == 3 {
+			beta = 3.0 / 16
+		} else {
+			beta = 3.0 / float64(8*len(neighbors))
+		}
+
+		var point Coord3D
+		for c := range neighbors {
+			point = point.Add(c)
+		}
+		point = corner.Scale(1 - float64(len(neighbors))*beta).Add(point.Scale(beta))
+
+		cornerPoints[corner] = point
+	}
+
+	res := NewMesh()
+	m.Iterate(func(t *Triangle) {
+		// Create this triangle:
+		//
+		//            c1
+		//          /    \
+		//         m3 -- m1
+		//        /  \ /   \
+		//       c3-- m2 --c2
+		//
+		c1, c2, c3 := cornerPoints[t[0]], cornerPoints[t[1]], cornerPoints[t[2]]
+		m1 := edgePoints[NewSegment(t[0], t[1])]
+		m2 := edgePoints[NewSegment(t[1], t[2])]
+		m3 := edgePoints[NewSegment(t[2], t[0])]
+
+		res.Add(&Triangle{m1, m2, m3})
+		res.Add(&Triangle{c1, m1, m3})
+		res.Add(&Triangle{m1, c2, m2})
+		res.Add(&Triangle{m3, m2, c3})
+	})
+	return res
+}
+
 // A Subdivider is used for sub-dividing triangles in a
 // mesh to add levels of detail where it is needed in a
 // model.
