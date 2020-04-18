@@ -18,7 +18,7 @@ func EncodeSVG(m *Mesh) []byte {
 	result.WriteString(`<?xml version="1.0" encoding="utf-8" ?>`)
 	result.WriteString(
 		fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="%f %f %f %f">`,
-			min.X, min.Y, max.X, max.Y))
+			min.X, min.Y, max.X-min.X, max.Y-min.Y))
 	for len(segments) > 0 {
 		var seg *Segment
 		for s := range segments {
