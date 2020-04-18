@@ -3,8 +3,6 @@ package model3d
 import (
 	"math"
 	"sort"
-
-	"github.com/unixpickle/essentials"
 )
 
 // MarchingCubes turns a Solid into a surface mesh using a
@@ -13,42 +11,31 @@ func MarchingCubes(s Solid, delta float64) *Mesh {
 	table := mcLookupTable()
 
 	spacer := newSquareSpacer(s, delta)
-	cache := newSolidCache(s, spacer)
+	bottomCache := newSolidCache(s, spacer)
+	topCache := newSolidCache(s, spacer)
+	topCache.FetchZ(0)
 
 	mesh := NewMesh()
 
-	spacer.IterateSquares(func(x, y, z int) {
-		var intersections mcIntersections
-		mask := mcIntersections(1)
-		for i := 0; i < 2; i++ {
-			for j := 0; j < 2; j++ {
-				for k := 0; k < 2; k++ {
-					x1 := x + k
-					y1 := y + j
-					z1 := z + i
-					if cache.CornerValue(x1, y1, z1) {
-						if x1 == 0 || x1 == len(spacer.Xs)-1 ||
-							y1 == 0 || y1 == len(spacer.Ys)-1 ||
-							z1 == 0 || z1 == len(spacer.Zs)-1 {
-							panic("solid is true outside of bounds")
-						}
-						intersections |= mask
+	for z := 1; z < len(spacer.Zs); z++ {
+		bottomCache, topCache = topCache, bottomCache
+		topCache.FetchZ(z)
+
+		for y := 0; y < len(spacer.Ys)-1; y++ {
+			for x := 0; x < len(spacer.Xs)-1; x++ {
+				bits := bottomCache.GetSquare(x, y) | (topCache.GetSquare(x, y) << 4)
+				triangles := table[bits]
+				if len(triangles) > 0 {
+					min := spacer.CornerCoord(x, y, z-1)
+					max := spacer.CornerCoord(x+1, y+1, z)
+					corners := mcCornerCoordinates(min, max)
+					for _, t := range triangles {
+						mesh.Add(t.Triangle(corners))
 					}
-					mask <<= 1
 				}
 			}
 		}
-
-		triangles := table[intersections]
-		if len(triangles) > 0 {
-			min := spacer.CornerCoord(x, y, z)
-			max := spacer.CornerCoord(x+1, y+1, z+1)
-			corners := mcCornerCoordinates(min, max)
-			for _, t := range triangles {
-				mesh.Add(t.Triangle(corners))
-			}
-		}
-	})
+	}
 
 	return mesh
 }
@@ -455,120 +442,56 @@ func newSquareSpacer(s Solid, delta float64) *squareSpacer {
 	return &squareSpacer{Xs: xs, Ys: ys, Zs: zs}
 }
 
-func (s *squareSpacer) IterateSquares(f func(x, y, z int)) {
-	for z := 0; z < len(s.Zs)-1; z++ {
-		for y := 0; y < len(s.Ys)-1; y++ {
-			for x := 0; x < len(s.Xs)-1; x++ {
-				f(x, y, z)
-			}
-		}
-	}
-}
-
-func (s *squareSpacer) NumSquares() int {
-	return (len(s.Xs) - 1) * (len(s.Ys) - 1) * (len(s.Zs) - 1)
-}
-
-func (s *squareSpacer) SquareIndex(x, y, z int) int {
-	return x + y*(len(s.Xs)-1) + z*(len(s.Xs)-1)*(len(s.Ys)-1)
-}
-
 func (s *squareSpacer) CornerCoord(x, y, z int) Coord3D {
 	return Coord3D{X: s.Xs[x], Y: s.Ys[y], Z: s.Zs[z]}
-}
-
-func (s *squareSpacer) IterateCorners(f func(x, y, z int)) {
-	for z := range s.Zs {
-		for y := range s.Ys {
-			for x := range s.Xs {
-				f(x, y, z)
-			}
-		}
-	}
-}
-
-func (s *squareSpacer) NumCorners() int {
-	return len(s.Xs) * len(s.Ys) * len(s.Zs)
-}
-
-func (s *squareSpacer) CornerIndex(x, y, z int) int {
-	return x + y*len(s.Xs) + z*len(s.Xs)*len(s.Ys)
-}
-
-func (s *squareSpacer) IndexToCorner(idx int) (int, int, int) {
-	x := idx % len(s.Xs)
-	idx /= len(s.Xs)
-	y := idx % len(s.Ys)
-	z := idx / len(s.Ys)
-	return x, y, z
 }
 
 type solidCache struct {
 	spacer *squareSpacer
 	solid  Solid
-
-	startZ  int
-	strideZ int
-	cachedZ int
-	values  []bool
+	values []bool
 }
 
 func newSolidCache(solid Solid, spacer *squareSpacer) *solidCache {
-	cachedZ := essentials.MinInt(len(spacer.Zs), 10)
-	strideZ := len(spacer.Xs) * len(spacer.Ys)
-	cache := &solidCache{
-		spacer:  spacer,
-		solid:   solid,
-		strideZ: strideZ,
-		cachedZ: cachedZ,
-		values:  make([]bool, strideZ*cachedZ),
+	return &solidCache{
+		spacer: spacer,
+		solid:  solid,
+		values: make([]bool, len(spacer.Xs)*len(spacer.Ys)),
 	}
-	cache.fillTailValues(cachedZ)
-	return cache
 }
 
-func (s *solidCache) NumInteriorCorners(x, y, z int) int {
-	var res int
-	for k := z; k < z+2; k++ {
-		for j := y; j < y+2; j++ {
-			for i := x; i < x+2; i++ {
-				if s.CornerValue(i, j, k) {
-					res++
-				}
+func (s *solidCache) FetchZ(z int) {
+	maxX := len(s.spacer.Xs) - 1
+	maxY := len(s.spacer.Ys) - 1
+	onEdge := z == 0 || z == len(s.spacer.Zs)-1
+
+	var idx int
+	for i := 0; i < len(s.spacer.Ys); i++ {
+		for j := 0; j < len(s.spacer.Xs); j++ {
+			b := s.solid.Contains(s.spacer.CornerCoord(j, i, z))
+			s.values[idx] = b
+			idx++
+			if b && (onEdge || i == 0 || j == 0 || i == maxY || j == maxX) {
+				panic("solid is true outside of bounds")
 			}
 		}
 	}
-	return res
 }
 
-func (s *solidCache) CornerValue(x, y, z int) bool {
-	if z >= s.startZ && z < s.startZ+s.cachedZ {
-		return s.values[s.spacer.CornerIndex(x, y, z-s.startZ)]
-	}
-
-	newStart := essentials.MinInt(essentials.MaxInt(0, z-s.cachedZ/2),
-		len(s.spacer.Zs)-s.cachedZ)
-	shift := newStart - s.startZ
-	s.startZ = newStart
-	if shift < 0 || shift >= s.cachedZ {
-		// Start the cache all over again.
-		s.fillTailValues(s.cachedZ)
-	} else {
-		copy(s.values, s.values[shift*s.strideZ:])
-		s.fillTailValues(shift)
-	}
-
-	return s.CornerValue(x, y, z)
+func (s *solidCache) Get(x, y int) bool {
+	return s.values[x+y*len(s.spacer.Xs)]
 }
 
-func (s *solidCache) fillTailValues(numTail int) {
-	idx := (s.cachedZ - numTail) * s.strideZ
-	for _, z := range s.spacer.Zs[s.startZ+s.cachedZ-numTail:][:numTail] {
-		for _, y := range s.spacer.Ys {
-			for _, x := range s.spacer.Xs {
-				s.values[idx] = s.solid.Contains(Coord3D{X: x, Y: y, Z: z})
-				idx++
+func (s *solidCache) GetSquare(x, y int) mcIntersections {
+	result := mcIntersections(0)
+	mask := mcIntersections(1)
+	for y1 := y; y1 < y+2; y1++ {
+		for x1 := x; x1 < x+2; x1++ {
+			if s.Get(x1, y1) {
+				result |= mask
 			}
+			mask <<= 1
 		}
 	}
+	return result
 }
