@@ -3,7 +3,7 @@ package main
 import (
 	"io/ioutil"
 
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 

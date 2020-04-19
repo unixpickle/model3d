@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"math"
 
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/render3d"
 )

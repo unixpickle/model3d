@@ -1,6 +1,6 @@
 package render3d
 
-import "github.com/unixpickle/model3d"
+import "github.com/unixpickle/model3d/model3d"
 
 // Translate moves the object by an additive offset.
 func Translate(obj Object, offset model3d.Coord3D) Object {

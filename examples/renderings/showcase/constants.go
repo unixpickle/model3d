@@ -1,6 +1,6 @@
 package main
 
-import "github.com/unixpickle/model3d"
+import "github.com/unixpickle/model3d/model3d"
 
 var LightDirection = model3d.Coord3D{X: 2, Y: -3, Z: 3}.Normalize()
 

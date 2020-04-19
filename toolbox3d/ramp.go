@@ -1,7 +1,7 @@
 package toolbox3d
 
 import (
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 // A Ramp wraps an existing solid and gradually increases

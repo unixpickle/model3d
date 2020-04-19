@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/unixpickle/essentials"
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 

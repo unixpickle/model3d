@@ -3,7 +3,7 @@ package toolbox3d
 import (
 	"math"
 
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 // A ScrewSolid is a model3d.Solid implementation of

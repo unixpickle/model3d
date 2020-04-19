@@ -4,7 +4,7 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 const cosineEpsilon = 1e-8

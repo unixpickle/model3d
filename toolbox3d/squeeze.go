@@ -1,6 +1,6 @@
 package toolbox3d
 
-import "github.com/unixpickle/model3d"
+import "github.com/unixpickle/model3d/model3d"
 
 type Axis int
 

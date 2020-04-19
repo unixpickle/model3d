@@ -3,7 +3,7 @@ package render3d
 import (
 	"math"
 
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 // Color is a linear RGB color, where X, Y, and Z store R,

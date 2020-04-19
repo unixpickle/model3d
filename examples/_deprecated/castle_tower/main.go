@@ -8,7 +8,7 @@ import (
 
 	"github.com/unixpickle/model3d/toolbox3d"
 
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 const (

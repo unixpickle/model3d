@@ -4,7 +4,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 const (

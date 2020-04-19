@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
 )
 

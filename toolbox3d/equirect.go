@@ -5,7 +5,7 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 // An Equirect is an equirectangular bitmap representing

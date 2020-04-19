@@ -1,7 +1,7 @@
 package render3d
 
 import (
-	"github.com/unixpickle/model3d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 // A RayCaster renders objects using simple one-step ray

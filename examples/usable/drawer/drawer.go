@@ -1,6 +1,6 @@
 package main
 
-import "github.com/unixpickle/model3d"
+import "github.com/unixpickle/model3d/model3d"
 
 func CreateDrawer() model3d.Solid {
 	min := model3d.Coord3D{
