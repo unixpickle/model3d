@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -23,30 +24,40 @@ func EncodeSTL(triangles []*Triangle) []byte {
 // WriteSTL writes a list of triangles in the binary STL
 // format to w.
 func WriteSTL(w io.Writer, triangles []*Triangle) error {
-	if _, err := w.Write(make([]byte, 80)); err != nil {
+	if err := writeSTL(w, triangles); err != nil {
 		return errors.Wrap(err, "write STL")
-	}
-	if err := binary.Write(w, binary.LittleEndian, uint32(len(triangles))); err != nil {
-		return errors.Wrap(err, "write STL")
-	}
-	for _, t := range triangles {
-		if err := encodeVector32(w, t.Normal()); err != nil {
-			return errors.Wrap(err, "write STL")
-		}
-		for _, p := range t {
-			if err := encodeVector32(w, p); err != nil {
-				return errors.Wrap(err, "write STL")
-			}
-		}
-		if _, err := w.Write([]byte{0, 0}); err != nil {
-			return errors.Wrap(err, "write STL")
-		}
 	}
 	return nil
 }
 
-func encodeVector32(w io.Writer, v Coord3D) error {
-	return binary.Write(w, binary.LittleEndian, []float32{float32(v.X), float32(v.Y), float32(v.Z)})
+func writeSTL(w io.Writer, triangles []*Triangle) error {
+	bw := bufio.NewWriter(w)
+	if _, err := bw.Write(make([]byte, 80)); err != nil {
+		return err
+	}
+	if err := binary.Write(bw, binary.LittleEndian, uint32(len(triangles))); err != nil {
+		return err
+	}
+	floats := make([]float32, 3*4)
+	for _, t := range triangles {
+		castVector32(floats, t.Normal())
+		castVector32(floats[3:], t[0])
+		castVector32(floats[3*2:], t[1])
+		castVector32(floats[3*3:], t[2])
+		if err := binary.Write(bw, binary.LittleEndian, floats); err != nil {
+			return err
+		}
+		if _, err := bw.Write([]byte{0, 0}); err != nil {
+			return err
+		}
+	}
+	return bw.Flush()
+}
+
+func castVector32(dest []float32, v Coord3D) {
+	for i, x := range v.Array() {
+		dest[i] = float32(x)
+	}
 }
 
 // EncodePLY encodes a 3D model as a PLY file, including
