@@ -4,6 +4,8 @@ import (
 	"math"
 	"runtime"
 	"sort"
+	"sync"
+	"sync/atomic"
 )
 
 // MarchingCubes turns a Solid into a surface mesh using a
@@ -44,42 +46,77 @@ func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 		return mesh
 	}
 
+	inVertices := mesh.VertexSlice()
+	outVertices := make([]Coord3D, len(inVertices))
+
 	min := s.Min().Array()
-	return mesh.MapCoords(func(c Coord3D) Coord3D {
-		arr := c.Array()
+	numGos := runtime.GOMAXPROCS(0)
+	var wg sync.WaitGroup
+	for i := 0; i < numGos; i++ {
+		wg.Add(1)
+		go func(start int) {
+			defer wg.Done()
+			for i := start; i < len(inVertices); i += numGos {
+				outVertices[i] = mcSearchPoint(s, delta, iters, mesh, min, inVertices[i])
+			}
+		}(i)
+	}
+	wg.Wait()
 
-		// Figure out which axis the containing edge spans.
-		axis := -1
-		var falsePoint, truePoint float64
-		for i := 0; i < 3; i++ {
-			modulus := math.Abs(math.Mod(arr[i]-min[i], delta))
-			if modulus > delta/4 && modulus < 3*delta/4 {
-				axis = i
-				falsePoint = arr[i] - modulus
-				truePoint = falsePoint + delta
-				break
+	v2t := mesh.getVertexToTriangle()
+	for i, original := range inVertices {
+		out := outVertices[i]
+		for _, t := range v2t[original] {
+			for j, c := range t {
+				if c == original {
+					t[j] = out
+					break
+				}
 			}
 		}
-		if axis == -1 {
-			panic("vertex not on edge")
-		}
-		if mesh.Find(c)[0].Normal().Array()[axis] > 0 {
-			truePoint, falsePoint = falsePoint, truePoint
-		}
+	}
 
-		for i := 0; i < iters; i++ {
-			midPoint := (falsePoint + truePoint) / 2
-			arr[axis] = midPoint
-			if s.Contains(NewCoord3DArray(arr)) {
-				truePoint = midPoint
-			} else {
-				falsePoint = midPoint
-			}
-		}
+	// We just invalidated the entire v2t cache by
+	// replacing the vertices in the triangles.
+	mesh.vertexToTriangle = atomic.Value{}
 
-		arr[axis] = (falsePoint + truePoint) / 2
-		return NewCoord3DArray(arr)
-	})
+	return mesh
+}
+
+func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, min [3]float64, c Coord3D) Coord3D {
+	arr := c.Array()
+
+	// Figure out which axis the containing edge spans.
+	axis := -1
+	var falsePoint, truePoint float64
+	for i := 0; i < 3; i++ {
+		modulus := math.Abs(math.Mod(arr[i]-min[i], delta))
+		if modulus > delta/4 && modulus < 3*delta/4 {
+			axis = i
+			falsePoint = arr[i] - modulus
+			truePoint = falsePoint + delta
+			break
+		}
+	}
+	if axis == -1 {
+		panic("vertex not on edge")
+	}
+	if m.Find(c)[0].Normal().Array()[axis] > 0 {
+		truePoint, falsePoint = falsePoint, truePoint
+	}
+
+	for i := 0; i < iters; i++ {
+		midPoint := (falsePoint + truePoint) / 2
+		arr[axis] = midPoint
+		if s.Contains(NewCoord3DArray(arr)) {
+			truePoint = midPoint
+		} else {
+			falsePoint = midPoint
+		}
+	}
+
+	arr[axis] = (falsePoint + truePoint) / 2
+	return NewCoord3DArray(arr)
 }
 
 // mcCorner is a corner index on a cube used for marching
