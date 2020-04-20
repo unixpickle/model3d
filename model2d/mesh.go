@@ -129,6 +129,26 @@ func (m *Mesh) IterateSorted(f func(s *Segment), cmp func(s1, s2 *Segment) bool)
 	}
 }
 
+// IterateVertices calls f for every vertex in m in an
+// arbitrary order.
+//
+// If f adds or removes vertices, they will not be
+// visited.
+func (m *Mesh) IterateVertices(f func(c Coord)) {
+	v2s := m.getVertexToSegment()
+
+	var vertices []Coord
+	for v := range v2s {
+		vertices = append(vertices, v)
+	}
+
+	for _, c := range vertices {
+		if _, ok := v2s[c]; ok {
+			f(c)
+		}
+	}
+}
+
 // Neighbors gets all the Segments with a vertex touching
 // a given Segment s.
 //

@@ -224,6 +224,26 @@ func (m *Mesh) IterateSorted(f func(t *Triangle), cmp func(t1, t2 *Triangle) boo
 	}
 }
 
+// IterateVertices calls f for every vertex in m in an
+// arbitrary order.
+//
+// If f adds or removes vertices, they will not be
+// visited.
+func (m *Mesh) IterateVertices(f func(c Coord3D)) {
+	v2t := m.getVertexToTriangle()
+
+	var vertices []Coord3D
+	for v := range v2t {
+		vertices = append(vertices, v)
+	}
+
+	for _, c := range vertices {
+		if _, ok := v2t[c]; ok {
+			f(c)
+		}
+	}
+}
+
 // Neighbors gets all the triangles with a side touching a
 // given triangle t.
 //
