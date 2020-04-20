@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"math"
+	"runtime"
 	"sort"
 )
 
@@ -9,18 +10,9 @@ import (
 // corrected marching cubes algorithm.
 func MarchingCubes(s Solid, delta float64) *Mesh {
 	table := mcLookupTable()
-
 	spacer := newSquareSpacer(s, delta)
-	bottomCache := newSolidCache(s, spacer)
-	topCache := newSolidCache(s, spacer)
-	topCache.FetchZ(0)
-
 	mesh := NewMesh()
-
-	for z := 1; z < len(spacer.Zs); z++ {
-		bottomCache, topCache = topCache, bottomCache
-		topCache.FetchZ(z)
-
+	spacer.Scan(s, func(z int, bottomCache, topCache *solidCache) {
 		for y := 0; y < len(spacer.Ys)-1; y++ {
 			for x := 0; x < len(spacer.Xs)-1; x++ {
 				bits := bottomCache.GetSquare(x, y) | (topCache.GetSquare(x, y) << 4)
@@ -35,8 +27,7 @@ func MarchingCubes(s Solid, delta float64) *Mesh {
 				}
 			}
 		}
-	}
-
+	})
 	return mesh
 }
 
@@ -446,6 +437,39 @@ func (s *squareSpacer) CornerCoord(x, y, z int) Coord3D {
 	return Coord3D{X: s.Xs[x], Y: s.Ys[y], Z: s.Zs[z]}
 }
 
+func (s *squareSpacer) Scan(solid Solid, f func(z int, bottom, top *solidCache)) {
+	numGos := runtime.GOMAXPROCS(0)
+
+	// Prevent edge case where we are making a very
+	// flat object on a multi-core machine.
+	if numGos > len(s.Zs)-1 {
+		numGos = len(s.Zs) - 1
+	}
+
+	caches := make([]*asyncSolidCache, numGos+1)
+	for i := range caches {
+		caches[i] = &asyncSolidCache{
+			Cache: newSolidCache(solid, s),
+			Done:  make(chan struct{}, 1),
+		}
+		caches[i].FetchZ(i)
+	}
+
+	<-caches[0].Done
+	for nextZ := 1; nextZ < len(s.Zs); nextZ++ {
+		prevIdx := (nextZ - 1) % len(caches)
+		curIdx := nextZ % len(caches)
+
+		<-caches[curIdx].Done
+
+		f(nextZ, caches[prevIdx].Cache, caches[curIdx].Cache)
+
+		if nextZ+len(caches)-1 < len(s.Zs) {
+			caches[prevIdx].FetchZ(nextZ + len(caches) - 1)
+		}
+	}
+}
+
 type solidCache struct {
 	spacer *squareSpacer
 	solid  Solid
@@ -494,4 +518,16 @@ func (s *solidCache) GetSquare(x, y int) mcIntersections {
 		}
 	}
 	return result
+}
+
+type asyncSolidCache struct {
+	Cache *solidCache
+	Done  chan struct{}
+}
+
+func (a *asyncSolidCache) FetchZ(z int) {
+	go func() {
+		a.Cache.FetchZ(z)
+		a.Done <- struct{}{}
+	}()
 }
