@@ -7,6 +7,8 @@ import (
 // A Solid is a boolean function in 3D where a value of
 // true indicates that a point is part of the solid, and
 // false indicates that it is not.
+//
+// All methods of a Solid are safe for concurrency.
 type Solid interface {
 	// Contains must always return false outside of the
 	// boundaries of the solid.

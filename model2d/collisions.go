@@ -29,6 +29,8 @@ type RayCollision struct {
 // A Collider is the outline of a 2-dimensional shape.
 // It can count its intersections with a ray, and check if
 // any part of the outline is inside a circle.
+//
+// All methods of a Collider are safe for concurrency.
 type Collider interface {
 	Bounder
 

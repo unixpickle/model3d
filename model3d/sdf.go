@@ -8,6 +8,8 @@ import "math"
 // positive values inside the surface, and negative values
 // outside the surface.
 // The magnitude is the distance to the surface.
+//
+// All methods of an SDF are safe for concurrency.
 type SDF interface {
 	Bounder
 

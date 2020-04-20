@@ -4,6 +4,8 @@ package model2d
 //
 // For any given coordinate, the solid can check if the
 // shape contains that coordinate.
+//
+// All methods of a Solid are safe for concurrency.
 type Solid interface {
 	// Contains must always return false outside of the
 	// boundaries of the solid.

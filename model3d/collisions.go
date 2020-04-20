@@ -45,6 +45,8 @@ type TriangleCollision struct {
 
 // A Collider is a surface which can detect intersections
 // with linear rays and spheres.
+//
+// All methods of a Collider are safe for concurrency.
 type Collider interface {
 	Bounder
 
@@ -69,6 +71,9 @@ type Collider interface {
 
 // A TriangleCollider is like a Collider, but it can also
 // check if and where a triangle intersects the surface.
+//
+// All methods of a TriangleCollider are safe for
+// concurrency.
 type TriangleCollider interface {
 	Collider
 

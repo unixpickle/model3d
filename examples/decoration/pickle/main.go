@@ -3,9 +3,10 @@ package main
 import (
 	"io/ioutil"
 	"log"
+	"sync"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -87,7 +88,9 @@ func (p *PickleSolid) Contains(c model3d.Coord3D) bool {
 
 type PickleFunction struct {
 	Collider model2d.Collider
-	cache    map[float64][2]float64
+
+	// A synchronized map[float64][2]float64{}.
+	cache sync.Map
 }
 
 func NewPickleFunction() *PickleFunction {
@@ -97,10 +100,7 @@ func NewPickleFunction() *PickleFunction {
 		return c.Scale(PickleLength / float64(bmp.Height))
 	})
 	collider := model2d.MeshToCollider(mesh)
-	return &PickleFunction{
-		Collider: collider,
-		cache:    map[float64][2]float64{},
-	}
+	return &PickleFunction{Collider: collider}
 }
 
 func (p *PickleFunction) RadiusAt(y float64) float64 {
@@ -114,7 +114,8 @@ func (p *PickleFunction) CenterAt(y float64) float64 {
 }
 
 func (p *PickleFunction) minMaxAt(y float64) (float64, float64) {
-	if val, ok := p.cache[y]; ok {
+	if val, ok := p.cache.Load(y); ok {
+		val := val.([2]float64)
 		return val[0], val[1]
 	}
 
@@ -134,7 +135,7 @@ func (p *PickleFunction) minMaxAt(y float64) (float64, float64) {
 		}
 	})
 
-	p.cache[y] = [2]float64{min, max}
+	p.cache.Store(y, [2]float64{min, max})
 	return min, max
 }
 
