@@ -75,4 +75,12 @@ func main() {
 	mesh.SaveGroupedSTL("tripod.stl")
 	log.Println("Rendering tripod...")
 	render3d.SaveRandomGrid("rendering_tripod.png", mesh, 3, 3, 300, nil)
+
+	log.Println("Creating foot mesh...")
+	mesh = model3d.MarchingCubesSearch(CreateFoot(), 0.01, 8)
+	mesh = mesh.EliminateCoplanar(1e-8)
+	log.Println("Saving foot mesh...")
+	mesh.SaveGroupedSTL("foot.stl")
+	log.Println("Rendering foot...")
+	render3d.SaveRandomGrid("rendering_foot.png", mesh, 3, 3, 300, nil)
 }
