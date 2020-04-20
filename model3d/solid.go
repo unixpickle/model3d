@@ -104,12 +104,33 @@ func (i IntersectedSolid) Contains(c Coord3D) bool {
 	return true
 }
 
+// StackSolids joins solids together and moves each solid
+// after the first so that the lowest Z value of its
+// bounding box collides with the highest Z value of the
+// previous solid's bounding box.
+// In other words, the solids are stacked on top of each
+// other along the Z axis.
+func StackSolids(s ...Solid) Solid {
+	result := make(JoinedSolid, len(s))
+	result[0] = s[0]
+	lastMax := s[0].Max().Z
+	for i := 1; i < len(s); i++ {
+		delta := lastMax - s[i].Min().Z
+		result[i] = TransformSolid(&Translate{Offset: Coord3D{Z: delta}}, s[i])
+		lastMax = result[i].Max().Z
+	}
+	return result
+}
+
 // A StackedSolid is like a JoinedSolid, but the solids
 // after the first are moved so that the lowest Z value of
 // their bounding box collides with the highest Z value of
 // the previous solid.
 // In other words, the solids are stacked on top of each
 // other along the Z axis.
+//
+// This API is deprecated in favor of the StackSolids()
+// function.
 type StackedSolid []Solid
 
 func (s StackedSolid) Min() Coord3D {

@@ -14,7 +14,7 @@ func CreateTripod() model3d.Solid {
 			createLeg(2 * math.Pi / 3.0),
 			createLeg(4 * math.Pi / 3.0),
 
-			model3d.StackedSolid{
+			model3d.StackSolids(
 				&model3d.Cylinder{
 					P1:     model3d.Coord3D{Z: TripodHeadZ},
 					P2:     model3d.Coord3D{Z: TripodHeadZ + TripodHeadHeight},
@@ -25,7 +25,7 @@ func CreateTripod() model3d.Solid {
 					Radius:     ScrewRadius,
 					GrooveSize: ScrewGroove,
 				},
-			},
+			),
 		},
 
 		// Cut off bottom of leg cylinders.
