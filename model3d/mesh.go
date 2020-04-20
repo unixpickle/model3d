@@ -264,18 +264,20 @@ func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 	if len(ps) == 1 {
 		return append([]*Triangle{}, m.getVertexToTriangle()[ps[0]]...)
 	}
-	resSet := map[*Triangle]int{}
-	for _, p := range ps {
-		for _, t1 := range m.getVertexToTriangle()[p] {
-			resSet[t1]++
+
+	tris := m.getVertexToTriangle()[ps[0]]
+	res := make([]*Triangle, 0, len(tris))
+
+TriLoop:
+	for _, t := range tris {
+		for _, p := range ps[1:] {
+			if p != t[0] && p != t[1] && p != t[2] {
+				continue TriLoop
+			}
 		}
+		res = append(res, t)
 	}
-	res := make([]*Triangle, 0, len(resSet))
-	for t1, count := range resSet {
-		if count == len(ps) {
-			res = append(res, t1)
-		}
-	}
+
 	return res
 }
 
