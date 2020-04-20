@@ -3,6 +3,8 @@ package model2d
 import (
 	"os"
 	"sort"
+	"sync"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 	"github.com/unixpickle/essentials"
@@ -20,11 +22,15 @@ import (
 // can cause segments to incorrectly be disassociated
 // with each other.
 //
-// It is not safe to access a Mesh from multiple
-// Goroutines at once, even for reading.
+// A Mesh can be read safely from concurrent Goroutines,
+// but modifications must not be performed concurrently
+// with any mesh operations.
 type Mesh struct {
-	segments        map[*Segment]bool
-	vertexToSegment map[Coord][]*Segment
+	segments map[*Segment]bool
+
+	// Stores a map[Coord][]*Segment
+	vertexToSegment atomic.Value
+	v2sCreateLock   sync.Mutex
 }
 
 // NewMesh creates an empty mesh.
@@ -46,14 +52,15 @@ func NewMeshSegments(segs []*Segment) *Mesh {
 
 // Add adds the Segment s to the mesh.
 func (m *Mesh) Add(s *Segment) {
-	if m.vertexToSegment == nil {
+	v2s := m.getVertexToSegmentOrNil()
+	if v2s == nil {
 		m.segments[s] = true
 		return
 	} else if m.segments[s] {
 		return
 	}
 	for _, p := range s {
-		m.vertexToSegment[p] = append(m.vertexToSegment[p], s)
+		v2s[p] = append(v2s[p], s)
 	}
 	m.segments[s] = true
 }
@@ -72,23 +79,23 @@ func (m *Mesh) Remove(s *Segment) {
 		return
 	}
 	delete(m.segments, s)
-	if m.vertexToSegment == nil {
-		return
-	}
-	for _, p := range s {
-		m.removeSegmentFromVertex(s, p)
+	v2s := m.getVertexToSegmentOrNil()
+	if v2s != nil {
+		for _, p := range s {
+			m.removeSegmentFromVertex(v2s, s, p)
+		}
 	}
 }
 
-func (m *Mesh) removeSegmentFromVertex(s *Segment, p Coord) {
-	v2s := m.vertexToSegment[p]
-	for i, s1 := range v2s {
+func (m *Mesh) removeSegmentFromVertex(v2s map[Coord][]*Segment, s *Segment, p Coord) {
+	segs := v2s[p]
+	for i, s1 := range segs {
 		if s1 == s {
-			essentials.UnorderedDelete(&v2s, i)
+			essentials.UnorderedDelete(&segs, i)
 			break
 		}
 	}
-	m.vertexToSegment[p] = v2s
+	v2s[p] = segs
 }
 
 // Contains checks if s has been added to the mesh.
@@ -151,18 +158,23 @@ func (m *Mesh) Neighbors(s *Segment) []*Segment {
 //
 // This is only useful with one or two coordinates.
 func (m *Mesh) Find(ps ...Coord) []*Segment {
-	resSet := map[*Segment]int{}
-	for _, p := range ps {
-		for _, t1 := range m.getVertexToSegment()[p] {
-			resSet[t1]++
-		}
+	if len(ps) == 1 {
+		return append([]*Segment{}, m.getVertexToSegment()[ps[0]]...)
 	}
-	res := make([]*Segment, 0, len(resSet))
-	for t1, count := range resSet {
-		if count == len(ps) {
-			res = append(res, t1)
+
+	segs := m.getVertexToSegment()[ps[0]]
+	res := make([]*Segment, 0, len(segs))
+
+SegLoop:
+	for _, s := range segs {
+		for _, p := range ps[1:] {
+			if p != s[0] && p != s[1] {
+				continue SegLoop
+			}
 		}
+		res = append(res, s)
 	}
+
 	return res
 }
 
@@ -170,8 +182,8 @@ func (m *Mesh) Find(ps ...Coord) []*Segment {
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord) Coord) *Mesh {
 	mapping := map[Coord]Coord{}
-	if m.vertexToSegment != nil {
-		for c := range m.vertexToSegment {
+	if v2s := m.getVertexToSegmentOrNil(); v2s != nil {
+		for c := range v2s {
 			mapping[c] = f(c)
 		}
 	} else {
@@ -261,14 +273,38 @@ func (m *Mesh) SaveSVG(path string) error {
 }
 
 func (m *Mesh) getVertexToSegment() map[Coord][]*Segment {
-	if m.vertexToSegment != nil {
-		return m.vertexToSegment
+	v2s := m.getVertexToSegmentOrNil()
+	if v2s != nil {
+		return v2s
 	}
-	m.vertexToSegment = map[Coord][]*Segment{}
+
+	// Use a lock to ensure two different maps aren't
+	// created and returned on different Goroutines.
+	m.v2sCreateLock.Lock()
+	defer m.v2sCreateLock.Unlock()
+
+	// Another goroutine could have created a map while we
+	// waited on the lock.
+	v2s = m.getVertexToSegmentOrNil()
+	if v2s != nil {
+		return v2s
+	}
+
+	v2s = map[Coord][]*Segment{}
 	for s := range m.segments {
 		for _, p := range s {
-			m.vertexToSegment[p] = append(m.vertexToSegment[p], s)
+			v2s[p] = append(v2s[p], s)
 		}
 	}
-	return m.vertexToSegment
+	m.vertexToSegment.Store(v2s)
+
+	return v2s
+}
+
+func (m *Mesh) getVertexToSegmentOrNil() map[Coord][]*Segment {
+	res := m.vertexToSegment.Load()
+	if res == nil {
+		return nil
+	}
+	return res.(map[Coord][]*Segment)
 }
