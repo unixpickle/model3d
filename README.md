@@ -2,7 +2,7 @@
 
 This is a collection of tools for programmatically creating, manipulating, and rendering 3D models.
 
-The following image was created completely from models made with `model3d`, rendered with the `render3d` sub-pacakge of `model3d`:
+The following image was created completely from models made with `model3d`, rendered with the `render3d` sub-package of `model3d`:
 
 ![Showcase rendering](examples/renderings/showcase/output_hd.png)
 
