@@ -5,6 +5,8 @@ import (
 	"math"
 	"os"
 	"sort"
+	"sync"
+	"sync/atomic"
 
 	"github.com/pkg/errors"
 	"github.com/unixpickle/essentials"
@@ -22,11 +24,15 @@ import (
 // can cause triangles to incorrectly be disassociated
 // with each other.
 //
-// It is not safe to access a Mesh from multiple
-// Goroutines at once, even for reading.
+// A Mesh can be read safely from concurrent Goroutines,
+// but modifications must not be performed concurrently
+// with any mesh operations.
 type Mesh struct {
-	triangles        map[*Triangle]bool
-	vertexToTriangle map[Coord3D][]*Triangle
+	triangles map[*Triangle]bool
+
+	// Stores a map[Coord3D][]*Triangle
+	vertexToTriangle atomic.Value
+	v2tCreateLock    sync.Mutex
 }
 
 // NewMesh creates an empty mesh.
@@ -140,14 +146,16 @@ func NewMeshRect(min, max Coord3D) *Mesh {
 
 // Add adds the triangle t to the mesh.
 func (m *Mesh) Add(t *Triangle) {
-	if m.vertexToTriangle == nil {
+	v2t := m.getVertexToTriangleOrNil()
+	if v2t == nil {
 		m.triangles[t] = true
 		return
 	} else if m.triangles[t] {
 		return
 	}
+
 	for _, p := range t {
-		m.vertexToTriangle[p] = append(m.vertexToTriangle[p], t)
+		v2t[p] = append(v2t[p], t)
 	}
 	m.triangles[t] = true
 }
@@ -166,23 +174,23 @@ func (m *Mesh) Remove(t *Triangle) {
 		return
 	}
 	delete(m.triangles, t)
-	if m.vertexToTriangle == nil {
-		return
-	}
-	for _, p := range t {
-		m.removeTriangleFromVertex(t, p)
+	v2t := m.getVertexToTriangleOrNil()
+	if v2t != nil {
+		for _, p := range t {
+			m.removeTriangleFromVertex(v2t, t, p)
+		}
 	}
 }
 
-func (m *Mesh) removeTriangleFromVertex(t *Triangle, p Coord3D) {
-	s := m.vertexToTriangle[p]
+func (m *Mesh) removeTriangleFromVertex(v2t map[Coord3D][]*Triangle, t *Triangle, p Coord3D) {
+	s := v2t[p]
 	for i, t1 := range s {
 		if t1 == t {
 			essentials.UnorderedDelete(&s, i)
 			break
 		}
 	}
-	m.vertexToTriangle[p] = s
+	v2t[p] = s
 }
 
 // Contains checks if t has been added to the mesh.
@@ -281,8 +289,8 @@ func (m *Mesh) Scale(s float64) *Mesh {
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
 	mapping := map[Coord3D]Coord3D{}
-	if m.vertexToTriangle != nil {
-		for c := range m.vertexToTriangle {
+	if v2t := m.getVertexToTriangleOrNil(); v2t != nil {
+		for c := range v2t {
 			mapping[c] = f(c)
 		}
 	} else {
@@ -403,14 +411,38 @@ func (m *Mesh) Max() Coord3D {
 }
 
 func (m *Mesh) getVertexToTriangle() map[Coord3D][]*Triangle {
-	if m.vertexToTriangle != nil {
-		return m.vertexToTriangle
+	v2t := m.getVertexToTriangleOrNil()
+	if v2t != nil {
+		return v2t
 	}
-	m.vertexToTriangle = map[Coord3D][]*Triangle{}
+
+	// Use a lock to ensure two different maps aren't
+	// created and returned on different Goroutines.
+	m.v2tCreateLock.Lock()
+	defer m.v2tCreateLock.Unlock()
+
+	// Another goroutine could have created a map while we
+	// waited on the lock.
+	v2t = m.getVertexToTriangleOrNil()
+	if v2t != nil {
+		return v2t
+	}
+
+	v2t = map[Coord3D][]*Triangle{}
 	for t := range m.triangles {
 		for _, p := range t {
-			m.vertexToTriangle[p] = append(m.vertexToTriangle[p], t)
+			v2t[p] = append(v2t[p], t)
 		}
 	}
-	return m.vertexToTriangle
+	m.vertexToTriangle.Store(v2t)
+
+	return v2t
+}
+
+func (m *Mesh) getVertexToTriangleOrNil() map[Coord3D][]*Triangle {
+	res := m.vertexToTriangle.Load()
+	if res == nil {
+		return nil
+	}
+	return res.(map[Coord3D][]*Triangle)
 }

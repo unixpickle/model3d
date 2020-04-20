@@ -30,8 +30,8 @@ func (m *Mesh) Blur(rates ...float64) *Mesh {
 // If f is nil, then this is equivalent to Blur().
 func (m *Mesh) BlurFiltered(f func(c1, c2 Coord3D) bool, rates ...float64) *Mesh {
 	capacity := len(m.triangles) * 3
-	if m.vertexToTriangle != nil {
-		capacity = len(m.vertexToTriangle)
+	if v2t := m.getVertexToTriangleOrNil(); v2t != nil {
+		capacity = len(v2t)
 	}
 	coordToIdx := make(map[Coord3D]int, capacity)
 	coords := make([]Coord3D, 0, capacity)
@@ -526,7 +526,7 @@ func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool) {
 					delete(m.triangles, neighbor)
 					for _, p := range neighbor {
 						if p != segment[0] && p != segment[1] {
-							m.removeTriangleFromVertex(neighbor, p)
+							m.removeTriangleFromVertex(v2t, neighbor, p)
 							break
 						}
 					}

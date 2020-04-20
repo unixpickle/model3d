@@ -137,8 +137,8 @@ type indexMesh struct {
 
 func newIndexMesh(m *Mesh) *indexMesh {
 	capacity := len(m.triangles) * 3
-	if m.vertexToTriangle != nil {
-		capacity = len(m.vertexToTriangle)
+	if v2t := m.getVertexToTriangleOrNil(); v2t != nil {
+		capacity = len(v2t)
 	}
 
 	res := &indexMesh{
