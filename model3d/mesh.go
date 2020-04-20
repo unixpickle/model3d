@@ -231,13 +231,7 @@ func (m *Mesh) IterateSorted(f func(t *Triangle), cmp func(t1, t2 *Triangle) boo
 // visited.
 func (m *Mesh) IterateVertices(f func(c Coord3D)) {
 	v2t := m.getVertexToTriangle()
-
-	var vertices []Coord3D
-	for v := range v2t {
-		vertices = append(vertices, v)
-	}
-
-	for _, c := range vertices {
+	for _, c := range m.VertexSlice() {
 		if _, ok := v2t[c]; ok {
 			f(c)
 		}
@@ -388,6 +382,20 @@ func (m *Mesh) TriangleSlice() []*Triangle {
 		ts = append(ts, t)
 	}
 	return ts
+}
+
+// VertexSlice gets a snapshot of all the vertices
+// currently in the mesh.
+//
+// The result is a copy and is in no way connected to the
+// mesh in memory.
+func (m *Mesh) VertexSlice() []Coord3D {
+	v2t := m.getVertexToTriangle()
+	vertices := make([]Coord3D, 0, len(v2t))
+	for v := range v2t {
+		vertices = append(vertices, v)
+	}
+	return vertices
 }
 
 // Min gets the component-wise minimum across all the

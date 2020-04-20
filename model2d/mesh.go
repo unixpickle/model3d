@@ -136,13 +136,7 @@ func (m *Mesh) IterateSorted(f func(s *Segment), cmp func(s1, s2 *Segment) bool)
 // visited.
 func (m *Mesh) IterateVertices(f func(c Coord)) {
 	v2s := m.getVertexToSegment()
-
-	var vertices []Coord
-	for v := range v2s {
-		vertices = append(vertices, v)
-	}
-
-	for _, c := range vertices {
+	for _, c := range m.VertexSlice() {
 		if _, ok := v2s[c]; ok {
 			f(c)
 		}
@@ -235,6 +229,20 @@ func (m *Mesh) SegmentsSlice() []*Segment {
 		segs = append(segs, s)
 	}
 	return segs
+}
+
+// VertexSlice gets a snapshot of all the vertices
+// currently in the mesh.
+//
+// The result is a copy and is in no way connected to the
+// mesh in memory.
+func (m *Mesh) VertexSlice() []Coord {
+	v2s := m.getVertexToSegment()
+	vertices := make([]Coord, 0, len(v2s))
+	for v := range v2s {
+		vertices = append(vertices, v)
+	}
+	return vertices
 }
 
 // Min gets the component-wise minimum across all the
