@@ -253,6 +253,9 @@ func (m *Mesh) neighborsWithCounts(t *Triangle) map[*Triangle]int {
 // For example, to find all triangles containing a line
 // from p1 to p2, you could do m.Find(p1, p2).
 func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
+	if len(ps) == 1 {
+		return append([]*Triangle{}, m.getVertexToTriangle()[ps[0]]...)
+	}
 	resSet := map[*Triangle]int{}
 	for _, p := range ps {
 		for _, t1 := range m.getVertexToTriangle()[p] {
