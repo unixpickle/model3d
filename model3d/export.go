@@ -65,6 +65,23 @@ func castVector32(dest []float32, v Coord3D) {
 //
 // The colorFunc maps coordinates to 24-bit RGB colors.
 func EncodePLY(triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) []byte {
+	var buf bytes.Buffer
+	WritePLY(&buf, triangles, colorFunc)
+	return buf.Bytes()
+}
+
+// WritePLY writes the 3D model as a PLY file, including
+// colors for every vertex.
+//
+// The colorFunc maps coordinates to 24-bit RGB colors.
+func WritePLY(w io.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) error {
+	if err := writePLY(bufio.NewWriter(w), triangles, colorFunc); err != nil {
+		return errors.Wrap(err, "write PLY")
+	}
+	return nil
+}
+
+func writePLY(w *bufio.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) error {
 	coords := []Coord3D{}
 	coordToIdx := map[Coord3D]int{}
 	for _, t := range triangles {
@@ -76,32 +93,47 @@ func EncodePLY(triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) []byte {
 		}
 	}
 
-	var buffer strings.Builder
-	buffer.WriteString("ply\nformat ascii 1.0\n")
-	buffer.WriteString(fmt.Sprintf("element vertex %d\n", len(coords)))
-	buffer.WriteString("property float x\n")
-	buffer.WriteString("property float y\n")
-	buffer.WriteString("property float z\n")
-	buffer.WriteString("property uchar red\n")
-	buffer.WriteString("property uchar green\n")
-	buffer.WriteString("property uchar blue\n")
-	buffer.WriteString(fmt.Sprintf("element face %d\n", len(triangles)))
-	buffer.WriteString("property list uchar int vertex_index\n")
-	buffer.WriteString("end_header\n")
+	var header strings.Builder
+	header.WriteString("ply\nformat ascii 1.0\n")
+	header.WriteString(fmt.Sprintf("element vertex %d\n", len(coords)))
+	header.WriteString("property float x\n")
+	header.WriteString("property float y\n")
+	header.WriteString("property float z\n")
+	header.WriteString("property uchar red\n")
+	header.WriteString("property uchar green\n")
+	header.WriteString("property uchar blue\n")
+	header.WriteString(fmt.Sprintf("element face %d\n", len(triangles)))
+	header.WriteString("property list uchar int vertex_index\n")
+	header.WriteString("end_header\n")
+
+	if _, err := w.WriteString(header.String()); err != nil {
+		return err
+	}
+
 	for _, coord := range coords {
 		color := colorFunc(coord)
-		buffer.WriteString(fmt.Sprintf("%f %f %f %d %d %d\n", coord.X, coord.Y, coord.Z,
-			int(color[0]), int(color[1]), int(color[2])))
-	}
-	for _, t := range triangles {
-		buffer.WriteString("3")
-		for _, p := range t {
-			buffer.WriteByte(' ')
-			buffer.WriteString(strconv.Itoa(coordToIdx[p]))
+		coordLine := fmt.Sprintf("%f %f %f %d %d %d\n", coord.X, coord.Y, coord.Z,
+			int(color[0]), int(color[1]), int(color[2]))
+		if _, err := w.WriteString(coordLine); err != nil {
+			return err
 		}
-		buffer.WriteByte('\n')
 	}
-	return []byte(buffer.String())
+
+	var triangleBuffer strings.Builder
+	for _, t := range triangles {
+		triangleBuffer.Reset()
+		triangleBuffer.WriteString("3")
+		for _, p := range t {
+			triangleBuffer.WriteByte(' ')
+			triangleBuffer.WriteString(strconv.Itoa(coordToIdx[p]))
+		}
+		triangleBuffer.WriteByte('\n')
+		if _, err := w.WriteString(triangleBuffer.String()); err != nil {
+			return err
+		}
+	}
+
+	return w.Flush()
 }
 
 // EncodeMaterialOBJ encodes a 3D model as a zip file
@@ -113,6 +145,28 @@ func EncodePLY(triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) []byte {
 // color, so the resulting file will be much smaller if a
 // few identical colors are reused for many triangles.
 func EncodeMaterialOBJ(triangles []*Triangle, colorFunc func(t *Triangle) [3]float64) []byte {
+	var buf bytes.Buffer
+	WriteMaterialOBJ(&buf, triangles, colorFunc)
+	return buf.Bytes()
+}
+
+// WriteMaterialOBJ encodes a 3D model as a zip file
+// containing both an OBJ and an MTL file.
+//
+// The colorFunc maps faces to real-valued RGB colors.
+//
+// The encoding creates a different material for every
+// color, so the resulting file will be much smaller if a
+// few identical colors are reused for many triangles.
+func WriteMaterialOBJ(w io.Writer, ts []*Triangle, colorFunc func(t *Triangle) [3]float64) error {
+	if err := writeMaterialOBJ(w, ts, colorFunc); err != nil {
+		return errors.Wrap(err, "write material OBJ")
+	}
+	return nil
+}
+
+func writeMaterialOBJ(w io.Writer, triangles []*Triangle,
+	colorFunc func(t *Triangle) [3]float64) error {
 	colorToMat := map[[3]float64]int{}
 	colorToTriangle := map[[3]float64][]*Triangle{}
 	coords := []Coord3D{}
@@ -131,33 +185,57 @@ func EncodeMaterialOBJ(triangles []*Triangle, colorFunc func(t *Triangle) [3]flo
 		}
 	}
 
-	var objBuffer strings.Builder
-	objBuffer.WriteString("mtllib material.mtl\n")
-	for _, c := range coords {
-		objBuffer.WriteString(fmt.Sprintf("v %f %f %f\n", c.X, c.Y, c.Z))
+	zipFile := zip.NewWriter(w)
+
+	fw, err := zipFile.Create("object.obj")
+	if err != nil {
+		return err
 	}
-	for color, ts := range colorToTriangle {
-		objBuffer.WriteString(fmt.Sprintf("usemtl mat%d\n", colorToMat[color]))
-		for _, t := range ts {
-			objBuffer.WriteString(fmt.Sprintf("f %d %d %d\n", coordToIdx[t[0]]+1,
-				coordToIdx[t[1]]+1, coordToIdx[t[2]]+1))
+
+	buf := bufio.NewWriter(fw)
+	if _, err := buf.WriteString("mtllib material.mtl\n"); err != nil {
+		return err
+	}
+	for _, c := range coords {
+		if _, err := buf.WriteString(fmt.Sprintf("v %f %f %f\n", c.X, c.Y, c.Z)); err != nil {
+			return err
 		}
 	}
-
-	var mtlBuffer strings.Builder
-	for color, mat := range colorToMat {
-		mtlBuffer.WriteString(fmt.Sprintf("newmtl mat%d\nillum 1\nKa %f %f %f\nKd %f %f %f\n",
-			mat, color[0], color[1], color[2], color[0], color[1], color[2]))
+	for color, ts := range colorToTriangle {
+		matLine := fmt.Sprintf("usemtl mat%d\n", colorToMat[color])
+		if _, err := buf.WriteString(matLine); err != nil {
+			return err
+		}
+		for _, t := range ts {
+			faceLine := fmt.Sprintf("f %d %d %d\n", coordToIdx[t[0]]+1, coordToIdx[t[1]]+1,
+				coordToIdx[t[2]]+1)
+			if _, err := buf.WriteString(faceLine); err != nil {
+				return err
+			}
+		}
+	}
+	if err := buf.Flush(); err != nil {
+		return err
 	}
 
-	var fullBuffer bytes.Buffer
-	writer := zip.NewWriter(&fullBuffer)
-	w, _ := writer.Create("object.obj")
-	io.Copy(w, bytes.NewReader([]byte(objBuffer.String())))
-	w, _ = writer.Create("material.mtl")
-	io.Copy(w, bytes.NewReader([]byte(mtlBuffer.String())))
-	writer.Close()
-	return fullBuffer.Bytes()
+	fw, err = zipFile.Create("material.mtl")
+	if err != nil {
+		return err
+	}
+	buf = bufio.NewWriter(fw)
+
+	for color, mat := range colorToMat {
+		mtlLine := fmt.Sprintf("newmtl mat%d\nillum 1\nKa %f %f %f\nKd %f %f %f\n",
+			mat, color[0], color[1], color[2], color[0], color[1], color[2])
+		if _, err := buf.WriteString(mtlLine); err != nil {
+			return err
+		}
+	}
+	if err := buf.Flush(); err != nil {
+		return err
+	}
+
+	return zipFile.Close()
 }
 
 // VertexColorsToTriangle creates a per-triangle color
