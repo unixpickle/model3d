@@ -11,6 +11,10 @@ Included are:
  * Rose - `examples/decoration/rose`
  * Rocks - `examples/decoration/rock`
 
-The result looks like this:
+The default output looks like this:
 
 ![Output](output.png)
+
+To export a higher-resolution version, set the `HighRes` flag at the top of `main.go` to `true`. Then you will get:
+
+![Output HD](output_hd.png)

@@ -22,8 +22,8 @@ func ReadCurvyThing() render3d.Object {
 		Collider: model3d.MeshToCollider(mesh),
 		Material: &render3d.PhongMaterial{
 			Alpha:         20.0,
-			SpecularColor: render3d.NewColor(0.1),
-			DiffuseColor:  render3d.NewColor(0.7),
+			SpecularColor: render3d.NewColor(0.05),
+			DiffuseColor:  render3d.NewColor(0.3),
 		},
 	}
 }
@@ -42,7 +42,7 @@ func ReadRose() render3d.Object {
 		&render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(mesh),
 			Material: &render3d.LambertMaterial{
-				DiffuseColor: render3d.NewColorRGB(0.95, 0.2, 0.2),
+				DiffuseColor: render3d.NewColorRGB(0.95, 0.2, 0.2).Scale(0.5),
 			},
 		},
 		// Manually add a stem so the rose is not floating.
@@ -53,7 +53,7 @@ func ReadRose() render3d.Object {
 				Radius: RoseStemRadius,
 			},
 			Material: &render3d.LambertMaterial{
-				DiffuseColor: render3d.NewColorRGB(0.1, 0.55, 0),
+				DiffuseColor: render3d.NewColorRGB(0.1, 0.55, 0).Scale(0.5),
 			},
 		},
 	}
@@ -70,13 +70,37 @@ func ReadVase() render3d.Object {
 		X: VaseX - (max.X+min.X)/2,
 		Y: VaseY - (max.Y+min.Y)/2,
 	}.Add)
-	return render3d.Objectify(mesh,
-		func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
-			frac := c.Z / max.Z
-			c1 := render3d.NewColorRGB(61.0/255.0, 222.0/255.0, 33.0/255.0)
-			c2 := render3d.NewColorRGB(198.0/255.0, 52.0/255.0, 235.0/255.0)
-			return c1.Scale(frac).Add(c2.Scale(1 - frac))
-		})
+	return &VaseObject{
+		Object: &render3d.ColliderObject{
+			Collider: model3d.MeshToCollider(mesh),
+		},
+		maxZ: max.Z,
+	}
+}
+
+type VaseObject struct {
+	render3d.Object
+	maxZ float64
+}
+
+func (v *VaseObject) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, bool) {
+	rc, _, ok := v.Object.Cast(r)
+	if !ok {
+		return rc, nil, ok
+	}
+
+	c := r.Origin.Add(r.Direction.Scale(rc.Scale))
+	frac := c.Z / v.maxZ
+	c1 := render3d.NewColorRGB(61.0/255.0, 222.0/255.0, 33.0/255.0)
+	c2 := render3d.NewColorRGB(198.0/255.0, 52.0/255.0, 235.0/255.0)
+	color := c1.Scale(frac).Add(c2.Scale(1 - frac))
+	mat := &render3d.PhongMaterial{
+		Alpha:         10.0,
+		DiffuseColor:  color.Scale(0.4),
+		SpecularColor: render3d.NewColor(0.1),
+	}
+
+	return rc, mat, ok
 }
 
 func ReadRocks() render3d.Object {
@@ -89,7 +113,7 @@ func ReadRocks() render3d.Object {
 	return &render3d.ColliderObject{
 		Collider: model3d.MeshToCollider(mesh),
 		Material: &render3d.LambertMaterial{
-			DiffuseColor: render3d.NewColor(0.5),
+			DiffuseColor: render3d.NewColor(0.3),
 		},
 	}
 }
@@ -118,7 +142,7 @@ func ReadPumpkin() render3d.Object {
 		parts = append(parts, &render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(mesh),
 			Material: &render3d.LambertMaterial{
-				DiffuseColor: color,
+				DiffuseColor: color.Scale(0.5),
 			},
 		})
 	}

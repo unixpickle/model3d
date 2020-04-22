@@ -2,7 +2,10 @@ package main
 
 import "github.com/unixpickle/model3d/model3d"
 
-var LightDirection = model3d.Coord3D{X: 2, Y: -3, Z: 3}.Normalize()
+var (
+	LightDirection = model3d.Coord3D{X: 2, Y: -3, Z: 3}.Normalize()
+	LightCenter    = LightDirection.Normalize().Scale(50)
+)
 
 const (
 	CameraY = -5
@@ -27,4 +30,7 @@ const (
 	CurvyThingY = 9.0
 
 	RoomRadius = 100.0
+
+	LightRadius     = 5.0
+	LightBrightness = 300.0
 )

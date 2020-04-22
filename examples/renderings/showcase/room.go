@@ -7,34 +7,39 @@ import (
 	"github.com/unixpickle/model3d/render3d"
 )
 
+func NewLightObject() render3d.Object {
+	return &render3d.ColliderObject{
+		Collider: &model3d.Sphere{
+			Center: LightCenter,
+			Radius: LightRadius,
+		},
+		Material: &render3d.LambertMaterial{
+			EmissionColor: render3d.NewColor(LightBrightness),
+		},
+	}
+}
+
 type DomeObject struct {
 	render3d.Object
 }
 
 func NewDomeObject() *DomeObject {
+	skyColor := render3d.NewColorRGB(0.5, 0.8, 0.95).Scale(0.15).Add(render3d.NewColor(0.15))
 	return &DomeObject{
 		&render3d.ColliderObject{
 			Collider: &model3d.Sphere{
 				Radius: RoomRadius,
+			},
+			Material: &render3d.LambertMaterial{
+				DiffuseColor: skyColor,
 			},
 		},
 	}
 }
 
 func (d *DomeObject) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, bool) {
-	rc, _, ok := d.Object.Cast(r)
+	rc, mat, ok := d.Object.Cast(r)
 	rc.Normal = rc.Normal.Scale(-1)
-
-	// Make the brightness non-uniform (simulating the sun)
-	// so that shadows go in a certain direction and curves
-	// are more visible in objects.
-	brightest := LightDirection.Scale(-1)
-	brightness := 0.2 + 9.0*math.Pow(math.Max(0, rc.Normal.Dot(brightest)), 10.0)
-	mat := &render3d.LambertMaterial{
-		DiffuseColor:  render3d.NewColorRGB(0.5, 0.8, 0.95).Scale(0.3),
-		EmissionColor: render3d.NewColor(brightness),
-	}
-
 	return rc, mat, ok
 }
 
@@ -59,9 +64,9 @@ func (f *FloorObject) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Mater
 		return rc, mat, ok
 	}
 	p := r.Origin.Add(r.Direction.Scale(rc.Scale))
-	color := 0.9
+	color := 0.6
 	if int(math.Mod(p.X+300, 2)) == int(math.Mod(p.Y+301, 2)) {
-		color = 0.2
+		color = 0.1
 	}
 	mat = &render3d.LambertMaterial{
 		DiffuseColor: render3d.NewColor(color),
