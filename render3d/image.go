@@ -62,6 +62,13 @@ func (i *Image) FillRange() {
 	}
 }
 
+// Scale scales all colors by a constant.
+func (i *Image) Scale(s float64) {
+	for j, c := range i.Data {
+		i.Data[j] = c.Scale(s)
+	}
+}
+
 // RGBA creates a standard library RGBA image from i.
 //
 // Values outside the range of [0, 1] are clamped.
