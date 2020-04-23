@@ -139,26 +139,47 @@ func (t *Triangle) RayCollisions(r *Ray, f func(RayCollision)) int {
 // rayCollision is like FirstRayCollision, but it reports
 // negative scales for use in SDFs and the like.
 func (t *Triangle) rayCollision(r *Ray) (tc *TriangleCollision, scale float64) {
-	v1 := t[1].Sub(t[0])
-	v2 := t[2].Sub(t[0])
-	matrix := Matrix3{
-		v1.X, v2.X, r.Direction.X,
-		v1.Y, v2.Y, r.Direction.Y,
-		v1.Z, v2.Z, r.Direction.Z,
-	}
-	if math.Abs(matrix.Det()) < 1e-8*t.Area()*r.Direction.Norm() {
+	if d := t.Normal().Dot(r.Direction.Normalize()); d < 1e-8 && d > -1e-8 {
+		// Ray is parallel to the triangle.
 		return nil, 0
 	}
-	matrix.InvertInPlace()
-	result := matrix.MulColumn(r.Origin.Sub(t[0]))
-	barycentric := [3]float64{1 - (result.X + result.Y), result.X, result.Y}
-	if barycentric[0] >= 0 && barycentric[1] >= 0 && barycentric[2] >= 0 {
-		tc = &TriangleCollision{
-			Triangle:    t,
-			Barycentric: barycentric,
-		}
+
+	// Adapted from here, but made more readable by trying
+	// to expose what the variables are:
+	// https://en.m.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+
+	v1 := t[1].Sub(t[0])
+	v2 := t[2].Sub(t[0])
+
+	cross1 := r.Direction.Cross(v2)
+	det := cross1.Dot(v1)
+	if det == 0 {
+		// While the ray is not parallel to the triangle,
+		// somehow this determinant is 0, likely due to
+		// floating-point underflow.
+		return nil, 0
 	}
-	return tc, -result.Z
+	invDet := 1 / det
+
+	o := r.Origin.Sub(t[0])
+	bary1 := invDet * o.Dot(cross1)
+	if bary1 < 0 || bary1 > 1 {
+		return nil, 0
+	}
+
+	cross2 := o.Cross(v1)
+	bary2 := invDet * r.Direction.Dot(cross2)
+	if bary2 < 0 || bary1+bary2 > 1 {
+		return nil, 0
+	}
+
+	tc = &TriangleCollision{
+		Triangle:    t,
+		Barycentric: [3]float64{1 - (bary1 + bary2), bary1, bary2},
+	}
+	scale = invDet * v2.Dot(cross2)
+
+	return
 }
 
 // SphereCollision checks if any part of the triangle is
