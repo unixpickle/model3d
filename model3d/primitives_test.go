@@ -179,6 +179,21 @@ func TestTriangleCollisionMismatch(t *testing.T) {
 	}
 }
 
+func BenchmarkTriangleRayCollision(b *testing.B) {
+	t := &Triangle{
+		Coord3D{X: 0.1, Y: 0.1, Z: 0},
+		Coord3D{X: 1, Y: 0.1, Z: 0.1},
+		Coord3D{X: 0.1, Y: 1.0, Z: 0.2},
+	}
+	ray := &Ray{
+		Origin:    Coord3D{X: 0.2, Y: 0.2, Z: 0.3},
+		Direction: Coord3D{Z: -1},
+	}
+	for i := 0; i < b.N; i++ {
+		t.FirstRayCollision(ray)
+	}
+}
+
 // Load a 3D model that caused various bugs in the past.
 func readNonIntersectingHook() *Mesh {
 	r, err := os.Open("test_data/non_intersecting_hook.stl")
