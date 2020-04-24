@@ -37,7 +37,7 @@ func NewImage(width, height int) *Image {
 // larger image i.
 func (i *Image) CopyFrom(i1 *Image, x, y int) {
 	copyWidth := essentials.MinInt(i1.Width, i.Width-x)
-	copyHeight := essentials.MinInt(i1.Height, i.Height-x)
+	copyHeight := essentials.MinInt(i1.Height, i.Height-y)
 	for row := 0; row < copyHeight; row++ {
 		destIdx := (row+y)*i.Width + x
 		sourceIdx := row * i1.Width
