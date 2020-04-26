@@ -3,8 +3,6 @@ package render3d
 import (
 	"math"
 	"math/rand"
-	"runtime"
-	"sync"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
@@ -92,34 +90,13 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 	maxY := float64(img.Height) - 1
 	caster := r.Camera.Caster(maxX, maxY)
 
-	coords := make(chan [3]int, img.Width*img.Height)
-	var idx int
-	for y := 0; y < img.Height; y++ {
-		for x := 0; x < img.Width; x++ {
-			coords <- [3]int{x, y, idx}
-			idx++
-		}
-	}
-	close(coords)
-
 	progressCh := make(chan int, 1)
-
-	var wg sync.WaitGroup
-	for i := 0; i < runtime.NumCPU(); i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			gen := rand.New(rand.NewSource(rand.Int63()))
-			for c := range coords {
-				color, numSamples := r.estimateColor(gen, obj, float64(c[0]), float64(c[1]), caster)
-				img.Data[c[2]] = color
-				progressCh <- numSamples
-			}
-		}()
-	}
-
 	go func() {
-		wg.Wait()
+		mapCoordinates(img.Width, img.Height, func(gen *rand.Rand, x, y, idx int) {
+			color, numSamples := r.estimateColor(gen, obj, float64(x), float64(y), caster)
+			img.Data[idx] = color
+			progressCh <- numSamples
+		})
 		close(progressCh)
 	}()
 
