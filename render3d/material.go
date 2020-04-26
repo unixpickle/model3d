@@ -61,7 +61,7 @@ type Material interface {
 	SourceDensity(normal, source, dest model3d.Coord3D) float64
 
 	// Emission is the amount of light directly given off
-	// by the surface in the normal direction.
+	// by the surface.
 	Emission() Color
 
 	// Ambient is the baseline color to use for all
