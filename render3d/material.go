@@ -71,6 +71,24 @@ type Material interface {
 	Ambient() Color
 }
 
+// AsymMaterial is a specialized Material with a different
+// sampling distribution for destination and source
+// vectors.
+//
+// This is useful for transparent objects, but should not
+// be used for typical materials.
+type AsymMaterial interface {
+	Material
+
+	// SampleDest is like SampleSource, but it samples a
+	// destination direction.
+	SampleDest(gen *rand.Rand, normal, source model3d.Coord3D) model3d.Coord3D
+
+	// DestDensity is like SourceDensity, but for
+	// SampleDest rather than SampleSource.
+	DestDensity(normal, source, dest model3d.Coord3D) float64
+}
+
 // LambertMaterial is a completely matte material.
 type LambertMaterial struct {
 	DiffuseColor  Color
@@ -363,6 +381,15 @@ func (r *RefractMaterial) SourceDensity(normal, source, dest model3d.Coord3D) fl
 		return 0
 	}
 	return 2 / cosineEpsilon
+}
+
+func (r *RefractMaterial) SampleDest(gen *rand.Rand, normal,
+	source model3d.Coord3D) model3d.Coord3D {
+	return r.SampleSource(gen, normal.Scale(-1), source)
+}
+
+func (r *RefractMaterial) DestDensity(normal, source, dest model3d.Coord3D) float64 {
+	return r.SourceDensity(normal.Scale(-1), dest, source)
 }
 
 func (r *RefractMaterial) Emission() Color {

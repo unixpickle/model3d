@@ -53,6 +53,28 @@ func TestPhongMaterialBSDF(t *testing.T) {
 	})
 }
 
+func TestRefractMaterialAsym(t *testing.T) {
+	mat := &RefractMaterial{
+		IndexOfRefraction: 1.3,
+		RefractColor:      NewColor(1),
+	}
+	gen := rand.New(rand.NewSource(1337))
+	for i := 0; i < 5000; i++ {
+		normal := model3d.NewCoord3DRandUnit()
+		source := model3d.NewCoord3DRandUnit()
+		dest := mat.SampleDest(gen, normal, source)
+		if mat.DestDensity(normal, source, dest) == 0 {
+			t.Fatal("zero density")
+		}
+		if mat.SourceDensity(normal, source, dest) == 0 {
+			t.Fatal("zero source density")
+		}
+		if mat.BSDF(normal, source, dest).X == 0 {
+			t.Fatal("zero BSDF")
+		}
+	}
+}
+
 func TestHGMaterialBSDF(t *testing.T) {
 	for _, g := range []float64{-0.9, -0.5, 0, 0.5, 0.9} {
 		t.Run(fmt.Sprintf("G%.1f", g), func(t *testing.T) {
