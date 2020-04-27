@@ -113,6 +113,39 @@ type AreaLight interface {
 	Area() float64
 }
 
+// SphereAreaLight is a perfect sphere implementing an
+// area light.
+type SphereAreaLight struct {
+	Object
+	sphere   *model3d.Sphere
+	emission Color
+}
+
+// NewSphereAreaLight turns a sphere collider into an area
+// light.
+func NewSphereAreaLight(s *model3d.Sphere, emission Color) *SphereAreaLight {
+	return &SphereAreaLight{
+		Object: &ColliderObject{
+			Collider: s,
+			Material: &LambertMaterial{EmissionColor: emission},
+		},
+		sphere:   s,
+		emission: emission,
+	}
+}
+
+func (s *SphereAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coord3D,
+	emission Color) {
+	normal = model3d.NewCoord3DRandUnit()
+	point = s.sphere.Center.Add(normal.Scale(s.sphere.Radius))
+	emission = s.emission
+	return
+}
+
+func (s *SphereAreaLight) Area() float64 {
+	return 4 * math.Pi * s.sphere.Radius * s.sphere.Radius
+}
+
 // MeshAreaLight is an AreaLight for the surface of a
 // mesh.
 type MeshAreaLight struct {
