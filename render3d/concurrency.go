@@ -6,10 +6,15 @@ import (
 	"sync"
 )
 
+type goInfo struct {
+	Gen   *rand.Rand
+	Extra interface{}
+}
+
 // mapCoordinates calls f with every coordinate in an
 // image, along with a per-goroutine random number
 // generator and the pixel index.
-func mapCoordinates(width, height int, f func(gen *rand.Rand, x, y, idx int)) {
+func mapCoordinates(width, height int, f func(g *goInfo, x, y, idx int)) {
 	coords := make(chan [3]int, width*height)
 	var idx int
 	for y := 0; y < height; y++ {
@@ -25,9 +30,11 @@ func mapCoordinates(width, height int, f func(gen *rand.Rand, x, y, idx int)) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			gen := rand.New(rand.NewSource(rand.Int63()))
+			g := &goInfo{
+				Gen: rand.New(rand.NewSource(rand.Int63())),
+			}
 			for c := range coords {
-				f(gen, c[0], c[1], c[2])
+				f(g, c[0], c[1], c[2])
 			}
 		}()
 	}

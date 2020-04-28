@@ -98,8 +98,8 @@ func (r *RecursiveRayTracer) RayVariance(obj Object, width, height, samples int)
 
 func (r *RecursiveRayTracer) rayRenderer() *rayRenderer {
 	return &rayRenderer{
-		RayColor: func(gen *rand.Rand, obj Object, ray *model3d.Ray) Color {
-			return r.recurse(gen, obj, ray, 0, NewColor(1))
+		RayColor: func(g *goInfo, obj Object, ray *model3d.Ray) Color {
+			return r.recurse(g.Gen, obj, ray, 0, NewColor(1))
 		},
 
 		Camera:               r.Camera,

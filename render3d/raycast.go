@@ -1,8 +1,6 @@
 package render3d
 
 import (
-	"math/rand"
-
 	"github.com/unixpickle/model3d/model3d"
 )
 
@@ -19,7 +17,7 @@ func (r *RayCaster) Render(img *Image, obj Object) {
 	maxY := float64(img.Height) - 1
 	caster := r.Camera.Caster(maxX, maxY)
 
-	mapCoordinates(img.Width, img.Height, func(gen *rand.Rand, x, y, idx int) {
+	mapCoordinates(img.Width, img.Height, func(g *goInfo, x, y, idx int) {
 		ray := model3d.Ray{
 			Origin:    r.Camera.Origin,
 			Direction: caster(float64(x), float64(y)),

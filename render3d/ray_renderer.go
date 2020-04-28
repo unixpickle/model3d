@@ -11,7 +11,7 @@ import (
 // A rayRenderer renders objects using any algorithm that
 // can render pixels given an outgoing ray.
 type rayRenderer struct {
-	RayColor func(gen *rand.Rand, obj Object, ray *model3d.Ray) Color
+	RayColor func(g *goInfo, obj Object, ray *model3d.Ray) Color
 
 	Camera               *Camera
 	NumSamples           int
@@ -32,8 +32,8 @@ func (r *rayRenderer) Render(img *Image, obj Object) {
 
 	progressCh := make(chan int, 1)
 	go func() {
-		mapCoordinates(img.Width, img.Height, func(gen *rand.Rand, x, y, idx int) {
-			color, numSamples := r.estimateColor(gen, obj, float64(x), float64(y), caster)
+		mapCoordinates(img.Width, img.Height, func(g *goInfo, x, y, idx int) {
+			color, numSamples := r.estimateColor(g, obj, float64(x), float64(y), caster)
 			img.Data[idx] = color
 			progressCh <- numSamples
 		})
@@ -67,7 +67,9 @@ func (r *rayRenderer) RayVariance(obj Object, width, height, samples int) float6
 	var totalVariance float64
 	var totalCount float64
 
-	gen := rand.New(rand.NewSource(rand.Int63()))
+	g := &goInfo{
+		Gen: rand.New(rand.NewSource(rand.Int63())),
+	}
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
 			ray := model3d.Ray{
@@ -77,7 +79,7 @@ func (r *rayRenderer) RayVariance(obj Object, width, height, samples int) float6
 			var colorSum Color
 			var colorSqSum Color
 			for i := 0; i < samples; i++ {
-				sampleColor := r.RayColor(gen, obj, &ray)
+				sampleColor := r.RayColor(g, obj, &ray)
 				colorSum = colorSum.Add(sampleColor)
 				colorSqSum = colorSqSum.Add(sampleColor.Mul(sampleColor))
 			}
@@ -94,7 +96,7 @@ func (r *rayRenderer) RayVariance(obj Object, width, height, samples int) float6
 	return totalVariance / totalCount
 }
 
-func (r *rayRenderer) estimateColor(gen *rand.Rand, obj Object, x, y float64,
+func (r *rayRenderer) estimateColor(g *goInfo, obj Object, x, y float64,
 	caster func(x, y float64) model3d.Coord3D) (sampleMean Color, numSamples int) {
 	ray := model3d.Ray{Origin: r.Camera.Origin}
 	ray.Direction = caster(x, y)
@@ -104,11 +106,11 @@ func (r *rayRenderer) estimateColor(gen *rand.Rand, obj Object, x, y float64,
 SampleLoop:
 	for numSamples = 0; numSamples < r.NumSamples; numSamples++ {
 		if r.Antialias != 0 {
-			dx := r.Antialias * (gen.Float64() - 0.5)
-			dy := r.Antialias * (gen.Float64() - 0.5)
+			dx := r.Antialias * (g.Gen.Float64() - 0.5)
+			dy := r.Antialias * (g.Gen.Float64() - 0.5)
 			ray.Direction = caster(x+dx, y+dy)
 		}
-		sampleColor := r.RayColor(gen, obj, &ray)
+		sampleColor := r.RayColor(g, obj, &ray)
 		colorSum = colorSum.Add(sampleColor)
 
 		if r.MinSamples == 0 || r.MaxStddev == 0 {

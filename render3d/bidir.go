@@ -75,48 +75,59 @@ func (b *BidirPathTracer) rayRenderer() *rayRenderer {
 	}
 }
 
-func (b *BidirPathTracer) rayColor(gen *rand.Rand, obj Object, ray *model3d.Ray) Color {
-	eye := b.sampleEyePath(gen, obj, ray)
-	light := b.sampleLightPath(gen, obj)
+func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Color {
+	if g.Extra == nil {
+		g.Extra = newBptPathCache(b.MaxDepth + b.maxLightDepth())
+	}
+	cache := g.Extra.(*bptPathCache)
+
+	b.sampleEyePath(g.Gen, obj, ray, cache.EyePath)
+	b.sampleLightPath(g.Gen, obj, cache.LightPath)
+
 	var totalColor Color
-	allPathCombinations(eye, light, func(p *bptLightPath, combine bool, p1, p2 model3d.Coord3D) {
-		intensity := p.Intensity()
-		if intensity.Sum() < 1e-8 {
-			return
-		}
-		density := p.Density(b.Light.Area(), b.MaxDepth, b.MaxLightDepth)
-		color := intensity.Scale(1.0 / density)
+	allPathCombinations(cache.EyePath, cache.LightPath, cache.JoinedPath,
+		func(combine bool, p1, p2 model3d.Coord3D) {
+			p := cache.JoinedPath
 
-		if combine {
-			// Roulette sampling only when a collision
-			// check is needed.
-			brightness := math.Max(color.X, math.Max(color.Y, color.Z))
-			if b.RouletteDelta > 0 && brightness < b.RouletteDelta {
-				keepProb := brightness / b.RouletteDelta
-				if gen.Float64() > keepProb {
-					return
-				}
-				color = color.Scale(1 / keepProb)
-			}
-
-			ray := b.bounceRay(p1, p2.Sub(p1).Normalize())
-			eps := b.Epsilon
-			if eps == 0 {
-				eps = DefaultEpsilon
-			}
-			maxDist := p2.Dist(p1) - 2*eps
-			if coll, _, ok := obj.Cast(ray); ok && coll.Scale < maxDist {
+			intensity := p.Intensity()
+			if intensity.Sum() < 1e-8 {
 				return
 			}
-		}
+			density := p.Density(b.Light.Area(), b.MaxDepth, b.MaxLightDepth)
+			color := intensity.Scale(1.0 / density)
 
-		totalColor = totalColor.Add(color)
-	})
+			if combine {
+				// Roulette sampling only when a collision
+				// check is needed.
+				brightness := math.Max(color.X, math.Max(color.Y, color.Z))
+				if b.RouletteDelta > 0 && brightness < b.RouletteDelta {
+					keepProb := brightness / b.RouletteDelta
+					if g.Gen.Float64() > keepProb {
+						return
+					}
+					color = color.Scale(1 / keepProb)
+				}
+
+				ray := b.bounceRay(p1, p2.Sub(p1).Normalize())
+				eps := b.Epsilon
+				if eps == 0 {
+					eps = DefaultEpsilon
+				}
+				maxDist := p2.Dist(p1) - 2*eps
+				if coll, _, ok := obj.Cast(ray); ok && coll.Scale < maxDist {
+					return
+				}
+			}
+
+			totalColor = totalColor.Add(color)
+		})
+
 	return totalColor
 }
 
-func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d.Ray) *bptEyePath {
-	res := &bptEyePath{}
+func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d.Ray,
+	out *bptEyePath) {
+	out.Clear()
 	mask := NewColor(1.0)
 	for i := 0; i < b.MaxDepth && mask.Sum()/3 > b.Cutoff; i++ {
 		coll, mat, ok := obj.Cast(ray)
@@ -126,7 +137,8 @@ func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d
 		point := ray.Origin.Add(ray.Direction.Scale(coll.Scale))
 		dest := ray.Direction.Scale(-1).Normalize()
 		nextSource := mat.SampleSource(gen, coll.Normal, dest)
-		vertex := &bptPathVertex{
+		vertex := out.Extend()
+		*vertex = bptPathVertex{
 			Point:    point,
 			Normal:   coll.Normal,
 			Source:   nextSource,
@@ -136,29 +148,24 @@ func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d
 		}
 		vertex.EvalMaterial()
 		mask = mask.Mul(vertex.BSDF).Scale(1 / vertex.SourceDensity)
-		res.Points = append(res.Points, vertex)
 		ray = b.bounceRay(point, nextSource.Scale(-1))
 	}
-	return res
 }
 
-func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightPath {
+func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object, out *bptLightPath) {
 	origin, normal, emission := b.Light.SampleLight(gen)
 
 	dest := sampleAngularDest(gen, normal)
-	res := &bptLightPath{
-		Points: []*bptPathVertex{
-			{
-				Point:    origin,
-				Normal:   normal,
-				Source:   normal.Scale(-1),
-				Dest:     dest,
-				BSDF:     Color{},
-				Emission: emission,
-			},
-		},
+	out.Clear()
+	*out.Extend() = bptPathVertex{
+		Point:    origin,
+		Normal:   normal,
+		Source:   normal.Scale(-1),
+		Dest:     dest,
+		BSDF:     Color{},
+		Emission: emission,
 	}
-	res.Points[0].EvalMaterial()
+	out.Last().EvalMaterial()
 
 	ray := b.bounceRay(origin, dest)
 
@@ -176,7 +183,8 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightP
 		} else {
 			nextDest = mat.SampleSource(gen, coll.Normal, source.Scale(-1)).Scale(-1)
 		}
-		vertex := &bptPathVertex{
+		vertex := out.Extend()
+		*vertex = bptPathVertex{
 			Point:    point,
 			Normal:   coll.Normal,
 			Source:   source,
@@ -186,10 +194,8 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightP
 		}
 		vertex.EvalMaterial()
 		mask = mask.Mul(vertex.BSDF).Scale(1 / vertex.DestDensity)
-		res.Points = append(res.Points, vertex)
 		ray = b.bounceRay(point, nextDest)
 	}
-	return res
 }
 
 func (b *BidirPathTracer) maxLightDepth() int {
@@ -253,19 +259,57 @@ func (b *bptPathVertex) DestDot() float64 {
 	return math.Abs(b.Normal.Dot(b.Dest))
 }
 
+type bptPathCache struct {
+	EyePath    *bptEyePath
+	LightPath  *bptLightPath
+	JoinedPath *bptLightPath
+}
+
+func newBptPathCache(maxVertices int) *bptPathCache {
+	var slices [3][]bptPathVertex
+	for i := range slices {
+		slice := make([]bptPathVertex, 0, maxVertices)
+		slices[i] = slice
+	}
+	return &bptPathCache{
+		EyePath:    &bptEyePath{bptPath{Points: slices[0]}},
+		LightPath:  &bptLightPath{bptPath{Points: slices[1]}},
+		JoinedPath: &bptLightPath{bptPath{Points: slices[2]}},
+	}
+}
+
+type bptPath struct {
+	Points []bptPathVertex
+}
+
+func (b *bptPath) Clear() {
+	b.Points = b.Points[:0]
+}
+
+func (b *bptPath) Extend() *bptPathVertex {
+	idx := len(b.Points)
+	b.Points = b.Points[:idx+1]
+	return &b.Points[idx]
+}
+
+func (b *bptPath) Last() *bptPathVertex {
+	return &b.Points[len(b.Points)-1]
+}
+
 type bptEyePath struct {
-	// Points goes from the eye onward.
+	// Points go from the eye onward.
+	//
 	// The eye itself is not included.
-	Points []*bptPathVertex
+	bptPath
 }
 
 type bptLightPath struct {
-	// Points goes from the light onward.
+	// Points go from the light onward.
 	//
 	// The light is the first vertex.
 	// If the path was generated from a light source,
 	// then the material of this vertex is nil.
-	Points []*bptPathVertex
+	bptPath
 }
 
 // Intensity measures the observed light, assuming the
@@ -340,25 +384,18 @@ func (b *bptLightPath) Density(lightArea float64, maxDepth, maxLightDepth int) f
 // allPathCombinations enumerates all the ways to combine
 // the two paths, calling f for each combination along
 // with the two points whose connectivity to check.
-func allPathCombinations(eye *bptEyePath, light *bptLightPath,
-	f func(path *bptLightPath, needsCombine bool, p1, p2 model3d.Coord3D)) {
-	outPath := &bptLightPath{
-		Points: make([]*bptPathVertex, len(eye.Points)+len(light.Points)),
-	}
+func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath,
+	f func(needsCombine bool, p1, p2 model3d.Coord3D)) {
 	for i := 1; i <= len(eye.Points); i++ {
-		subEye := bptEyePath{
-			Points: eye.Points[:i],
-		}
+		subEye := bptEyePath{bptPath{Points: eye.Points[:i]}}
 		for j := 0; j <= len(light.Points); j++ {
-			subLight := bptLightPath{
-				Points: light.Points[:j],
-			}
+			subLight := bptLightPath{bptPath{Points: light.Points[:j]}}
 			if j == 0 {
-				combinePaths(subEye, subLight, outPath)
-				f(outPath, false, model3d.Coord3D{}, model3d.Coord3D{})
+				combinePaths(subEye, subLight, out)
+				f(false, model3d.Coord3D{}, model3d.Coord3D{})
 			} else {
-				combinePaths(subEye, subLight, outPath)
-				f(outPath, true, subEye.Points[len(subEye.Points)-1].Point,
+				combinePaths(subEye, subLight, out)
+				f(true, subEye.Points[len(subEye.Points)-1].Point,
 					subLight.Points[len(subLight.Points)-1].Point)
 			}
 		}
@@ -366,16 +403,18 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath,
 }
 
 func combinePaths(eye bptEyePath, light bptLightPath, result *bptLightPath) {
-	result.Points = result.Points[:0]
+	result.Clear()
 	if len(light.Points) == 0 {
+		*result.Extend() = eye.Points[len(eye.Points)-1]
 		result.Points = append(result.Points, eye.Points[len(eye.Points)-1])
 	} else {
 		for _, p := range light.Points[:len(light.Points)-1] {
-			result.Points = append(result.Points, p)
+			*result.Extend() = p
 		}
 		p := light.Points[len(light.Points)-1]
 		dest := eye.Points[len(eye.Points)-1].Point.Sub(p.Point).Normalize()
-		vertex := &bptPathVertex{
+		vertex := result.Extend()
+		*vertex = bptPathVertex{
 			Point:    p.Point,
 			Normal:   p.Normal,
 			Source:   p.Source,
@@ -384,10 +423,9 @@ func combinePaths(eye bptEyePath, light bptLightPath, result *bptLightPath) {
 			Material: p.Material,
 		}
 		vertex.EvalMaterial()
-		result.Points = append(result.Points, vertex)
 
 		p = eye.Points[len(eye.Points)-1]
-		vertex1 := &bptPathVertex{
+		*result.Extend() = bptPathVertex{
 			Point:    p.Point,
 			Normal:   p.Normal,
 			Source:   vertex.Dest,
@@ -395,12 +433,11 @@ func combinePaths(eye bptEyePath, light bptLightPath, result *bptLightPath) {
 			Emission: p.Emission,
 			Material: p.Material,
 		}
-		vertex1.EvalMaterial()
-		result.Points = append(result.Points, vertex1)
+		result.Last().EvalMaterial()
 	}
 
 	for i := len(eye.Points) - 2; i >= 0; i-- {
-		result.Points = append(result.Points, eye.Points[i])
+		*result.Extend() = eye.Points[i]
 	}
 }
 
