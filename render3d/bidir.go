@@ -84,7 +84,7 @@ func (b *BidirPathTracer) rayColor(gen *rand.Rand, obj Object, ray *model3d.Ray)
 		if intensity.Sum() < 1e-8 {
 			return
 		}
-		density := p.Density(b.Light.Area(), b.MaxLightDepth)
+		density := p.Density(b.Light.Area(), b.MaxDepth, b.MaxLightDepth)
 		color := intensity.Scale(1.0 / density)
 
 		if combine {
@@ -281,14 +281,22 @@ func (b *bptLightPath) Intensity() Color {
 
 // Density computes the total sampling density of the path
 // using multiple importance sampling.
-func (b *bptLightPath) Density(lightArea float64, maxLightDepth int) float64 {
+func (b *bptLightPath) Density(lightArea float64, maxDepth, maxLightDepth int) float64 {
+	if maxLightDepth == 0 {
+		maxLightDepth = maxDepth
+	}
+
 	density := newRunningProduct()
 	for _, p := range b.Points[1:] {
 		density = density.Mul(p.SourceDensity)
 	}
 
+	var totalDensity float64
+
 	// Density of doing a regular backward path trace.
-	totalDensity := density.Value()
+	if len(b.Points) <= maxDepth {
+		totalDensity += density.Value()
+	}
 
 	outArea := func(i1, i2 int) float64 {
 		diff := b.Points[i1].Point.Sub(b.Points[i2].Point)
@@ -303,22 +311,27 @@ func (b *bptLightPath) Density(lightArea float64, maxLightDepth int) float64 {
 
 	if len(b.Points) > 1 {
 		density = density.Div(lightArea)
-
-		// Density of selecting the point on the light.
 		density = density.Div(b.Points[1].SourceDensity)
-		totalDensity += density.Mul(outArea(0, 1)).Div(cosOut(0)).Value()
+
+		// Density of selecting the point on the light and
+		// connecting it to an eye path.
+		if len(b.Points)-1 <= maxDepth {
+			totalDensity += density.Mul(outArea(0, 1)).Div(cosOut(0)).Value()
+		}
 
 		// Densities of starting a path on the light and
 		// connecting it to the eye path.
 		for i, p := range b.Points[2:] {
-			if maxLightDepth != 0 && i >= maxLightDepth-1 {
+			if i+1 >= maxLightDepth {
 				break
 			}
 			density = density.Div(p.SourceDensity)
 			density = density.Mul(b.Points[i].DestDensity)
 			density = density.Div(cosOut(i))
 			density = density.Mul(cosIn(i + 1))
-			totalDensity += density.Mul(outArea(i+1, i+2)).Div(cosOut(i + 1)).Value()
+			if len(b.Points)-(i+2) <= maxDepth {
+				totalDensity += density.Mul(outArea(i+1, i+2)).Div(cosOut(i + 1)).Value()
+			}
 		}
 	}
 	return totalDensity
