@@ -112,13 +112,14 @@ func (l *LambertMaterial) SampleSource(gen *rand.Rand, normal,
 	// Sample with probabilities proportional to the cosine
 	// property (Lamert's law).
 	u := gen.Float64()
-	lat := math.Acos(math.Sqrt(u))
+	cosLat := math.Sqrt(u)
+	sinLat := math.Sqrt(1 - u)
 	lon := gen.Float64() * 2 * math.Pi
 
 	xAxis, zAxis := normal.OrthoBasis()
 
 	lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
-	point := normal.Scale(-math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
+	point := normal.Scale(-cosLat).Add(lonPoint.Scale(sinLat))
 
 	return point
 }
@@ -289,10 +290,11 @@ func sampleAroundDirection(gen *rand.Rand, alpha float64,
 	v := gen.Float64()
 
 	lon := 2 * math.Pi * u
-	lat := math.Acos(math.Pow(v, 1/(alpha+1)))
+	cosLat := math.Pow(v, 1/(alpha+1))
+	sinLat := math.Sqrt(1 - cosLat*cosLat)
 
 	lonPoint := xAxis.Scale(math.Cos(lon)).Add(zAxis.Scale(math.Sin(lon)))
-	return direction.Scale(math.Cos(lat)).Add(lonPoint.Scale(math.Sin(lat)))
+	return direction.Scale(cosLat).Add(lonPoint.Scale(sinLat))
 }
 
 // densityAroundDirection gets the density for
