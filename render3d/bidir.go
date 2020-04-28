@@ -30,6 +30,11 @@ type BidirPathTracer struct {
 	MaxStddev            float64
 	OversaturatedStddevs float64
 
+	// RouletteDelta is the maximum intensity for roulette
+	// sampling to be performed.
+	// If zero, all deterministic connections are checked.
+	RouletteDelta float64
+
 	// See RecursiveRayTracer for more details.
 	Cutoff    float64
 	Antialias float64
@@ -74,7 +79,15 @@ func (b *BidirPathTracer) rayColor(gen *rand.Rand, obj Object, ray *model3d.Ray)
 		if intensity.Sum() < 1e-8 {
 			return
 		}
-		density := p.Density()
+		color := intensity.Scale(1.0 / p.Density())
+		brightness := math.Max(color.X, math.Max(color.Y, color.Z))
+		if b.RouletteDelta > 0 && brightness < b.RouletteDelta {
+			keepProb := brightness / b.RouletteDelta
+			if gen.Float64() > keepProb {
+				return
+			}
+			color = color.Scale(1 / keepProb)
+		}
 
 		// Check connectivity.
 		if combine {
@@ -89,7 +102,7 @@ func (b *BidirPathTracer) rayColor(gen *rand.Rand, obj Object, ray *model3d.Ray)
 			}
 		}
 
-		totalColor = totalColor.Add(intensity.Scale(1.0 / density))
+		totalColor = totalColor.Add(color)
 	})
 	return totalColor
 }

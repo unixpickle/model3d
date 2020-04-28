@@ -22,17 +22,18 @@ func TestBidirPathTracer(t *testing.T) {
 		},
 		FocusPointProbs: []float64{0.25},
 		MaxDepth:        10,
-		NumSamples:      15000,
+		NumSamples:      30000,
 	}
 
 	groundTruth := NewImage(4, 4)
 	pt.Render(groundTruth, scene)
 
 	bpt := &BidirPathTracer{
-		Camera:     camera,
-		Light:      light,
-		MaxDepth:   10,
-		NumSamples: 15000,
+		Camera:        camera,
+		Light:         light,
+		MaxDepth:      10,
+		NumSamples:    30000,
+		RouletteDelta: 0.1,
 	}
 	actual := NewImage(4, 4)
 	bpt.Render(actual, scene)
