@@ -406,7 +406,6 @@ func combinePaths(eye bptEyePath, light bptLightPath, result *bptLightPath) {
 	result.Clear()
 	if len(light.Points) == 0 {
 		*result.Extend() = eye.Points[len(eye.Points)-1]
-		result.Points = append(result.Points, eye.Points[len(eye.Points)-1])
 	} else {
 		for _, p := range light.Points[:len(light.Points)-1] {
 			*result.Extend() = p
