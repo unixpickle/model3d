@@ -109,8 +109,8 @@ func (b *BidirPathTracer) rayColor(gen *rand.Rand, obj Object, ray *model3d.Ray)
 
 func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d.Ray) *bptEyePath {
 	res := &bptEyePath{Origin: ray.Origin}
-	// TODO: use b.Cutoff here.
-	for i := 0; i < b.MaxDepth; i++ {
+	mask := NewColor(1.0)
+	for i := 0; i < b.MaxDepth && mask.Sum()/3 > b.Cutoff; i++ {
 		coll, mat, ok := obj.Cast(ray)
 		if !ok {
 			break
@@ -127,6 +127,7 @@ func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d
 			Material: mat,
 		}
 		vertex.EvalMaterial()
+		mask = mask.Mul(vertex.BSDF).Scale(1 / vertex.SourceDensity)
 		res.Points = append(res.Points, vertex)
 		ray = b.bounceRay(point, nextSource.Scale(-1))
 	}
@@ -136,8 +137,6 @@ func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d
 func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightPath {
 	origin, normal, emission := b.Light.SampleLight(gen)
 
-	// TODO: look into if this is actually the proper
-	// way to sample from the area light.
 	dest := sampleAngularDest(gen, normal)
 	res := &bptLightPath{
 		StartDensity: 1.0 / b.Light.Area(),
@@ -156,8 +155,8 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightP
 
 	ray := b.bounceRay(origin, dest)
 
-	// TODO: use b.Cutoff here.
-	for i := 0; i < b.MaxDepth; i++ {
+	mask := NewColor(1.0)
+	for i := 0; i < b.MaxDepth && mask.Sum()/3 > b.Cutoff; i++ {
 		coll, mat, ok := obj.Cast(ray)
 		if !ok {
 			break
@@ -175,11 +174,11 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightP
 			Normal:   coll.Normal,
 			Source:   source,
 			Dest:     nextDest,
-			BSDF:     mat.BSDF(coll.Normal, source, nextDest),
 			Emission: mat.Emission(),
 			Material: mat,
 		}
 		vertex.EvalMaterial()
+		mask = mask.Mul(vertex.BSDF).Scale(1 / vertex.DestDensity)
 		res.Points = append(res.Points, vertex)
 		ray = b.bounceRay(point, nextDest)
 	}
