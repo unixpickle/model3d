@@ -22,6 +22,11 @@ type BidirPathTracer struct {
 	// either direction.
 	MaxDepth int
 
+	// MaxLightDepth, if non-zero, limits the number of
+	// light path vertices.
+	// Set to 1 to simply sample the area lights.
+	MaxLightDepth int
+
 	// These fields control how many samples are taken per
 	// pixel of the image.
 	// See RecursiveRayTracer for more details.
@@ -79,18 +84,21 @@ func (b *BidirPathTracer) rayColor(gen *rand.Rand, obj Object, ray *model3d.Ray)
 		if intensity.Sum() < 1e-8 {
 			return
 		}
-		color := intensity.Scale(1.0 / p.Density())
-		brightness := math.Max(color.X, math.Max(color.Y, color.Z))
-		if b.RouletteDelta > 0 && brightness < b.RouletteDelta {
-			keepProb := brightness / b.RouletteDelta
-			if gen.Float64() > keepProb {
-				return
-			}
-			color = color.Scale(1 / keepProb)
-		}
+		density := p.Density(b.Light.Area(), b.MaxLightDepth)
+		color := intensity.Scale(1.0 / density)
 
-		// Check connectivity.
 		if combine {
+			// Roulette sampling only when a collision
+			// check is needed.
+			brightness := math.Max(color.X, math.Max(color.Y, color.Z))
+			if b.RouletteDelta > 0 && brightness < b.RouletteDelta {
+				keepProb := brightness / b.RouletteDelta
+				if gen.Float64() > keepProb {
+					return
+				}
+				color = color.Scale(1 / keepProb)
+			}
+
 			ray := b.bounceRay(p1, p2.Sub(p1).Normalize())
 			eps := b.Epsilon
 			if eps == 0 {
@@ -108,7 +116,7 @@ func (b *BidirPathTracer) rayColor(gen *rand.Rand, obj Object, ray *model3d.Ray)
 }
 
 func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d.Ray) *bptEyePath {
-	res := &bptEyePath{Origin: ray.Origin}
+	res := &bptEyePath{}
 	mask := NewColor(1.0)
 	for i := 0; i < b.MaxDepth && mask.Sum()/3 > b.Cutoff; i++ {
 		coll, mat, ok := obj.Cast(ray)
@@ -139,7 +147,6 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightP
 
 	dest := sampleAngularDest(gen, normal)
 	res := &bptLightPath{
-		StartDensity: 1.0 / b.Light.Area(),
 		Points: []*bptPathVertex{
 			{
 				Point:    origin,
@@ -156,7 +163,7 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightP
 	ray := b.bounceRay(origin, dest)
 
 	mask := NewColor(1.0)
-	for i := 0; i < b.MaxDepth && mask.Sum()/3 > b.Cutoff; i++ {
+	for i := 0; i < b.maxLightDepth()-1 && mask.Sum()/3 > b.Cutoff; i++ {
 		coll, mat, ok := obj.Cast(ray)
 		if !ok {
 			break
@@ -183,6 +190,13 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object) *bptLightP
 		ray = b.bounceRay(point, nextDest)
 	}
 	return res
+}
+
+func (b *BidirPathTracer) maxLightDepth() int {
+	if b.MaxLightDepth != 0 {
+		return b.MaxLightDepth
+	}
+	return b.MaxDepth
 }
 
 func (b *BidirPathTracer) bounceRay(point model3d.Coord3D, dir model3d.Coord3D) *model3d.Ray {
@@ -240,17 +254,17 @@ func (b *bptPathVertex) DestDot() float64 {
 }
 
 type bptEyePath struct {
-	Origin model3d.Coord3D
-
 	// Points goes from the eye onward.
+	// The eye itself is not included.
 	Points []*bptPathVertex
 }
 
 type bptLightPath struct {
-	// StartDensity is the inverse of the area.
-	StartDensity float64
-
 	// Points goes from the light onward.
+	//
+	// The light is the first vertex.
+	// If the path was generated from a light source,
+	// then the material of this vertex is nil.
 	Points []*bptPathVertex
 }
 
@@ -267,7 +281,7 @@ func (b *bptLightPath) Intensity() Color {
 
 // Density computes the total sampling density of the path
 // using multiple importance sampling.
-func (b *bptLightPath) Density() float64 {
+func (b *bptLightPath) Density(lightArea float64, maxLightDepth int) float64 {
 	density := newRunningProduct()
 	for _, p := range b.Points[1:] {
 		density = density.Mul(p.SourceDensity)
@@ -288,7 +302,7 @@ func (b *bptLightPath) Density() float64 {
 	}
 
 	if len(b.Points) > 1 {
-		density = density.Mul(b.StartDensity)
+		density = density.Div(lightArea)
 
 		// Density of selecting the point on the light.
 		density = density.Div(b.Points[1].SourceDensity)
@@ -297,6 +311,9 @@ func (b *bptLightPath) Density() float64 {
 		// Densities of starting a path on the light and
 		// connecting it to the eye path.
 		for i, p := range b.Points[2:] {
+			if maxLightDepth != 0 && i >= maxLightDepth-1 {
+				break
+			}
 			density = density.Div(p.SourceDensity)
 			density = density.Mul(b.Points[i].DestDensity)
 			density = density.Div(cosOut(i))
@@ -313,18 +330,15 @@ func (b *bptLightPath) Density() float64 {
 func allPathCombinations(eye *bptEyePath, light *bptLightPath,
 	f func(path *bptLightPath, needsCombine bool, p1, p2 model3d.Coord3D)) {
 	outPath := &bptLightPath{
-		StartDensity: light.StartDensity,
-		Points:       make([]*bptPathVertex, len(eye.Points)+len(light.Points)),
+		Points: make([]*bptPathVertex, len(eye.Points)+len(light.Points)),
 	}
 	for i := 1; i <= len(eye.Points); i++ {
 		subEye := bptEyePath{
-			Origin: eye.Origin,
 			Points: eye.Points[:i],
 		}
 		for j := 0; j <= len(light.Points); j++ {
 			subLight := bptLightPath{
-				StartDensity: light.StartDensity,
-				Points:       light.Points[:j],
+				Points: light.Points[:j],
 			}
 			if j == 0 {
 				combinePaths(subEye, subLight, outPath)
