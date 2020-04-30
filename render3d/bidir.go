@@ -40,6 +40,13 @@ type BidirPathTracer struct {
 	// If zero, all deterministic connections are checked.
 	RouletteDelta float64
 
+	// PowerHeuristic, if non-zero, is used for multiple
+	// importance sampling of paths.
+	// A value of 2 is recommended, and a value of 1 is
+	// equivalent to the balance heuristic used by
+	// default.
+	PowerHeuristic float64
+
 	// See RecursiveRayTracer for more details.
 	Cutoff    float64
 	Antialias float64
@@ -94,9 +101,16 @@ func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Colo
 				return
 			}
 			var weight float64
-			p.Densities(b.Light.Area(), b.MaxDepth, b.MaxLightDepth, func(d float64) {
-				weight += d
-			})
+			if b.PowerHeuristic == 0 {
+				p.Densities(b.Light.Area(), b.MaxDepth, b.MaxLightDepth, func(d float64) {
+					weight += d
+				})
+			} else {
+				p.Densities(b.Light.Area(), b.MaxDepth, b.MaxLightDepth, func(d float64) {
+					weight += math.Pow(d, b.PowerHeuristic)
+				})
+				weight /= math.Pow(density, b.PowerHeuristic-1)
+			}
 			color := intensity.Scale(1.0 / weight)
 
 			if p1 != p2 {
