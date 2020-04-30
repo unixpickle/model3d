@@ -43,7 +43,7 @@ func TestBidirPathTracer(t *testing.T) {
 
 	for i, a := range actual.Data {
 		x := groundTruth.Data[i]
-		if a.Dist(x) > 0.02 {
+		if a.Dist(x) > 0.02 || math.IsNaN(a.Sum()) || math.IsInf(a.Sum(), 0) {
 			t.Errorf("expected %v but got %v", x, a)
 		}
 	}

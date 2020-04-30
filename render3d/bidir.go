@@ -106,10 +106,10 @@ func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Colo
 					weight += d
 				})
 			} else {
+				scale := math.Pow(density, -(b.PowerHeuristic-1)/b.PowerHeuristic)
 				p.Densities(b.Light.Area(), b.MaxDepth, b.MaxLightDepth, func(d float64) {
-					weight += math.Pow(d, b.PowerHeuristic)
+					weight += math.Pow(d*scale, b.PowerHeuristic)
 				})
-				weight /= math.Pow(density, b.PowerHeuristic-1)
 			}
 			color := intensity.Scale(1.0 / weight)
 
