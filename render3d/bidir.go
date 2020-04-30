@@ -85,18 +85,21 @@ func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Colo
 	b.sampleLightPath(g.Gen, obj, cache.LightPath)
 
 	var totalColor Color
-	allPathCombinations(cache.EyePath, cache.LightPath, cache.JoinedPath,
-		func(combine bool, p1, p2 model3d.Coord3D) {
+	allPathCombinations(cache.EyePath, cache.LightPath, cache.JoinedPath, b.Light.Area(),
+		func(density float64, p1, p2 model3d.Coord3D) {
 			p := cache.JoinedPath
 
 			intensity := p.Intensity()
 			if intensity.Sum() < 1e-8 {
 				return
 			}
-			density := p.Density(b.Light.Area(), b.MaxDepth, b.MaxLightDepth)
-			color := intensity.Scale(1.0 / density)
+			var weight float64
+			p.Densities(b.Light.Area(), b.MaxDepth, b.MaxLightDepth, func(d float64) {
+				weight += d
+			})
+			color := intensity.Scale(1.0 / weight)
 
-			if combine {
+			if p1 != p2 {
 				// Roulette sampling only when a collision
 				// check is needed.
 				brightness := math.Max(color.X, math.Max(color.Y, color.Z))
@@ -323,9 +326,9 @@ func (b *bptLightPath) Intensity() Color {
 	return result
 }
 
-// Density computes the total sampling density of the path
-// using multiple importance sampling.
-func (b *bptLightPath) Density(lightArea float64, maxDepth, maxLightDepth int) float64 {
+// Densities computes the sampling density of the path for
+// each possible way it could have been sampled.
+func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int, f func(float64)) {
 	if maxLightDepth == 0 {
 		maxLightDepth = maxDepth
 	}
@@ -335,11 +338,9 @@ func (b *bptLightPath) Density(lightArea float64, maxDepth, maxLightDepth int) f
 		density = density.Mul(p.SourceDensity)
 	}
 
-	var totalDensity float64
-
 	// Density of doing a regular backward path trace.
 	if len(b.Points) <= maxDepth {
-		totalDensity += density.Value()
+		f(density.Value())
 	}
 
 	outArea := func(i1, i2 int) float64 {
@@ -360,7 +361,7 @@ func (b *bptLightPath) Density(lightArea float64, maxDepth, maxLightDepth int) f
 		// Density of selecting the point on the light and
 		// connecting it to an eye path.
 		if len(b.Points)-1 <= maxDepth {
-			totalDensity += density.Mul(outArea(0, 1)).Div(cosOut(0)).Value()
+			f(density.Mul(outArea(0, 1)).Div(cosOut(0)).Value())
 		}
 
 		// Densities of starting a path on the light and
@@ -374,30 +375,45 @@ func (b *bptLightPath) Density(lightArea float64, maxDepth, maxLightDepth int) f
 			density = density.Div(cosOut(i))
 			density = density.Mul(cosIn(i + 1))
 			if len(b.Points)-(i+2) <= maxDepth {
-				totalDensity += density.Mul(outArea(i+1, i+2)).Div(cosOut(i + 1)).Value()
+				f(density.Mul(outArea(i+1, i+2)).Div(cosOut(i + 1)).Value())
 			}
 		}
 	}
-	return totalDensity
 }
 
 // allPathCombinations enumerates all the ways to combine
 // the two paths, calling f for each combination along
 // with the two points whose connectivity to check.
-func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath,
-	f func(needsCombine bool, p1, p2 model3d.Coord3D)) {
+func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath, lightArea float64,
+	f func(density float64, p1, p2 model3d.Coord3D)) {
 	for i := 1; i <= len(eye.Points); i++ {
 		subEye := bptEyePath{bptPath{Points: eye.Points[:i]}}
-		for j := 0; j <= len(light.Points); j++ {
-			subLight := bptLightPath{bptPath{Points: light.Points[:j]}}
-			if j == 0 {
-				combinePaths(subEye, subLight, out)
-				f(false, model3d.Coord3D{}, model3d.Coord3D{})
-			} else {
-				combinePaths(subEye, subLight, out)
-				f(true, subEye.Points[len(subEye.Points)-1].Point,
-					subLight.Points[len(subLight.Points)-1].Point)
+		density := newRunningProduct()
+		for _, p := range subEye.Points[:i-1] {
+			density = density.Mul(p.SourceDensity)
+		}
+		if (subEye.Points[i-1].Emission != Color{}) {
+			// Full light path has some contribution.
+			combinePaths(subEye, bptLightPath{}, out)
+			f(density.Value(), model3d.Coord3D{}, model3d.Coord3D{})
+		}
+		density = density.Div(lightArea)
+		for j := 1; j <= len(light.Points); j++ {
+			diff := light.Points[j-1].Point.Sub(subEye.Points[i-1].Point)
+			outArea := 4 * math.Pi * diff.Dot(diff)
+
+			if j > 1 {
+				density = density.Mul(light.Points[j-2].DestDensity)
+				density = density.Div(light.Points[j-2].DestDot())
+				density = density.Mul(light.Points[j-1].SourceDot())
 			}
+
+			subLight := bptLightPath{bptPath{Points: light.Points[:j]}}
+			combinePaths(subEye, subLight, out)
+
+			curDensity := density.Mul(outArea).Div(out.Points[j-1].DestDot()).Value()
+			f(curDensity, subEye.Points[len(subEye.Points)-1].Point,
+				subLight.Points[len(subLight.Points)-1].Point)
 		}
 	}
 }
