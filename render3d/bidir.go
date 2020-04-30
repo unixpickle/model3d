@@ -425,9 +425,15 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath
 			subLight := bptLightPath{bptPath{Points: light.Points[:j]}}
 			combinePaths(subEye, subLight, out)
 
-			curDensity := density.Mul(outArea).Div(out.Points[j-1].DestDot()).Value()
-			f(curDensity, subEye.Points[len(subEye.Points)-1].Point,
-				subLight.Points[len(subLight.Points)-1].Point)
+			// If destDot == 0, then the weight is infinite, so
+			// the contribution will always be zero.
+			// If we don't do this check, then the power heuristic
+			// may compute infinity/infinity and yield NaNs.
+			if destDot := out.Points[j-1].DestDot(); destDot > 0 {
+				curDensity := density.Mul(outArea).Div(destDot).Value()
+				f(curDensity, subEye.Points[len(subEye.Points)-1].Point,
+					subLight.Points[len(subLight.Points)-1].Point)
+			}
 		}
 	}
 }
