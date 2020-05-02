@@ -145,7 +145,8 @@ func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d
 	out *bptEyePath) {
 	out.Clear()
 	mask := NewColor(1.0)
-	for i := 0; i < b.MaxDepth && mask.Sum()/3 > b.Cutoff; i++ {
+	rouletteScale := 1.0
+	for i := 0; i < b.MaxDepth; i++ {
 		coll, mat, ok := obj.Cast(ray)
 		if !ok {
 			break
@@ -155,16 +156,24 @@ func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d
 		nextSource := mat.SampleSource(gen, coll.Normal, dest)
 		vertex := out.Extend()
 		*vertex = bptPathVertex{
-			Point:    point,
-			Normal:   coll.Normal,
-			Source:   nextSource,
-			Dest:     dest,
-			Emission: mat.Emission(),
-			Material: mat,
+			Point:         point,
+			Normal:        coll.Normal,
+			Source:        nextSource,
+			Dest:          dest,
+			Emission:      mat.Emission(),
+			Material:      mat,
+			RouletteScale: rouletteScale,
 		}
 		vertex.EvalMaterial()
-		mask = mask.Mul(vertex.BSDF).Scale(1 / vertex.SourceDensity)
 		ray = b.bounceRay(point, nextSource.Scale(-1))
+		mask = mask.Mul(vertex.BSDF).Scale(vertex.SourceDot() / vertex.SourceDensity)
+		if mean := mask.Sum() / 3; mean < b.Cutoff {
+			keepProb := mean / b.Cutoff
+			if gen.Float64() > keepProb {
+				break
+			}
+			rouletteScale *= 1 / keepProb
+		}
 	}
 }
 
@@ -174,19 +183,21 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object, out *bptLi
 	dest := sampleAngularDest(gen, normal)
 	out.Clear()
 	*out.Extend() = bptPathVertex{
-		Point:    origin,
-		Normal:   normal,
-		Source:   normal.Scale(-1),
-		Dest:     dest,
-		BSDF:     Color{},
-		Emission: emission,
+		Point:         origin,
+		Normal:        normal,
+		Source:        normal.Scale(-1),
+		Dest:          dest,
+		BSDF:          Color{},
+		Emission:      emission,
+		RouletteScale: 1.0,
 	}
 	out.Last().EvalMaterial()
 
 	ray := b.bounceRay(origin, dest)
 
 	mask := NewColor(1.0)
-	for i := 0; i < b.maxLightDepth()-1 && mask.Sum()/3 > b.Cutoff; i++ {
+	rouletteScale := 1.0
+	for i := 0; i < b.maxLightDepth()-1; i++ {
 		coll, mat, ok := obj.Cast(ray)
 		if !ok {
 			break
@@ -201,16 +212,24 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object, out *bptLi
 		}
 		vertex := out.Extend()
 		*vertex = bptPathVertex{
-			Point:    point,
-			Normal:   coll.Normal,
-			Source:   source,
-			Dest:     nextDest,
-			Emission: mat.Emission(),
-			Material: mat,
+			Point:         point,
+			Normal:        coll.Normal,
+			Source:        source,
+			Dest:          nextDest,
+			Emission:      mat.Emission(),
+			Material:      mat,
+			RouletteScale: rouletteScale,
 		}
 		vertex.EvalMaterial()
-		mask = mask.Mul(vertex.BSDF).Scale(1 / vertex.DestDensity)
 		ray = b.bounceRay(point, nextDest)
+		mask = mask.Mul(vertex.BSDF).Scale(vertex.SourceDot() / vertex.DestDensity)
+		if mean := mask.Sum() / 3; mean < b.Cutoff {
+			keepProb := mean / b.Cutoff
+			if gen.Float64() > keepProb {
+				break
+			}
+			rouletteScale *= 1 / keepProb
+		}
 	}
 }
 
@@ -251,6 +270,11 @@ type bptPathVertex struct {
 	Material      Material
 	SourceDensity float64
 	DestDensity   float64
+
+	// RouletteScale is >= 1 and indicates how unlikely
+	// this vertex was to be reached due to roulette
+	// sampling.
+	RouletteScale float64
 }
 
 func (p *bptPathVertex) EvalMaterial() {
@@ -396,6 +420,7 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath
 			density = density.Mul(p.SourceDensity)
 			eyeBSDF = eyeBSDF.Mul(p.BSDF).Scale(p.SourceDot())
 		}
+		eyeBSDF = eyeBSDF.Scale(eye.Points[i-1].RouletteScale)
 		if (subEye.Points[i-1].Emission != Color{}) {
 			// Full light path has some contribution.
 			combinePaths(subEye, bptLightPath{}, out)
@@ -429,6 +454,7 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath
 				curDensity := density.Mul(outArea).Div(destDot).Value()
 				intensity := eyeBSDF.Mul(lightBSDF).Scale(out.Points[j].SourceDot())
 				intensity = intensity.Mul(out.Points[j].BSDF)
+				intensity = intensity.Scale(light.Points[j-1].RouletteScale)
 				if j > 1 {
 					intensity = intensity.Mul(out.Points[j-1].BSDF)
 				}
