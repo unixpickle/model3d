@@ -92,7 +92,7 @@ func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Colo
 	b.sampleLightPath(g.Gen, obj, cache.LightPath)
 
 	var totalColor Color
-	allPathCombinations(cache.EyePath, cache.LightPath, cache.JoinedPath, b.Light.Area(),
+	allPathCombinations(cache.EyePath, cache.LightPath, cache, b.Light.Area(),
 		func(density float64, intensity Color, p1, p2 model3d.Coord3D) {
 			if intensity.Sum() < 1e-8 {
 				return
@@ -303,23 +303,29 @@ type bptPathCache struct {
 	EyePath    *bptEyePath
 	LightPath  *bptLightPath
 	JoinedPath *bptLightPath
+	Extra      [2]bptPathVertex
 }
 
 func newBptPathCache(maxVertices int) *bptPathCache {
-	var slices [3][]bptPathVertex
+	allVerts := make([]bptPathVertex, maxVertices*2)
+
+	var slices [2][]*bptPathVertex
 	for i := range slices {
-		slice := make([]bptPathVertex, 0, maxVertices)
+		slice := make([]*bptPathVertex, maxVertices)
+		for j := range slice {
+			slice[j] = &allVerts[i*maxVertices+j]
+		}
 		slices[i] = slice
 	}
 	return &bptPathCache{
 		EyePath:    &bptEyePath{bptPath{Points: slices[0]}},
 		LightPath:  &bptLightPath{bptPath{Points: slices[1]}},
-		JoinedPath: &bptLightPath{bptPath{Points: slices[2]}},
+		JoinedPath: &bptLightPath{bptPath{Points: make([]*bptPathVertex, 0, maxVertices)}},
 	}
 }
 
 type bptPath struct {
-	Points []bptPathVertex
+	Points []*bptPathVertex
 }
 
 func (b *bptPath) Clear() {
@@ -329,11 +335,15 @@ func (b *bptPath) Clear() {
 func (b *bptPath) Extend() *bptPathVertex {
 	idx := len(b.Points)
 	b.Points = b.Points[:idx+1]
-	return &b.Points[idx]
+	return b.Points[idx]
 }
 
 func (b *bptPath) Last() *bptPathVertex {
-	return &b.Points[len(b.Points)-1]
+	return b.Points[len(b.Points)-1]
+}
+
+func (b *bptPath) Push(v *bptPathVertex) {
+	b.Points = append(b.Points, v)
 }
 
 type bptEyePath struct {
@@ -410,8 +420,9 @@ func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int,
 // allPathCombinations enumerates all the ways to combine
 // the two paths, calling f for each combination along
 // with the two points whose connectivity to check.
-func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath, lightArea float64,
+func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, lightArea float64,
 	f func(density float64, intensity Color, p1, p2 model3d.Coord3D)) {
+	out := c.JoinedPath
 	for i := 1; i <= len(eye.Points); i++ {
 		subEye := bptEyePath{bptPath{Points: eye.Points[:i]}}
 		density := newRunningProduct()
@@ -423,7 +434,7 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath
 		eyeBSDF = eyeBSDF.Scale(eye.Points[i-1].RouletteScale)
 		if (subEye.Points[i-1].Emission != Color{}) {
 			// Full light path has some contribution.
-			combinePaths(subEye, bptLightPath{}, out)
+			combinePaths(subEye, bptLightPath{}, c)
 			f(density.Value(), subEye.Points[i-1].Emission.Mul(eyeBSDF),
 				model3d.Coord3D{}, model3d.Coord3D{})
 		}
@@ -444,7 +455,7 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath
 			}
 
 			subLight := bptLightPath{bptPath{Points: light.Points[:j]}}
-			combinePaths(subEye, subLight, out)
+			combinePaths(subEye, subLight, c)
 
 			// If destDot == 0, then the weight is infinite, so
 			// the contribution will always be zero.
@@ -465,17 +476,18 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, out *bptLightPath
 	}
 }
 
-func combinePaths(eye bptEyePath, light bptLightPath, result *bptLightPath) {
+func combinePaths(eye bptEyePath, light bptLightPath, c *bptPathCache) {
+	result := c.JoinedPath
 	result.Clear()
 	if len(light.Points) == 0 {
-		*result.Extend() = eye.Points[len(eye.Points)-1]
+		result.Push(eye.Points[len(eye.Points)-1])
 	} else {
 		for _, p := range light.Points[:len(light.Points)-1] {
-			*result.Extend() = p
+			result.Push(p)
 		}
 		p := light.Points[len(light.Points)-1]
 		dest := eye.Points[len(eye.Points)-1].Point.Sub(p.Point).Normalize()
-		vertex := result.Extend()
+		vertex := &c.Extra[0]
 		*vertex = bptPathVertex{
 			Point:    p.Point,
 			Normal:   p.Normal,
@@ -485,9 +497,11 @@ func combinePaths(eye bptEyePath, light bptLightPath, result *bptLightPath) {
 			Material: p.Material,
 		}
 		vertex.EvalMaterial()
+		result.Push(vertex)
 
 		p = eye.Points[len(eye.Points)-1]
-		*result.Extend() = bptPathVertex{
+		vertex1 := &c.Extra[1]
+		*vertex1 = bptPathVertex{
 			Point:    p.Point,
 			Normal:   p.Normal,
 			Source:   vertex.Dest,
@@ -495,11 +509,12 @@ func combinePaths(eye bptEyePath, light bptLightPath, result *bptLightPath) {
 			Emission: p.Emission,
 			Material: p.Material,
 		}
-		result.Last().EvalMaterial()
+		vertex1.EvalMaterial()
+		result.Push(vertex1)
 	}
 
 	for i := len(eye.Points) - 2; i >= 0; i-- {
-		*result.Extend() = eye.Points[i]
+		result.Push(eye.Points[i])
 	}
 }
 
