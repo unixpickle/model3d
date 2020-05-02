@@ -222,7 +222,7 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object, out *bptLi
 		}
 		vertex.EvalMaterial()
 		ray = b.bounceRay(point, nextDest)
-		mask = mask.Mul(vertex.BSDF).Scale(vertex.SourceDot() / vertex.DestDensity)
+		mask = mask.Mul(vertex.BSDF).Scale(vertex.DestDot() / vertex.DestDensity)
 		if mean := mask.Sum() / 3; mean < b.Cutoff {
 			keepProb := mean / b.Cutoff
 			if gen.Float64() > keepProb {
