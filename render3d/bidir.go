@@ -204,7 +204,7 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object, out *bptLi
 		}
 		point := ray.Origin.Add(ray.Direction.Scale(coll.Scale))
 		source := ray.Direction
-		nextDest := SampleDest(mat, gen, normal, source)
+		nextDest := SampleDest(mat, gen, coll.Normal, source)
 		vertex := out.Extend()
 		*vertex = bptPathVertex{
 			Point:         point,
