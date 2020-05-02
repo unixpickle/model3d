@@ -204,12 +204,7 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object, out *bptLi
 		}
 		point := ray.Origin.Add(ray.Direction.Scale(coll.Scale))
 		source := ray.Direction
-		var nextDest model3d.Coord3D
-		if a, ok := mat.(AsymMaterial); ok {
-			nextDest = a.SampleDest(gen, normal, source)
-		} else {
-			nextDest = mat.SampleSource(gen, coll.Normal, source.Scale(-1)).Scale(-1)
-		}
+		nextDest := SampleDest(mat, gen, normal, source)
 		vertex := out.Extend()
 		*vertex = bptPathVertex{
 			Point:         point,
@@ -287,11 +282,7 @@ func (p *bptPathVertex) EvalMaterial() {
 		return
 	}
 	p.SourceDensity = p.Material.SourceDensity(p.Normal, p.Source, p.Dest)
-	if a, ok := p.Material.(AsymMaterial); ok {
-		p.DestDensity = a.DestDensity(p.Normal, p.Source, p.Dest)
-	} else {
-		p.DestDensity = p.Material.SourceDensity(p.Normal, p.Dest.Scale(-1), p.Source.Scale(-1))
-	}
+	p.DestDensity = DestDensity(p.Material, p.Normal, p.Source, p.Dest)
 	p.BSDF = p.Material.BSDF(p.Normal, p.Source, p.Dest)
 }
 

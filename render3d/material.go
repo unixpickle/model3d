@@ -89,6 +89,32 @@ type AsymMaterial interface {
 	DestDensity(normal, source, dest model3d.Coord3D) float64
 }
 
+// SampleDest is like mat.SampleSource, but it samples a
+// destination direction.
+//
+// If mat is an AsymMaterial, its SampleDest method is
+// used.
+func SampleDest(mat Material, gen *rand.Rand, normal, source model3d.Coord3D) model3d.Coord3D {
+	if a, ok := mat.(AsymMaterial); ok {
+		return a.SampleDest(gen, normal, source)
+	} else {
+		return mat.SampleSource(gen, normal, source.Scale(-1)).Scale(-1)
+	}
+}
+
+// DestDensity is like mat.SourceDensity, but for
+// SampleDest rather than SampleSource.
+//
+// If mat is an AsymMaterial, its SampleDest method is
+// used.
+func DestDensity(mat Material, normal, source, dest model3d.Coord3D) float64 {
+	if a, ok := mat.(AsymMaterial); ok {
+		return a.DestDensity(normal, source, dest)
+	} else {
+		return mat.SourceDensity(normal, dest.Scale(-1), source.Scale(-1))
+	}
+}
+
 // LambertMaterial is a completely matte material.
 type LambertMaterial struct {
 	DiffuseColor  Color
@@ -511,6 +537,29 @@ func (j *JoinedMaterial) SourceDensity(normal, source, dest model3d.Coord3D) flo
 	var density float64
 	for i, subProb := range j.Probs {
 		density += subProb * j.Materials[i].SourceDensity(normal, source, dest)
+	}
+	return density
+}
+
+func (j *JoinedMaterial) SampleDest(gen *rand.Rand, normal,
+	dest model3d.Coord3D) model3d.Coord3D {
+	if len(j.Probs) != len(j.Materials) {
+		panic("mismatched probabilities and materials")
+	}
+	p := rand.Float64()
+	for i, subProb := range j.Probs {
+		p -= subProb
+		if p < 0 || i == len(j.Probs)-1 {
+			return SampleDest(j.Materials[i], gen, normal, dest)
+		}
+	}
+	panic("unreachable")
+}
+
+func (j *JoinedMaterial) DestDensity(normal, source, dest model3d.Coord3D) float64 {
+	var density float64
+	for i, subProb := range j.Probs {
+		density += subProb * DestDensity(j.Materials[i], normal, source, dest)
 	}
 	return density
 }
