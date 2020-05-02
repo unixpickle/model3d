@@ -15,6 +15,7 @@ const (
 	TotalSize    = 5.0
 	WallHeight   = 0.8
 	BottomHeight = 0.1
+	BallRadius   = 0.1
 )
 
 func main() {
@@ -39,6 +40,12 @@ func main() {
 	mesh3d.SaveGroupedSTL("maze.stl")
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh3d, 3, 3, 300, nil)
+
+	log.Println("Creating ball...")
+	sphere := &model3d.Sphere{Radius: BallRadius}
+	mesh3d = model3d.MarchingCubesSearch(sphere, 0.01, 8)
+	mesh3d.SaveGroupedSTL("ball.stl")
+
 }
 
 type MazeSolid struct {
