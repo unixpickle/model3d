@@ -275,6 +275,10 @@ type bptPathVertex struct {
 	// this vertex was to be reached due to roulette
 	// sampling.
 	RouletteScale float64
+
+	// Accumulator is used internally by density
+	// calculations but nothing else.
+	Accumulator float64
 }
 
 func (p *bptPathVertex) EvalMaterial() {
@@ -369,14 +373,16 @@ func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int,
 		maxLightDepth = maxDepth
 	}
 
-	density := newRunningProduct()
-	for _, p := range b.Points[1:] {
-		density = density.Mul(p.SourceDensity)
+	sourceDensityProduct := 1.0
+	for i := len(b.Points) - 1; i > 0; i-- {
+		p := b.Points[i]
+		p.Accumulator = sourceDensityProduct
+		sourceDensityProduct *= p.SourceDensity
 	}
 
 	// Density of doing a regular backward path trace.
 	if len(b.Points) <= maxDepth {
-		f(density.Value())
+		f(sourceDensityProduct)
 	}
 
 	outArea := func(i1, i2 int) float64 {
@@ -391,13 +397,12 @@ func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int,
 	}
 
 	if len(b.Points) > 1 {
-		density = density.Div(lightArea)
-		density = density.Div(b.Points[1].SourceDensity)
+		lightDensity := 1.0 / lightArea
 
 		// Density of selecting the point on the light and
 		// connecting it to an eye path.
 		if len(b.Points)-1 <= maxDepth {
-			f(density.Mul(outArea(0, 1)).Div(cosOut(0)).Value())
+			f(lightDensity * b.Points[1].Accumulator * outArea(0, 1) / cosOut(0))
 		}
 
 		// Densities of starting a path on the light and
@@ -406,12 +411,10 @@ func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int,
 			if i+1 >= maxLightDepth {
 				break
 			}
-			density = density.Div(p.SourceDensity)
-			density = density.Mul(b.Points[i].DestDensity)
-			density = density.Div(cosOut(i))
-			density = density.Mul(cosIn(i + 1))
+			lightDensity *= b.Points[i].DestDensity
+			lightDensity *= cosIn(i+1) / cosOut(i)
 			if len(b.Points)-(i+2) <= maxDepth {
-				f(density.Mul(outArea(i+1, i+2)).Div(cosOut(i + 1)).Value())
+				f(p.Accumulator * lightDensity * outArea(i+1, i+2) / cosOut(i+1))
 			}
 		}
 	}
@@ -423,31 +426,25 @@ func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int,
 func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, lightArea float64,
 	f func(density float64, intensity Color, p1, p2 model3d.Coord3D)) {
 	out := c.JoinedPath
+	eyeDensity := 1.0
+	eyeBSDF := NewColor(1.0)
 	for i := 1; i <= len(eye.Points); i++ {
 		subEye := bptEyePath{bptPath{Points: eye.Points[:i]}}
-		density := newRunningProduct()
-		eyeBSDF := NewColor(1.0)
-		for _, p := range subEye.Points[:i-1] {
-			density = density.Mul(p.SourceDensity)
-			eyeBSDF = eyeBSDF.Mul(p.BSDF).Scale(p.SourceDot())
-		}
-		eyeBSDF = eyeBSDF.Scale(eye.Points[i-1].RouletteScale)
 		if (subEye.Points[i-1].Emission != Color{}) {
 			// Full light path has some contribution.
 			combinePaths(subEye, bptLightPath{}, c)
-			f(density.Value(), subEye.Points[i-1].Emission.Mul(eyeBSDF),
+			f(eyeDensity, subEye.Points[i-1].Emission.Mul(eyeBSDF),
 				model3d.Coord3D{}, model3d.Coord3D{})
 		}
-		density = density.Div(lightArea)
+		density := eyeDensity / lightArea
 		lightBSDF := light.Points[0].Emission
 		for j := 1; j <= len(light.Points); j++ {
 			diff := light.Points[j-1].Point.Sub(subEye.Points[i-1].Point)
 			outArea := 4 * math.Pi * diff.Dot(diff)
 
 			if j > 1 {
-				density = density.Mul(light.Points[j-2].DestDensity)
-				density = density.Div(light.Points[j-2].DestDot())
-				density = density.Mul(light.Points[j-1].SourceDot())
+				density *= light.Points[j-2].DestDensity
+				density *= light.Points[j-1].SourceDot() / light.Points[j-2].DestDot()
 				if j > 2 {
 					lightBSDF = lightBSDF.Mul(light.Points[j-2].BSDF)
 				}
@@ -457,22 +454,27 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, 
 			subLight := bptLightPath{bptPath{Points: light.Points[:j]}}
 			combinePaths(subEye, subLight, c)
 
-			// If destDot == 0, then the weight is infinite, so
-			// the contribution will always be zero.
+			// Prevent zero dot products at connection points,
+			// since the contribution will always be zero.
 			// If we don't do this check, then the power heuristic
 			// may compute infinity/infinity and yield NaNs.
 			if destDot := out.Points[j-1].DestDot(); destDot > 0 {
-				curDensity := density.Mul(outArea).Div(destDot).Value()
-				intensity := eyeBSDF.Mul(lightBSDF).Scale(out.Points[j].SourceDot())
-				intensity = intensity.Mul(out.Points[j].BSDF)
-				intensity = intensity.Scale(light.Points[j-1].RouletteScale)
-				if j > 1 {
-					intensity = intensity.Mul(out.Points[j-1].BSDF)
+				if sourceDot := out.Points[j].SourceDot(); sourceDot > 0 {
+					curDensity := density * outArea / destDot
+					intensity := eyeBSDF.Mul(lightBSDF).Scale(sourceDot)
+					intensity = intensity.Mul(out.Points[j].BSDF)
+					intensity = intensity.Scale(light.Points[j-1].RouletteScale)
+					if j > 1 {
+						intensity = intensity.Mul(out.Points[j-1].BSDF)
+					}
+					f(curDensity, intensity, subEye.Points[len(subEye.Points)-1].Point,
+						subLight.Points[len(subLight.Points)-1].Point)
 				}
-				f(curDensity, intensity, subEye.Points[len(subEye.Points)-1].Point,
-					subLight.Points[len(subLight.Points)-1].Point)
 			}
 		}
+		eyeDensity *= eye.Points[i-1].SourceDensity
+		eyeBSDF = eyeBSDF.Mul(eye.Points[i-1].BSDF).Scale(eye.Points[i-1].SourceDot())
+		eyeBSDF = eyeBSDF.Scale(eye.Points[i-1].RouletteScale)
 	}
 }
 
@@ -520,49 +522,4 @@ func combinePaths(eye bptEyePath, light bptLightPath, c *bptPathCache) {
 
 func sampleAngularDest(gen *rand.Rand, normal model3d.Coord3D) model3d.Coord3D {
 	return (&LambertMaterial{}).SampleSource(gen, normal, normal).Scale(-1)
-}
-
-type runningProduct struct {
-	numZeros int
-	exponent int
-	product  float64
-}
-
-func newRunningProduct() runningProduct {
-	return runningProduct{product: 0.5, exponent: 1}
-}
-
-func (r runningProduct) Mul(x float64) runningProduct {
-	if x == 0 {
-		r.numZeros++
-	} else {
-		frac, exp := math.Frexp(x)
-		r.exponent += exp
-		r.product *= frac
-	}
-	return r
-}
-
-func (r runningProduct) Div(x float64) runningProduct {
-	if x == 0 {
-		r.numZeros--
-	} else {
-		frac, exp := math.Frexp(x)
-		r.exponent -= exp
-		r.product /= frac
-	}
-	return r
-}
-
-func (r runningProduct) Value() float64 {
-	if r.numZeros > 0 {
-		return 0
-	} else if r.numZeros < 0 {
-		if r.product < 0 {
-			return math.Inf(-1)
-		} else {
-			return math.Inf(1)
-		}
-	}
-	return math.Ldexp(r.product, r.exponent)
 }
