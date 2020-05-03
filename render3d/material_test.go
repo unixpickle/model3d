@@ -58,20 +58,23 @@ func TestRefractMaterialAsym(t *testing.T) {
 		IndexOfRefraction: 1.3,
 		RefractColor:      NewColor(1),
 	}
-	gen := rand.New(rand.NewSource(1337))
-	for i := 0; i < 5000; i++ {
-		normal := model3d.NewCoord3DRandUnit()
-		source := model3d.NewCoord3DRandUnit()
-		dest := mat.SampleDest(gen, normal, source)
-		if mat.DestDensity(normal, source, dest) == 0 {
-			t.Fatal("zero density")
+	for j := 0; j < 2; j++ {
+		gen := rand.New(rand.NewSource(1337))
+		for i := 0; i < 5000; i++ {
+			normal := model3d.NewCoord3DRandUnit()
+			source := model3d.NewCoord3DRandUnit()
+			dest := mat.SampleDest(gen, normal, source)
+			if mat.DestDensity(normal, source, dest) == 0 {
+				t.Fatal("zero density", normal.Dot(source), normal.Dot(dest))
+			}
+			if mat.SourceDensity(normal, source, dest) == 0 {
+				t.Fatal("zero source density", mat.SpecularColor)
+			}
+			if mat.BSDF(normal, source, dest).X == 0 {
+				t.Fatal("zero BSDF")
+			}
 		}
-		if mat.SourceDensity(normal, source, dest) == 0 {
-			t.Fatal("zero source density")
-		}
-		if mat.BSDF(normal, source, dest).X == 0 {
-			t.Fatal("zero BSDF")
-		}
+		mat.SpecularColor = NewColor(1)
 	}
 }
 

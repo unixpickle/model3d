@@ -349,6 +349,12 @@ type RefractMaterial struct {
 
 	// RefractColor is the mask used for refracted flux.
 	RefractColor Color
+
+	// SpecularColor, if specified, indicates that Fresnel
+	// reflection should be used with the given color.
+	// Typically, if specified, the color of 1's should be
+	// used for a white reflection.
+	SpecularColor Color
 }
 
 func (r *RefractMaterial) refract(normal, source model3d.Coord3D) model3d.Coord3D {
@@ -375,11 +381,24 @@ func (r *RefractMaterial) refractInverse(normal, dest model3d.Coord3D) model3d.C
 	return r.refract(normal, dest.Scale(-1)).Scale(-1)
 }
 
-func (r *RefractMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
-	return r.RefractColor.Scale(r.bsdfScale(normal, source, dest))
+func (r *RefractMaterial) reflectAmount(normal, source model3d.Coord3D) float64 {
+	// https://en.wikipedia.org/wiki/Schlick%27s_approximation
+	x := (r.IndexOfRefraction - 1) / (r.IndexOfRefraction + 1)
+	r0 := x * x
+	return r0 * (1 - r0) * math.Pow(1-math.Abs(normal.Dot(source)), 5)
 }
 
-func (r *RefractMaterial) bsdfScale(normal, source, dest model3d.Coord3D) float64 {
+func (r *RefractMaterial) BSDF(normal, source, dest model3d.Coord3D) Color {
+	if (r.SpecularColor == Color{}) {
+		return r.RefractColor.Scale(r.refractBSDF(normal, source, dest))
+	}
+	reflectAmount := r.reflectAmount(normal, source)
+	refract := (1 - reflectAmount) * r.refractBSDF(normal, source, dest)
+	reflect := reflectAmount * r.reflectBSDF(normal, source, dest)
+	return r.RefractColor.Scale(refract).Add(r.SpecularColor.Scale(reflect))
+}
+
+func (r *RefractMaterial) refractBSDF(normal, source, dest model3d.Coord3D) float64 {
 	refracted := r.refract(normal, source)
 	if dest.Dot(refracted) < 1-cosineEpsilon {
 		return 0
@@ -394,21 +413,52 @@ func (r *RefractMaterial) bsdfScale(normal, source, dest model3d.Coord3D) float6
 	return scale * 2 / cosineEpsilon
 }
 
+func (r *RefractMaterial) reflectBSDF(normal, source, dest model3d.Coord3D) float64 {
+	reflected := normal.Reflect(source).Scale(-1)
+	if dest.Dot(reflected) < 1-cosineEpsilon {
+		return 0
+	}
+	scale := 1 / maximumCosine(dest.Dot(normal), source.Dot(normal))
+	return scale * 2 / cosineEpsilon
+}
+
 func (r *RefractMaterial) SampleSource(gen *rand.Rand, normal,
 	dest model3d.Coord3D) model3d.Coord3D {
-	// Sample deterministically, since all vectors around
-	// this neighborhood have the same BSDF.
-	return r.refractInverse(normal, dest)
+	if (r.SpecularColor == Color{}) {
+		// Sample deterministically, since all vectors around
+		// this neighborhood have the same BSDF.
+		return r.refractInverse(normal, dest)
+	}
+
+	reflect := r.reflectAmount(normal, dest)
+	if gen.Float64() > reflect {
+		return r.refractInverse(normal, dest)
+	} else {
+		return normal.Reflect(dest).Scale(-1)
+	}
 }
 
 func (r *RefractMaterial) SourceDensity(normal, source, dest model3d.Coord3D) float64 {
-	// Get the density, assuming we intended to sample
-	// around a small section of source vectors.
-	refracted := r.refractInverse(normal, dest)
-	if source.Dot(refracted) < 1-cosineEpsilon {
-		return 0
+	if (r.SpecularColor == Color{}) {
+		// Get the density, assuming we intended to sample
+		// around a small section of source vectors.
+		refracted := r.refractInverse(normal, dest)
+		if source.Dot(refracted) < 1-cosineEpsilon {
+			return 0
+		}
+		return 2 / cosineEpsilon
 	}
-	return 2 / cosineEpsilon
+	reflect := r.reflectAmount(normal, dest)
+	reflected := normal.Reflect(dest).Scale(-1)
+	refracted := r.refractInverse(normal, dest)
+	var density float64
+	if source.Dot(refracted) >= 1-cosineEpsilon {
+		density += 1 - reflect
+	}
+	if source.Dot(reflected) >= 1-cosineEpsilon {
+		density += reflect
+	}
+	return density * 2 / cosineEpsilon
 }
 
 func (r *RefractMaterial) SampleDest(gen *rand.Rand, normal,
