@@ -99,6 +99,13 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 	r.rayRenderer().Render(img, obj)
 }
 
+// RenderVariance computes the variance per pixel using a
+// fixed number of rays per pixel, and writes the results
+// as pixels in an image.
+func (r *RecursiveRayTracer) RenderVariance(img *Image, obj Object, numSamples int) {
+	r.rayRenderer().RenderVariance(img, obj, numSamples)
+}
+
 // RayVariance estimates the variance of the color
 // components in the rendered image for a single ray path.
 // It is intended to be used to quickly judge how well
@@ -106,6 +113,7 @@ func (r *RecursiveRayTracer) Render(img *Image, obj Object) {
 //
 // The variance is averaged over every color component in
 // the image.
+// Antialiasing is not used.
 func (r *RecursiveRayTracer) RayVariance(obj Object, width, height, samples int) float64 {
 	return r.rayRenderer().RayVariance(obj, width, height, samples)
 }

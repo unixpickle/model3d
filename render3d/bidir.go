@@ -67,6 +67,13 @@ func (b *BidirPathTracer) Render(img *Image, obj Object) {
 	b.rayRenderer().Render(img, obj)
 }
 
+// RenderVariance computes the variance per pixel using a
+// fixed number of rays per pixel, and writes the results
+// as pixels in an image.
+func (b *BidirPathTracer) RenderVariance(img *Image, obj Object, numSamples int) {
+	b.rayRenderer().RenderVariance(img, obj, numSamples)
+}
+
 // RayVariance estimates the variance of the color
 // components in the rendered image for a single sample.
 //

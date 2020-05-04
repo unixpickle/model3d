@@ -2,7 +2,6 @@ package render3d
 
 import (
 	"math"
-	"math/rand"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
@@ -56,45 +55,58 @@ func (r *rayRenderer) Render(img *Image, obj Object) {
 	}
 }
 
+func (r *rayRenderer) RenderVariance(img *Image, obj Object, numSamples int) {
+	maxX := float64(img.Width) - 1
+	maxY := float64(img.Height) - 1
+	caster := r.Camera.Caster(maxX, maxY)
+	mapCoordinates(img.Width, img.Height, func(g *goInfo, x, y, idx int) {
+		img.Data[idx] = r.estimateVariance(g, obj, float64(x), float64(y), caster,
+			numSamples)
+	})
+}
+
 func (r *rayRenderer) RayVariance(obj Object, width, height, samples int) float64 {
 	if samples < 2 {
 		panic("need to take at least two samples")
 	}
 
-	maxX := float64(width) - 1
-	maxY := float64(height) - 1
-	caster := r.Camera.Caster(maxX, maxY)
+	img := NewImage(width, height)
+
+	// No anti-aliasing for backwards-compatibility.
+	r1 := *r
+	r1.Antialias = 0
+	r1.RenderVariance(img, obj, samples)
 
 	var totalVariance float64
-	var totalCount float64
-
-	g := &goInfo{
-		Gen: rand.New(rand.NewSource(rand.Int63())),
+	for _, c := range img.Data {
+		totalVariance += c.Sum()
 	}
-	for x := 0; x < width; x++ {
-		for y := 0; y < height; y++ {
-			ray := model3d.Ray{
-				Origin:    r.Camera.Origin,
-				Direction: caster(float64(x), float64(y)),
-			}
-			var colorSum Color
-			var colorSqSum Color
-			for i := 0; i < samples; i++ {
-				sampleColor := r.RayColor(g, obj, &ray)
-				colorSum = colorSum.Add(sampleColor)
-				colorSqSum = colorSqSum.Add(sampleColor.Mul(sampleColor))
-			}
-			mean := colorSum.Scale(1 / float64(samples))
-			variance := colorSqSum.Scale(1 / float64(samples)).Sub(mean.Mul(mean))
+	return totalVariance / float64(3*width*height)
+}
 
-			// Bessel's correction.
-			variance = variance.Scale(float64(samples) / float64(samples-1))
-
-			totalVariance += variance.Sum()
-			totalCount += 3
+func (r *rayRenderer) estimateVariance(g *goInfo, obj Object, x, y float64,
+	caster func(x, y float64) model3d.Coord3D, numSamples int) Color {
+	ray := model3d.Ray{Origin: r.Camera.Origin}
+	ray.Direction = caster(x, y)
+	var colorSum Color
+	var colorSqSum Color
+	for i := 0; i < numSamples; i++ {
+		if r.Antialias != 0 {
+			dx := r.Antialias * (g.Gen.Float64() - 0.5)
+			dy := r.Antialias * (g.Gen.Float64() - 0.5)
+			ray.Direction = caster(x+dx, y+dy)
 		}
+		sampleColor := r.RayColor(g, obj, &ray)
+		colorSum = colorSum.Add(sampleColor)
+		colorSqSum = colorSqSum.Add(sampleColor.Mul(sampleColor))
 	}
-	return totalVariance / totalCount
+	mean := colorSum.Scale(1 / float64(numSamples))
+	variance := colorSqSum.Scale(1 / float64(numSamples)).Sub(mean.Mul(mean))
+
+	// Bessel's correction.
+	variance = variance.Scale(float64(numSamples) / float64(numSamples-1))
+
+	return variance.Max(Color{})
 }
 
 func (r *rayRenderer) estimateColor(g *goInfo, obj Object, x, y float64,
