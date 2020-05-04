@@ -27,6 +27,13 @@ type BidirPathTracer struct {
 	// Set to 1 to simply sample the area lights.
 	MaxLightDepth int
 
+	// MinDepth, if non-zero, is the minimum number of
+	// edges in a path before roulette sampling.
+	//
+	// If unspecified, no roulette sampling is performed
+	// except for Cutoff.
+	MinDepth int
+
 	// These fields control how many samples are taken per
 	// pixel of the image.
 	// See RecursiveRayTracer for more details.
@@ -144,8 +151,7 @@ func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Colo
 func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d.Ray,
 	out *bptEyePath) {
 	out.Clear()
-	mask := NewColor(1.0)
-	rouletteScale := 1.0
+	pathEnder := newBptPathEnder(b.MinDepth, b.Cutoff)
 	for i := 0; i < b.MaxDepth; i++ {
 		coll, mat, ok := obj.Cast(ray)
 		if !ok {
@@ -162,17 +168,12 @@ func (b *BidirPathTracer) sampleEyePath(gen *rand.Rand, obj Object, ray *model3d
 			Dest:          dest,
 			Emission:      mat.Emission(),
 			Material:      mat,
-			RouletteScale: rouletteScale,
+			RouletteScale: pathEnder.RouletteScale(),
 		}
 		vertex.EvalMaterial()
 		ray = b.bounceRay(point, nextSource.Scale(-1))
-		mask = mask.Mul(vertex.BSDF).Scale(vertex.SourceDot() / vertex.SourceDensity)
-		if mean := mask.Sum() / 3; mean < b.Cutoff {
-			keepProb := mean / b.Cutoff
-			if gen.Float64() > keepProb {
-				break
-			}
-			rouletteScale *= 1 / keepProb
+		if pathEnder.End(gen, i, vertex.BSDF.Scale(vertex.SourceDot()/vertex.SourceDensity)) {
+			break
 		}
 	}
 }
@@ -195,8 +196,7 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object, out *bptLi
 
 	ray := b.bounceRay(origin, dest)
 
-	mask := NewColor(1.0)
-	rouletteScale := 1.0
+	pathEnder := newBptPathEnder(b.MinDepth, b.Cutoff)
 	for i := 0; i < b.maxLightDepth()-1; i++ {
 		coll, mat, ok := obj.Cast(ray)
 		if !ok {
@@ -213,17 +213,12 @@ func (b *BidirPathTracer) sampleLightPath(gen *rand.Rand, obj Object, out *bptLi
 			Dest:          nextDest,
 			Emission:      mat.Emission(),
 			Material:      mat,
-			RouletteScale: rouletteScale,
+			RouletteScale: pathEnder.RouletteScale(),
 		}
 		vertex.EvalMaterial()
 		ray = b.bounceRay(point, nextDest)
-		mask = mask.Mul(vertex.BSDF).Scale(vertex.DestDot() / vertex.DestDensity)
-		if mean := mask.Sum() / 3; mean < b.Cutoff {
-			keepProb := mean / b.Cutoff
-			if gen.Float64() > keepProb {
-				break
-			}
-			rouletteScale *= 1 / keepProb
+		if pathEnder.End(gen, i, vertex.BSDF.Scale(vertex.DestDot()/vertex.DestDensity)) {
+			break
 		}
 	}
 }
@@ -247,6 +242,60 @@ func (b *BidirPathTracer) bounceRay(point model3d.Coord3D, dir model3d.Coord3D) 
 		Origin:    point.Add(dir.Normalize().Scale(eps)),
 		Direction: dir,
 	}
+}
+
+func (b *BidirPathTracer) pathEnder() bptPathEnder {
+	return bptPathEnder{
+		MinLength: b.MinDepth,
+		Cutoff:    b.Cutoff,
+	}
+}
+
+type bptPathEnder struct {
+	MinLength int
+	Cutoff    float64
+
+	currentRoulette float64
+	fullMask        Color
+	rouletteMask    Color
+}
+
+func newBptPathEnder(minLength int, cutoff float64) bptPathEnder {
+	return bptPathEnder{
+		MinLength:       minLength,
+		Cutoff:          cutoff,
+		currentRoulette: 1.0,
+		fullMask:        NewColor(1),
+		rouletteMask:    NewColor(1),
+	}
+}
+
+func (b *bptPathEnder) RouletteScale() float64 {
+	return b.currentRoulette
+}
+
+func (b *bptPathEnder) End(gen *rand.Rand, i int, mask Color) bool {
+	b.fullMask = b.fullMask.Mul(mask)
+	if mean := b.fullMask.Sum() / 3; mean < b.Cutoff {
+		keepProb := mean / b.Cutoff
+		if gen.Float64() > keepProb {
+			return true
+		}
+		b.currentRoulette *= 1 / keepProb
+	}
+	if b.MinLength != 0 && i+1 >= b.MinLength {
+		b.rouletteMask = b.rouletteMask.Mul(mask)
+		maxVal := math.Max(math.Max(b.rouletteMask.X, b.rouletteMask.Y), b.rouletteMask.Z)
+		if maxVal < 1 {
+			b.rouletteMask = NewColor(1)
+			keepProb := maxVal
+			if gen.Float64() > keepProb {
+				return true
+			}
+			b.currentRoulette *= 1 / keepProb
+		}
+	}
+	return false
 }
 
 type bptPathVertex struct {
@@ -454,7 +503,8 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, 
 					curDensity := density * outArea / destDot
 					intensity := eyeBSDF.Mul(lightBSDF).Scale(sourceDot)
 					intensity = intensity.Mul(out.Points[j].BSDF)
-					intensity = intensity.Scale(light.Points[j-1].RouletteScale)
+					intensity = intensity.Scale(light.Points[j-1].RouletteScale *
+						eye.Points[i-1].RouletteScale)
 					if j > 1 {
 						intensity = intensity.Mul(out.Points[j-1].BSDF)
 					}
@@ -465,7 +515,6 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, 
 		}
 		eyeDensity *= eye.Points[i-1].SourceDensity
 		eyeBSDF = eyeBSDF.Mul(eye.Points[i-1].BSDF).Scale(eye.Points[i-1].SourceDot())
-		eyeBSDF = eyeBSDF.Scale(eye.Points[i-1].RouletteScale)
 	}
 }
 

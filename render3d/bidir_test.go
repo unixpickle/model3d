@@ -38,15 +38,23 @@ func TestBidirPathTracer(t *testing.T) {
 		MinSamples: 1000,
 		MaxStddev:  0.002,
 	}
-	actual := NewImage(4, 4)
-	bpt.Render(actual, scene)
 
-	for i, a := range actual.Data {
-		x := groundTruth.Data[i]
-		if a.Dist(x) > 0.02 || math.IsNaN(a.Sum()) || math.IsInf(a.Sum(), 0) {
-			t.Errorf("expected %v but got %v", x, a)
+	runTest := func(t *testing.T) {
+		actual := NewImage(4, 4)
+		bpt.Render(actual, scene)
+
+		for i, a := range actual.Data {
+			x := groundTruth.Data[i]
+			if a.Dist(x) > 0.02 || math.IsNaN(a.Sum()) || math.IsInf(a.Sum(), 0) {
+				t.Errorf("expected %v but got %v", x, a)
+			}
 		}
 	}
+
+	t.Run("Normal", runTest)
+
+	bpt.MinDepth = 1
+	t.Run("RoulettePath", runTest)
 }
 
 func BenchmarkBidirPathTracer(b *testing.B) {
