@@ -54,6 +54,7 @@ func TestBidirPathTracer(t *testing.T) {
 	t.Run("Normal", runTest)
 
 	bpt.MinDepth = 1
+	bpt.NumSamples *= 5
 	t.Run("RoulettePath", runTest)
 }
 

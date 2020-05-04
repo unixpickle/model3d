@@ -18,6 +18,7 @@ type rayRenderer struct {
 	MinSamples           int
 	MaxStddev            float64
 	OversaturatedStddevs float64
+	Convergence          func(mean, stddev Color) bool
 	Antialias            float64
 	LogFunc              func(frac float64, sampleRate float64)
 }
@@ -103,7 +104,6 @@ func (r *rayRenderer) estimateColor(g *goInfo, obj Object, x, y float64,
 	var colorSum Color
 	var colorSqSum Color
 
-SampleLoop:
 	for numSamples = 0; numSamples < r.NumSamples; numSamples++ {
 		if r.Antialias != 0 {
 			dx := r.Antialias * (g.Gen.Float64() - 0.5)
@@ -113,7 +113,7 @@ SampleLoop:
 		sampleColor := r.RayColor(g, obj, &ray)
 		colorSum = colorSum.Add(sampleColor)
 
-		if r.MinSamples == 0 || r.MaxStddev == 0 {
+		if !r.HasConvergenceCheck() {
 			continue
 		}
 
@@ -125,27 +125,37 @@ SampleLoop:
 
 		mean := colorSum.Scale(1 / float64(numSamples))
 		variance := colorSqSum.Scale(1 / float64(numSamples)).Sub(mean.Mul(mean))
-		populationRescale := math.Sqrt(float64(numSamples)) / float64(numSamples-1)
-		meanArr := mean.Array()
-		for i, variance := range variance.Array() {
-			if variance < 0 {
-				// Variance is so low that our estimate is
-				// actually negative due to rounding error.
-				continue
-			}
-			stddev := math.Sqrt(variance) * populationRescale
-			switch true {
-			case stddev < r.MaxStddev:
-			case r.OversaturatedStddevs != 0 &&
-				meanArr[i]-r.OversaturatedStddevs*stddev > 1:
-			default:
-				continue SampleLoop
-			}
+		variance = variance.Max(Color{})
+		stddev := Color{
+			X: math.Sqrt(variance.X),
+			Y: math.Sqrt(variance.Y),
+			Z: math.Sqrt(variance.Z),
+		}.Scale(math.Sqrt(float64(numSamples)) / float64(numSamples-1))
+		if r.Converged(mean, stddev) {
+			break
 		}
-
-		// Early stopping due to statistical constraints
-		// being satisfied.
-		break
 	}
 	return colorSum.Scale(1 / float64(numSamples)), numSamples
+}
+
+func (r *rayRenderer) HasConvergenceCheck() bool {
+	return r.MinSamples != 0 && (r.MaxStddev != 0 || r.Convergence != nil)
+}
+
+func (r *rayRenderer) Converged(mean, stddev Color) bool {
+	if r.Convergence != nil {
+		return r.Convergence(mean, stddev)
+	}
+
+	meanArr := mean.Array()
+	for i, stddev := range stddev.Array() {
+		switch true {
+		case stddev < r.MaxStddev:
+		case r.OversaturatedStddevs != 0 && meanArr[i]-r.OversaturatedStddevs*stddev > 1:
+		default:
+			return false
+		}
+	}
+
+	return true
 }

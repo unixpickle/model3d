@@ -38,6 +38,9 @@ type RecursiveRayTracer struct {
 	// MinSamples rays are sampled, and then more rays are
 	// sampled until the pixel standard deviation goes
 	// below MaxStddev, or NumSamples samples are taken.
+	//
+	// Additionally, see Convergence for to customize this
+	// stopping criterion.
 	MinSamples int
 	MaxStddev  float64
 
@@ -53,6 +56,17 @@ type RecursiveRayTracer struct {
 	// the image may have high standard deviations despite
 	// having uninteresting specific values.
 	OversaturatedStddevs float64
+
+	// Convergence implements a custom convergence
+	// criterion.
+	//
+	// If specified, MaxStddev and OversaturatedStddevs
+	// are not used.
+	//
+	// Convergence is called with the current mean and
+	// variance of a pixel, and a return value of true
+	// indicates that the ray has converged.
+	Convergence func(mean, stddev Color) bool
 
 	// Cutoff is the maximum brightness for which
 	// recursion is performed. If small but non-zero, the
@@ -107,6 +121,7 @@ func (r *RecursiveRayTracer) rayRenderer() *rayRenderer {
 		MinSamples:           r.MinSamples,
 		MaxStddev:            r.MaxStddev,
 		OversaturatedStddevs: r.OversaturatedStddevs,
+		Convergence:          r.Convergence,
 		Antialias:            r.Antialias,
 		LogFunc:              r.LogFunc,
 	}

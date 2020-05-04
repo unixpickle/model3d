@@ -41,6 +41,7 @@ type BidirPathTracer struct {
 	MinSamples           int
 	MaxStddev            float64
 	OversaturatedStddevs float64
+	Convergence          func(mean, stddev Color) bool
 
 	// RouletteDelta is the maximum intensity for roulette
 	// sampling to be performed.
@@ -84,6 +85,7 @@ func (b *BidirPathTracer) rayRenderer() *rayRenderer {
 		MinSamples:           b.MinSamples,
 		MaxStddev:            b.MaxStddev,
 		OversaturatedStddevs: b.OversaturatedStddevs,
+		Convergence:          b.Convergence,
 		Antialias:            b.Antialias,
 		LogFunc:              b.LogFunc,
 	}
