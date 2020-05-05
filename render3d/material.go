@@ -229,7 +229,7 @@ func maximumCosine(cos1, cos2 float64) float64 {
 // If there is a diffuse lighting term, it is mixed in for
 // some fraction of the samples.
 func (p *PhongMaterial) SampleSource(gen *rand.Rand, normal, dest model3d.Coord3D) model3d.Coord3D {
-	if (p.DiffuseColor == Color{}) || rand.Intn(2) == 0 {
+	if (p.DiffuseColor == Color{}) || gen.Intn(2) == 0 {
 		return p.sampleSpecular(gen, normal, dest)
 	} else {
 		return (&LambertMaterial{}).SampleSource(gen, normal, dest)
@@ -573,7 +573,7 @@ func (j *JoinedMaterial) SampleSource(gen *rand.Rand, normal,
 	if len(j.Probs) != len(j.Materials) {
 		panic("mismatched probabilities and materials")
 	}
-	p := rand.Float64()
+	p := gen.Float64()
 	for i, subProb := range j.Probs {
 		p -= subProb
 		if p < 0 || i == len(j.Probs)-1 {
@@ -596,7 +596,7 @@ func (j *JoinedMaterial) SampleDest(gen *rand.Rand, normal,
 	if len(j.Probs) != len(j.Materials) {
 		panic("mismatched probabilities and materials")
 	}
-	p := rand.Float64()
+	p := gen.Float64()
 	for i, subProb := range j.Probs {
 		p -= subProb
 		if p < 0 || i == len(j.Probs)-1 {

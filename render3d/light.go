@@ -177,7 +177,7 @@ func NewMeshAreaLight(mesh *model3d.Mesh, emission Color) *MeshAreaLight {
 
 func (m *MeshAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coord3D,
 	emission Color) {
-	triIdx := sort.SearchFloat64s(m.cumuAreas, rand.Float64()*m.totalArea)
+	triIdx := sort.SearchFloat64s(m.cumuAreas, gen.Float64()*m.totalArea)
 	if triIdx == len(m.cumuAreas) {
 		triIdx--
 	}
@@ -185,8 +185,8 @@ func (m *MeshAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coord
 	triangle := m.triangles[triIdx]
 
 	// https://stackoverflow.com/questions/4778147/sample-random-point-in-triangle
-	r1 := math.Sqrt(rand.Float64())
-	r2 := rand.Float64()
+	r1 := math.Sqrt(gen.Float64())
+	r2 := gen.Float64()
 	res := triangle[0].Scale(1 - r1)
 	res = res.Add(triangle[1].Scale(r1 * (1 - r2)))
 	res = res.Add(triangle[2].Scale(r1 * r2))
@@ -225,7 +225,7 @@ func JoinAreaLights(lights ...AreaLight) AreaLight {
 
 func (j *joinedAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coord3D,
 	emission Color) {
-	lIdx := sort.SearchFloat64s(j.cumuAreas, rand.Float64()*j.totalArea)
+	lIdx := sort.SearchFloat64s(j.cumuAreas, gen.Float64()*j.totalArea)
 	if lIdx == len(j.cumuAreas) {
 		lIdx--
 	}
