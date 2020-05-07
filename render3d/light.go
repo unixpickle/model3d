@@ -141,7 +141,16 @@ func NewSphereAreaLight(s *model3d.Sphere, emission Color) *SphereAreaLight {
 
 func (s *SphereAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coord3D,
 	emission Color) {
-	normal = model3d.NewCoord3DRandUnit()
+	// Don't use model3d.NewCoord3DRandUnit() because it
+	// won't use our per-thread RNG.
+	for {
+		normal = model3d.Coord3D{X: gen.NormFloat64(), Y: gen.NormFloat64(), Z: gen.NormFloat64()}
+		n := normal.Norm()
+		if n > 0.01 && n < 100.0 {
+			normal = normal.Scale(1 / n)
+			break
+		}
+	}
 	point = s.sphere.Center.Add(normal.Scale(s.sphere.Radius))
 	emission = s.emission
 	return
