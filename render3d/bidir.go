@@ -481,10 +481,11 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, 
 	for i := 1; i <= len(eye.Points); i++ {
 		subEye := bptEyePath{bptPath{Points: eye.Points[:i]}}
 		if (subEye.Points[i-1].Emission != Color{}) {
-			// Full light path has some contribution.
+			// Full eye path has some contribution.
+			curIntensity := subEye.Points[i-1].Emission.Mul(eyeBSDF)
+			curIntensity = curIntensity.Scale(eye.Points[i-1].RouletteScale)
 			combinePaths(subEye, bptLightPath{}, c)
-			f(eyeDensity, subEye.Points[i-1].Emission.Mul(eyeBSDF),
-				model3d.Coord3D{}, model3d.Coord3D{})
+			f(eyeDensity, curIntensity, model3d.Coord3D{}, model3d.Coord3D{})
 		}
 		density := eyeDensity * light.Points[0].Emission.Sum() / totalLight
 		lightBSDF := light.Points[0].Emission
