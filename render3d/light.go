@@ -151,6 +151,68 @@ func (s *SphereAreaLight) TotalEmission() float64 {
 	return s.emission.Sum() * 4 * math.Pi * s.sphere.Radius * s.sphere.Radius
 }
 
+// CylinderAreaLight is a cylinder implementing an area
+// light.
+type CylinderAreaLight struct {
+	Object
+	cylinder *model3d.Cylinder
+	emission Color
+
+	sideArea  float64
+	shaftArea float64
+}
+
+// NewCylinderAreaLight turns a cylinder collider into an
+// area light.
+func NewCylinderAreaLight(c *model3d.Cylinder, emission Color) *CylinderAreaLight {
+	return &CylinderAreaLight{
+		Object: &ColliderObject{
+			Collider: c,
+			Material: &LambertMaterial{EmissionColor: emission},
+		},
+		cylinder:  c,
+		emission:  emission,
+		sideArea:  c.Radius * c.Radius * math.Pi,
+		shaftArea: 2 * c.Radius * math.Pi * c.P2.Dist(c.P1),
+	}
+}
+
+func (c *CylinderAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coord3D,
+	emission Color) {
+	unscaledAxis := c.cylinder.P2.Sub(c.cylinder.P1)
+	axis := unscaledAxis.Normalize()
+	x, y := axis.OrthoBasis()
+
+	totalArea := c.shaftArea + 2*c.sideArea
+
+	theta := gen.Float64() * 2 * math.Pi
+	radialPart := x.Scale(math.Cos(theta)).Add(y.Scale(math.Sin(theta)))
+
+	part := gen.Float64() * totalArea
+	if part < 2*c.sideArea {
+		// Sample a face.
+		center := c.cylinder.P2
+		normal = axis
+		if part < c.sideArea {
+			center = c.cylinder.P1
+			normal = axis.Scale(-1)
+		}
+		radius := c.cylinder.Radius * math.Sqrt(gen.Float64())
+		point = center.Add(radialPart.Scale(radius))
+	} else {
+		// Sample the shaft.
+		y := gen.Float64()
+		point = c.cylinder.P1.Add(unscaledAxis.Scale(y)).Add(radialPart)
+		normal = radialPart
+	}
+	emission = c.emission
+	return
+}
+
+func (c *CylinderAreaLight) TotalEmission() float64 {
+	return c.emission.Sum() * (c.shaftArea + 2*c.sideArea)
+}
+
 // MeshAreaLight is an AreaLight for the surface of a
 // mesh.
 type MeshAreaLight struct {
