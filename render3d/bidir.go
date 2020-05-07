@@ -108,7 +108,8 @@ func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Colo
 	b.sampleLightPath(g.Gen, obj, cache.LightPath)
 
 	var totalColor Color
-	allPathCombinations(cache.EyePath, cache.LightPath, cache, b.Light.Area(),
+	totalEmission := b.Light.TotalEmission()
+	allPathCombinations(cache.EyePath, cache.LightPath, cache, totalEmission,
 		func(density float64, intensity Color, p1, p2 model3d.Coord3D) {
 			if intensity.Sum() < 1e-8 {
 				return
@@ -117,12 +118,12 @@ func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Colo
 			p := cache.JoinedPath
 			var weight float64
 			if b.PowerHeuristic == 0 {
-				p.Densities(b.Light.Area(), b.MaxDepth, b.MaxLightDepth, func(d float64) {
+				p.Densities(totalEmission, b.MaxDepth, b.MaxLightDepth, func(d float64) {
 					weight += d
 				})
 			} else {
 				scale := math.Pow(density, -(b.PowerHeuristic-1)/b.PowerHeuristic)
-				p.Densities(b.Light.Area(), b.MaxDepth, b.MaxLightDepth, func(d float64) {
+				p.Densities(totalEmission, b.MaxDepth, b.MaxLightDepth, func(d float64) {
 					weight += math.Pow(d*scale, b.PowerHeuristic)
 				})
 			}
@@ -417,7 +418,7 @@ type bptLightPath struct {
 
 // Densities computes the sampling density of the path for
 // each possible way it could have been sampled.
-func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int, f func(float64)) {
+func (b *bptLightPath) Densities(totalLight float64, maxDepth, maxLightDepth int, f func(float64)) {
 	if maxLightDepth == 0 {
 		maxLightDepth = maxDepth
 	}
@@ -446,7 +447,7 @@ func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int,
 	}
 
 	if len(b.Points) > 1 {
-		lightDensity := 1.0 / lightArea
+		lightDensity := b.Points[0].Emission.Sum() / totalLight
 
 		// Density of selecting the point on the light and
 		// connecting it to an eye path.
@@ -472,7 +473,7 @@ func (b *bptLightPath) Densities(lightArea float64, maxDepth, maxLightDepth int,
 // allPathCombinations enumerates all the ways to combine
 // the two paths, calling f for each combination along
 // with the two points whose connectivity to check.
-func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, lightArea float64,
+func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, totalLight float64,
 	f func(density float64, intensity Color, p1, p2 model3d.Coord3D)) {
 	out := c.JoinedPath
 	eyeDensity := 1.0
@@ -485,7 +486,7 @@ func allPathCombinations(eye *bptEyePath, light *bptLightPath, c *bptPathCache, 
 			f(eyeDensity, subEye.Points[i-1].Emission.Mul(eyeBSDF),
 				model3d.Coord3D{}, model3d.Coord3D{})
 		}
-		density := eyeDensity / lightArea
+		density := eyeDensity * light.Points[0].Emission.Sum() / totalLight
 		lightBSDF := light.Points[0].Emission
 		for j := 1; j <= len(light.Points); j++ {
 			diff := light.Points[j-1].Point.Sub(subEye.Points[i-1].Point)

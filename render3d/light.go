@@ -104,13 +104,18 @@ func (p *PointLight) ShadeCollision(normal, pointToLight model3d.Coord3D) Color 
 type AreaLight interface {
 	Object
 
-	// SampleLight samples a point uniformly on the
-	// surface of the light and yields both the normal
-	// and the emission at that point.
+	// SampleLight samples a point on the surface of the
+	// light with a probability density proportional to
+	// the sum of the emission R, G, and B.
+	//
+	// Returns both the normal to the light, and the
+	// emission at the sampled point.
 	SampleLight(gen *rand.Rand) (point, normal model3d.Coord3D, emission Color)
 
-	// Area gets the total area of the light.
-	Area() float64
+	// TotalEmission gets the integral of the emission
+	// over the area of the light, where the red, green,
+	// and blue components are summed together.
+	TotalEmission() float64
 }
 
 // SphereAreaLight is a perfect sphere implementing an
@@ -142,8 +147,8 @@ func (s *SphereAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coo
 	return
 }
 
-func (s *SphereAreaLight) Area() float64 {
-	return 4 * math.Pi * s.sphere.Radius * s.sphere.Radius
+func (s *SphereAreaLight) TotalEmission() float64 {
+	return s.emission.Sum() * 4 * math.Pi * s.sphere.Radius * s.sphere.Radius
 }
 
 // MeshAreaLight is an AreaLight for the surface of a
@@ -193,15 +198,15 @@ func (m *MeshAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coord
 	return res, triangle.Normal(), m.emission
 }
 
-func (m *MeshAreaLight) Area() float64 {
-	return m.totalArea
+func (m *MeshAreaLight) TotalEmission() float64 {
+	return m.totalArea * m.emission.Sum()
 }
 
 type joinedAreaLight struct {
 	JoinedObject
-	lights    []AreaLight
-	cumuAreas []float64
-	totalArea float64
+	lights     []AreaLight
+	cumuTotals []float64
+	totalLight float64
 }
 
 // JoinAreaLights creates a larger AreaLight by combining
@@ -214,25 +219,25 @@ func JoinAreaLights(lights ...AreaLight) AreaLight {
 	j := &joinedAreaLight{
 		JoinedObject: jo,
 		lights:       lights,
-		cumuAreas:    make([]float64, len(lights)),
+		cumuTotals:   make([]float64, len(lights)),
 	}
 	for i, l := range lights {
-		j.totalArea += l.Area()
-		j.cumuAreas[i] = j.totalArea
+		j.totalLight += l.TotalEmission()
+		j.cumuTotals[i] = j.totalLight
 	}
 	return j
 }
 
 func (j *joinedAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coord3D,
 	emission Color) {
-	lIdx := sort.SearchFloat64s(j.cumuAreas, gen.Float64()*j.totalArea)
-	if lIdx == len(j.cumuAreas) {
+	lIdx := sort.SearchFloat64s(j.cumuTotals, gen.Float64()*j.totalLight)
+	if lIdx == len(j.cumuTotals) {
 		lIdx--
 	}
 	point, normal, emission = j.lights[lIdx].SampleLight(gen)
 	return
 }
 
-func (j *joinedAreaLight) Area() float64 {
-	return j.totalArea
+func (j *joinedAreaLight) TotalEmission() float64 {
+	return j.totalLight
 }

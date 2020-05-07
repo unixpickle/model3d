@@ -19,8 +19,12 @@ func TestBidirPathTracer(t *testing.T) {
 				Center: model3d.Coord3D{Z: 5, Y: -19},
 				Radius: 1,
 			},
+			&SphereFocusPoint{
+				Center: model3d.Coord3D{X: 3, Z: 5, Y: -19},
+				Radius: 0.5,
+			},
 		},
-		FocusPointProbs: []float64{0.25},
+		FocusPointProbs: []float64{0.2, 0.1},
 		MaxDepth:        10,
 		NumSamples:      100000,
 		MinSamples:      1000,
@@ -77,10 +81,16 @@ func BenchmarkBidirPathTracer(b *testing.B) {
 }
 
 func testingScene() (Object, AreaLight) {
-	light := NewSphereAreaLight(&model3d.Sphere{
-		Center: model3d.Coord3D{Z: 5, Y: -19},
-		Radius: 1,
-	}, NewColor(100.0))
+	light := JoinAreaLights(
+		NewSphereAreaLight(&model3d.Sphere{
+			Center: model3d.Coord3D{Z: 5, Y: -19},
+			Radius: 1,
+		}, NewColor(100.0)),
+		NewSphereAreaLight(&model3d.Sphere{
+			Center: model3d.Coord3D{X: 3, Z: 5, Y: -19},
+			Radius: 0.5,
+		}, NewColor(130.0)),
+	)
 	scene := JoinedObject{
 		&ColliderObject{
 			Collider: model3d.MeshToCollider(
