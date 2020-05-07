@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"math"
+	"sort"
 )
 
 // A Solid is a boolean function in 3D where a value of
@@ -258,4 +259,63 @@ func (b boundCacheSolid) Max() Coord3D {
 
 func (b boundCacheSolid) Contains(c Coord3D) bool {
 	return InBounds(b, c) && b.s.Contains(c)
+}
+
+type smoothJoin struct {
+	min    Coord3D
+	max    Coord3D
+	sdfs   []SDF
+	radius float64
+}
+
+// SmoothJoin joins the SDFs into a union Solid and
+// smooths the intersections using a given smoothing
+// radius.
+//
+// If the radius is 0, it is equivalent to turning the
+// SDFs directly into solids and then joining them.
+func SmoothJoin(radius float64, sdfs ...SDF) Solid {
+	min := sdfs[0].Min()
+	max := sdfs[0].Max()
+	for _, s := range sdfs[1:] {
+		min = min.Min(s.Min())
+		max = max.Max(s.Max())
+	}
+	return &smoothJoin{
+		min:    min,
+		max:    max,
+		sdfs:   sdfs,
+		radius: radius,
+	}
+}
+
+func (s *smoothJoin) Min() Coord3D {
+	return s.min
+}
+
+func (s *smoothJoin) Max() Coord3D {
+	return s.max
+}
+
+func (s *smoothJoin) Contains(c Coord3D) bool {
+	if !InBounds(s, c) {
+		return false
+	}
+
+	var distances []float64
+	for _, s := range s.sdfs {
+		d := s.SDF(c)
+		if d > 0 {
+			return true
+		}
+		distances = append(distances, -d)
+	}
+	sort.Float64s(distances)
+
+	if distances[1] > s.radius {
+		return false
+	}
+	d1 := s.radius - distances[0]
+	d2 := s.radius - distances[1]
+	return d1*d1+d2*d2 > s.radius*s.radius
 }
