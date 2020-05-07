@@ -7,6 +7,8 @@ import (
 	"github.com/unixpickle/model3d/render3d"
 )
 
+const RoomHeight = 5
+
 var TiffanyBlue = render3d.NewColorRGB(129.0/255.0, 216.0/255.0, 208.0/255.0)
 
 type Walls struct {
@@ -14,26 +16,12 @@ type Walls struct {
 	Lights []*CeilingLight
 }
 
-func NewWalls() *Walls {
+func NewWalls(lights []*CeilingLight) *Walls {
 	mesh := model3d.NewMeshRect(model3d.Coord3D{X: -6, Y: -15, Z: -5},
-		model3d.Coord3D{X: 6, Y: 8, Z: 5})
+		model3d.Coord3D{X: 6, Y: 8, Z: RoomHeight})
 
 	// Face normals inward.
 	mesh = mesh.MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul)
-
-	var lights []*CeilingLight
-	for x := -3; x <= 3; x += 3 {
-		for y := -5; y <= 4; y += 3 {
-			lights = append(lights, &CeilingLight{
-				Cylinder: &model3d.Cylinder{
-					P1: model3d.Coord3D{X: float64(x), Y: float64(y), Z: mesh.Max().Z},
-					P2: model3d.Coord3D{X: float64(x), Y: float64(y),
-						Z: mesh.Max().Z + CeilingLightDepth},
-					Radius: CeilingLightRadius,
-				},
-			})
-		}
-	}
 
 	return &Walls{
 		Base: &render3d.ColliderObject{

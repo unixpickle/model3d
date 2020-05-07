@@ -8,25 +8,58 @@ import (
 	"github.com/unixpickle/model3d/render3d"
 )
 
+// ErrorMargin controls the amount of allowed noise in an
+// HD rendering of the scene.
+const ErrorMargin = 0.01
+
 func main() {
+	ceilingLights := CreateCeilingLights()
+	lamp := CreateLamp()
+	wallLights := CreateWallLights()
+
 	scene := render3d.JoinedObject{
 		NewGlobe(),
-		NewWalls(),
+		NewWalls(ceilingLights),
 		CreateTable(),
-		CreateLamp(),
-		CreateWallLights(),
+		lamp,
+		wallLights,
 	}
 
-	renderer := render3d.RecursiveRayTracer{
+	allLights := make([]render3d.AreaLight, 0, len(ceilingLights)+2)
+	for _, x := range ceilingLights {
+		allLights = append(allLights, x)
+	}
+	allLights = append(allLights, lamp, wallLights)
+
+	renderer := render3d.BidirPathTracer{
 		Camera: render3d.NewCameraAt(model3d.Coord3D{Y: -13, Z: 2},
 			model3d.Coord3D{Y: 0, Z: 2}, math.Pi/3.6),
+		Light: render3d.JoinAreaLights(allLights...),
 
-		MaxDepth: 5,
+		MaxDepth: 15,
+		MinDepth: 3,
 
-		NumSamples:           200,
-		MinSamples:           200,
-		MaxStddev:            0.05,
-		OversaturatedStddevs: 3,
+		NumSamples: 200,
+		MinSamples: 200,
+
+		// Gamma-aware convergence criterion.
+		Convergence: func(mean, stddev render3d.Color) bool {
+			stddevs := stddev.Array()
+			for i, m := range mean.Array() {
+				s := stddevs[i]
+				if m-3*s > 1 {
+					// Oversaturated, so even if the variance
+					// is high, this region is stable.
+					continue
+				}
+				if math.Pow(m+s, 1/2.2)-math.Pow(m, 1/2.2) > ErrorMargin {
+					return false
+				}
+			}
+			return true
+		},
+
+		RouletteDelta: 0.2,
 
 		Antialias: 1.0,
 		Cutoff:    1e-4,
@@ -34,17 +67,6 @@ func main() {
 		LogFunc: func(p, samples float64) {
 			fmt.Printf("\rRendering %.1f%%...", p*100)
 		},
-	}
-
-	ceilingLights := NewWalls().Lights
-	for _, l := range ceilingLights {
-		point := l.Cylinder.P1
-		renderer.FocusPoints = append(renderer.FocusPoints, &render3d.PhongFocusPoint{
-			Alpha:  50,
-			Target: point,
-		})
-		renderer.FocusPointProbs = append(renderer.FocusPointProbs,
-			0.3/float64(len(ceilingLights)))
 	}
 
 	fmt.Println("Ray variance:", renderer.RayVariance(scene, 200, 200, 5))
