@@ -192,6 +192,12 @@ SegLoop:
 	return res
 }
 
+// Scale creates a new mesh by scaling the coordinates by
+// a factor s.
+func (m *Mesh) Scale(s float64) *Mesh {
+	return m.MapCoords(Coord{X: s, Y: s}.Mul)
+}
+
 // MapCoords creates a new mesh by transforming all of the
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord) Coord) *Mesh {
