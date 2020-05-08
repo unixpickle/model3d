@@ -21,11 +21,6 @@ const (
 	PickleWidth  = PickleLength / 2
 )
 
-// Color is a flag to decide which model to produce.
-// Either you can create a colored model, or a cut-out
-// model.
-const Color = false
-
 func main() {
 	var solid model3d.Solid
 	solid = &PickleSolid{F: NewPickleFunction()}
