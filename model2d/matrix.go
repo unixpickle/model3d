@@ -1,6 +1,9 @@
 package model2d
 
-import "math"
+import (
+	"math"
+	"math/cmplx"
+)
 
 // Matrix2 is a 2x2 matrix, stored in row-major order.
 type Matrix2 [4]float64
@@ -76,5 +79,21 @@ func (m *Matrix2) Transpose() *Matrix2 {
 	return &Matrix2{
 		m[0], m[2],
 		m[1], m[3],
+	}
+}
+
+// Eigenvalues computes the eigenvalues of the matrix.
+//
+// There may be a repeated eigenvalue, but for numerical
+// reasons two are always returned.
+func (m *Matrix2) Eigenvalues() [2]complex128 {
+	// Quadratic formula for the characteristic polynomial.
+	a := complex128(1)
+	b := complex(-(m[0] + m[3]), 0)
+	c := complex(m.Det(), 0)
+	sqrtDisc := cmplx.Sqrt(b*b - 4*a*c)
+	return [2]complex128{
+		(-b - sqrtDisc) / (2 * a),
+		(-b + sqrtDisc) / (2 * a),
 	}
 }
