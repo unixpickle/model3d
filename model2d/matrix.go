@@ -55,6 +55,15 @@ func (m *Matrix2) InvertInPlace() {
 	m.Scale(coeff)
 }
 
+// Add computes m+m1 and returns the sum.
+func (m *Matrix2) Add(m1 *Matrix2) *Matrix2 {
+	var res Matrix2
+	for i, x := range m {
+		res[i] = x + m1[i]
+	}
+	return &res
+}
+
 // Mul computes m*m1 and returns the product.
 func (m *Matrix2) Mul(m1 *Matrix2) *Matrix2 {
 	return &Matrix2{

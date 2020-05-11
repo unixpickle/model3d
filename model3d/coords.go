@@ -122,6 +122,11 @@ func (c Coord3D) Mul(c1 Coord3D) Coord3D {
 	return Coord3D{X: c.X * c1.X, Y: c.Y * c1.Y, Z: c.Z * c1.Z}
 }
 
+// Div computes the element-wise quotient of c / c1.
+func (c Coord3D) Div(c1 Coord3D) Coord3D {
+	return Coord3D{X: c.X / c1.X, Y: c.Y / c1.Y, Z: c.Z / c1.Z}
+}
+
 // Scale scales all the coordinates by s and returns the
 // new coordinate.
 func (c Coord3D) Scale(s float64) Coord3D {

@@ -58,6 +58,11 @@ func (c Coord) Mul(c1 Coord) Coord {
 	return Coord{X: c.X * c1.X, Y: c.Y * c1.Y}
 }
 
+// Div computes the element-wise quotient of c / c1.
+func (c Coord) Div(c1 Coord) Coord {
+	return Coord{X: c.X / c1.X, Y: c.Y / c1.Y}
+}
+
 // Scale scales all the coordinates by s and returns the
 // new coordinate.
 func (c Coord) Scale(s float64) Coord {
