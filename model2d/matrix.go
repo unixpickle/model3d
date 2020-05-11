@@ -97,3 +97,56 @@ func (m *Matrix2) Eigenvalues() [2]complex128 {
 		(-b + sqrtDisc) / (2 * a),
 	}
 }
+
+// SVD computes the singular value decomposition of the
+// matrix.
+//
+// It populates matrices u, s, and v, such that
+//
+//     m = u*s*v.Transpose()
+//
+func (m *Matrix2) SVD(u, s, v *Matrix2) {
+	ata := m.Transpose().Mul(m)
+	aat := m.Mul(m.Transpose())
+	eigVals := ata.Eigenvalues()
+	v1, v2 := ata.symEigs(eigVals)
+	u1, u2 := aat.symEigs(eigVals)
+
+	*s = Matrix2{
+		math.Sqrt(math.Max(0, real(eigVals[0]))), 0,
+		0, math.Sqrt(math.Max(0, real(eigVals[1]))),
+	}
+	if m.MulColumn(v1).Dot(u1) < 0 {
+		u1 = u1.Scale(-1)
+	}
+	if m.MulColumn(v2).Dot(u2) < 0 {
+		u2 = u2.Scale(-1)
+	}
+
+	*u = Matrix2{
+		u1.X, u2.X,
+		u1.Y, u2.Y,
+	}
+	*v = Matrix2{
+		v1.X, v2.X,
+		v1.Y, v2.Y,
+	}
+}
+
+// symEigs computes the eigenvectors for the eigenvalues
+// of a symmetric matrix.
+func (m *Matrix2) symEigs(vals [2]complex128) (v1, v2 Coord) {
+	r1 := Coord{X: m[0] - real(vals[0]), Y: m[1]}
+	r2 := Coord{X: m[2], Y: m[3] - real(vals[0])}
+	n1, n2 := r1.Norm(), r2.Norm()
+	if n1 == 0 && n2 == 0 {
+		return Coord{X: 1}, Coord{Y: 1}
+	}
+
+	secondEig := r1.Scale(1 / n1)
+	if n2 > n1 {
+		secondEig = r2.Scale(1 / n2)
+	}
+	firstEig := Coord{X: -secondEig.Y, Y: secondEig.X}
+	return firstEig, secondEig
+}
