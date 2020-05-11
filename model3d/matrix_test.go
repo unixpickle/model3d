@@ -106,3 +106,62 @@ func TestMatrix3Eigenvalues(t *testing.T) {
 		}
 	}
 }
+
+func TestMatrix3SVD(t *testing.T) {
+	ensureEquivalence := func(t *testing.T, mat *Matrix3) {
+		var u, s, v Matrix3
+		mat.SVD(&u, &s, &v)
+
+		eye := &Matrix3{1, 0, 0, 0, 1, 0, 0, 0, 1}
+		if !matrixClose(u.Transpose().Mul(&u), eye) {
+			t.Errorf("u is not orthonormal: %v", u)
+		}
+		if !matrixClose(v.Transpose().Mul(&v), eye) {
+			t.Errorf("v is not orthonormal: %v", v)
+		}
+
+		recon := u.Mul(s.Mul(v.Transpose()))
+		for j, x := range mat {
+			a := recon[j]
+			if math.Abs(x-a) > 1e-5 {
+				t.Errorf("got %v but expected %v", recon, mat)
+				break
+			}
+		}
+	}
+
+	t.Run("Random", func(t *testing.T) {
+		for i := 0; i < 100; i++ {
+			mat := &Matrix3{}
+			for j := range mat {
+				mat[j] = rand.NormFloat64()
+			}
+			ensureEquivalence(t, mat)
+		}
+	})
+
+	t.Run("RepeatedEig", func(t *testing.T) {
+		ensureEquivalence(t, &Matrix3{1, 0, 0, 0, 1, 0, 0, 0, 1})
+		ensureEquivalence(t, &Matrix3{1, 0, 0, 1, 0, 0, 1, 0, 0})
+		ensureEquivalence(t, &Matrix3{0, 0, 0, 0, 0, 0, 0, 0, 0})
+		ensureEquivalence(t, &Matrix3{0, 1, 0, 0, 1, 1, 1, 0, 0})
+	})
+}
+
+func BenchmarkSVD(b *testing.B) {
+	mat := &Matrix3{1, 2, 3, 4, 5, 6, 7, 8, 10}
+	for i := 0; i < b.N; i++ {
+		var u, s, v Matrix3
+		mat.SVD(&u, &s, &v)
+	}
+}
+
+func matrixClose(m1, m2 *Matrix3) bool {
+	for i, x := range m1 {
+		y := m2[i]
+		if math.Abs(x-y) > 1e-5 {
+			return false
+		}
+	}
+	return true
+}

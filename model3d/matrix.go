@@ -148,3 +148,109 @@ func (m *Matrix3) Eigenvalues() [3]complex128 {
 		xForPhase(-0.5 - 0.8660254037844386i),
 	}
 }
+
+// SVD computes the singular value decomposition of the
+// matrix.
+//
+// It populates matrices u, s, and v, such that
+//
+//     m = u*s*v.Transpose()
+//
+func (m *Matrix3) SVD(u, s, v *Matrix3) {
+	ata := m.Transpose().Mul(m)
+	aat := m.Mul(m.Transpose())
+	eigVals := ata.Eigenvalues()
+
+	inVector := ata.symEigVector(real(eigVals[0]))
+	outVector := aat.symEigVector(real(eigVals[0]))
+	if m.MulColumn(inVector).Dot(outVector) < 0 {
+		outVector = outVector.Scale(-1)
+	}
+
+	// Find other two singular components using a 2x2
+	// matrix in a different basis.
+	inBasis1, inBasis2 := inVector.OrthoBasis()
+	outBasis1, outBasis2 := outVector.OrthoBasis()
+	out1 := m.MulColumn(inBasis1)
+	out2 := m.MulColumn(inBasis2)
+	mat2x2 := Matrix2{
+		outBasis1.Dot(out1), outBasis1.Dot(out2),
+		outBasis2.Dot(out1), outBasis2.Dot(out2),
+	}
+
+	var subU, subS, subV Matrix2
+	mat2x2.SVD(&subU, &subS, &subV)
+
+	subU1 := outBasis1.Scale(subU[0]).Add(outBasis2.Scale(subU[2]))
+	subU2 := outBasis1.Scale(subU[1]).Add(outBasis2.Scale(subU[3]))
+	subV1 := inBasis1.Scale(subV[0]).Add(inBasis2.Scale(subV[2]))
+	subV2 := inBasis1.Scale(subV[1]).Add(inBasis2.Scale(subV[3]))
+
+	*u = Matrix3{
+		outVector.X, subU1.X, subU2.X,
+		outVector.Y, subU1.Y, subU2.Y,
+		outVector.Z, subU1.Z, subU2.Z,
+	}
+	*s = Matrix3{
+		math.Sqrt(math.Max(0, real(eigVals[0]))), 0, 0,
+		0, subS[0], 0,
+		0, 0, subS[3],
+	}
+	*v = Matrix3{
+		inVector.X, subV1.X, subV2.X,
+		inVector.Y, subV1.Y, subV2.Y,
+		inVector.Z, subV1.Z, subV2.Z,
+	}
+}
+
+func (m *Matrix3) symEigVector(val float64) Coord3D {
+	row1 := Coord3D{X: m[0] - val, Y: m[1], Z: m[2]}
+	row2 := Coord3D{X: m[3], Y: m[4] - val, Z: m[5]}
+	row3 := Coord3D{X: m[6], Y: m[7], Z: m[8] - val}
+
+	// Search for the null-space by trying a bunch of
+	// different possibilities and choosing the most
+	// null-spacey one of them.
+	var bestVector Coord3D
+	var bestResult float64
+	var triedAny bool
+	tryVector := func(c Coord3D) {
+		norm := c.Norm()
+		if norm == 0 {
+			return
+		}
+		v := c.Scale(1 / norm)
+		out := math.Max(math.Max(math.Abs(row1.Dot(v)), math.Abs(row2.Dot(v))),
+			math.Abs(row3.Dot(v)))
+		if !triedAny || out < bestResult {
+			bestVector = v
+			bestResult = out
+			triedAny = true
+		}
+	}
+	tryOrtho := func(c Coord3D) {
+		if (c == Coord3D{}) {
+			return
+		}
+		v1, _ := c.OrthoBasis()
+		tryVector(v1)
+	}
+
+	// Rank 1 matrices will have a null-space as any
+	// vector orthogonal to a non-zero row.
+	tryOrtho(row1)
+	tryOrtho(row2)
+	tryOrtho(row3)
+
+	// Rank 2 matrices will have a null-space as the
+	// cross-product of some two rows.
+	tryVector(row1.Cross(row2))
+	tryVector(row1.Cross(row3))
+	tryVector(row2.Cross(row3))
+
+	if !triedAny {
+		// It's a rank-zero matrix.
+		return Coord3D{X: 1}
+	}
+	return bestVector
+}
