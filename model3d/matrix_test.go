@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"math"
+	"math/cmplx"
 	"math/rand"
 	"testing"
 )
@@ -69,4 +70,39 @@ func TestMatrix3Rotation(t *testing.T) {
 			t.Error("negating axis negates rotation direction")
 		}
 	})
+}
+
+func TestMatrix3Eigenvalues(t *testing.T) {
+	mats := []*Matrix3{
+		{1, 2, 3, 4, 5, 6, 7, 8, 9},
+		{0, 1, 0, 0, 0, 1, 1, 0, 0},
+	}
+	eigs := [][3]complex128{
+		{0, complex(0.5*(3*math.Sqrt(33)+15), 0), complex(0.5*(-3*math.Sqrt(33)+15), 0)},
+		{1, complex(-1, math.Sqrt(3)) / 2, complex(-1, -math.Sqrt(3)) / 2},
+	}
+	for i, mat := range mats {
+		expected := eigs[i]
+		actual := map[complex128]int{}
+		for _, x := range mat.Eigenvalues() {
+			actual[x]++
+		}
+		for j, x := range expected {
+			var notFirst bool
+			var a complex128
+			for anA, count := range actual {
+				if count == 0 {
+					continue
+				}
+				if !notFirst || cmplx.Abs(anA-x) < cmplx.Abs(a-x) {
+					a = anA
+					notFirst = true
+				}
+			}
+			actual[a]--
+			if cmplx.Abs(x-a) > 1e-8 {
+				t.Errorf("case %d eig %d: should be %f but got %f", i, j, x, a)
+			}
+		}
+	}
 }

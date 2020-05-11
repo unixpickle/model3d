@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"math"
+	"math/cmplx"
 
 	"github.com/unixpickle/model3d/model2d"
 )
@@ -102,5 +103,48 @@ func (m *Matrix3) Transpose() *Matrix3 {
 		m[0], m[3], m[6],
 		m[1], m[4], m[7],
 		m[2], m[5], m[8],
+	}
+}
+
+// Eigenvalues computes the eigenvalues of the matrix.
+//
+// There may be repeated eigenvalues, but for numerical
+// reasons three are always returned.
+func (m *Matrix3) Eigenvalues() [3]complex128 {
+	trace := m[0] + m[4] + m[8]
+	sqTrace := (m[0]*m[0] + m[1]*m[3] + m[2]*m[6]) +
+		(m[1]*m[3] + m[4]*m[4] + m[7]*m[5]) +
+		(m[2]*m[6] + m[5]*m[7] + m[8]*m[8])
+
+	// Characteristic polynomial coefficients.
+	a := -complex128(1)
+	b := complex(trace, 0)
+	c := complex(0.5*(sqTrace-trace*trace), 0)
+	d := complex(m.Det(), 0)
+
+	// Cubic formula: https://en.wikipedia.org/wiki/Cubic_equation#General_cubic_formula
+
+	disc0 := b*b - 3*a*c
+	disc1 := 2*b*b*b - 9*a*b*c + 27*a*a*d
+	addOrSub := cmplx.Sqrt(disc1*disc1 - 4*disc0*disc0*disc0)
+	// For numerical stability, choose the C with the largest
+	// absolute value.
+	c1 := (disc1 + addOrSub) / 2
+	c2 := (disc1 - addOrSub) / 2
+	bigC := c1
+	if cmplx.Abs(c2) > cmplx.Abs(c1) {
+		bigC = c2
+	}
+	bigC = cmplx.Pow(bigC, 1.0/3.0)
+
+	xForPhase := func(phase complex128) complex128 {
+		thisC := phase * bigC
+		return (-1.0 / (3 * a)) * (b + thisC + disc0/thisC)
+	}
+
+	return [3]complex128{
+		xForPhase(1),
+		xForPhase(-0.5 + 0.8660254037844386i),
+		xForPhase(-0.5 - 0.8660254037844386i),
 	}
 }
