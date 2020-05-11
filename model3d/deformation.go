@@ -257,6 +257,16 @@ func (a *arapOperator) LinSolve(b []Coord3D) []Coord3D {
 		b[i] = b[i].Add(c)
 	}
 
+	preventZeros := func(c Coord3D) Coord3D {
+		arr := c.Array()
+		for i, x := range arr {
+			if x == 0 {
+				arr[i] = math.Nextafter(0, 1)
+			}
+		}
+		return NewCoord3DArray(arr)
+	}
+
 	// Conjugate gradient algorithm with initial solution
 	// at the original coordinates.
 	x := a.Squeeze(a.arap.coords)
@@ -270,18 +280,10 @@ func (a *arapOperator) LinSolve(b []Coord3D) []Coord3D {
 		if rMag.Sum() == 0 {
 			break
 		}
-		rMag = rMag.Max(Coord3D{X: 1, Y: 1, Z: 1}.Scale(rMag.Sum() * 1e-18))
 
 		ap := a.Apply(p)
 
-		// Technically this should work, but it seems to
-		// cause numerical instabilities.
-		// Perhaps there is a bug in the matrix, i.e. it
-		// is not positive definite?
-		//
-		//     alpha := rMag.Div(arapDot(p, ap))
-		//
-		alpha := arapDot(p, r).Div(arapDot(p, ap))
+		alpha := rMag.Div(preventZeros(arapDot(p, ap)))
 		nextX := arapAdd(x, arapScale(p, alpha))
 
 		// Use explicit update for r to avoid compounding
@@ -289,7 +291,7 @@ func (a *arapOperator) LinSolve(b []Coord3D) []Coord3D {
 		nextR := arapSub(b, a.Apply(nextX))
 		nextRMag := arapDot(nextR, nextR)
 
-		beta := nextRMag.Div(rMag)
+		beta := nextRMag.Div(preventZeros(rMag))
 		nextP := arapAdd(nextR, arapScale(p, beta))
 		x, r, p = nextX, nextR, nextP
 	}
@@ -399,6 +401,9 @@ func newARAPEdge(i1, i2 int) arapEdge {
 }
 
 func arapAdd(v1, v2 []Coord3D) []Coord3D {
+	if len(v1) != len(v2) {
+		panic("length mismatch")
+	}
 	res := make([]Coord3D, len(v1))
 	for i, x := range v1 {
 		res[i] = x.Add(v2[i])
@@ -407,6 +412,9 @@ func arapAdd(v1, v2 []Coord3D) []Coord3D {
 }
 
 func arapSub(v1, v2 []Coord3D) []Coord3D {
+	if len(v1) != len(v2) {
+		panic("length mismatch")
+	}
 	res := make([]Coord3D, len(v1))
 	for i, x := range v1 {
 		res[i] = x.Sub(v2[i])
@@ -415,6 +423,9 @@ func arapSub(v1, v2 []Coord3D) []Coord3D {
 }
 
 func arapDot(v1, v2 []Coord3D) Coord3D {
+	if len(v1) != len(v2) {
+		panic("length mismatch")
+	}
 	var res Coord3D
 	for i, x := range v1 {
 		res = res.Add(x.Mul(v2[i]))
