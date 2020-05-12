@@ -34,6 +34,24 @@ func (a ARAPWeightingScheme) weight(cot float64) float64 {
 	}
 }
 
+// ARAPConstraints maps coordinates from an original mesh
+// to destination coordinates on a deformed mesh.
+type ARAPConstraints map[Coord3D]Coord3D
+
+// AddAround adds all of the points within r distance of c
+// to the constraints, moving them such that c would move
+// to target.
+//
+// Returns the number of points added.
+func (a ARAPConstraints) AddAround(arap *ARAP, c Coord3D, r float64, target Coord3D) {
+	offset := target.Sub(c)
+	for _, c1 := range arap.coords {
+		if c.Dist(c1) <= r {
+			a[c1] = c1.Add(offset)
+		}
+	}
+}
+
 // ARAP implements as-rigid-as-possible deformations for a
 // pre-determined mesh.
 type ARAP struct {
@@ -144,7 +162,7 @@ func NewARAPWeighted(m *Mesh, linear, rotation ARAPWeightingScheme) *ARAP {
 
 // Deform creates a new mesh by enforcing constraints on
 // some points of the mesh.
-func (a *ARAP) Deform(constraints map[Coord3D]Coord3D) *Mesh {
+func (a *ARAP) Deform(constraints ARAPConstraints) *Mesh {
 	mapping := a.deformMap(constraints, nil)
 	res := NewMesh()
 	for _, t := range a.triangles {
@@ -159,11 +177,8 @@ func (a *ARAP) Deform(constraints map[Coord3D]Coord3D) *Mesh {
 // This can be used to generate an initial guess for the
 // more general Deform() method.
 //
-// The constraints argument maps coordinates from the
-// original mesh to their new, fixed locations.
-//
 // The result maps all old coordinates to new coordinates.
-func (a *ARAP) Laplace(constraints map[Coord3D]Coord3D) map[Coord3D]Coord3D {
+func (a *ARAP) Laplace(constraints ARAPConstraints) map[Coord3D]Coord3D {
 	fullL := newARAPOperator(a, nil)
 	targets := fullL.Apply(a.coords)
 
@@ -186,7 +201,8 @@ func (a *ARAP) Laplace(constraints map[Coord3D]Coord3D) map[Coord3D]Coord3D {
 // for the deformation.
 //
 // The result maps all old coordinates to new coordinates.
-func (a *ARAP) DeformMap(constraints, initialGuess map[Coord3D]Coord3D) map[Coord3D]Coord3D {
+func (a *ARAP) DeformMap(constraints ARAPConstraints,
+	initialGuess map[Coord3D]Coord3D) map[Coord3D]Coord3D {
 	currentOutput := a.deformMap(constraints, initialGuess)
 	res := make(map[Coord3D]Coord3D, len(a.coords))
 	for i, c := range a.coords {
