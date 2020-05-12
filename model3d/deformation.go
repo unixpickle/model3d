@@ -123,7 +123,7 @@ func (a *ARAP) Laplace(constraints map[Coord3D]Coord3D) map[Coord3D]Coord3D {
 	targets := fullL.Apply(a.coords)
 
 	l := newARAPOperator(a, a.indexConstraints(constraints))
-	outs := l.LinSolve(targets)
+	outs := l.LinSolve(targets, nil)
 	res := make(map[Coord3D]Coord3D, len(a.coords))
 	for i, c := range a.coords {
 		res[c] = outs[i]
@@ -182,12 +182,27 @@ func (a *ARAP) deformMap(constraints, initialGuess map[Coord3D]Coord3D) []Coord3
 			}
 			var u, s, v Matrix3
 			covariance.SVD(&u, &s, &v)
-			rotations[i] = *v.Mul(u.Transpose())
+			rot := *v.Mul(u.Transpose())
+			if rot.Det() < 0 {
+				var smallestIndex int
+				smallestValue := s[0]
+				for i, s1 := range []float64{s[4], s[8]} {
+					if s1 < smallestValue {
+						smallestIndex = i + 1
+						smallestValue = s1
+					}
+				}
+				v[smallestIndex] *= -1
+				v[smallestIndex+3] *= -1
+				v[smallestIndex+6] *= -1
+				rot = *v.Mul(u.Transpose())
+			}
+			rotations[i] = rot
 		}
 
 		// Step 2: solve for new points.
 		targets := l.Targets(rotations)
-		currentOutput = l.LinSolve(targets)
+		currentOutput = l.LinSolve(targets, currentOutput)
 	}
 
 	return currentOutput
@@ -247,11 +262,16 @@ func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
 // LinSolve performs a linear solve for x in Lx=b.
 // It is assumed that b and x are unsqueezed (full rank),
 // and the constrained rows of b are simply ignored.
-func (a *arapOperator) LinSolve(b []Coord3D) []Coord3D {
+func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 	if len(a.squeezedToFull) == 0 {
 		// All points are constrained.
 		return b
 	}
+
+	if start == nil {
+		start = a.arap.coords
+	}
+
 	b = a.Squeeze(b)
 	for i, c := range a.SqueezeDelta() {
 		b[i] = b[i].Add(c)
@@ -267,17 +287,14 @@ func (a *arapOperator) LinSolve(b []Coord3D) []Coord3D {
 		return NewCoord3DArray(arr)
 	}
 
-	// Conjugate gradient algorithm with initial solution
-	// at the original coordinates.
-	x := a.Squeeze(a.arap.coords)
+	x := a.Squeeze(start)
 	r := arapSub(b, a.Apply(x))
 	p := r
+	eps := arapDot(b, b).Scale(1e-8)
 
 	for i := 0; i < arapMaxCGIterations; i++ {
 		rMag := arapDot(r, r)
-		// TODO: more clever convergence check based on
-		// residual magnitude.
-		if rMag.Sum() == 0 {
+		if rMag.Sum() == 0 || rMag.Max(eps) == eps {
 			break
 		}
 
