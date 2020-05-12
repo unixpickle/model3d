@@ -9,6 +9,31 @@ const (
 	arapMaxIterations   = 20
 )
 
+type ARAPWeightingScheme int
+
+const (
+	// ARAPWeightingCotangent is the default weighting scheme
+	// for ARAP from the paper. Unfortunately, it creates a
+	// loss function that can potentially become negative.
+	ARAPWeightingCotangent ARAPWeightingScheme = iota
+
+	ARAPWeightingAbsCotangent
+	ARAPWeightingUniform
+)
+
+func (a ARAPWeightingScheme) weight(cot float64) float64 {
+	switch a {
+	case ARAPWeightingCotangent:
+		return cot
+	case ARAPWeightingAbsCotangent:
+		return math.Abs(cot)
+	case ARAPWeightingUniform:
+		return 1
+	default:
+		panic("unknown weighting scheme")
+	}
+}
+
 // ARAP implements as-rigid-as-possible deformations for a
 // pre-determined mesh.
 type ARAP struct {
@@ -16,6 +41,7 @@ type ARAP struct {
 	coords     []Coord3D
 	neighbors  [][]int
 	weights    [][]float64
+	rotWeights [][]float64
 	triangles  [][3]int
 }
 
@@ -24,7 +50,23 @@ type ARAP struct {
 //
 // The ARAP instance will not hold a reference to m or its
 // triangles. Rather, it copies the data as needed.
+//
+// The instance uses cotangent weights.
+// For other weights, see NewARAPWeighted().
 func NewARAP(m *Mesh) *ARAP {
+	return NewARAPWeighted(m, ARAPWeightingCotangent, ARAPWeightingCotangent)
+}
+
+// NewARAPWeighted creates an ARAP with a specified
+// weighting scheme.
+//
+// The linear weighting scheme is used for linear solves,
+// whereas the rotation weighting scheme is used for
+// finding rigid transformations.
+//
+// The ARAP instance will not hold a reference to m or its
+// triangles. Rather, it copies the data as needed.
+func NewARAPWeighted(m *Mesh, linear, rotation ARAPWeightingScheme) *ARAP {
 	coords := m.VertexSlice()
 	triangles := m.TriangleSlice()
 	a := &ARAP{
@@ -32,6 +74,7 @@ func NewARAP(m *Mesh) *ARAP {
 		coords:     coords,
 		neighbors:  make([][]int, len(coords)),
 		weights:    make([][]float64, len(coords)),
+		rotWeights: make([][]float64, len(coords)),
 		triangles:  make([][3]int, 0, len(triangles)),
 	}
 
@@ -72,7 +115,7 @@ func NewARAP(m *Mesh) *ARAP {
 	})
 
 	for c1, neighbors := range a.neighbors {
-		var weights []float64
+		var weights, rotWeights []float64
 		for _, c2 := range neighbors {
 			var cotangentSum float64
 			for _, t := range edgeToTri[newARAPEdge(c1, c2)] {
@@ -89,9 +132,11 @@ func NewARAP(m *Mesh) *ARAP {
 				cosTheta := v1.Normalize().Dot(v2.Normalize())
 				cotangentSum += cosTheta / math.Sqrt(math.Max(0, 1-cosTheta*cosTheta))
 			}
-			weights = append(weights, cotangentSum)
+			weights = append(weights, linear.weight(cotangentSum/2))
+			rotWeights = append(rotWeights, rotation.weight(cotangentSum/2))
 		}
 		a.weights[c1] = weights
+		a.rotWeights[c1] = rotWeights
 	}
 
 	return a
@@ -168,7 +213,7 @@ func (a *ARAP) deformMap(constraints, initialGuess map[Coord3D]Coord3D) []Coord3
 		for i, c := range a.coords {
 			var covariance Matrix3
 			for j, n := range a.neighbors[i] {
-				weight := a.weights[i][j]
+				weight := a.rotWeights[i][j]
 				origDiff := a.coords[n].Sub(c)
 				newDiff := currentOutput[n].Sub(currentOutput[i])
 				piece := NewMatrix3Columns(
