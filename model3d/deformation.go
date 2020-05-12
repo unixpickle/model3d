@@ -374,29 +374,33 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 	}
 
 	x := a.Squeeze(start)
-	r := arapSub(b, a.Apply(x))
-	p := r
+	r := arapCopy(b)
+	arapSub(r, a.Apply(x))
+	p := arapCopy(r)
 	eps := arapDot(b, b).Scale(1e-8)
+	rMag := arapDot(r, r)
 
-	for i := 0; i < arapMaxCGIterations; i++ {
-		rMag := arapDot(r, r)
-		if rMag.Sum() == 0 || rMag.Max(eps) == eps {
-			break
-		}
-
+	for i := 0; i < arapMaxCGIterations && rMag.Max(eps) != eps && rMag.Sum() != 0; i++ {
 		ap := a.Apply(p)
 
 		alpha := rMag.Div(preventZeros(arapDot(p, ap)))
-		nextX := arapAdd(x, arapScale(p, alpha))
+		arapAddScaled(x, p, alpha)
 
-		// Use explicit update for r to avoid compounding
-		// error over many updates.
-		nextR := arapSub(b, a.Apply(nextX))
-		nextRMag := arapDot(nextR, nextR)
+		if (i+1)%50 == 0 {
+			// Use explicit update for r to avoid compounding
+			// error over many updates.
+			copy(r, b)
+			arapSub(r, a.Apply(x))
+		} else {
+			arapAddScaled(r, ap, alpha.Scale(-1))
+		}
+		nextRMag := arapDot(r, r)
 
 		beta := nextRMag.Div(preventZeros(rMag))
-		nextP := arapAdd(nextR, arapScale(p, beta))
-		x, r, p = nextX, nextR, nextP
+		for i, c := range r {
+			p[i] = c.Add(p[i].Mul(beta))
+		}
+		rMag = nextRMag
 	}
 
 	return a.Unsqueeze(x)
@@ -503,26 +507,35 @@ func newARAPEdge(i1, i2 int) arapEdge {
 	}
 }
 
-func arapAdd(v1, v2 []Coord3D) []Coord3D {
-	if len(v1) != len(v2) {
-		panic("length mismatch")
-	}
-	res := make([]Coord3D, len(v1))
-	for i, x := range v1 {
-		res[i] = x.Add(v2[i])
-	}
-	return res
+func arapCopy(v []Coord3D) []Coord3D {
+	return append([]Coord3D{}, v...)
 }
 
-func arapSub(v1, v2 []Coord3D) []Coord3D {
+func arapAdd(v1, v2 []Coord3D) {
 	if len(v1) != len(v2) {
 		panic("length mismatch")
 	}
-	res := make([]Coord3D, len(v1))
 	for i, x := range v1 {
-		res[i] = x.Sub(v2[i])
+		v1[i] = x.Add(v2[i])
 	}
-	return res
+}
+
+func arapAddScaled(v1, v2 []Coord3D, s Coord3D) {
+	if len(v1) != len(v2) {
+		panic("length mismatch")
+	}
+	for i, x := range v1 {
+		v1[i] = x.Add(v2[i].Mul(s))
+	}
+}
+
+func arapSub(v1, v2 []Coord3D) {
+	if len(v1) != len(v2) {
+		panic("length mismatch")
+	}
+	for i, x := range v1 {
+		v1[i] = x.Sub(v2[i])
+	}
 }
 
 func arapDot(v1, v2 []Coord3D) Coord3D {
@@ -532,14 +545,6 @@ func arapDot(v1, v2 []Coord3D) Coord3D {
 	var res Coord3D
 	for i, x := range v1 {
 		res = res.Add(x.Mul(v2[i]))
-	}
-	return res
-}
-
-func arapScale(v []Coord3D, s Coord3D) []Coord3D {
-	res := make([]Coord3D, len(v))
-	for i, x := range v {
-		res[i] = x.Mul(s)
 	}
 	return res
 }
