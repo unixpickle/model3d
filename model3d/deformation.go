@@ -69,8 +69,10 @@ type ARAP struct {
 // The ARAP instance will not hold a reference to m or its
 // triangles. Rather, it copies the data as needed.
 //
-// The instance uses cotangent weights.
-// For other weights, see NewARAPWeighted().
+// The instance uses cotangent weights, which are only
+// guaranteed to work on meshes with smaller-than-right
+// angles.
+// For other weighting options, see NewARAPWeighted().
 func NewARAP(m *Mesh) *ARAP {
 	return NewARAPWeighted(m, ARAPWeightingCotangent, ARAPWeightingCotangent)
 }
@@ -224,44 +226,7 @@ func (a *ARAP) deformMap(constraints, initialGuess map[Coord3D]Coord3D) []Coord3
 	}
 
 	for iter := 0; iter < arapMaxIterations; iter++ {
-		// Step 1: find nearest rigid deformations.
-		rotations := make([]Matrix3, len(a.coords))
-		for i, c := range a.coords {
-			var covariance Matrix3
-			for j, n := range a.neighbors[i] {
-				weight := a.rotWeights[i][j]
-				origDiff := a.coords[n].Sub(c)
-				newDiff := currentOutput[n].Sub(currentOutput[i])
-				piece := NewMatrix3Columns(
-					origDiff.Scale(newDiff.X),
-					origDiff.Scale(newDiff.Y),
-					origDiff.Scale(newDiff.Z),
-				)
-				for i, x := range piece {
-					covariance[i] += x * weight
-				}
-			}
-			var u, s, v Matrix3
-			covariance.SVD(&u, &s, &v)
-			rot := *v.Mul(u.Transpose())
-			if rot.Det() < 0 {
-				var smallestIndex int
-				smallestValue := s[0]
-				for i, s1 := range []float64{s[4], s[8]} {
-					if s1 < smallestValue {
-						smallestIndex = i + 1
-						smallestValue = s1
-					}
-				}
-				v[smallestIndex] *= -1
-				v[smallestIndex+3] *= -1
-				v[smallestIndex+6] *= -1
-				rot = *v.Mul(u.Transpose())
-			}
-			rotations[i] = rot
-		}
-
-		// Step 2: solve for new points.
+		rotations := a.rotations(currentOutput)
 		targets := l.Targets(rotations)
 		currentOutput = l.LinSolve(targets, currentOutput)
 	}
@@ -269,6 +234,66 @@ func (a *ARAP) deformMap(constraints, initialGuess map[Coord3D]Coord3D) []Coord3
 	return currentOutput
 }
 
+// rotations computes the rotations-of-best-fit for the
+// current coordinate positions.
+func (a *ARAP) rotations(currentOutput []Coord3D) []Matrix3 {
+	rotations := make([]Matrix3, len(a.coords))
+	for i, c := range a.coords {
+		var covariance Matrix3
+		for j, n := range a.neighbors[i] {
+			weight := a.rotWeights[i][j]
+			origDiff := a.coords[n].Sub(c)
+			newDiff := currentOutput[n].Sub(currentOutput[i])
+			piece := NewMatrix3Columns(
+				origDiff.Scale(newDiff.X),
+				origDiff.Scale(newDiff.Y),
+				origDiff.Scale(newDiff.Z),
+			)
+			for i, x := range piece {
+				covariance[i] += x * weight
+			}
+		}
+		var u, s, v Matrix3
+		covariance.SVD(&u, &s, &v)
+		rot := *v.Mul(u.Transpose())
+		if rot.Det() < 0 {
+			var smallestIndex int
+			smallestValue := s[0]
+			for i, s1 := range []float64{s[4], s[8]} {
+				if s1 < smallestValue {
+					smallestIndex = i + 1
+					smallestValue = s1
+				}
+			}
+			v[smallestIndex] *= -1
+			v[smallestIndex+3] *= -1
+			v[smallestIndex+6] *= -1
+			rot = *v.Mul(u.Transpose())
+		}
+		rotations[i] = rot
+	}
+	return rotations
+}
+
+// energy computes the ARAP loss energy.
+// This can be used for debugging, and perhaps in the
+// future for convergence analysis.
+func (a *ARAP) energy(currentOutput []Coord3D) float64 {
+	rotations := a.rotations(currentOutput)
+	var energy float64
+	for i, neighbors := range a.neighbors {
+		rotation := rotations[i]
+		for j, n := range neighbors {
+			w := a.weights[i][j]
+			rotated := rotation.MulColumn(a.coords[i].Sub(a.coords[n]))
+			diff := currentOutput[i].Sub(currentOutput[n]).Sub(rotated)
+			energy += w * diff.Dot(diff)
+		}
+	}
+	return energy
+}
+
+// indexConstraints converts the keys to indices.
 func (a *ARAP) indexConstraints(constraints map[Coord3D]Coord3D) map[int]Coord3D {
 	res := map[int]Coord3D{}
 	for in, out := range constraints {
