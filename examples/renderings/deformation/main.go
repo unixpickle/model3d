@@ -20,7 +20,7 @@ func main() {
 
 	SaveRendering("deform_0.png", mesh)
 
-	a := model3d.NewARAPWeighted(mesh, model3d.ARAPWeightingAbsCotangent, model3d.ARAPWeightingAbsCotangent)
+	a := model3d.NewARAP(mesh)
 
 	log.Println("Creating first deformation...")
 	deformed := a.Deform(model3d.ARAPConstraints{
@@ -56,7 +56,7 @@ func CreateMesh() *model3d.Mesh {
 			Radius: 0.08,
 		},
 	}
-	return model3d.MarchingCubesSearch(solid, 0.01, 8)
+	return model3d.MarchingCubesSearch(solid, 0.01, 8).FlipDelaunay()
 }
 
 func FindControlPoints(m *model3d.Mesh) *ControlPoints {
