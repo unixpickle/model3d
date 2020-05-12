@@ -321,6 +321,10 @@ type arapOperator struct {
 
 	// Inverse of squeezedToFull with -1 at constraints.
 	fullToSqueezed []int
+
+	// preconditioner stores the values of a diagonal
+	// preconditioning matrix.
+	preconditioner []Coord3D
 }
 
 func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
@@ -337,11 +341,25 @@ func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
 			fullToSqueezed[i] = -1
 		}
 	}
+	precond := make([]Coord3D, len(squeezedToFull))
+	for i, full := range squeezedToFull {
+		var ws float64
+		for _, w := range a.weights[full] {
+			ws += w
+		}
+		scale := 1 / math.Sqrt(math.Max(ws, 1e-3))
+		precond[i] = Coord3D{
+			X: scale,
+			Y: scale,
+			Z: scale,
+		}
+	}
 	return &arapOperator{
 		arap:           a,
 		constraints:    constraints,
 		squeezedToFull: squeezedToFull,
 		fullToSqueezed: fullToSqueezed,
+		preconditioner: precond,
 	}
 }
 
@@ -362,6 +380,7 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 	for i, c := range a.SqueezeDelta() {
 		b[i] = b[i].Add(c)
 	}
+	a.mulPrecond(b)
 
 	preventZeros := func(c Coord3D) Coord3D {
 		arr := c.Array()
@@ -374,14 +393,15 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 	}
 
 	x := a.Squeeze(start)
+	a.divPrecond(x)
 	r := arapCopy(b)
-	arapSub(r, a.Apply(x))
+	arapSub(r, a.applyPrecond(x))
 	p := arapCopy(r)
 	eps := arapDot(b, b).Scale(1e-8)
 	rMag := arapDot(r, r)
 
 	for i := 0; i < arapMaxCGIterations && rMag.Max(eps) != eps && rMag.Sum() != 0; i++ {
-		ap := a.Apply(p)
+		ap := a.applyPrecond(p)
 
 		alpha := rMag.Div(preventZeros(arapDot(p, ap)))
 		arapAddScaled(x, p, alpha)
@@ -390,7 +410,7 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 			// Use explicit update for r to avoid compounding
 			// error over many updates.
 			copy(r, b)
-			arapSub(r, a.Apply(x))
+			arapSub(r, a.applyPrecond(x))
 		} else {
 			arapAddScaled(r, ap, alpha.Scale(-1))
 		}
@@ -403,7 +423,9 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 		rMag = nextRMag
 	}
 
-	return a.Unsqueeze(x)
+	a.mulPrecond(x)
+	res := a.Unsqueeze(x)
+	return res
 }
 
 // Squeeze gets a vector that can be put through the
@@ -471,6 +493,32 @@ func (a *arapOperator) Apply(v []Coord3D) []Coord3D {
 		res[i] = result
 	}
 	return res
+}
+
+// applyPrecond applies the pre-conditioned matrix to a
+// squeezed vector.
+func (a *arapOperator) applyPrecond(v []Coord3D) []Coord3D {
+	precondIn := arapCopy(v)
+	a.mulPrecond(precondIn)
+	out := a.Apply(precondIn)
+	a.mulPrecond(out)
+	return out
+}
+
+// mulPrecond multiplies the vector by the preconditioning
+// matrix.
+func (a *arapOperator) mulPrecond(v []Coord3D) {
+	for i, x := range v {
+		v[i] = x.Mul(a.preconditioner[i])
+	}
+}
+
+// divPrecond divides the vector by the preconditioning
+// matrix.
+func (a *arapOperator) divPrecond(v []Coord3D) {
+	for i, x := range v {
+		v[i] = x.Div(a.preconditioner[i])
+	}
 }
 
 // Targets computes the right-hand side of the Poisson
