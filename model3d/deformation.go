@@ -509,30 +509,153 @@ func (a *arapOperator) Targets(rotations []Matrix3) []Coord3D {
 
 // arapPrecond is a preconditioner for an arapOperator.
 type arapPrecond struct {
-	diagonal []float64
+	lower *arapSparse
+	upper *arapSparse
 }
 
 // newARAPPrecond creates a new preconditioning operator.
 func newARAPPrecond(a *arapOperator) *arapPrecond {
-	precond := make([]float64, len(a.squeezedToFull))
+	size := len(a.squeezedToFull)
+	lower := newARAPSparse(size)
+	upper := newARAPSparse(size)
+
+	// https://en.wikipedia.org/wiki/Incomplete_Cholesky_factorization
+
+	diagonal := make([]float64, size)
 	for i, full := range a.squeezedToFull {
-		var ws float64
+		var sum float64
 		for j, w := range a.arap.weights[full] {
 			if a.fullToSqueezed[a.arap.neighbors[full][j]] != -1 {
-				ws += w
+				sum += w
 			}
 		}
-		precond[i] = math.Max(ws, 1e-3)
+		diagonal[i] = sum
 	}
-	return &arapPrecond{diagonal: precond}
+
+	for i, full := range a.squeezedToFull {
+		diagonalEntry := diagonal[i]
+		lower.Iterate(i, func(col int, x float64) {
+			diagonalEntry -= x * x
+		})
+		// TODO: see if we need to make sure the diagonal entry
+		// does not equal zero.
+		diagonalEntry = math.Sqrt(diagonalEntry)
+		lower.Set(i, i, diagonalEntry)
+		upper.Set(i, i, diagonalEntry)
+
+		for neighborIdx, neighborFull := range a.arap.neighbors[full] {
+			j := a.fullToSqueezed[neighborFull]
+			if j <= i {
+				continue
+			}
+			entry := -a.arap.weights[full][neighborIdx]
+
+			lower.Iterate(i, func(k int, x float64) {
+				if k >= i {
+					return
+				}
+				lower.Iterate(j, func(k1 int, y float64) {
+					if k == k1 {
+						entry -= x * y
+					}
+				})
+			})
+
+			entry = entry / diagonalEntry
+			lower.Set(j, i, entry)
+			upper.Set(i, j, entry)
+		}
+	}
+
+	return &arapPrecond{
+		lower: lower,
+		upper: upper,
+	}
 }
 
 // ApplyInverse computes P^-1 * b, where P is the matrix
 // for the preconditioner.
+//
 // The output is written to out.
 func (a *arapPrecond) ApplyInverse(out, b []Coord3D) {
-	for i, x := range b {
-		out[i] = x.Scale(1 / a.diagonal[i])
+	a.lower.BacksubLower(out, b)
+	a.upper.BacksubUpper(out, out)
+}
+
+// Apply computes P*b, where P is the matrix for the
+// preconditioner.
+//
+// The output is written to out.
+func (a *arapPrecond) Apply(out, b []Coord3D) {
+	for i := range out {
+		var sum Coord3D
+		a.upper.Iterate(i, func(col int, x float64) {
+			sum = sum.Add(b[col].Scale(x))
+		})
+		out[i] = sum
+	}
+	for i := len(out) - 1; i >= 0; i-- {
+		var sum Coord3D
+		a.lower.Iterate(i, func(col int, x float64) {
+			sum = sum.Add(out[col].Scale(x))
+		})
+		out[i] = sum
+	}
+}
+
+type arapSparse struct {
+	rows    [][]float64
+	indices [][]int
+}
+
+func newARAPSparse(size int) *arapSparse {
+	return &arapSparse{
+		rows:    make([][]float64, size),
+		indices: make([][]int, size),
+	}
+}
+
+func (a *arapSparse) Set(row, col int, x float64) {
+	a.rows[row] = append(a.rows[row], x)
+	a.indices[row] = append(a.indices[row], col)
+}
+
+func (a *arapSparse) Iterate(row int, f func(col int, x float64)) {
+	for i, col := range a.indices[row] {
+		f(col, a.rows[row][i])
+	}
+}
+
+func (a *arapSparse) BacksubUpper(out, b []Coord3D) {
+	for row := len(b) - 1; row >= 0; row-- {
+		bValue := b[row]
+		var diagValue float64
+		a.Iterate(row, func(col int, x float64) {
+			if col < row {
+				panic("not upper-diagonal")
+			} else if col == row {
+				diagValue = x
+			} else {
+				bValue = bValue.Add(out[col].Scale(-x))
+			}
+		})
+		out[row] = bValue.Scale(1 / diagValue)
+	}
+}
+
+func (a *arapSparse) BacksubLower(out, b []Coord3D) {
+	for row, bValue := range b {
+		var diagValue float64
+		a.Iterate(row, func(col int, x float64) {
+			if col > row {
+				panic("not lower-diagonal")
+			} else if col == row {
+				diagValue = x
+			} else {
+				bValue = bValue.Add(out[col].Scale(-x))
+			}
+		})
+		out[row] = bValue.Scale(1 / diagValue)
 	}
 }
 
