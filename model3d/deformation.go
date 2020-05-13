@@ -322,9 +322,7 @@ type arapOperator struct {
 	// Inverse of squeezedToFull with -1 at constraints.
 	fullToSqueezed []int
 
-	// preconditioner stores the values of a diagonal
-	// preconditioning matrix.
-	preconditioner []Coord3D
+	precond *arapPrecond
 }
 
 func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
@@ -341,26 +339,15 @@ func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
 			fullToSqueezed[i] = -1
 		}
 	}
-	precond := make([]Coord3D, len(squeezedToFull))
-	for i, full := range squeezedToFull {
-		var ws float64
-		for _, w := range a.weights[full] {
-			ws += w
-		}
-		scale := 1 / math.Sqrt(math.Max(ws, 1e-3))
-		precond[i] = Coord3D{
-			X: scale,
-			Y: scale,
-			Z: scale,
-		}
-	}
-	return &arapOperator{
+
+	res := &arapOperator{
 		arap:           a,
 		constraints:    constraints,
 		squeezedToFull: squeezedToFull,
 		fullToSqueezed: fullToSqueezed,
-		preconditioner: precond,
 	}
+	res.precond = newARAPPrecond(res)
+	return res
 }
 
 // LinSolve performs a linear solve for x in Lx=b.
@@ -380,7 +367,6 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 	for i, c := range a.SqueezeDelta() {
 		b[i] = b[i].Add(c)
 	}
-	a.mulPrecond(b)
 
 	preventZeros := func(c Coord3D) Coord3D {
 		arr := c.Array()
@@ -393,39 +379,41 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 	}
 
 	x := a.Squeeze(start)
-	a.divPrecond(x)
 	r := arapCopy(b)
-	arapSub(r, a.applyPrecond(x))
-	p := arapCopy(r)
+	arapSub(r, a.Apply(x))
+	z := make([]Coord3D, len(r))
+	a.precond.ApplyInverse(z, r)
+	p := arapCopy(z)
 	eps := arapDot(b, b).Scale(1e-8)
 	rMag := arapDot(r, r)
+	rzDot := arapDot(r, z)
 
 	for i := 0; i < arapMaxCGIterations && rMag.Max(eps) != eps && rMag.Sum() != 0; i++ {
-		ap := a.applyPrecond(p)
+		ap := a.Apply(p)
 
-		alpha := rMag.Div(preventZeros(arapDot(p, ap)))
+		alpha := rzDot.Div(preventZeros(arapDot(p, ap)))
 		arapAddScaled(x, p, alpha)
 
 		if (i+1)%50 == 0 {
 			// Use explicit update for r to avoid compounding
 			// error over many updates.
 			copy(r, b)
-			arapSub(r, a.applyPrecond(x))
+			arapSub(r, a.Apply(x))
 		} else {
 			arapAddScaled(r, ap, alpha.Scale(-1))
 		}
-		nextRMag := arapDot(r, r)
+		a.precond.ApplyInverse(z, r)
+		rMag = arapDot(r, r)
+		nextRZDot := arapDot(r, z)
 
-		beta := nextRMag.Div(preventZeros(rMag))
-		for i, c := range r {
+		beta := nextRZDot.Div(preventZeros(rzDot))
+		for i, c := range z {
 			p[i] = c.Add(p[i].Mul(beta))
 		}
-		rMag = nextRMag
+		rzDot = nextRZDot
 	}
 
-	a.mulPrecond(x)
-	res := a.Unsqueeze(x)
-	return res
+	return a.Unsqueeze(x)
 }
 
 // Squeeze gets a vector that can be put through the
@@ -495,32 +483,6 @@ func (a *arapOperator) Apply(v []Coord3D) []Coord3D {
 	return res
 }
 
-// applyPrecond applies the pre-conditioned matrix to a
-// squeezed vector.
-func (a *arapOperator) applyPrecond(v []Coord3D) []Coord3D {
-	precondIn := arapCopy(v)
-	a.mulPrecond(precondIn)
-	out := a.Apply(precondIn)
-	a.mulPrecond(out)
-	return out
-}
-
-// mulPrecond multiplies the vector by the preconditioning
-// matrix.
-func (a *arapOperator) mulPrecond(v []Coord3D) {
-	for i, x := range v {
-		v[i] = x.Mul(a.preconditioner[i])
-	}
-}
-
-// divPrecond divides the vector by the preconditioning
-// matrix.
-func (a *arapOperator) divPrecond(v []Coord3D) {
-	for i, x := range v {
-		v[i] = x.Div(a.preconditioner[i])
-	}
-}
-
 // Targets computes the right-hand side of the Poisson
 // equation using rotation matrices.
 func (a *arapOperator) Targets(rotations []Matrix3) []Coord3D {
@@ -543,6 +505,35 @@ func (a *arapOperator) Targets(rotations []Matrix3) []Coord3D {
 		res[i] = result
 	}
 	return res
+}
+
+// arapPrecond is a preconditioner for an arapOperator.
+type arapPrecond struct {
+	diagonal []float64
+}
+
+// newARAPPrecond creates a new preconditioning operator.
+func newARAPPrecond(a *arapOperator) *arapPrecond {
+	precond := make([]float64, len(a.squeezedToFull))
+	for i, full := range a.squeezedToFull {
+		var ws float64
+		for j, w := range a.arap.weights[full] {
+			if a.fullToSqueezed[a.arap.neighbors[full][j]] != -1 {
+				ws += w
+			}
+		}
+		precond[i] = math.Max(ws, 1e-3)
+	}
+	return &arapPrecond{diagonal: precond}
+}
+
+// ApplyInverse computes P^-1 * b, where P is the matrix
+// for the preconditioner.
+// The output is written to out.
+func (a *arapPrecond) ApplyInverse(out, b []Coord3D) {
+	for i, x := range b {
+		out[i] = x.Scale(1 / a.diagonal[i])
+	}
 }
 
 type arapEdge [2]int
