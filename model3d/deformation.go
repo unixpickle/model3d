@@ -4,9 +4,13 @@ import (
 	"math"
 )
 
+// ARAPDefaultTolerance is the default convergence
+// tolerance for ARAP.
+const ARAPDefaultTolerance = 1e-2
+
 const (
 	arapMaxCGIterations = 2000
-	arapMaxIterations   = 20
+	arapMaxIterations   = 200
 )
 
 type ARAPWeightingScheme int
@@ -61,6 +65,8 @@ type ARAP struct {
 	weights    [][]float64
 	rotWeights [][]float64
 	triangles  [][3]int
+
+	tolerance float64
 }
 
 // NewARAP creates an ARAP instance for the given mesh
@@ -96,6 +102,7 @@ func NewARAPWeighted(m *Mesh, linear, rotation ARAPWeightingScheme) *ARAP {
 		weights:    make([][]float64, len(coords)),
 		rotWeights: make([][]float64, len(coords)),
 		triangles:  make([][3]int, 0, len(triangles)),
+		tolerance:  ARAPDefaultTolerance,
 	}
 
 	for i, c := range coords {
@@ -162,6 +169,21 @@ func NewARAPWeighted(m *Mesh, linear, rotation ARAPWeightingScheme) *ARAP {
 	return a
 }
 
+// Tolerance gets the current convergence tolerance.
+// Will be ARAPDefaultTolerance by default.
+func (a *ARAP) Tolerance() float64 {
+	return a.tolerance
+}
+
+// SetTolerance changes the convergence tolerance.
+// Lower values make the algorithm run longer but arrive
+// at more accurate values.
+//
+// See ARAPDefaultTolerance.
+func (a *ARAP) SetTolerance(t float64) {
+	a.tolerance = t
+}
+
 // Deform creates a new mesh by enforcing constraints on
 // some points of the mesh.
 func (a *ARAP) Deform(constraints ARAPConstraints) *Mesh {
@@ -225,10 +247,16 @@ func (a *ARAP) deformMap(constraints, initialGuess map[Coord3D]Coord3D) []Coord3
 		currentOutput[i] = initialGuess[c]
 	}
 
+	lastEnergy := a.energy(currentOutput)
 	for iter := 0; iter < arapMaxIterations; iter++ {
 		rotations := a.rotations(currentOutput)
 		targets := l.Targets(rotations)
 		currentOutput = l.LinSolve(targets, currentOutput)
+		energy := a.energy(currentOutput)
+		if 1-energy/lastEnergy < a.tolerance {
+			break
+		}
+		lastEnergy = energy
 	}
 
 	return currentOutput
