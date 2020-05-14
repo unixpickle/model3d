@@ -195,6 +195,33 @@ func (a *ARAP) Deform(constraints ARAPConstraints) *Mesh {
 	return res
 }
 
+// SeqDeformer creates a function that deforms the mesh
+// using the previous deformed mesh as a starting point.
+// This is useful for animations and/or user interaction.
+//
+// The returned function is not safe to call from multiple
+// Goroutines concurrently.
+func (a *ARAP) SeqDeformer() func(ARAPConstraints) *Mesh {
+	var mapping map[Coord3D]Coord3D
+	return func(constraints ARAPConstraints) *Mesh {
+		if mapping != nil {
+			for k, v := range constraints {
+				mapping[k] = v
+			}
+		}
+		mapping = a.DeformMap(constraints, mapping)
+		res := NewMesh()
+		for _, t := range a.triangles {
+			var t1 Triangle
+			for i, c := range t {
+				t1[i] = mapping[a.coords[c]]
+			}
+			res.Add(&t1)
+		}
+		return res
+	}
+}
+
 // Laplace deforms the mesh using a simple Laplacian
 // heuristic.
 //
