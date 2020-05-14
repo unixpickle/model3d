@@ -552,10 +552,8 @@ func newARAPPrecond(a *arapOperator) *arapPrecond {
 	diagonal := make([]float64, size)
 	for i, full := range a.squeezedToFull {
 		var sum float64
-		for j, w := range a.arap.weights[full] {
-			if a.fullToSqueezed[a.arap.neighbors[full][j]] != -1 {
-				sum += w
-			}
+		for _, w := range a.arap.weights[full] {
+			sum += w
 		}
 		diagonal[i] = sum
 	}
