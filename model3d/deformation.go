@@ -394,15 +394,12 @@ func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
 			fullToSqueezed[i] = -1
 		}
 	}
-
-	res := &arapOperator{
+	return &arapOperator{
 		arap:           a,
 		constraints:    constraints,
 		squeezedToFull: squeezedToFull,
 		fullToSqueezed: fullToSqueezed,
 	}
-	res.precond = newARAPPrecond(res)
-	return res
 }
 
 // LinSolve performs a linear solve for x in Lx=b.
@@ -412,6 +409,10 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 	if len(a.squeezedToFull) == 0 {
 		// All points are constrained.
 		return b
+	}
+
+	if a.precond == nil {
+		a.precond = newARAPPrecond(a)
 	}
 
 	if start == nil {
