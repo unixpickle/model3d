@@ -8,9 +8,9 @@ import (
 
 // ARAPDefaultTolerance is the default convergence
 // tolerance for ARAP.
-const ARAPDefaultTolerance = 1e-2
+const ARAPDefaultTolerance = 1e-3
 
-const arapMaxIterations = 200
+const arapMaxIterations = 5000
 
 type ARAPWeightingScheme int
 
