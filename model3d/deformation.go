@@ -2,16 +2,15 @@ package model3d
 
 import (
 	"math"
+
+	"github.com/unixpickle/essentials"
 )
 
 // ARAPDefaultTolerance is the default convergence
 // tolerance for ARAP.
 const ARAPDefaultTolerance = 1e-2
 
-const (
-	arapMaxCGIterations = 2000
-	arapMaxIterations   = 200
-)
+const arapMaxIterations = 200
 
 type ARAPWeightingScheme int
 
@@ -187,12 +186,8 @@ func (a *ARAP) SetTolerance(t float64) {
 // Deform creates a new mesh by enforcing constraints on
 // some points of the mesh.
 func (a *ARAP) Deform(constraints ARAPConstraints) *Mesh {
-	mapping := a.deformMap(constraints, nil)
-	res := NewMesh()
-	for _, t := range a.triangles {
-		res.Add(&Triangle{mapping[t[0]], mapping[t[1]], mapping[t[2]]})
-	}
-	return res
+	outSlice := a.deformMap(newARAPOperator(a, a.indexConstraints(constraints)), nil)
+	return a.coordsToMesh(outSlice)
 }
 
 // SeqDeformer creates a function that deforms the mesh
@@ -202,23 +197,16 @@ func (a *ARAP) Deform(constraints ARAPConstraints) *Mesh {
 // The returned function is not safe to call from multiple
 // Goroutines concurrently.
 func (a *ARAP) SeqDeformer() func(ARAPConstraints) *Mesh {
-	var mapping map[Coord3D]Coord3D
+	var current []Coord3D
+	var l *arapOperator
 	return func(constraints ARAPConstraints) *Mesh {
-		if mapping != nil {
-			for k, v := range constraints {
-				mapping[k] = v
-			}
+		if l == nil {
+			l = newARAPOperator(a, a.indexConstraints(constraints))
+		} else {
+			l.Update(a.indexConstraints(constraints))
 		}
-		mapping = a.DeformMap(constraints, mapping)
-		res := NewMesh()
-		for _, t := range a.triangles {
-			var t1 Triangle
-			for i, c := range t {
-				t1[i] = mapping[a.coords[c]]
-			}
-			res.Add(&t1)
-		}
-		return res
+		current = a.deformMap(l, current)
+		return a.coordsToMesh(current)
 	}
 }
 
@@ -230,16 +218,15 @@ func (a *ARAP) SeqDeformer() func(ARAPConstraints) *Mesh {
 //
 // The result maps all old coordinates to new coordinates.
 func (a *ARAP) Laplace(constraints ARAPConstraints) map[Coord3D]Coord3D {
+	l := newARAPOperator(a, a.indexConstraints(constraints))
+	outSlice := a.laplace(l)
+	return a.coordsToMap(outSlice)
+}
+
+func (a *ARAP) laplace(l *arapOperator) []Coord3D {
 	fullL := newARAPOperator(a, nil)
 	targets := fullL.Apply(a.coords)
-
-	l := newARAPOperator(a, a.indexConstraints(constraints))
-	outs := l.LinSolve(targets, nil)
-	res := make(map[Coord3D]Coord3D, len(a.coords))
-	for i, c := range a.coords {
-		res[c] = outs[i]
-	}
-	return res
+	return l.LinSolve(targets)
 }
 
 // DeformMap performs constrained mesh deformation.
@@ -254,31 +241,24 @@ func (a *ARAP) Laplace(constraints ARAPConstraints) map[Coord3D]Coord3D {
 // The result maps all old coordinates to new coordinates.
 func (a *ARAP) DeformMap(constraints ARAPConstraints,
 	initialGuess map[Coord3D]Coord3D) map[Coord3D]Coord3D {
-	currentOutput := a.deformMap(constraints, initialGuess)
-	res := make(map[Coord3D]Coord3D, len(a.coords))
-	for i, c := range a.coords {
-		res[c] = currentOutput[i]
-	}
-	return res
+	l := newARAPOperator(a, a.indexConstraints(constraints))
+	outSlice := a.deformMap(l, a.initialGuessSlice(initialGuess))
+	return a.coordsToMap(outSlice)
 }
 
-func (a *ARAP) deformMap(constraints, initialGuess map[Coord3D]Coord3D) []Coord3D {
+func (a *ARAP) deformMap(l *arapOperator, initialGuess []Coord3D) []Coord3D {
 	if initialGuess == nil {
-		initialGuess = a.Laplace(constraints)
+		initialGuess = a.laplace(l)
 	}
 
-	l := newARAPOperator(a, a.indexConstraints(constraints))
-
-	currentOutput := make([]Coord3D, len(a.coords))
-	for i, c := range a.coords {
-		currentOutput[i] = initialGuess[c]
-	}
+	// Enforce constraints on the init.
+	currentOutput := l.Unsqueeze(l.Squeeze(initialGuess))
 
 	lastEnergy := a.energy(currentOutput)
 	for iter := 0; iter < arapMaxIterations; iter++ {
 		rotations := a.rotations(currentOutput)
 		targets := l.Targets(rotations)
-		currentOutput = l.LinSolve(targets, currentOutput)
+		currentOutput = l.LinSolve(targets)
 		energy := a.energy(currentOutput)
 		if 1-energy/lastEnergy < a.tolerance {
 			break
@@ -349,16 +329,57 @@ func (a *ARAP) energy(currentOutput []Coord3D) float64 {
 }
 
 // indexConstraints converts the keys to indices.
-func (a *ARAP) indexConstraints(constraints map[Coord3D]Coord3D) map[int]Coord3D {
+func (a *ARAP) indexConstraints(constraints ARAPConstraints) map[int]Coord3D {
 	res := map[int]Coord3D{}
 	for in, out := range constraints {
 		if idx, ok := a.coordToIdx[in]; !ok {
-			panic("constraint source was not in the original mesh")
+			panic("constraint was not in the original mesh")
 		} else {
 			res[idx] = out
 		}
 	}
 	return res
+}
+
+// initialGuessSlice converts a map from old coordinates
+// to new ones into a slice of coordinates.
+//
+// Automatically fills in coordinates that are not
+// present.
+func (a *ARAP) initialGuessSlice(m map[Coord3D]Coord3D) []Coord3D {
+	// Case where default initial guess is used.
+	if m == nil {
+		return nil
+	}
+
+	res := append([]Coord3D{}, a.coords...)
+	for k, v := range m {
+		if idx, ok := a.coordToIdx[k]; ok {
+			res[idx] = v
+		} else {
+			panic("coordinate used as key was not in the original mesh")
+		}
+	}
+	return res
+}
+
+// coordsToMap converts a coordinate slice to a map from
+// original mesh coordinates to new ones.
+func (a *ARAP) coordsToMap(s []Coord3D) map[Coord3D]Coord3D {
+	res := map[Coord3D]Coord3D{}
+	for i, c := range s {
+		res[a.coords[i]] = c
+	}
+	return res
+}
+
+// coordsToMesh converts a coordinate slice to a mesh.
+func (a *ARAP) coordsToMesh(s []Coord3D) *Mesh {
+	m := NewMesh()
+	for _, t := range a.triangles {
+		m.Add(&Triangle{s[t[0]], s[t[1]], s[t[2]]})
+	}
+	return m
 }
 
 // arapOperator implements the Laplace-Beltrami matrix.
@@ -377,7 +398,7 @@ type arapOperator struct {
 	// Inverse of squeezedToFull with -1 at constraints.
 	fullToSqueezed []int
 
-	precond *arapPrecond
+	chol *arapCholesky
 }
 
 func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
@@ -402,21 +423,31 @@ func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
 	}
 }
 
+// Update updates the constraints.
+//
+// If the set of constrained vertices remains the same,
+// redundant recomputation can be avoided.
+func (a *arapOperator) Update(constraints map[int]Coord3D) {
+	if len(constraints) != len(a.constraints) {
+		*a = *newARAPOperator(a.arap, constraints)
+		return
+	}
+	for k := range constraints {
+		if _, ok := a.constraints[k]; !ok {
+			*a = *newARAPOperator(a.arap, constraints)
+			return
+		}
+	}
+	a.constraints = constraints
+}
+
 // LinSolve performs a linear solve for x in Lx=b.
 // It is assumed that b and x are unsqueezed (full rank),
 // and the constrained rows of b are simply ignored.
-func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
+func (a *arapOperator) LinSolve(b []Coord3D) []Coord3D {
 	if len(a.squeezedToFull) == 0 {
 		// All points are constrained.
-		return b
-	}
-
-	if a.precond == nil {
-		a.precond = newARAPPrecond(a)
-	}
-
-	if start == nil {
-		start = a.arap.coords
+		return a.Unsqueeze(a.Squeeze(b))
 	}
 
 	b = a.Squeeze(b)
@@ -424,52 +455,25 @@ func (a *arapOperator) LinSolve(b, start []Coord3D) []Coord3D {
 		b[i] = b[i].Add(c)
 	}
 
-	preventZeros := func(c Coord3D) Coord3D {
-		arr := c.Array()
-		for i, x := range arr {
-			if x == 0 {
-				arr[i] = math.Nextafter(0, 1)
+	if a.chol == nil {
+		mat := newARAPSparse(len(a.squeezedToFull))
+		for i, fullIdx := range a.squeezedToFull {
+			neighbors := a.arap.neighbors[fullIdx]
+			weights := a.arap.weights[fullIdx]
+			var diagonal float64
+			for j, n := range neighbors {
+				w := weights[j]
+				diagonal += w
+				if nSqueezed := a.fullToSqueezed[n]; nSqueezed != -1 {
+					mat.Set(i, nSqueezed, -w)
+				}
 			}
+			mat.Set(i, i, diagonal)
 		}
-		return NewCoord3DArray(arr)
+		a.chol = newARAPCholesky(mat)
 	}
 
-	x := a.Squeeze(start)
-	r := arapCopy(b)
-	arapSub(r, a.Apply(x))
-	z := make([]Coord3D, len(r))
-	a.precond.ApplyInverse(z, r)
-	p := arapCopy(z)
-	eps := arapDot(b, b).Scale(1e-8)
-	rMag := arapDot(r, r)
-	rzDot := arapDot(r, z)
-
-	for i := 0; i < arapMaxCGIterations && rMag.Max(eps) != eps && rMag.Sum() != 0; i++ {
-		ap := a.Apply(p)
-
-		alpha := rzDot.Div(preventZeros(arapDot(p, ap)))
-		arapAddScaled(x, p, alpha)
-
-		if (i+1)%50 == 0 {
-			// Use explicit update for r to avoid compounding
-			// error over many updates.
-			copy(r, b)
-			arapSub(r, a.Apply(x))
-		} else {
-			arapAddScaled(r, ap, alpha.Scale(-1))
-		}
-		a.precond.ApplyInverse(z, r)
-		rMag = arapDot(r, r)
-		nextRZDot := arapDot(r, z)
-
-		beta := nextRZDot.Div(preventZeros(rzDot))
-		for i, c := range z {
-			p[i] = c.Add(p[i].Mul(beta))
-		}
-		rzDot = nextRZDot
-	}
-
-	return a.Unsqueeze(x)
+	return a.Unsqueeze(a.chol.ApplyInverse(b))
 }
 
 // Squeeze gets a vector that can be put through the
@@ -563,30 +567,30 @@ func (a *arapOperator) Targets(rotations []Matrix3) []Coord3D {
 	return res
 }
 
-// arapPrecond is a preconditioner for an arapOperator.
-type arapPrecond struct {
+type arapCholesky struct {
 	lower *arapSparse
 	upper *arapSparse
+	perm  []int
 }
 
-// newARAPPrecond creates a new preconditioning operator.
-func newARAPPrecond(a *arapOperator) *arapPrecond {
-	size := len(a.squeezedToFull)
+func newARAPCholesky(mat *arapSparse) *arapCholesky {
+	perm := mat.RCM()
+	mat = mat.Permute(perm)
+	size := len(mat.rows)
+
 	lower := newARAPSparse(size)
 	upper := newARAPSparse(size)
 
-	// https://en.wikipedia.org/wiki/Incomplete_Cholesky_factorization
-
 	diagonal := make([]float64, size)
-	for i, full := range a.squeezedToFull {
-		var sum float64
-		for _, w := range a.arap.weights[full] {
-			sum += w
-		}
-		diagonal[i] = sum
+	for row := 0; row < size; row++ {
+		mat.Iterate(row, func(col int, x float64) {
+			if col == row {
+				diagonal[row] = x
+			}
+		})
 	}
 
-	for i, full := range a.squeezedToFull {
+	for i := 0; i < size; i++ {
 		diagonalEntry := diagonal[i]
 		lower.Iterate(i, func(col int, x float64) {
 			diagonalEntry -= x * x
@@ -597,50 +601,45 @@ func newARAPPrecond(a *arapOperator) *arapPrecond {
 		lower.Set(i, i, diagonalEntry)
 		upper.Set(i, i, diagonalEntry)
 
-		for neighborIdx, neighborFull := range a.arap.neighbors[full] {
-			j := a.fullToSqueezed[neighborFull]
-			if j <= i {
-				continue
-			}
-			entry := -a.arap.weights[full][neighborIdx]
+		below := map[int]float64{}
 
-			lower.Iterate(i, func(k int, x float64) {
-				if k >= i {
+		mat.Iterate(i, func(j int, x float64) {
+			if j > i {
+				below[j] += x
+			}
+		})
+
+		lower.Iterate(i, func(k int, x float64) {
+			if k >= i || x == 0 {
+				return
+			}
+			upper.Iterate(k, func(j int, y float64) {
+				if j <= i || y == 0 {
 					return
 				}
-				lower.Iterate(j, func(k1 int, y float64) {
-					if k == k1 {
-						entry -= x * y
-					}
-				})
+				below[j] -= x * y
 			})
+		})
 
-			entry = entry / diagonalEntry
-			lower.Set(j, i, entry)
-			upper.Set(i, j, entry)
+		s := 1 / diagonalEntry
+		for j, v := range below {
+			x := v * s
+			lower.Set(j, i, x)
+			upper.Set(i, j, x)
 		}
 	}
 
-	return &arapPrecond{
+	return &arapCholesky{
 		lower: lower,
 		upper: upper,
+		perm:  perm,
 	}
 }
 
-// ApplyInverse computes P^-1 * b, where P is the matrix
-// for the preconditioner.
-//
-// The output is written to out.
-func (a *arapPrecond) ApplyInverse(out, b []Coord3D) {
-	a.lower.BacksubLower(out, b)
-	a.upper.BacksubUpper(out, out)
-}
-
-// Apply computes P*b, where P is the matrix for the
-// preconditioner.
-//
-// The output is written to out.
-func (a *arapPrecond) Apply(out, b []Coord3D) {
+// Apply computes A*x.
+func (a *arapCholesky) Apply(x []Coord3D) []Coord3D {
+	out := make([]Coord3D, len(x))
+	b := arapPerm(x, a.perm)
 	for i := range out {
 		var sum Coord3D
 		a.upper.Iterate(i, func(col int, x float64) {
@@ -655,6 +654,16 @@ func (a *arapPrecond) Apply(out, b []Coord3D) {
 		})
 		out[i] = sum
 	}
+	return arapPermInv(out, a.perm)
+}
+
+// ApplyInverse computes A^-1*x.
+func (a *arapCholesky) ApplyInverse(x []Coord3D) []Coord3D {
+	b := arapPerm(x, a.perm)
+	out := make([]Coord3D, len(x))
+	a.lower.BacksubLower(out, b)
+	a.upper.BacksubUpper(out, out)
+	return arapPermInv(out, a.perm)
 }
 
 type arapSparse struct {
@@ -669,17 +678,122 @@ func newARAPSparse(size int) *arapSparse {
 	}
 }
 
+// Set adds an entry to the matrix.
+//
+// The entry should not already be set.
 func (a *arapSparse) Set(row, col int, x float64) {
 	a.rows[row] = append(a.rows[row], x)
 	a.indices[row] = append(a.indices[row], col)
 }
 
+// Iterate loops through the non-zero entries in a row.
 func (a *arapSparse) Iterate(row int, f func(col int, x float64)) {
 	for i, col := range a.indices[row] {
 		f(col, a.rows[row][i])
 	}
 }
 
+// Permute permutes the rows and columns by perm, where
+// perm is the result of applying the permutation to the
+// list [0...n-1].
+func (a *arapSparse) Permute(perm []int) *arapSparse {
+	permInv := make([]int, len(perm))
+	for i, j := range perm {
+		permInv[j] = i
+	}
+	res := newARAPSparse(len(perm))
+	for i, j := range perm {
+		oldRow := a.indices[j]
+		newRow := make([]int, 0, len(oldRow))
+		for _, k := range oldRow {
+			newRow = append(newRow, permInv[k])
+		}
+		res.indices[i] = newRow
+		res.rows[i] = append([]float64{}, a.rows[j]...)
+	}
+	return res
+}
+
+// RCM computes the reverse Cuthill-McKee permutation for
+// the matrix.
+func (a *arapSparse) RCM() []int {
+	remaining := map[int]bool{}
+	for i := range a.indices {
+		remaining[i] = true
+	}
+
+	remainingNeighbors := func(i int) int {
+		var count int
+		for _, neighbor := range a.indices[i] {
+			if remaining[neighbor] {
+				count++
+			}
+		}
+		return count
+	}
+
+	drawBestStart := func() int {
+		result := -1
+		var resultNeighbors int
+		for i := range remaining {
+			n := remainingNeighbors(i)
+			if n < resultNeighbors || result == -1 {
+				result = i
+				resultNeighbors = n
+			}
+		}
+		return result
+	}
+
+	permutation := make([]int, 0, len(a.indices))
+	for i := range a.indices {
+		var expand int
+		if i >= len(permutation) {
+			expand = drawBestStart()
+			permutation = append(permutation, expand)
+			delete(remaining, expand)
+		} else {
+			expand = permutation[i]
+		}
+
+		allAdj := a.indices[expand]
+		neighbors := make([]int, 0, len(allAdj))
+		neighborOrder := make([]int, 0, len(allAdj))
+		for _, j := range allAdj {
+			if !remaining[j] {
+				continue
+			}
+			neighbors = append(neighbors, j)
+			neighborOrder = append(neighborOrder, remainingNeighbors(j))
+		}
+		essentials.VoodooSort(neighborOrder, func(i, j int) bool {
+			return neighborOrder[i] < neighborOrder[j]
+		}, neighbors)
+		for _, n := range neighbors {
+			permutation = append(permutation, n)
+			delete(remaining, n)
+		}
+	}
+
+	for i := 0; i < len(permutation)/2; i++ {
+		permutation[i], permutation[len(permutation)-1] = permutation[len(permutation)-1], permutation[i]
+	}
+
+	return permutation
+}
+
+// Apply computes A*x.
+func (a *arapSparse) Apply(x []Coord3D) []Coord3D {
+	res := make([]Coord3D, len(x))
+	for row, indices := range a.indices {
+		for col, value := range a.rows[row] {
+			res[row] = res[row].Add(x[indices[col]].Scale(value))
+		}
+	}
+	return res
+}
+
+// BacksubUpper writes U^-1*b to out.
 func (a *arapSparse) BacksubUpper(out, b []Coord3D) {
 	for row := len(b) - 1; row >= 0; row-- {
 		bValue := b[row]
@@ -697,6 +811,7 @@ func (a *arapSparse) BacksubUpper(out, b []Coord3D) {
 	}
 }
 
+// BacksubLower writes L^-1*b to out.
 func (a *arapSparse) BacksubLower(out, b []Coord3D) {
 	for row, bValue := range b {
 		var diagValue float64
@@ -723,44 +838,18 @@ func newARAPEdge(i1, i2 int) arapEdge {
 	}
 }
 
-func arapCopy(v []Coord3D) []Coord3D {
-	return append([]Coord3D{}, v...)
+func arapPerm(v []Coord3D, p []int) []Coord3D {
+	res := make([]Coord3D, len(v))
+	for i, j := range p {
+		res[i] = v[j]
+	}
+	return res
 }
 
-func arapAdd(v1, v2 []Coord3D) {
-	if len(v1) != len(v2) {
-		panic("length mismatch")
-	}
-	for i, x := range v1 {
-		v1[i] = x.Add(v2[i])
-	}
-}
-
-func arapAddScaled(v1, v2 []Coord3D, s Coord3D) {
-	if len(v1) != len(v2) {
-		panic("length mismatch")
-	}
-	for i, x := range v1 {
-		v1[i] = x.Add(v2[i].Mul(s))
-	}
-}
-
-func arapSub(v1, v2 []Coord3D) {
-	if len(v1) != len(v2) {
-		panic("length mismatch")
-	}
-	for i, x := range v1 {
-		v1[i] = x.Sub(v2[i])
-	}
-}
-
-func arapDot(v1, v2 []Coord3D) Coord3D {
-	if len(v1) != len(v2) {
-		panic("length mismatch")
-	}
-	var res Coord3D
-	for i, x := range v1 {
-		res = res.Add(x.Mul(v2[i]))
+func arapPermInv(v []Coord3D, p []int) []Coord3D {
+	res := make([]Coord3D, len(v))
+	for i, j := range p {
+		res[j] = v[i]
 	}
 	return res
 }
