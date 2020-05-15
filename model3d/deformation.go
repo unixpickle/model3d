@@ -298,9 +298,9 @@ func (a *ARAP) rotations(currentOutput []Coord3D) []Matrix3 {
 					smallestValue = s1
 				}
 			}
-			v[smallestIndex] *= -1
-			v[smallestIndex+3] *= -1
-			v[smallestIndex+6] *= -1
+			u[smallestIndex] *= -1
+			u[smallestIndex+3] *= -1
+			u[smallestIndex+6] *= -1
 			rot = *v.Mul(u.Transpose())
 		}
 		rotations[i] = rot
