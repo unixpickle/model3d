@@ -1,17 +1,18 @@
 # deformation
 
-This example showcases the As-Rigid-As-Possible implementation.
+This example uses the As-Rigid-As-Possible algorithm to animate a box being squeezed and twisted in various ways.
+
+By default, this produces a small, low frame-rate rendering to save space in the repository. Constants at the top of the file allow for higher-resolution renderings:
+
+```go
+FrameSkip = 4
+ImageSize = 200
+```
+
+Simply set `FrameSkip = 1` and `ImageSize = 500` for a smoother, nicer animation.
 
 # Renderings
 
-The example starts with a simple stick figure model:
+Here is the low-resolution animation as a GIF:
 
-![Rendering of stick figure](deform_0.png)
-
-It then raises the stick figure's arms:
-
-![Rendering of stick figure with raised arms](deform_1.png)
-
-Then it bends the stick figure to the side, constraining only two vertices (an arm and the foot).
-
-![Rendering of the stick figure bent over](deform_2.png)
+![Animation of the deformation](output.gif)
