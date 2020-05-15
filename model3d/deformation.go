@@ -44,8 +44,6 @@ type ARAPConstraints map[Coord3D]Coord3D
 // AddAround adds all of the points within r distance of c
 // to the constraints, moving them such that c would move
 // to target.
-//
-// Returns the number of points added.
 func (a ARAPConstraints) AddAround(arap *ARAP, c Coord3D, r float64, target Coord3D) {
 	offset := target.Sub(c)
 	for _, c1 := range arap.coords {
