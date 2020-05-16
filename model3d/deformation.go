@@ -290,17 +290,12 @@ func (a *ARAP) rotations(currentOutput []Coord3D) []Matrix3 {
 		covariance.SVD(&u, &s, &v)
 		rot := *v.Mul(u.Transpose())
 		if rot.Det() < 0 {
-			var smallestIndex int
-			smallestValue := s[0]
-			for i, s1 := range []float64{s[4], s[8]} {
-				if s1 < smallestValue {
-					smallestIndex = i + 1
-					smallestValue = s1
-				}
-			}
-			u[smallestIndex] *= -1
-			u[smallestIndex+3] *= -1
-			u[smallestIndex+6] *= -1
+			// Scale the column with the smallest singular
+			// value.
+			idx := 2
+			u[idx] *= -1
+			u[idx+3] *= -1
+			u[idx+6] *= -1
 			rot = *v.Mul(u.Transpose())
 		}
 		rotations[i] = rot
