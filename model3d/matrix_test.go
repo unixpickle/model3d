@@ -112,6 +112,10 @@ func TestMatrix3SVD(t *testing.T) {
 		var u, s, v Matrix3
 		mat.SVD(&u, &s, &v)
 
+		if s[0] < s[4] || s[4] < s[8] {
+			t.Errorf("singular values not sorted: %f,%f,%f", s[0], s[4], s[8])
+		}
+
 		eye := &Matrix3{1, 0, 0, 0, 1, 0, 0, 0, 1}
 		if !matrixClose(u.Transpose().Mul(&u), eye) {
 			t.Errorf("u is not orthonormal: %v", u)
@@ -145,6 +149,19 @@ func TestMatrix3SVD(t *testing.T) {
 		ensureEquivalence(t, &Matrix3{1, 0, 0, 1, 0, 0, 1, 0, 0})
 		ensureEquivalence(t, &Matrix3{0, 0, 0, 0, 0, 0, 0, 0, 0})
 		ensureEquivalence(t, &Matrix3{0, 1, 0, 0, 1, 1, 1, 0, 0})
+	})
+
+	t.Run("Ortho", func(t *testing.T) {
+		for i := 0; i < 100; i++ {
+			c1 := NewCoord3DRandUnit()
+			c2, c3 := c1.OrthoBasis()
+			for _, c := range []*Coord3D{&c1, &c2, &c3} {
+				if rand.Intn(2) == 0 {
+					*c = c.Scale(-1)
+				}
+			}
+			ensureEquivalence(t, NewMatrix3Columns(c1, c2, c3))
+		}
 	})
 }
 

@@ -165,15 +165,24 @@ func (m *Matrix3) Eigenvalues() [3]complex128 {
 //
 //     m = u*s*v.Transpose()
 //
+// The singular values in s are sorted largest to
+// smallest.
 func (m *Matrix3) SVD(u, s, v *Matrix3) {
 	ata := m.Transpose().Mul(m)
 	aat := m.Mul(m.Transpose())
 	eigVals := ata.Eigenvalues()
 
-	inVector := ata.symEigVector(real(eigVals[0]))
-	outVector := aat.symEigVector(real(eigVals[0]))
-	if m.MulColumn(inVector).Dot(outVector) < 0 {
-		outVector = outVector.Scale(-1)
+	largestEig := math.Max(real(eigVals[0]), math.Max(real(eigVals[1]), real(eigVals[2])))
+
+	inVector := ata.symEigVector(largestEig)
+	outVector := m.MulColumn(inVector)
+	if n := outVector.Norm(); n == 0 {
+		outVector = aat.symEigVector(largestEig)
+		if m.MulColumn(inVector).Dot(outVector) < 0 {
+			outVector = outVector.Scale(-1)
+		}
+	} else {
+		outVector = outVector.Scale(1 / n)
 	}
 
 	// Find other two singular components using a 2x2
