@@ -291,12 +291,13 @@ func (a *ARAP) deformMap(l *arapOperator, initialGuess []Coord3D) []Coord3D {
 	// Enforce constraints on the init.
 	currentOutput := l.Unsqueeze(l.Squeeze(initialGuess))
 
-	lastEnergy := a.energy(currentOutput)
+	rotations := a.rotations(currentOutput)
+	lastEnergy := a.energy(currentOutput, rotations)
 	for iter := 0; iter < a.maxIters; iter++ {
-		rotations := a.rotations(currentOutput)
 		targets := l.Targets(rotations)
 		currentOutput = l.LinSolve(targets)
-		energy := a.energy(currentOutput)
+		rotations = a.rotations(currentOutput)
+		energy := a.energy(currentOutput, rotations)
 		if iter+1 >= a.minIters && 1-energy/lastEnergy < a.tolerance {
 			break
 		}
@@ -342,11 +343,8 @@ func (a *ARAP) rotations(currentOutput []Coord3D) []Matrix3 {
 	return rotations
 }
 
-// energy computes the ARAP loss energy.
-// This can be used for debugging, and perhaps in the
-// future for convergence analysis.
-func (a *ARAP) energy(currentOutput []Coord3D) float64 {
-	rotations := a.rotations(currentOutput)
+// energy computes the ARAP energy to minimize.
+func (a *ARAP) energy(currentOutput []Coord3D, rotations []Matrix3) float64 {
 	var energy float64
 	for i, neighbors := range a.neighbors {
 		rotation := rotations[i]
