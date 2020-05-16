@@ -587,6 +587,8 @@ func newARAPCholesky(mat *arapSparse) *arapCholesky {
 		})
 	}
 
+	belowCache := newARAPSparseMap(size)
+
 	for i := 0; i < size; i++ {
 		diagonalEntry := diagonal[i]
 		lower.Iterate(i, func(col int, x float64) {
@@ -598,11 +600,11 @@ func newARAPCholesky(mat *arapSparse) *arapCholesky {
 		lower.Set(i, i, diagonalEntry)
 		upper.Set(i, i, diagonalEntry)
 
-		below := map[int]float64{}
+		belowCache.Clear()
 
 		mat.Iterate(i, func(j int, x float64) {
 			if j > i {
-				below[j] += x
+				belowCache.Add(j, x)
 			}
 		})
 
@@ -610,20 +612,27 @@ func newARAPCholesky(mat *arapSparse) *arapCholesky {
 			if k >= i || x == 0 {
 				return
 			}
-			upper.Iterate(k, func(j int, y float64) {
-				if j <= i || y == 0 {
-					return
+			// The entries in lower and upper are sorted because
+			// we added each entry in order.
+			for entryIdx := len(upper.rows[k]) - 1; entryIdx >= 0; entryIdx-- {
+				j := upper.indices[k][entryIdx]
+				if j <= i {
+					break
 				}
-				below[j] -= x * y
-			})
+				y := upper.rows[k][entryIdx]
+				if y != 0 {
+					belowCache.Add(j, -x*y)
+				}
+			}
 		})
 
+		// Intentionally adding the entries in order.
 		s := 1 / diagonalEntry
-		for j, v := range below {
+		belowCache.IterateSorted(func(j int, v float64) {
 			x := v * s
 			lower.Set(j, i, x)
 			upper.Set(i, j, x)
-		}
+		})
 	}
 
 	return &arapCholesky{
@@ -823,6 +832,44 @@ func (a *arapSparse) BacksubLower(out, b []Coord3D) {
 		})
 		out[row] = bValue.Scale(1 / diagValue)
 	}
+}
+
+type arapSparseMap struct {
+	data      []float64
+	contained []bool
+	indices   []int
+}
+
+func newARAPSparseMap(size int) *arapSparseMap {
+	return &arapSparseMap{
+		data:      make([]float64, size),
+		contained: make([]bool, size),
+		indices:   make([]int, 0, size),
+	}
+}
+
+func (a *arapSparseMap) Add(idx int, x float64) {
+	if !a.contained[idx] {
+		a.data[idx] = x
+		a.contained[idx] = true
+		a.indices = append(a.indices, idx)
+	} else {
+		a.data[idx] += x
+	}
+}
+
+func (a *arapSparseMap) IterateSorted(f func(idx int, x float64)) {
+	sort.Ints(a.indices)
+	for _, idx := range a.indices {
+		f(idx, a.data[idx])
+	}
+}
+
+func (a *arapSparseMap) Clear() {
+	for _, idx := range a.indices {
+		a.contained[idx] = false
+	}
+	a.indices = a.indices[:0]
 }
 
 type arapEdge [2]int
