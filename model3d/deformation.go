@@ -2,15 +2,25 @@ package model3d
 
 import (
 	"math"
+	"sort"
 
 	"github.com/unixpickle/essentials"
 )
 
-// ARAPDefaultTolerance is the default convergence
-// tolerance for ARAP.
-const ARAPDefaultTolerance = 1e-3
+const (
+	// ARAPDefaultTolerance is the default convergence
+	// tolerance for ARAP.
+	// It allows for early convergence stopping.
+	ARAPDefaultTolerance = 1e-3
 
-const arapMaxIterations = 5000
+	// ARAPMaxIterations is the default maximum number
+	// of iterations for ARAP.
+	ARAPMaxIterations = 5000
+
+	// ARAPMinIterations is the default minimum number
+	// of iterations before early stopping is allowed.
+	ARAPMinIterations = 2
+)
 
 type ARAPWeightingScheme int
 
@@ -64,6 +74,8 @@ type ARAP struct {
 	triangles  [][3]int
 
 	tolerance float64
+	maxIters  int
+	minIters  int
 }
 
 // NewARAP creates an ARAP instance for the given mesh
@@ -99,7 +111,10 @@ func NewARAPWeighted(m *Mesh, linear, rotation ARAPWeightingScheme) *ARAP {
 		weights:    make([][]float64, len(coords)),
 		rotWeights: make([][]float64, len(coords)),
 		triangles:  make([][3]int, 0, len(triangles)),
-		tolerance:  ARAPDefaultTolerance,
+
+		tolerance: ARAPDefaultTolerance,
+		maxIters:  ARAPMaxIterations,
+		minIters:  ARAPMinIterations,
 	}
 
 	for i, c := range coords {
@@ -181,6 +196,30 @@ func (a *ARAP) SetTolerance(t float64) {
 	a.tolerance = t
 }
 
+// MaxIterations gets the maximum allowed number of steps
+// before optimization terminates.
+func (a *ARAP) MaxIterations() int {
+	return a.maxIters
+}
+
+// SetMaxIterations sets the maximum allowed number of
+// steps before optimization terminates.
+func (a *ARAP) SetMaxIterations(m int) {
+	a.maxIters = m
+}
+
+// MinIterations gets the minimum allowed number of steps
+// before optimization terminates.
+func (a *ARAP) MinIterations() int {
+	return a.minIters
+}
+
+// SetMinIterations sets the minimum allowed number of
+// steps before optimization terminates.
+func (a *ARAP) SetMinIterations(m int) {
+	a.minIters = m
+}
+
 // Deform creates a new mesh by enforcing constraints on
 // some points of the mesh.
 func (a *ARAP) Deform(constraints ARAPConstraints) *Mesh {
@@ -253,12 +292,12 @@ func (a *ARAP) deformMap(l *arapOperator, initialGuess []Coord3D) []Coord3D {
 	currentOutput := l.Unsqueeze(l.Squeeze(initialGuess))
 
 	lastEnergy := a.energy(currentOutput)
-	for iter := 0; iter < arapMaxIterations; iter++ {
+	for iter := 0; iter < a.maxIters; iter++ {
 		rotations := a.rotations(currentOutput)
 		targets := l.Targets(rotations)
 		currentOutput = l.LinSolve(targets)
 		energy := a.energy(currentOutput)
-		if 1-energy/lastEnergy < a.tolerance {
+		if iter+1 >= a.minIters && 1-energy/lastEnergy < a.tolerance {
 			break
 		}
 		lastEnergy = energy
