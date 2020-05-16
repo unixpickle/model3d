@@ -449,21 +449,7 @@ func (a *arapOperator) LinSolve(b []Coord3D) []Coord3D {
 	}
 
 	if a.chol == nil {
-		mat := newARAPSparse(len(a.squeezedToFull))
-		for i, fullIdx := range a.squeezedToFull {
-			neighbors := a.arap.neighbors[fullIdx]
-			weights := a.arap.weights[fullIdx]
-			var diagonal float64
-			for j, n := range neighbors {
-				w := weights[j]
-				diagonal += w
-				if nSqueezed := a.fullToSqueezed[n]; nSqueezed != -1 {
-					mat.Set(i, nSqueezed, -w)
-				}
-			}
-			mat.Set(i, i, diagonal)
-		}
-		a.chol = newARAPCholesky(mat)
+		a.chol = newARAPCholesky(a.squeezedMatrix())
 	}
 
 	return a.Unsqueeze(a.chol.ApplyInverse(b))
@@ -558,6 +544,24 @@ func (a *arapOperator) Targets(rotations []Matrix3) []Coord3D {
 		res[i] = result
 	}
 	return res
+}
+
+func (a *arapOperator) squeezedMatrix() *arapSparse {
+	mat := newARAPSparse(len(a.squeezedToFull))
+	for i, fullIdx := range a.squeezedToFull {
+		neighbors := a.arap.neighbors[fullIdx]
+		weights := a.arap.weights[fullIdx]
+		var diagonal float64
+		for j, n := range neighbors {
+			w := weights[j]
+			diagonal += w
+			if nSqueezed := a.fullToSqueezed[n]; nSqueezed != -1 {
+				mat.Set(i, nSqueezed, -w)
+			}
+		}
+		mat.Set(i, i, diagonal)
+	}
+	return mat
 }
 
 type arapCholesky struct {

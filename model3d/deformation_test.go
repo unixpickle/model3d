@@ -96,3 +96,22 @@ func TestARAPCholesky(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkARAPCholesky(b *testing.B) {
+	// Some arbitrary mesh shape.
+	mesh := MarchingCubesSearch(JoinedSolid{
+		&Sphere{Radius: 1},
+		&Rect{MaxVal: Coord3D{X: 1.2, Y: 0.2, Z: 0.2}},
+	}, 0.05, 8)
+
+	op := newARAPOperator(NewARAP(mesh), map[int]Coord3D{
+		// Some arbitrary constraint.
+		0: Coord3D{X: 2},
+	})
+	mat := op.squeezedMatrix()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		newARAPCholesky(mat)
+	}
+}
