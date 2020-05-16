@@ -114,12 +114,27 @@ func (m *Matrix2) Eigenvalues() [2]complex128 {
 //
 //     m = u*s*v.Transpose()
 //
+// The singular values in s are sorted largest to
+// smallest.
 func (m *Matrix2) SVD(u, s, v *Matrix2) {
 	ata := m.Transpose().Mul(m)
 	aat := m.Mul(m.Transpose())
 	eigVals := ata.Eigenvalues()
+
+	if real(eigVals[0]) < real(eigVals[1]) {
+		eigVals[0], eigVals[1] = eigVals[1], eigVals[0]
+	}
+
 	v1, v2 := ata.symEigs(eigVals)
-	u1, u2 := aat.symEigs(eigVals)
+
+	var u1, u2 Coord
+	u1 = m.MulColumn(v1)
+	if n := u1.Norm(); n == 0 {
+		u1, u2 = aat.symEigs(eigVals)
+	} else {
+		u1 = u1.Scale(1 / n)
+		u2 = Coord{X: -u1.Y, Y: u1.X}
+	}
 
 	*s = Matrix2{
 		math.Sqrt(math.Max(0, real(eigVals[0]))), 0,

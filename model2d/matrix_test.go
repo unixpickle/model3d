@@ -35,13 +35,13 @@ func TestEigenvalues(t *testing.T) {
 }
 
 func TestSVD(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		mat := &Matrix2{}
-		for j := range mat {
-			mat[j] = rand.NormFloat64()
-		}
+	testDecomp := func(t *testing.T, mat *Matrix2) {
 		var u, s, v Matrix2
 		mat.SVD(&u, &s, &v)
+
+		if s[0] < s[3] {
+			t.Errorf("singular values not sorted: %f,%f", s[0], s[3])
+		}
 
 		eye := &Matrix2{1, 0, 0, 1}
 		if !matrixClose(u.Transpose().Mul(&u), eye) {
@@ -60,6 +60,24 @@ func TestSVD(t *testing.T) {
 			}
 		}
 	}
+
+	t.Run("Random", func(t *testing.T) {
+		for i := 0; i < 100; i++ {
+			mat := &Matrix2{}
+			for j := range mat {
+				mat[j] = rand.NormFloat64()
+			}
+			testDecomp(t, mat)
+		}
+	})
+
+	t.Run("Ortho", func(t *testing.T) {
+		for i := 0; i < 100; i++ {
+			c1 := NewCoordRandUnit()
+			c2 := NewCoordRandUnit().ProjectOut(c1).Normalize()
+			testDecomp(t, NewMatrix2Columns(c1, c2))
+		}
+	})
 }
 
 func BenchmarkSVD(b *testing.B) {
