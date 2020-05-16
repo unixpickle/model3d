@@ -127,7 +127,7 @@ func TestMatrix3SVD(t *testing.T) {
 		recon := u.Mul(s.Mul(v.Transpose()))
 		for j, x := range mat {
 			a := recon[j]
-			if math.Abs(x-a) > 1e-5 {
+			if math.Abs(x-a) > 1e-5 || math.IsNaN(a) {
 				t.Errorf("got %v but expected %v", recon, mat)
 				break
 			}

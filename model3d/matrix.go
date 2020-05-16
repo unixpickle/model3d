@@ -148,6 +148,9 @@ func (m *Matrix3) Eigenvalues() [3]complex128 {
 
 	xForPhase := func(phase complex128) complex128 {
 		thisC := phase * bigC
+		if thisC == 0 {
+			return (-1.0 / (3 * a)) * b
+		}
 		return (-1.0 / (3 * a)) * (b + thisC + disc0/thisC)
 	}
 
@@ -218,6 +221,15 @@ func (m *Matrix3) SVD(u, s, v *Matrix3) {
 		inVector.X, subV1.X, subV2.X,
 		inVector.Y, subV1.Y, subV2.Y,
 		inVector.Z, subV1.Z, subV2.Z,
+	}
+
+	// s might not be sorted due to rounding errors, but in
+	// those cases the values really should be equal.
+	if s[4] < s[8] {
+		s[4] = s[8]
+	}
+	if s[0] < s[4] {
+		s[0] = s[4]
 	}
 }
 
