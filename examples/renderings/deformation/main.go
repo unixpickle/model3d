@@ -105,21 +105,52 @@ func RenderFrame(mesh *model3d.Mesh) *image.Paletted {
 }
 
 func CreateMesh() *model3d.Mesh {
-	box := model3d.NewMeshRect(
-		model3d.Coord3D{X: -0.4, Y: -0.4, Z: -1},
-		model3d.Coord3D{X: 0.4, Y: 0.4, Z: 1},
-	)
-	for i := 0; i < 5; i++ {
-		subdiv := model3d.NewSubdivider()
-		subdiv.AddFiltered(box, func(p1, p2 model3d.Coord3D) bool {
-			return true
-		})
-		subdiv.Subdivide(box, func(p1, p2 model3d.Coord3D) model3d.Coord3D {
-			return p1.Mid(p2)
-		})
+	box := model3d.NewMesh()
+
+	squareSize := 0.05
+	width := 0.4
+	height := 1.0
+
+	addQuad := func(p model3d.Coord3D, normalAxis int) {
+		ax1 := model3d.Coord3D{X: squareSize}
+		ax2 := model3d.Coord3D{Y: squareSize}
+		if normalAxis == 0 {
+			ax1 = model3d.Coord3D{Z: squareSize}
+		} else if normalAxis == 1 {
+			ax2 = model3d.Coord3D{Z: squareSize}
+		}
+		box.Add(&model3d.Triangle{p, p.Add(ax1), p.Add(ax2)})
+		box.Add(&model3d.Triangle{p.Add(ax1), p.Add(ax2), p.Add(ax1).Add(ax2)})
 	}
+
+	// All but top two faces.
+	for x := -width; x < width-1e-8; x += squareSize {
+		for z := -height; z < height-1e-8; z += squareSize {
+			for _, y := range []float64{-width, width} {
+				addQuad(model3d.Coord3D{X: x, Y: y, Z: z}, 1)
+				addQuad(model3d.Coord3D{X: y, Y: x, Z: z}, 0)
+			}
+		}
+	}
+
+	// Top two faces.
+	for x := -width; x < width-1e-8; x += squareSize {
+		for y := -width; y < width-1e-8; y += squareSize {
+			addQuad(model3d.Coord3D{X: x, Y: y, Z: -height}, 2)
+			addQuad(model3d.Coord3D{X: x, Y: y, Z: height}, 2)
+		}
+	}
+
+	// Fix holes due to rounding errors.
+	box = box.Repair(1e-8)
+
+	// Fix normals due to arbitrary triangle ordering.
+	box, _ = box.RepairNormals(1e-8)
+
+	// Don't let the box face the camera head on,
+	// allowing us to see more detail.
 	rotate := model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, 0.4)
-	return box.MapCoords(rotate.MulColumn).FlipDelaunay()
+	return box.MapCoords(rotate.MulColumn)
 }
 
 func Constraints(mesh *model3d.Mesh, transform model3d.Transform) model3d.ARAPConstraints {
