@@ -16,6 +16,16 @@ type SDF interface {
 	SDF(c Coord3D) float64
 }
 
+// A PointSDF is an SDF that can additionally get the
+// nearest point on a surface.
+type PointSDF interface {
+	SDF
+
+	// PointSDF gets the SDF at c and also returns the
+	// nearest point to c on the surface.
+	PointSDF(c Coord3D) (Coord3D, float64)
+}
+
 type colliderSDF struct {
 	Collider
 	Solid      Solid
