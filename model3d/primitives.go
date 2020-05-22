@@ -108,6 +108,31 @@ func (t *Triangle) Dist(c Coord3D) float64 {
 	return result
 }
 
+// Closest gets the point on the triangle closest to c.
+func (t *Triangle) Closest(c Coord3D) Coord3D {
+	// This is similar to Dist(), but returns a point.
+
+	v1 := t[1].Sub(t[0])
+	v2 := t[2].Sub(t[0])
+	mat := NewMatrix3Columns(v1, v2, t.Normal())
+	mat.InvertInPlace()
+	components := mat.MulColumn(c.Sub(t[0]))
+	if components.X >= 0 && components.Y >= 0 && components.X+components.Y <= 1 {
+		return t[0].Add(v1.Scale(components.X)).Add(v2.Scale(components.Y))
+	}
+
+	closestDist := math.Inf(1)
+	closestPoint := Coord3D{}
+	for _, s := range t.Segments() {
+		c1 := s.Closest(c)
+		if d := c1.Dist(c); d < closestDist {
+			closestDist = d
+			closestPoint = c1
+		}
+	}
+	return closestPoint
+}
+
 // FirstRayCollision gets the ray collision if there is
 // one.
 //
@@ -395,6 +420,11 @@ func (s Segment) Mid() Coord3D {
 // Dist gets the minimum distance from c to a point on the
 // line segment.
 func (s Segment) Dist(c Coord3D) float64 {
+	return c.Dist(s.Closest(c))
+}
+
+// Closest gets the point on the segment closest to c.
+func (s Segment) Closest(c Coord3D) Coord3D {
 	v1 := s[1].Sub(s[0])
 	norm := v1.Norm()
 	v := v1.Scale(1 / norm)
@@ -402,13 +432,12 @@ func (s Segment) Dist(c Coord3D) float64 {
 	v2 := c.Sub(s[0])
 	mag := v.Dot(v2)
 	if mag > norm {
-		return c.Dist(s[1])
+		return s[1]
 	} else if mag < 0 {
-		return c.Dist(s[0])
+		return s[0]
 	}
 
-	proj := v.Scale(mag).Add(s[0])
-	return proj.Dist(c)
+	return v.Scale(mag).Add(s[0])
 }
 
 // other gets the third point in a triangle for which s is
