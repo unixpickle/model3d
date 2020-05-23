@@ -92,18 +92,18 @@ type meshSDF struct {
 	MDF *meshDistFunc
 }
 
-// MeshToSDF turns a mesh into an SDF.
-func MeshToSDF(m *Mesh) SDF {
+// MeshToSDF turns a mesh into a PointSDF.
+func MeshToSDF(m *Mesh) PointSDF {
 	tris := m.TriangleSlice()
 	GroupTriangles(tris)
 	return GroupedTrianglesToSDF(tris)
 }
 
-// GroupedTrianglesToSDF creates an SDF from a slice of
-// triangles.
+// GroupedTrianglesToSDF creates a PointSDF from a slice
+// of triangles.
 // If the triangles are not grouped by GroupTriangles(),
-// the resulting SDF is inefficient.
-func GroupedTrianglesToSDF(tris []*Triangle) SDF {
+// the resulting PointSDF is inefficient.
+func GroupedTrianglesToSDF(tris []*Triangle) PointSDF {
 	if len(tris) == 0 {
 		panic("cannot create empty SDF")
 	}
@@ -120,6 +120,16 @@ func (m *meshSDF) SDF(c Coord3D) float64 {
 	} else {
 		return -dist
 	}
+}
+
+func (m *meshSDF) PointSDF(c Coord3D) (Coord3D, float64) {
+	point := Coord3D{}
+	dist := math.Inf(1)
+	m.MDF.PointDist(c, &point, &dist)
+	if !m.Solid.Contains(c) {
+		dist = -dist
+	}
+	return point, dist
 }
 
 type meshDistFunc struct {
@@ -175,4 +185,32 @@ func (m *meshDistFunc) Dist(c Coord3D, curMin float64) float64 {
 		curMin = math.Min(curMin, child.Dist(c, curMin))
 	}
 	return curMin
+}
+
+func (m *meshDistFunc) PointDist(c Coord3D, curPoint *Coord3D, curDist *float64) {
+	if m.root != nil {
+		cp := m.root.Closest(c)
+		dist := cp.Dist(c)
+		if dist < *curDist {
+			*curDist = dist
+			*curPoint = cp
+		}
+		return
+	}
+
+	boundDists := [2]float64{
+		pointToBoundsDistSquared(c, m.children[0].min, m.children[0].max),
+		pointToBoundsDistSquared(c, m.children[1].min, m.children[1].max),
+	}
+	iterates := m.children
+	if boundDists[0] > boundDists[1] {
+		iterates[0], iterates[1] = iterates[1], iterates[0]
+		boundDists[0], boundDists[1] = boundDists[1], boundDists[0]
+	}
+	for i, child := range iterates {
+		if boundDists[i] > (*curDist)*(*curDist) {
+			continue
+		}
+		child.PointDist(c, curPoint, curDist)
+	}
 }
