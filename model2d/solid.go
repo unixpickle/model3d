@@ -68,6 +68,55 @@ func (j JoinedSolid) Contains(c Coord) bool {
 	return false
 }
 
+// SubtractedSolid is a Solid consisting of all the points
+// in Positive which are not in Negative.
+type SubtractedSolid struct {
+	Positive Solid
+	Negative Solid
+}
+
+func (s *SubtractedSolid) Min() Coord {
+	return s.Positive.Min()
+}
+
+func (s *SubtractedSolid) Max() Coord {
+	return s.Positive.Max()
+}
+
+func (s *SubtractedSolid) Contains(c Coord) bool {
+	return s.Positive.Contains(c) && !s.Negative.Contains(c)
+}
+
+// IntersectedSolid is a Solid containing the intersection
+// of one or more Solids.
+type IntersectedSolid []Solid
+
+func (i IntersectedSolid) Min() Coord {
+	bound := i[0].Min()
+	for _, s := range i[1:] {
+		bound = bound.Max(s.Min())
+	}
+	return bound
+}
+
+func (i IntersectedSolid) Max() Coord {
+	bound := i[0].Max()
+	for _, s := range i[1:] {
+		bound = bound.Min(s.Max())
+	}
+	// Prevent negative area.
+	return bound.Max(i.Min())
+}
+
+func (i IntersectedSolid) Contains(c Coord) bool {
+	for _, s := range i {
+		if !s.Contains(c) {
+			return false
+		}
+	}
+	return true
+}
+
 // ColliderSolid is a Solid which uses the even-odd test
 // for a Collider.
 type ColliderSolid struct {

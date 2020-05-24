@@ -35,3 +35,21 @@ func (s Segment) Mid() Coord {
 func (s Segment) Length() float64 {
 	return s[1].Sub(s[0]).Norm()
 }
+
+// A Circle is a 2D perfect circle.
+type Circle struct {
+	Center Coord
+	Radius float64
+}
+
+func (c *Circle) Min() Coord {
+	return c.Center.Sub(Coord{X: c.Radius, Y: c.Radius})
+}
+
+func (c *Circle) Max() Coord {
+	return c.Center.Add(Coord{X: c.Radius, Y: c.Radius})
+}
+
+func (c *Circle) Contains(coord Coord) bool {
+	return InBounds(c, coord) && coord.Dist(c.Center) <= c.Radius
+}
