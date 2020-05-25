@@ -18,7 +18,7 @@ func DrivenProfile(s *Spec) model2d.Solid {
 		center = center.Scale(s.CenterDistance - s.Slack)
 		negative = append(negative, &model2d.Circle{
 			Center: center,
-			Radius: s.DriveRadius,
+			Radius: s.DriveRadius() - s.PinRadius,
 		})
 	}
 
@@ -26,11 +26,11 @@ func DrivenProfile(s *Spec) model2d.Solid {
 	for i := 0; i < 4; i++ {
 		theta := math.Pi*2*float64(i)/4 + math.Pi/4
 		direction := model2d.Coord{X: math.Cos(theta), Y: math.Sin(theta)}
-		innerPoint := direction.Scale(s.CenterDistance - s.DriveRadius - s.Slack)
+		innerPoint := direction.Scale(s.CenterDistance - s.DriveRadius() - s.Slack)
 		outerPoint := direction.Scale(s.DrivenRadius)
 		mesh := model2d.NewMeshSegments([]*model2d.Segment{{innerPoint, outerPoint}})
 		collider := model2d.MeshToCollider(mesh)
-		negative = append(negative, model2d.NewColliderSolidHollow(collider, s.PinRadius+s.Slack))
+		negative = append(negative, model2d.NewColliderSolidHollow(collider, s.PinRadius))
 	}
 
 	baseProfile := &model2d.SubtractedSolid{
@@ -38,10 +38,10 @@ func DrivenProfile(s *Spec) model2d.Solid {
 		Negative: negative,
 	}
 
-	// Cut off the sharp edges to prevent tiny features.
+	// Cut off the sharp edges (if there are any).
 	return model2d.IntersectedSolid{
 		baseProfile,
-		&model2d.Circle{Radius: MaximumRadius(baseProfile) - s.Slack},
+		&model2d.Circle{Radius: MaximumRadius(baseProfile) - s.SharpEdgeCutoff},
 	}
 }
 
@@ -52,23 +52,23 @@ func DrivenProfile(s *Spec) model2d.Solid {
 func DriveProfile(s *Spec, driven model2d.Solid) model2d.Solid {
 	return model2d.JoinedSolid{
 		&model2d.Circle{
-			Center: model2d.Coord{X: s.DriveRadius},
-			Radius: s.PinRadius,
+			Center: model2d.Coord{X: s.DriveRadius() + s.Slack},
+			Radius: s.PinRadius - s.Slack,
 		},
 		&model2d.SubtractedSolid{
 			Positive: &model2d.Circle{
-				Radius: s.DriveRadius,
+				Radius: s.DriveRadius() - s.PinRadius - s.Slack,
 			},
 			Negative: &model2d.Circle{
 				Center: model2d.Coord{X: s.CenterDistance},
-				Radius: MaximumRadius(driven) + s.Slack*2,
+				Radius: MaximumRadius(driven) + s.Slack,
 			},
 		},
 	}
 }
 
 // MaximumRadius finds the smallest radius of a circle
-// centered at the origin that doesn't touch s.
+// centered at the origin that doesn't intersect s.
 func MaximumRadius(s model2d.Solid) float64 {
 	max := s.Max().Dist(s.Min())
 	min := 0.0

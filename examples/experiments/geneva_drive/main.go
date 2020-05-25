@@ -2,33 +2,89 @@ package main
 
 import (
 	"flag"
+	"log"
 	"math"
+	"os"
+	"path/filepath"
+
+	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/model3d"
 
 	"github.com/unixpickle/model3d/model2d"
 )
 
 type Spec struct {
-	DriveRadius    float64
-	DrivenRadius   float64
-	CenterDistance float64
-	PinRadius      float64
-	Slack          float64
+	DrivenRadius    float64
+	CenterDistance  float64
+	PinRadius       float64
+	Slack           float64
+	SharpEdgeCutoff float64
+
+	DrivenSupportRadius float64
+
+	BottomThickness float64
+	Thickness       float64
+	BoardThickness  float64
+	ScrewRadius     float64
+	ScrewSlack      float64
+	ScrewGroove     float64
+	ScrewCapHeight  float64
+	ScrewCapRadius  float64
+}
+
+func (s *Spec) DriveRadius() float64 {
+	return math.Sqrt2 * s.CenterDistance / 2
 }
 
 func main() {
 	var spec Spec
 
-	flag.Float64Var(&spec.DriveRadius, "drive-radius", 1.5, "radius of driving disk")
-	flag.Float64Var(&spec.DrivenRadius, "driven-radius", 2.0, "radius of driven disk")
-	flag.Float64Var(&spec.CenterDistance, "center-distance", 2.5, "distance between disk centers")
+	flag.Float64Var(&spec.DrivenRadius, "driven-radius", 1.0, "radius of driven disk")
+	flag.Float64Var(&spec.CenterDistance, "center-distance", 1.8, "distance between disk centers")
 	flag.Float64Var(&spec.PinRadius, "pin-radius", 0.1, "radius of driving pin")
-	flag.Float64Var(&spec.Slack, "slack", 0.04, "extra space between parts")
+	flag.Float64Var(&spec.Slack, "slack", 0.015, "extra space between parts")
+	flag.Float64Var(&spec.SharpEdgeCutoff, "sharp-edge-cutoff", 0.02,
+		"driven gear cutoff to prevent sharp features")
+	flag.Float64Var(&spec.DrivenSupportRadius, "driven-support-radius", 0.3,
+		"radius of cylinder supporting the driven gear")
+
+	flag.Float64Var(&spec.BottomThickness, "bottom-thickness", 0.2,
+		"thickness of bottom half of gears")
+	flag.Float64Var(&spec.Thickness, "thickness", 0.3, "thickness of engaged part of gears")
+	flag.Float64Var(&spec.BoardThickness, "board-thickness", 0.4, "thickness of board")
+	flag.Float64Var(&spec.ScrewRadius, "screw-radius", 0.2, "radius of screws")
+	flag.Float64Var(&spec.ScrewSlack, "screw-slack", 0.02, "slack for screws in holes")
+	flag.Float64Var(&spec.ScrewGroove, "screw-groove", 0.05, "groove size of screws")
+	flag.Float64Var(&spec.ScrewCapHeight, "screw-cap-height", 0.3, "height of screw heads")
+	flag.Float64Var(&spec.ScrewCapRadius, "screw-cap-radius", 0.3, "radius of screw heads")
+
 	flag.Parse()
 
+	log.Println("Creating profiles ...")
 	driven := DrivenProfile(&spec)
 	drive := DriveProfile(&spec, driven)
-
 	RenderEngagedProfiles(&spec, driven, drive)
+
+	if _, err := os.Stat("models"); os.IsNotExist(err) {
+		essentials.Must(os.Mkdir("models", 0755))
+	}
+
+	CreateModel("drive", DriveBody(&spec, drive))
+	CreateModel("driven", DrivenBody(&spec, driven))
+	CreateModel("board", BoardSolid(&spec))
+	CreateModel("screw", BoardScrewSolid(&spec))
+}
+
+func CreateModel(name string, solid model3d.Solid) {
+	outPath := filepath.Join("models", name+".stl")
+	if _, err := os.Stat(outPath); err == nil {
+		log.Println("Skipping existing model:", name)
+		return
+	}
+	log.Println("Creating model:", name, "...")
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
+	mesh = mesh.EliminateCoplanar(1e-5)
+	essentials.Must(mesh.SaveGroupedSTL(outPath))
 }
 
 func RenderEngagedProfiles(spec *Spec, driven, drive model2d.Solid) {
