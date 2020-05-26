@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
 
@@ -73,6 +75,8 @@ func main() {
 	CreateModel("driven", DrivenBody(&spec, driven))
 	CreateModel("board", BoardSolid(&spec))
 	CreateModel("screw", BoardScrewSolid(&spec))
+
+	CreateRendering(&spec)
 }
 
 func CreateModel(name string, solid model3d.Solid) {
@@ -100,4 +104,38 @@ func RenderEngagedProfiles(spec *Spec, driven, drive model2d.Solid) {
 	mesh.AddMesh(driveMesh)
 	mesh.AddMesh(drivenMesh)
 	mesh.Scale(200).SaveSVG("rendering_profiles.svg")
+}
+
+func CreateRendering(spec *Spec) {
+	loadModel := func(name string) *model3d.Mesh {
+		path := filepath.Join("models", name+".stl")
+		r, err := os.Open(path)
+		essentials.Must(err)
+		defer r.Close()
+		tris, err := model3d.ReadSTL(r)
+		essentials.Must(err)
+		return model3d.NewMeshTriangles(tris)
+	}
+
+	driveTransform := model3d.JoinedTransform{
+		&model3d.Matrix3Transform{
+			Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, math.Pi/2),
+		},
+		&model3d.Translate{
+			Offset: model3d.Coord3D{X: spec.DriveRadius(), Z: spec.BoardThickness},
+		},
+	}
+
+	drivenTransform := &model3d.Translate{
+		Offset: model3d.Coord3D{
+			X: spec.DriveRadius() + spec.CenterDistance,
+			Z: spec.BoardThickness,
+		},
+	}
+
+	mesh := loadModel("board")
+	mesh.AddMesh(loadModel("drive").MapCoords(driveTransform.Apply))
+	mesh.AddMesh(loadModel("driven").MapCoords(drivenTransform.Apply))
+
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
