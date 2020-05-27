@@ -13,3 +13,5 @@ The resulting model (minus the screws) looks like this:
 During the debugging stage, I also created a rendering of the gear profiles:
 
 ![Rendering of the profiles](rendering_profiles.svg)
+
+The program also produces an animated GIF of the Geneva drive in operation. However, it is not included here to save space.

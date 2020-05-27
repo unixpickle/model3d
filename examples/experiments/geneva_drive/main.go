@@ -2,6 +2,9 @@ package main
 
 import (
 	"flag"
+	"image"
+	"image/color"
+	"image/gif"
 	"log"
 	"math"
 	"os"
@@ -77,6 +80,7 @@ func main() {
 	CreateModel("screw", BoardScrewSolid(&spec))
 
 	CreateRendering(&spec)
+	CreateAnimation(&spec)
 }
 
 func CreateModel(name string, solid model3d.Solid) {
@@ -107,16 +111,6 @@ func RenderEngagedProfiles(spec *Spec, driven, drive model2d.Solid) {
 }
 
 func CreateRendering(spec *Spec) {
-	loadModel := func(name string) *model3d.Mesh {
-		path := filepath.Join("models", name+".stl")
-		r, err := os.Open(path)
-		essentials.Must(err)
-		defer r.Close()
-		tris, err := model3d.ReadSTL(r)
-		essentials.Must(err)
-		return model3d.NewMeshTriangles(tris)
-	}
-
 	driveTransform := model3d.JoinedTransform{
 		&model3d.Matrix3Transform{
 			Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, math.Pi/2),
@@ -133,9 +127,115 @@ func CreateRendering(spec *Spec) {
 		},
 	}
 
-	mesh := loadModel("board")
-	mesh.AddMesh(loadModel("drive").MapCoords(driveTransform.Apply))
-	mesh.AddMesh(loadModel("driven").MapCoords(drivenTransform.Apply))
+	mesh := LoadModel("board")
+	mesh.AddMesh(LoadModel("drive").MapCoords(driveTransform.Apply))
+	mesh.AddMesh(LoadModel("driven").MapCoords(drivenTransform.Apply))
 
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
+}
+
+func CreateAnimation(spec *Spec) {
+	boardMesh := LoadModel("board")
+	driveMesh := LoadModel("drive")
+	drivenMesh := LoadModel("driven")
+
+	cameraOrigin := model3d.Coord3D{
+		X: boardMesh.Max().Mid(boardMesh.Min()).X,
+		Y: boardMesh.Min().Y * 4,
+		Z: boardMesh.Max().Y * 4,
+	}
+	cameraTarget := model3d.Coord3D{X: cameraOrigin.X, Y: 0, Z: 0}
+	renderer := render3d.RayCaster{
+		Camera: render3d.NewCameraAt(cameraOrigin, cameraTarget, math.Pi/3.6),
+		Lights: []*render3d.PointLight{
+			{
+				Origin: cameraTarget.Add(cameraOrigin.Sub(cameraTarget).Scale(10)),
+				Color:  render3d.NewColor(1.0),
+			},
+		},
+	}
+
+	drivenAngle := 0.0
+	drivenCollider := model3d.MeshToCollider(drivenMesh)
+	adjustDriven := func(driveTransform model3d.Transform) model3d.Transform {
+		pinCenter := model3d.Coord3D{
+			X: spec.DriveRadius() + spec.Slack,
+			// We use a sphere to simulate collisions with the pin, so we want
+			// it as high as possible so that it doesn't accidentally collide
+			// with the bottom of the gear.
+			// Ideally, we'd use a profile here instead, but alas.
+			Z: spec.Thickness + spec.BottomThickness,
+		}
+		pinLoc := driveTransform.Apply(pinCenter)
+		for offset := 0.0; offset < 0.3; offset += 0.01 {
+			drivenTransform := model3d.JoinedTransform{
+				&model3d.Matrix3Transform{
+					Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, drivenAngle-offset),
+				},
+				&model3d.Translate{
+					Offset: model3d.Coord3D{
+						X: spec.DriveRadius() + spec.CenterDistance,
+						Z: spec.BoardThickness,
+					},
+				},
+			}
+			localLoc := drivenTransform.Inverse().Apply(pinLoc)
+			if !drivenCollider.SphereCollision(localLoc, spec.PinRadius-spec.Slack) {
+				drivenAngle -= offset
+				return drivenTransform
+			}
+		}
+		panic("no rotation found to avoid collisions")
+	}
+
+	var g gif.GIF
+	for driveAngle := math.Pi / 2; driveAngle < math.Pi/2+math.Pi*2; driveAngle += 0.05 {
+		log.Println("Rendering drive angle", driveAngle, "...")
+		driveTransform := model3d.JoinedTransform{
+			&model3d.Matrix3Transform{
+				Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, driveAngle),
+			},
+			&model3d.Translate{
+				Offset: model3d.Coord3D{X: spec.DriveRadius(), Z: spec.BoardThickness},
+			},
+		}
+		drivenTransform := adjustDriven(driveTransform)
+
+		mesh := model3d.NewMesh()
+		mesh.AddMesh(boardMesh)
+		mesh.AddMesh(driveMesh.MapCoords(driveTransform.Apply))
+		mesh.AddMesh(drivenMesh.MapCoords(drivenTransform.Apply))
+
+		img := render3d.NewImage(200, 200)
+		renderer.Render(img, render3d.Objectify(mesh, nil))
+		grayImg := img.Gray()
+
+		var palette []color.Color
+		for i := 0; i < 256; i++ {
+			palette = append(palette, color.Gray{Y: uint8(i)})
+		}
+		outImg := image.NewPaletted(image.Rect(0, 0, img.Width, img.Height), palette)
+		for y := 0; y < img.Height; y++ {
+			for x := 0; x < img.Width; x++ {
+				outImg.Set(x, y, grayImg.At(x, y))
+			}
+		}
+		g.Image = append(g.Image, outImg)
+		g.Delay = append(g.Delay, 3)
+	}
+
+	w, err := os.Create("output.gif")
+	essentials.Must(err)
+	defer w.Close()
+	essentials.Must(gif.EncodeAll(w, &g))
+}
+
+func LoadModel(name string) *model3d.Mesh {
+	path := filepath.Join("models", name+".stl")
+	r, err := os.Open(path)
+	essentials.Must(err)
+	defer r.Close()
+	tris, err := model3d.ReadSTL(r)
+	essentials.Must(err)
+	return model3d.NewMeshTriangles(tris)
 }
