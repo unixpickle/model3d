@@ -155,9 +155,8 @@ func CreateAnimation(spec *Spec) {
 		},
 	}
 
-	drivenAngle := 0.0
 	drivenCollider := model3d.MeshToCollider(drivenMesh)
-	adjustDriven := func(driveTransform model3d.Transform) model3d.Transform {
+	checkDrivenAngle := func(driveTransform model3d.Transform, angle float64) model3d.Transform {
 		pinCenter := model3d.Coord3D{
 			X: spec.DriveRadius() + spec.Slack,
 			// We use a sphere to simulate collisions with the pin, so we want
@@ -167,22 +166,45 @@ func CreateAnimation(spec *Spec) {
 			Z: spec.Thickness + spec.BottomThickness,
 		}
 		pinLoc := driveTransform.Apply(pinCenter)
+		drivenTransform := model3d.JoinedTransform{
+			&model3d.Matrix3Transform{
+				Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, angle),
+			},
+			&model3d.Translate{
+				Offset: model3d.Coord3D{
+					X: spec.DriveRadius() + spec.CenterDistance,
+					Z: spec.BoardThickness,
+				},
+			},
+		}
+		localLoc := drivenTransform.Inverse().Apply(pinLoc)
+		if !drivenCollider.SphereCollision(localLoc, spec.PinRadius-spec.Slack) {
+			return drivenTransform
+		}
+		return nil
+	}
+
+	// This is what the angle ends at the end, since
+	// there's a bit of slack.
+	drivenAngle := -1.5337695312500002
+	adjustDriven := func(driveTransform model3d.Transform) model3d.Transform {
 		for offset := 0.0; offset < 0.3; offset += 0.01 {
-			drivenTransform := model3d.JoinedTransform{
-				&model3d.Matrix3Transform{
-					Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, drivenAngle-offset),
-				},
-				&model3d.Translate{
-					Offset: model3d.Coord3D{
-						X: spec.DriveRadius() + spec.CenterDistance,
-						Z: spec.BoardThickness,
-					},
-				},
-			}
-			localLoc := drivenTransform.Inverse().Apply(pinLoc)
-			if !drivenCollider.SphereCollision(localLoc, spec.PinRadius-spec.Slack) {
-				drivenAngle -= offset
-				return drivenTransform
+			if dt := checkDrivenAngle(driveTransform, drivenAngle-offset); dt != nil {
+				if offset == 0 {
+					return dt
+				}
+				minAngle := offset - 0.01
+				maxAngle := offset
+				for i := 0; i < 10; i++ {
+					mid := (minAngle + maxAngle) / 2
+					if checkDrivenAngle(driveTransform, drivenAngle-mid) != nil {
+						maxAngle = mid
+					} else {
+						minAngle = mid
+					}
+				}
+				drivenAngle -= maxAngle
+				return checkDrivenAngle(driveTransform, drivenAngle)
 			}
 		}
 		panic("no rotation found to avoid collisions")
