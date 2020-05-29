@@ -36,6 +36,29 @@ func (s Segment) Length() float64 {
 	return s[1].Sub(s[0]).Norm()
 }
 
+// Dist gets the minimum distance from c to a point on the
+// line segment.
+func (s Segment) Dist(c Coord) float64 {
+	return c.Dist(s.Closest(c))
+}
+
+// Closest gets the point on the segment closest to c.
+func (s Segment) Closest(c Coord) Coord {
+	v1 := s[1].Sub(s[0])
+	norm := v1.Norm()
+	v := v1.Scale(1 / norm)
+
+	v2 := c.Sub(s[0])
+	mag := v.Dot(v2)
+	if mag > norm {
+		return s[1]
+	} else if mag < 0 {
+		return s[0]
+	}
+
+	return v.Scale(mag).Add(s[0])
+}
+
 // A Circle is a 2D perfect circle.
 type Circle struct {
 	Center Coord

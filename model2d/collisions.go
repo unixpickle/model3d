@@ -257,21 +257,7 @@ func (j *JoinedCollider) CircleCollision(center Coord, r float64) bool {
 	if len(j.colliders) == 0 {
 		return false
 	}
-	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
-	distSquared := 0.0
-	for axis := 0; axis < 2; axis++ {
-		min := j.min.Array()[axis]
-		max := j.max.Array()[axis]
-		value := center.Array()[axis]
-		d := 0.0
-		if value < min {
-			d = min - value
-		} else if value > max {
-			d = max - value
-		}
-		distSquared += d * d
-	}
-	if distSquared > r*r {
+	if !circleTouchesBounds(center, r, j.min, j.max) {
 		return false
 	}
 	for _, c := range j.colliders {
@@ -317,4 +303,26 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 	}
 
 	return minFrac <= maxFrac && maxFrac >= 0
+}
+
+func circleTouchesBounds(center Coord, r float64, min, max Coord) bool {
+	return pointToBoundsDistSquared(center, min, max) <= r*r
+}
+
+func pointToBoundsDistSquared(center Coord, min, max Coord) float64 {
+	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
+	distSquared := 0.0
+	for axis := 0; axis < 2; axis++ {
+		min := min.Array()[axis]
+		max := max.Array()[axis]
+		value := center.Array()[axis]
+		d := 0.0
+		if value < min {
+			d = min - value
+		} else if value > max {
+			d = max - value
+		}
+		distSquared += d * d
+	}
+	return distSquared
 }
