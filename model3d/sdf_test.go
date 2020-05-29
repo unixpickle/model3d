@@ -6,12 +6,7 @@ import (
 )
 
 func TestMeshSDFConsistency(t *testing.T) {
-	solid := &TorusSolid{
-		Center:      Coord3D{},
-		Axis:        Coord3D{X: 1, Y: 2, Z: -0.5}.Normalize(),
-		InnerRadius: 0.2,
-		OuterRadius: 0.7,
-	}
+	solid := sdfTestingSolid()
 	mesh := MarchingCubesSearch(solid, 0.02, 8)
 
 	approxSDF := ColliderToSDF(MeshToCollider(mesh), 64)
@@ -28,12 +23,7 @@ func TestMeshSDFConsistency(t *testing.T) {
 }
 
 func TestMeshPointSDF(t *testing.T) {
-	solid := &TorusSolid{
-		Center:      Coord3D{},
-		Axis:        Coord3D{X: 1, Y: 2, Z: -0.5}.Normalize(),
-		InnerRadius: 0.2,
-		OuterRadius: 0.7,
-	}
+	solid := sdfTestingSolid()
 	mesh := MarchingCubesSearch(solid, 0.02, 8)
 	sdf := MeshToSDF(mesh)
 
@@ -53,12 +43,7 @@ func TestMeshPointSDF(t *testing.T) {
 }
 
 func BenchmarkMeshSDFs(b *testing.B) {
-	solid := &TorusSolid{
-		Center:      Coord3D{},
-		Axis:        Coord3D{X: 1, Y: 2, Z: -0.5}.Normalize(),
-		InnerRadius: 0.2,
-		OuterRadius: 0.7,
-	}
+	solid := sdfTestingSolid()
 	mesh := MarchingCubesSearch(solid, 0.02, 8)
 
 	approxSDF := ColliderToSDF(MeshToCollider(mesh), 64)
@@ -90,4 +75,13 @@ func BenchmarkMeshSDFs(b *testing.B) {
 	b.Run("Edge", func(b *testing.B) {
 		runTests(b, Coord3D{X: 0.9, Y: 0.9})
 	})
+}
+
+func sdfTestingSolid() Solid {
+	return &TorusSolid{
+		Center:      Coord3D{},
+		Axis:        Coord3D{X: 1, Y: 2, Z: -0.5}.Normalize(),
+		InnerRadius: 0.2,
+		OuterRadius: 0.7,
+	}
 }

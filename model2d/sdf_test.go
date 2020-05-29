@@ -6,16 +6,7 @@ import (
 )
 
 func TestMeshSDFConsistency(t *testing.T) {
-	solid := JoinedSolid{
-		&Circle{
-			Center: Coord{X: 0.3},
-			Radius: 0.2,
-		},
-		&Circle{
-			Center: Coord{X: 0.2, Y: 0.1},
-			Radius: 0.2,
-		},
-	}
+	solid := sdfTestingSolid()
 	mesh := MarchingSquaresSearch(solid, 0.02, 8)
 
 	approxSDF := ColliderToSDF(MeshToCollider(mesh), 64)
@@ -32,16 +23,7 @@ func TestMeshSDFConsistency(t *testing.T) {
 }
 
 func TestMeshPointSDF(t *testing.T) {
-	solid := JoinedSolid{
-		&Circle{
-			Center: Coord{X: 0.3},
-			Radius: 0.2,
-		},
-		&Circle{
-			Center: Coord{X: 0.2, Y: 0.1},
-			Radius: 0.2,
-		},
-	}
+	solid := sdfTestingSolid()
 	mesh := MarchingSquaresSearch(solid, 0.02, 8)
 	sdf := MeshToSDF(mesh)
 
@@ -57,5 +39,18 @@ func TestMeshPointSDF(t *testing.T) {
 		if math.Abs(actualDist-expectedDist) > 1e-5 {
 			t.Errorf("invalid closest point: expected dist %f but got %f", expectedDist, actualDist)
 		}
+	}
+}
+
+func sdfTestingSolid() Solid {
+	return JoinedSolid{
+		&Circle{
+			Center: Coord{X: 0.3},
+			Radius: 0.2,
+		},
+		&Circle{
+			Center: Coord{X: 0.2, Y: 0.1},
+			Radius: 0.2,
+		},
 	}
 }
