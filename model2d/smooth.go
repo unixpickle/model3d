@@ -1,5 +1,7 @@
 package model2d
 
+import "math"
+
 type indexMesh struct {
 	Coords   []Coord
 	Segments [][2]int
@@ -84,19 +86,33 @@ func optimalSmoothingStepSize(m *indexMesh, grad []Coord, squares bool) float64 
 		maxLength = evalLength(maxStep)
 	}
 
+	// Golden section search
+	phi := (math.Sqrt(5) + 1) / 2
+	mid1 := maxStep - (maxStep-minStep)/phi
+	mid2 := minStep + (maxStep-minStep)/phi
+	val1 := evalLength(mid1)
+	val2 := evalLength(mid2)
 	for i := 0; i < 32; i++ {
-		mid1 := minStep*2.0/3.0 + maxStep*1.0/3.0
-		mid2 := minStep*1.0/3.0 + maxStep*2.0/3.0
-		l1 := evalLength(mid1)
-		l2 := evalLength(mid2)
-		if l2 > l1 {
+		if val2 > val1 {
 			maxStep = mid2
+			mid2 = mid1
+			val2 = val1
+			mid1 = maxStep - (maxStep-minStep)/phi
+			val1 = evalLength(mid1)
 		} else {
 			minStep = mid1
+			mid1 = mid2
+			val1 = val2
+			mid2 = minStep + (maxStep-minStep)/phi
+			val2 = evalLength(mid2)
 		}
 	}
 
-	return (minStep + maxStep) / 2
+	if val1 < val2 {
+		return mid1
+	} else {
+		return mid2
+	}
 }
 
 func optimalSmoothingStepSizeSquares(m *indexMesh, grad []Coord) float64 {
