@@ -26,14 +26,18 @@ func (j JoinedField) Forces(state []BallState) []model3d.Coord3D {
 
 // A CollisionField is a force field that
 type CollisionField struct {
-	// Model is the 3D model that collisions occur with.
+	// Model is a 3D model that collisions occur with.
 	Model model3d.PointSDF
 
-	// ReboundFraction determines how bouncy the surface is.
+	// ReboundFraction determines how bouncy the model
+	// surface is.
 	//
 	// A value of 1 completely conserves energy.
 	// Values less than 1 dampen the energy after every
 	// collision.
+	//
+	// This does not affect the perfectly elastic sphere
+	// to sphere collisions.
 	ReboundFraction float64
 
 	// Force is the amount of force applied during the
@@ -47,22 +51,39 @@ type CollisionField struct {
 // Forces computes the collision forces on each particle.
 func (c *CollisionField) Forces(state []BallState) []model3d.Coord3D {
 	forces := make([]model3d.Coord3D, len(state))
-	for i, ball := range state {
-		closestPoint, sdf := c.Model.PointSDF(ball.Position)
-		if -sdf > ball.Radius {
-			// No collision is taking place.
-			continue
+	addSDF := func(ps model3d.PointSDF, ignore int) {
+		for i, ball := range state {
+			if i == ignore {
+				continue
+			}
+			closestPoint, sdf := ps.PointSDF(ball.Position)
+			if -sdf > ball.Radius {
+				// No collision is taking place.
+				continue
+			}
+			forceDirection := ball.Position.Sub(closestPoint).Normalize()
+			if sdf > 0 {
+				// Center of ball is inside the surface.
+				forceDirection = forceDirection.Scale(-1)
+			}
+			if ignore == -1 {
+				// Only use rebound fraction for collisions with the model.
+				if ball.Velocity.Dot(forceDirection) > 0 {
+					forceDirection = forceDirection.Scale(c.ReboundFraction)
+				}
+			}
+			forces[i] = forces[i].Add(forceDirection.Scale(c.Force))
 		}
-		forceDirection := ball.Position.Sub(closestPoint).Normalize()
-		if sdf > 0 {
-			// Center of ball is inside the surface.
-			forceDirection = forceDirection.Scale(-1)
-		}
-		if ball.Velocity.Dot(forceDirection) > 0 {
-			forceDirection = forceDirection.Scale(c.ReboundFraction)
-		}
-		forces[i] = forceDirection.Scale(c.Force)
 	}
+
+	addSDF(c.Model, -1)
+	for i, b := range state {
+		addSDF(&model3d.Sphere{
+			Center: b.Position,
+			Radius: b.Radius,
+		}, i)
+	}
+
 	return forces
 }
 
