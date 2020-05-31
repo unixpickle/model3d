@@ -214,11 +214,13 @@ func (s *Sphere) SDF(c Coord3D) float64 {
 // PointSDF gets the signed distance function at c and
 // also returns the nearest point to c on the sphere.
 func (s *Sphere) PointSDF(c Coord3D) (Coord3D, float64) {
-	if c == s.Center {
+	direction := c.Sub(s.Center)
+	if norm := direction.Norm(); norm == 0 {
 		// Pick an arbitrary point
 		return s.Center.Add(Coord3D{X: s.Radius}), s.Radius
+	} else {
+		return s.Center.Add(direction.Scale(s.Radius / norm)), s.SDF(c)
 	}
-	return s.Center.Add(c.Sub(s.Center).Normalize().Scale(s.Radius)), s.SDF(c)
 }
 
 // A Cylinder is a cylindrical 3D primitive.
