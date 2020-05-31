@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
+	"path/filepath"
 
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -27,15 +29,14 @@ func main() {
 		Cutoff:        1e-4,
 	}
 
-	for i := 0; i < 20; i++ {
-		log.Println("Stepping frame", i, "...")
-		scene.Step()
+	os.Mkdir("frames", 0755)
 
+	for i := 0; i < 50; i++ {
 		log.Println("Rendering frame", i, "...")
-		sceneObj, light := scene.Scene()
+		sceneObj, light := scene.NextFrame()
 		renderer.Light = light
-		img := render3d.NewImage(100, 100)
+		img := render3d.NewImage(300, 300)
 		renderer.Render(img, sceneObj)
-		img.Save(fmt.Sprintf("scene_%03d.png", i))
+		img.Save(filepath.Join("frames", fmt.Sprintf("scene_%03d.png", i)))
 	}
 }

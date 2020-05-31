@@ -14,10 +14,13 @@ const (
 	LightThickness  = 0.2
 	LightWidth      = 4.0
 	LightDepth      = 2.0
-	LightBrightness = 10.0
+	LightBrightness = 20.0
 
 	Gravity    = 10.0
 	Bounciness = 0.3
+
+	FPS           = 20.0
+	StepsPerFrame = 40
 )
 
 // Scene stores the state of the rendered scene.
@@ -36,18 +39,15 @@ func NewScene() *Scene {
 		ballStates: []BallState{
 			{
 				Radius:   1.0,
-				Position: model3d.Coord3D{X: 1, Y: 3, Z: 3},
-				Velocity: model3d.Coord3D{X: -0.2},
+				Position: model3d.Coord3D{X: 1.2, Y: 4, Z: 3},
 			},
 			{
 				Radius:   1.0,
-				Position: model3d.Coord3D{X: -2, Y: 2.8, Z: 4.0},
-				Velocity: model3d.Coord3D{X: 0.3},
+				Position: model3d.Coord3D{X: -1.5, Y: 3.8, Z: 4.0},
 			},
 			{
 				Radius:   1.0,
-				Position: model3d.Coord3D{X: 0, Y: 5.0, Z: 5},
-				Velocity: model3d.Coord3D{Y: -0.1},
+				Position: model3d.Coord3D{X: 0, Y: 4.3, Z: 8},
 			},
 		},
 		ballColors: []render3d.Color{
@@ -68,8 +68,13 @@ func NewScene() *Scene {
 	}
 }
 
-// Scene creates a renderable scene for the current state.
-func (s *Scene) Scene() (render3d.Object, render3d.AreaLight) {
+// NextFrame creates a renderable scene for the next frame
+// and advances the state accordingly.
+func (s *Scene) NextFrame() (render3d.Object, render3d.AreaLight) {
+	for i := 0; i < StepsPerFrame; i++ {
+		s.ballStates = StepWorld(s.ballStates, 1.0/(StepsPerFrame*FPS), s.field)
+	}
+
 	result := render3d.JoinedObject{s.staticScene}
 	for i, state := range s.ballStates {
 		color := s.ballColors[i]
@@ -88,13 +93,6 @@ func (s *Scene) Scene() (render3d.Object, render3d.AreaLight) {
 	return result, s.light
 }
 
-// Step advances the physics simulation.
-func (s *Scene) Step() {
-	for i := 0; i < 10; i++ {
-		s.ballStates = StepWorld(s.ballStates, 0.01, s.field)
-	}
-}
-
 func createStaticScene() (model3d.PointSDF, render3d.AreaLight, render3d.Object) {
 	roomMesh, lightMesh := createSceneMeshes()
 	roomObject := &render3d.ColliderObject{
@@ -103,7 +101,7 @@ func createStaticScene() (model3d.PointSDF, render3d.AreaLight, render3d.Object)
 			DiffuseColor: render3d.NewColor(0.5),
 		},
 	}
-	lightObject := render3d.NewMeshAreaLight(lightMesh, render3d.NewColor(10.0))
+	lightObject := render3d.NewMeshAreaLight(lightMesh, render3d.NewColor(LightBrightness))
 
 	fullObject := model3d.JoinedSolid{
 		model3d.NewColliderSolid(model3d.MeshToCollider(roomMesh)),
@@ -134,8 +132,8 @@ func createSceneMeshes() (room, light *model3d.Mesh) {
 	room, _ = room.RepairNormals(1e-8)
 
 	light = model3d.NewMeshRect(
-		model3d.Coord3D{X: -LightWidth / 2, Y: (RoomDepth / 2), Z: RoomHeight - LightThickness},
-		model3d.Coord3D{X: LightWidth / 2, Y: (RoomDepth / 2) + LightDepth, Z: RoomHeight},
+		model3d.Coord3D{X: -LightWidth / 2, Y: (RoomDepth / 2.5), Z: RoomHeight - LightThickness},
+		model3d.Coord3D{X: LightWidth / 2, Y: (RoomDepth / 2.5) + LightDepth, Z: RoomHeight},
 	)
 
 	return
