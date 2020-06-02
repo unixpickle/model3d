@@ -8,6 +8,12 @@ import "github.com/unixpickle/essentials"
 // It is zero indexed.
 type Location [2]int
 
+// Reflect reflects l around the point s, using the
+// formula s+(s-l).
+func (l Location) Reflect(s Location) Location {
+	return Location{s[0] + (s[0] - l[0]), s[1] + (s[1] - l[1])}
+}
+
 // A Segment connects two adjacent locations.
 //
 // Locations are adjacent if they don't differ in one
