@@ -7,11 +7,52 @@ import (
 )
 
 const (
-	SegmentThickness   = 0.1
+	SegmentThickness   = 0.15
 	SegmentDepth       = 0.1
 	SegmentTipInset    = 0.03
 	SegmentJointOutset = 0.015
+
+	BoardThickness = 0.3
+	BoardBorder    = 0.2
 )
+
+func BoardSolid(digits []Digit, size int) model3d.Solid {
+	segments := map[Segment]bool{}
+	for x := 0; x <= size; x++ {
+		for y := 0; y <= size; y++ {
+			l := Location{y, x}
+			if x < size {
+				segments[NewSegment(l, Location{y, x + 1})] = true
+			}
+			if y < size {
+				segments[NewSegment(l, Location{y + 1, x})] = true
+			}
+		}
+	}
+	for _, d := range digits {
+		for _, s := range d {
+			delete(segments, s)
+		}
+	}
+
+	var solids model3d.JoinedSolid
+	for s := range segments {
+		solids = append(solids, DigitSolid(Digit{s}))
+	}
+	solids = append(solids, &model3d.SubtractedSolid{
+		Positive: &model3d.Rect{
+			MinVal: model3d.Coord3D{X: -BoardBorder, Y: -BoardBorder, Z: -BoardThickness},
+			MaxVal: model3d.Coord3D{X: float64(size) + BoardBorder, Y: float64(size) + BoardBorder,
+				Z: SegmentDepth},
+		},
+		Negative: &model3d.Rect{
+			MaxVal: model3d.Coord3D{X: float64(size), Y: float64(size),
+				Z: SegmentDepth + 1e-5},
+		},
+	})
+
+	return solids
+}
 
 func DigitSolid(d Digit) model3d.Solid {
 	points := map[Location]int{}
