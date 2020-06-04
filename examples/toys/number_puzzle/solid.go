@@ -39,15 +39,23 @@ func BoardSolid(digits []Digit, size int) model3d.Solid {
 	for s := range segments {
 		solids = append(solids, DigitSolid(Digit{s}))
 	}
+	border := BoardBorder + SegmentThickness/2
 	solids = append(solids, &model3d.SubtractedSolid{
 		Positive: &model3d.Rect{
-			MinVal: model3d.Coord3D{X: -BoardBorder, Y: -BoardBorder, Z: -BoardThickness},
-			MaxVal: model3d.Coord3D{X: float64(size) + BoardBorder, Y: float64(size) + BoardBorder,
+			MinVal: model3d.Coord3D{X: -border, Y: -border, Z: -BoardThickness},
+			MaxVal: model3d.Coord3D{X: float64(size) + border, Y: float64(size) + border,
 				Z: SegmentDepth},
 		},
 		Negative: &model3d.Rect{
-			MaxVal: model3d.Coord3D{X: float64(size), Y: float64(size),
-				Z: SegmentDepth + 1e-5},
+			MinVal: model3d.Coord3D{
+				X: -SegmentThickness / 2,
+				Y: -SegmentThickness / 2,
+			},
+			MaxVal: model3d.Coord3D{
+				X: float64(size) + SegmentThickness/2,
+				Y: float64(size) + SegmentThickness/2,
+				Z: SegmentDepth + 1e-5,
+			},
 		},
 	})
 
