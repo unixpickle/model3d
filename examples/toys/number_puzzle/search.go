@@ -22,12 +22,15 @@ func SearchPlacement(fixed, digits []Digit, boardSize int) []Digit {
 	for i, d := range digits {
 		digitCopy[i] = d.Copy()
 	}
-	return searchRecursively(digitCopy, state)
+	if searchRecursively(digitCopy, state) {
+		return digitCopy
+	}
+	return nil
 }
 
-func searchRecursively(digits []Digit, state *boardState) []Digit {
+func searchRecursively(digits []Digit, state *boardState) bool {
 	if len(digits) == 0 {
-		return []Digit{}
+		return true
 	}
 	digit := digits[0]
 	remaining := digits[1:]
@@ -36,20 +39,20 @@ func searchRecursively(digits []Digit, state *boardState) []Digit {
 			for y := 0; y <= state.Size(); y++ {
 				if state.CanAdd(digit) {
 					state.Add(digit)
-					if res := searchRecursively(remaining, state); res != nil {
-						return digits
+					if searchRecursively(remaining, state) {
+						return true
 					}
 					state.Remove(digit)
 				}
 				digit.Translate(Location{0, 1})
 			}
-			digit.Translate(Location{1, -state.Size()})
+			digit.Translate(Location{1, -(state.Size() + 1)})
 		}
 		// Automatically brings it back to the corner.
 		digit.Rotate()
 	}
 
-	return nil
+	return false
 }
 
 type boardState struct {
