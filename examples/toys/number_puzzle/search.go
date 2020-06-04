@@ -3,9 +3,26 @@ package main
 // SearchPlacement finds a transformed version of each
 // digit such that all of the digits fit on the board at
 // once.
-func SearchPlacement(digits []Digit, boardSize int) []Digit {
+func SearchPlacement(fixed, digits []Digit, boardSize int) []Digit {
+	freeSegs := (boardSize + 1) * boardSize * 2
+	for _, ds := range [][]Digit{fixed, digits} {
+		for _, d := range ds {
+			freeSegs -= len(d)
+		}
+	}
+	if freeSegs < 0 {
+		panic("too many segments for board size")
+	}
+
 	state := newBoardState(boardSize)
-	return searchRecursively(digits, state)
+	for _, d := range fixed {
+		state.Add(d)
+	}
+	digitCopy := make([]Digit, len(digits))
+	for i, d := range digits {
+		digitCopy[i] = d.Copy()
+	}
+	return searchRecursively(digitCopy, state)
 }
 
 func searchRecursively(digits []Digit, state *boardState) []Digit {
@@ -17,18 +34,19 @@ func searchRecursively(digits []Digit, state *boardState) []Digit {
 	for i := 0; i < 4; i++ {
 		for x := 0; x <= state.Size(); x++ {
 			for y := 0; y <= state.Size(); y++ {
-				translated := digit.Translate(Location{y, x})
-				if state.CanAdd(translated) {
-					state.Add(translated)
+				if state.CanAdd(digit) {
+					state.Add(digit)
 					if res := searchRecursively(remaining, state); res != nil {
-						return append([]Digit{translated}, res...)
+						return digits
 					}
-					state.Remove(translated)
+					state.Remove(digit)
 				}
+				digit.Translate(Location{0, 1})
 			}
+			digit.Translate(Location{1, -state.Size()})
 		}
-
-		digit = digit.Rotate()
+		// Automatically brings it back to the corner.
+		digit.Rotate()
 	}
 
 	return nil

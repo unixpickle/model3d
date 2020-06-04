@@ -73,26 +73,29 @@ func AllDigits() []Digit {
 	}
 }
 
+// Copy copies the memory of d.
+func (d Digit) Copy() Digit {
+	return append(Digit{}, d...)
+}
+
 // Rotate rotates the digit 90 degrees clockwise and keeps
 // it tucked in the top-left corner.
-func (d Digit) Rotate() Digit {
-	var res Digit
-	for _, s := range d {
+func (d Digit) Rotate() {
+	for i, s := range d {
 		s1 := s
 		for i, l := range s1 {
 			s1[i] = Location{-l[1], l[0]}
 		}
 		// Order it properly.
-		res = append(res, NewSegment(s1[0], s1[1]))
+		d[i] = NewSegment(s1[0], s1[1])
 	}
-	min := res.Min()
-	return res.Translate(Location{-min[0], -min[1]})
+	min := d.Min()
+	d.Translate(Location{-min[0], -min[1]})
 }
 
 // Translate adds l to the locations in the digit.
-func (d Digit) Translate(l Location) Digit {
-	var res Digit
-	for _, s := range d {
+func (d Digit) Translate(l Location) {
+	for i, s := range d {
 		s1 := s
 		for i, l1 := range s1 {
 			for j, c1 := range l1 {
@@ -100,9 +103,8 @@ func (d Digit) Translate(l Location) Digit {
 			}
 		}
 		// Order it properly.
-		res = append(res, NewSegment(s1[0], s1[1]))
+		d[i] = NewSegment(s1[0], s1[1])
 	}
-	return res
 }
 
 // Min gets the minimum location in the digit.

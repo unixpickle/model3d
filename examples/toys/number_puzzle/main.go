@@ -9,7 +9,11 @@ import (
 )
 
 func main() {
-	placements := SearchPlacement(AllDigits(), 5)
+	log.Println("Searching for digit placements...")
+	placements := SearchPlacement(FixedDigits(), AllDigits(), 5)
+	if placements == nil {
+		panic("no way to place digits")
+	}
 
 	log.Println("Creating board...")
 	boardSolid := BoardSolid(placements, 5)
@@ -47,4 +51,18 @@ func main() {
 	render3d.SaveRendering("rendering.png", renderModel, model3d.Coord3D{X: 2.5, Y: -3, Z: 6},
 		500, 500, nil)
 	saveMesh.SaveGroupedSTL("digits.stl")
+}
+
+func FixedDigits() []Digit {
+	// If you want to generate an arbitrary board, return nil.
+
+	// Currently, I fix a square in the middle of the board.
+	return []Digit{
+		NewDigitContinuous([]Location{
+			{2, 2},
+			{2, 3},
+			{3, 3},
+			{3, 2},
+		}),
+	}
 }
