@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 
+	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 )
 
@@ -62,10 +63,10 @@ func DigitSolid(a *Args, d Digit) model3d.Solid {
 		}
 	}
 
-	var segments model3d.JoinedSolid
+	var segments2d model2d.JoinedSolid
 	for _, s := range d {
-		p1 := model3d.Coord3D{X: float64(s[0][0]), Y: float64(s[0][1])}
-		p2 := model3d.Coord3D{X: float64(s[1][0]), Y: float64(s[1][1])}
+		p1 := model3d.Coord2D{X: float64(s[0][0]), Y: float64(s[0][1])}
+		p2 := model3d.Coord2D{X: float64(s[1][0]), Y: float64(s[1][1])}
 
 		// Move tips inward and connected points outward.
 		if points[s[0]] == 1 {
@@ -79,7 +80,7 @@ func DigitSolid(a *Args, d Digit) model3d.Solid {
 			p2 = p2.Sub(p1.Sub(p2).Normalize().Scale(a.SegmentJointOutset))
 		}
 
-		segments = append(segments, &pointedSegment{
+		segments2d = append(segments2d, &pointedSegment{
 			Args:     a,
 			P1:       p1,
 			P2:       p2,
@@ -87,17 +88,42 @@ func DigitSolid(a *Args, d Digit) model3d.Solid {
 		})
 	}
 
-	return segments
+	mesh2d := model2d.MarchingSquaresSearch(segments2d, 0.005, 8)
+	collider2d := model2d.MeshToCollider(mesh2d)
+	solid2d := model2d.NewColliderSolidInset(collider2d, a.SegmentInset)
+	return &segmentProfile3D{
+		Args:    a,
+		Profile: solid2d,
+	}
+}
+
+type segmentProfile3D struct {
+	Args    *Args
+	Profile model2d.Solid
+}
+
+func (s *segmentProfile3D) Min() model3d.Coord3D {
+	m := s.Profile.Min()
+	return model3d.Coord3D{X: m.X, Y: m.Y}
+}
+
+func (s *segmentProfile3D) Max() model3d.Coord3D {
+	m := s.Profile.Max()
+	return model3d.Coord3D{X: m.X, Y: m.Y, Z: s.Args.SegmentDepth}
+}
+
+func (s *segmentProfile3D) Contains(c model3d.Coord3D) bool {
+	return model3d.InBounds(s, c) && s.Profile.Contains(c.Coord2D())
 }
 
 type pointedSegment struct {
 	Args     *Args
-	P1       model3d.Coord3D
-	P2       model3d.Coord3D
+	P1       model2d.Coord
+	P2       model2d.Coord
 	Vertical bool
 }
 
-func (p *pointedSegment) Min() model3d.Coord3D {
+func (p *pointedSegment) Min() model2d.Coord {
 	res := p.P1.Min(p.P2)
 	if p.Vertical {
 		res.X -= p.Args.SegmentThickness / 2
@@ -107,24 +133,22 @@ func (p *pointedSegment) Min() model3d.Coord3D {
 	return res
 }
 
-func (p *pointedSegment) Max() model3d.Coord3D {
+func (p *pointedSegment) Max() model2d.Coord {
 	res := p.P1.Max(p.P2)
 	if p.Vertical {
 		res.X += p.Args.SegmentThickness / 2
 	} else {
 		res.Y += p.Args.SegmentThickness / 2
 	}
-	res.Z += p.Args.SegmentDepth
 	return res
 }
 
-func (p *pointedSegment) Contains(c model3d.Coord3D) bool {
-	if !model3d.InBounds(p, c) {
+func (p *pointedSegment) Contains(c model2d.Coord) bool {
+	if !model2d.InBounds(p, c) {
 		return false
 	}
 
 	tip := p.Args.SegmentThickness / 2
-	c2 := c.Coord2D()
 	axis := p.P1.Sub(p.P2).Normalize()
 	tipDist := math.Min(
 		math.Abs(axis.Dot(c)-axis.Dot(p.P1)),
@@ -132,9 +156,9 @@ func (p *pointedSegment) Contains(c model3d.Coord3D) bool {
 	)
 	if tipDist < tip {
 		tipInset := tip - tipDist
-		sideDist := math.Abs(c2.Y - p.P1.Y)
+		sideDist := math.Abs(c.Y - p.P1.Y)
 		if p.Vertical {
-			sideDist = math.Abs(c2.X - p.P1.X)
+			sideDist = math.Abs(c.X - p.P1.X)
 		}
 		// Add a small epsilon so that segments touching at a
 		// 90 degree angle definitely intersect.

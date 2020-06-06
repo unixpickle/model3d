@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"os"
 
+	"github.com/unixpickle/model3d/toolbox3d"
+
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
@@ -36,23 +38,21 @@ func main() {
 	board.SaveGroupedSTL("board.stl")
 
 	saveMesh := model3d.NewMesh()
-	saveY := 0.0
 	renderModel := render3d.JoinedObject{render3d.Objectify(board, nil)}
 	for i, d := range placements {
 		log.Println("Creating digit", i+1, "...")
 		solid := DigitSolid(&args, d)
-		mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
+		ax := &toolbox3d.AxisSqueeze{
+			Axis:  toolbox3d.AxisY,
+			Min:   0.02,
+			Max:   args.SegmentDepth - 0.02,
+			Ratio: 0.25,
+		}
+		mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.01, 8)
+		mesh = mesh.MapCoords(ax.Inverse().Apply)
 		mesh = mesh.EliminateCoplanar(1e-5)
 
-		// Scale down the mesh a tiny bit so that it fits in nicely
-		// with corners of other digits.
-		mid := mesh.Min().Mid(mesh.Max())
-		mesh = mesh.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
-			return c.Sub(mid).Scale(0.99).Add(mid)
-		})
-
-		saveMesh.AddMesh(mesh.MapCoords(model3d.Coord3D{Y: saveY}.Sub(mesh.Min()).Add))
-		saveY += mesh.Max().Y - mesh.Min().Y + 0.04
+		saveMesh.AddMesh(mesh)
 
 		color := render3d.NewColorRGB(rand.Float64(), rand.Float64(), rand.Float64())
 		object := render3d.Objectify(mesh,
