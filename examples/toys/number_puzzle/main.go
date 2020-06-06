@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"math/rand"
 
@@ -9,6 +10,10 @@ import (
 )
 
 func main() {
+	var args Args
+	args.Add()
+	flag.Parse()
+
 	log.Println("Searching for digit placements...")
 	placements := SearchPlacement(FixedDigits(), AllDigits(), 5)
 	if placements == nil {
@@ -16,7 +21,7 @@ func main() {
 	}
 
 	log.Println("Creating board...")
-	boardSolid := BoardSolid(placements, 5)
+	boardSolid := BoardSolid(&args, placements, 5)
 	board := model3d.MarchingCubesSearch(boardSolid, 0.01, 8)
 	board = board.EliminateCoplanar(1e-5)
 	board.SaveGroupedSTL("board.stl")
@@ -26,7 +31,7 @@ func main() {
 	renderModel := render3d.JoinedObject{render3d.Objectify(board, nil)}
 	for i, d := range placements {
 		log.Println("Creating digit", i+1, "...")
-		solid := DigitSolid(d)
+		solid := DigitSolid(&args, d)
 		mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 		mesh = mesh.EliminateCoplanar(1e-5)
 
