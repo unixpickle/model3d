@@ -54,7 +54,9 @@ func BoardSolid(a *Args, digits []Digit, size int) model3d.Solid {
 
 func DigitSolid(a *Args, d Digit) model3d.Solid {
 	points := map[Location]int{}
+	segmentSet := map[Segment]bool{}
 	for _, s := range d {
+		segmentSet[s] = true
 		for _, l := range s {
 			points[l] += 1
 		}
@@ -68,12 +70,12 @@ func DigitSolid(a *Args, d Digit) model3d.Solid {
 		// Move tips inward and connected points outward.
 		if points[s[0]] == 1 {
 			p1 = p1.Add(p2.Sub(p1).Normalize().Scale(a.SegmentTipInset))
-		} else if points[s[1].Reflect(s[0])] != 0 {
+		} else if segmentSet[NewSegment(s[0], s[1].Reflect(s[0]))] {
 			p1 = p1.Sub(p2.Sub(p1).Normalize().Scale(a.SegmentJointOutset))
 		}
 		if points[s[1]] == 1 {
 			p2 = p2.Add(p1.Sub(p2).Normalize().Scale(a.SegmentTipInset))
-		} else if points[s[0].Reflect(s[1])] != 0 {
+		} else if segmentSet[NewSegment(s[1], s[0].Reflect(s[1]))] {
 			p2 = p2.Sub(p1.Sub(p2).Normalize().Scale(a.SegmentJointOutset))
 		}
 
