@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"math/rand"
+	"os"
 
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -14,8 +16,15 @@ func main() {
 	args.Add()
 	flag.Parse()
 
+	template, ok := FixedTemplates()[args.FixedTemplate]
+	if !ok {
+		fmt.Fprintln(os.Stderr, "unknown fixed template: "+args.FixedTemplate)
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	log.Println("Searching for digit placements...")
-	placements := SearchPlacement(FixedDigits(), AllDigits(), 5)
+	placements := SearchPlacement(template, AllDigits(), 5)
 	if placements == nil {
 		panic("no way to place digits")
 	}
@@ -61,13 +70,29 @@ func main() {
 func FixedDigits() []Digit {
 	// If you want to generate an arbitrary board, return nil.
 
-	// Currently, I fix a square in the middle of the board.
+	// Fill in three squares along the diagonal.
+	// This makes the puzzle fairly difficult to solve.
 	return []Digit{
 		NewDigitContinuous([]Location{
 			{2, 2},
 			{2, 3},
 			{3, 3},
 			{3, 2},
+			{2, 2},
+		}),
+		NewDigitContinuous([]Location{
+			{0, 0},
+			{0, 1},
+			{1, 1},
+			{1, 0},
+			{0, 0},
+		}),
+		NewDigitContinuous([]Location{
+			{4, 4},
+			{4, 5},
+			{5, 5},
+			{5, 4},
+			{4, 4},
 		}),
 	}
 }

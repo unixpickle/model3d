@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"strings"
 )
 
 type Args struct {
@@ -12,6 +13,8 @@ type Args struct {
 
 	BoardThickness float64
 	BoardBorder    float64
+
+	FixedTemplate string
 }
 
 func (a *Args) Add() {
@@ -23,4 +26,6 @@ func (a *Args) Add() {
 		"extra length to connect segments")
 	flag.Float64Var(&a.BoardThickness, "board-thickness", 0.3, "thickness of board base")
 	flag.Float64Var(&a.BoardBorder, "board-border", 0.2, "border around the board")
+	flag.StringVar(&a.FixedTemplate, "fixed-template", "three-squares",
+		"constrained template pattern ("+strings.Join(FixedTemplateNames(), ", ")+")")
 }
