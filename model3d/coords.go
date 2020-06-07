@@ -93,6 +93,21 @@ func NewCoord3DRandUnit() Coord3D {
 	}
 }
 
+// X gets a unit coordinate in the X direction.
+func X() Coord3D {
+	return Coord3D{X: 1}
+}
+
+// Y gets a unit coordinate in the Y direction.
+func Y() Coord3D {
+	return Coord3D{Y: 1}
+}
+
+// Z gets a unit coordinate in the Z direction.
+func Z() Coord3D {
+	return Coord3D{Z: 1}
+}
+
 // Mid computes the midpoint between c and c1.
 func (c Coord3D) Mid(c1 Coord3D) Coord3D {
 	return c.Add(c1).Scale(0.5)
@@ -172,8 +187,39 @@ func (c Coord3D) Geo() GeoCoord {
 
 // Coord2D projects c onto the x,y plane and drops the Z
 // value.
+// It is equivalent to c.XY().
 func (c Coord3D) Coord2D() Coord2D {
+	return c.XY()
+}
+
+// XY gets (x, y) as a 2D coordinate.
+func (c Coord3D) XY() Coord2D {
 	return Coord2D{X: c.X, Y: c.Y}
+}
+
+// XZ gets (x, z) as a 2D coordinate.
+func (c Coord3D) XZ() Coord2D {
+	return Coord2D{X: c.X, Y: c.Z}
+}
+
+// YX gets (y, x) as a 2D coordinate.
+func (c Coord3D) YX() Coord2D {
+	return Coord2D{X: c.Y, Y: c.X}
+}
+
+// YZ gets (y, z) as a 2D coordinate.
+func (c Coord3D) YZ() Coord2D {
+	return Coord2D{X: c.Y, Y: c.Z}
+}
+
+// ZX gets (z, x) as a 2D coordinate.
+func (c Coord3D) ZX() Coord2D {
+	return Coord2D{X: c.Z, Y: c.X}
+}
+
+// ZY gets (z, y) as a 2D coordinate.
+func (c Coord3D) ZY() Coord2D {
+	return Coord2D{X: c.Z, Y: c.Y}
 }
 
 // Min gets the element-wise minimum of c and c1.
