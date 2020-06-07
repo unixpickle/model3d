@@ -93,19 +93,34 @@ func NewCoord3DRandUnit() Coord3D {
 	}
 }
 
-// X gets a unit coordinate in the X direction.
-func X() Coord3D {
-	return Coord3D{X: 1}
+// X gets a coordinate in the X direction.
+func X(x float64) Coord3D {
+	return Coord3D{X: x}
 }
 
-// Y gets a unit coordinate in the Y direction.
-func Y() Coord3D {
-	return Coord3D{Y: 1}
+// XY gets a coordinate in the X and Y direction.
+func XY(x, y float64) Coord3D {
+	return Coord3D{X: x, Y: y}
 }
 
-// Z gets a unit coordinate in the Z direction.
-func Z() Coord3D {
-	return Coord3D{Z: 1}
+// XZ gets a coordinate in the X and Z direction.
+func XZ(x, z float64) Coord3D {
+	return Coord3D{X: x, Z: z}
+}
+
+// Y gets a coordinate in the Y direction.
+func Y(y float64) Coord3D {
+	return Coord3D{Y: y}
+}
+
+// YZ gets a coordinate in the Y and Z direction.
+func YZ(y, z float64) Coord3D {
+	return Coord3D{Y: y, Z: z}
+}
+
+// Z gets a coordinate in the Z direction.
+func Z(z float64) Coord3D {
+	return Coord3D{Z: z}
 }
 
 // Mid computes the midpoint between c and c1.
