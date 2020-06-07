@@ -95,7 +95,7 @@ func NewCoord3DRandUnit() Coord3D {
 
 // X gets a coordinate in the X direction.
 func X(x float64) Coord3D {
-	return X(x)
+	return Coord3D{X: x}
 }
 
 // XY gets a coordinate in the X and Y direction.
@@ -110,7 +110,7 @@ func XZ(x, z float64) Coord3D {
 
 // Y gets a coordinate in the Y direction.
 func Y(y float64) Coord3D {
-	return Y(y)
+	return Coord3D{Y: y}
 }
 
 // YZ gets a coordinate in the Y and Z direction.
@@ -120,7 +120,7 @@ func YZ(y, z float64) Coord3D {
 
 // Z gets a coordinate in the Z direction.
 func Z(z float64) Coord3D {
-	return Z(z)
+	return Coord3D{Z: z}
 }
 
 // Mid computes the midpoint between c and c1.
