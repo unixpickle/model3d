@@ -49,7 +49,7 @@ func (b BrushSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 
-	centerDist := (model3d.Coord2D{X: c.X, Y: c.Y}).Norm()
+	centerDist := c.XY().Norm()
 
 	if c.Z < 0 {
 		// Handle

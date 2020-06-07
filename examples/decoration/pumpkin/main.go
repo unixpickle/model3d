@@ -86,7 +86,7 @@ func (s StemSolid) Contains(c model3d.Coord3D) bool {
 	c.X -= 0.15 * math.Pow(c.Y-s.Min().Y, 2)
 	theta := math.Atan2(c.X, c.Z)
 	radius := 0.05*math.Sin(theta*5) + 0.15
-	return model3d.Coord2D{X: c.X, Y: c.Z}.Norm() < radius
+	return c.XZ().Norm() < radius
 }
 
 type LidSolid struct {
@@ -107,7 +107,7 @@ func (l LidSolid) Contains(c model3d.Coord3D) bool {
 	if l.IsLid {
 		coneCenter += 0.1
 	}
-	inLid := model3d.Coord2D{X: c.X, Y: c.Z}.Norm() < 0.7*(c.Y-coneCenter)
+	inLid := c.XZ().Norm() < 0.7*(c.Y-coneCenter)
 	return inLid == l.IsLid && l.Solid.Contains(c)
 }
 

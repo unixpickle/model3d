@@ -68,7 +68,7 @@ func (c *CoinSolid) Max() model3d.Coord3D {
 
 func (c *CoinSolid) Contains(coord model3d.Coord3D) bool {
 	theta := math.Atan2(coord.Y, coord.X)
-	radius := (model3d.Coord2D{X: coord.X, Y: coord.Y}).Norm() / c.Radius
+	radius := coord.XY().Norm() / c.Radius
 	if radius > 1 {
 		return false
 	}

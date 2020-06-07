@@ -85,7 +85,7 @@ func (a *AppleSolid) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(a, c) {
 		return false
 	}
-	radius := (model3d.Coord2D{X: c.X, Y: c.Y}).Dist(model3d.Coord2D{})
+	radius := c.XY().Norm()
 	if radius < 1e-5 {
 		// Prevent queries directly on the boundary.
 		radius = 1e-5
