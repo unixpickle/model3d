@@ -113,7 +113,7 @@ func RenderEngagedProfiles(spec *Spec, driven, drive model2d.Solid) {
 func CreateRendering(spec *Spec) {
 	driveTransform := model3d.JoinedTransform{
 		&model3d.Matrix3Transform{
-			Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, math.Pi/2),
+			Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), math.Pi/2),
 		},
 		&model3d.Translate{
 			Offset: model3d.Coord3D{X: spec.DriveRadius(), Z: spec.BoardThickness},
@@ -168,7 +168,7 @@ func CreateAnimation(spec *Spec) {
 		pinLoc := driveTransform.Apply(pinCenter)
 		drivenTransform := model3d.JoinedTransform{
 			&model3d.Matrix3Transform{
-				Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, angle),
+				Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), angle),
 			},
 			&model3d.Translate{
 				Offset: model3d.Coord3D{
@@ -215,7 +215,7 @@ func CreateAnimation(spec *Spec) {
 		log.Println("Rendering drive angle", driveAngle, "...")
 		driveTransform := model3d.JoinedTransform{
 			&model3d.Matrix3Transform{
-				Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, driveAngle),
+				Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), driveAngle),
 			},
 			&model3d.Translate{
 				Offset: model3d.Coord3D{X: spec.DriveRadius(), Z: spec.BoardThickness},

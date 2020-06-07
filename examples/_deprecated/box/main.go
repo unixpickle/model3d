@@ -183,12 +183,12 @@ func MakeHandle() {
 	screw := model3d.JoinedSolid{
 		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
-			P2:     model3d.Coord3D{Z: 0.2},
+			P2:     model3d.Z(0.2),
 			Radius: 0.25,
 		},
 		&toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: 0.2},
-			P2:         model3d.Coord3D{Z: HandleHeight},
+			P1:         model3d.Z(0.2),
+			P2:         model3d.Z(HandleHeight),
 			Radius:     0.14,
 			GrooveSize: 0.05,
 		},
@@ -200,15 +200,15 @@ func MakeHandle() {
 	handle := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
 			&model3d.Cylinder{
-				P1:     model3d.Coord3D{Z: 0.2},
-				P2:     model3d.Coord3D{Z: HandleHeight},
+				P1:     model3d.Z(0.2),
+				P2:     model3d.Z(HandleHeight),
 				Radius: 0.4,
 			},
 			NewScrewBase(),
 		},
 		Negative: &toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: 0.2},
-			P2:         model3d.Coord3D{Z: HandleHeight},
+			P1:         model3d.Z(0.2),
+			P2:         model3d.Z(HandleHeight),
 			Radius:     0.16,
 			GrooveSize: 0.05,
 		},

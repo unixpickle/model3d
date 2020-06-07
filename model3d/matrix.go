@@ -280,7 +280,7 @@ func (m *Matrix3) symEigVector(val float64) Coord3D {
 
 	if !triedAny {
 		// It's a rank-zero matrix.
-		return Coord3D{X: 1}
+		return X(1)
 	}
 	return bestVector
 }

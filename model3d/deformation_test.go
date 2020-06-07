@@ -106,7 +106,7 @@ func BenchmarkARAPCholesky(b *testing.B) {
 
 	op := newARAPOperator(NewARAP(mesh), map[int]Coord3D{
 		// Some arbitrary constraint.
-		0: Coord3D{X: 2},
+		0: X(2),
 	})
 	mat := op.squeezedMatrix()
 

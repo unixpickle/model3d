@@ -35,7 +35,7 @@ func main() {
 			Max:    0,
 		},
 		&model3d.LinearConstraint{
-			Normal: model3d.Coord3D{Z: 1},
+			Normal: model3d.Z(1),
 			Max:    LidHeight,
 		},
 	}
@@ -49,25 +49,25 @@ func main() {
 	lidSolid := &model3d.StackedSolid{
 		lidBase.Solid(),
 		&toolbox3d.ScrewSolid{
-			P2:         model3d.Coord3D{Z: LidScrewHeight},
+			P2:         model3d.Z(LidScrewHeight),
 			Radius:     LidScrewDiameter/2 - LidScrewSlack,
 			GrooveSize: LidScrewGroove,
 		},
 	}
 	bodySolid := &model3d.SubtractedSolid{
 		Positive: &model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: Height},
+			P2:     model3d.Z(Height),
 			Radius: OuterDiameter / 2,
 		},
 		Negative: model3d.JoinedSolid{
 			&model3d.Cylinder{
 				P1:     model3d.Coord3D{Z: OuterDiameter - InnerDiameter},
-				P2:     model3d.Coord3D{Z: Height},
+				P2:     model3d.Z(Height),
 				Radius: InnerDiameter / 2,
 			},
 			&toolbox3d.ScrewSolid{
 				P1:         model3d.Coord3D{Z: Height - (LidScrewHeight + LidScrewSlack)},
-				P2:         model3d.Coord3D{Z: Height},
+				P2:         model3d.Z(Height),
 				Radius:     LidScrewDiameter / 2,
 				GrooveSize: LidScrewGroove,
 			},

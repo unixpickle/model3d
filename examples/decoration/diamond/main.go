@@ -58,9 +58,9 @@ func CreateDiamondPolytope() model3d.ConvexPolytope {
 		return model3d.Coord3D{
 			X: math.Cos((float64(i) + 0.5) * iAngle),
 			Y: math.Sin((float64(i) + 0.5) * iAngle),
-		}.Scale(1 - BaseHeight).Sub(model3d.Coord3D{Z: BaseHeight})
+		}.Scale(1 - BaseHeight).Sub(model3d.Z(BaseHeight))
 	}
-	tipPoint := model3d.Coord3D{Z: TipHeight}
+	tipPoint := model3d.Z(TipHeight)
 
 	for i := 0; i < NumSides; i++ {
 		addTriangle(&model3d.Triangle{

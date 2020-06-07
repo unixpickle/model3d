@@ -29,11 +29,11 @@ func main() {
 		model3d.JoinedSolid{
 			&BrickCylinder{Height: 3, Radius: 1},
 			&toolbox3d.Ramp{
-				P1: model3d.Coord3D{Z: 2},
-				P2: model3d.Coord3D{Z: 3.2},
+				P1: model3d.Z(2),
+				P2: model3d.Z(3.2),
 				Solid: &model3d.Cylinder{
-					P1:     model3d.Coord3D{Z: 2},
-					P2:     model3d.Coord3D{Z: 3.2},
+					P1:     model3d.Z(2),
+					P2:     model3d.Z(3.2),
 					Radius: 1.2,
 				},
 			},
@@ -79,7 +79,7 @@ func (x *XBlock) Max() model3d.Coord3D {
 }
 
 func (x *XBlock) Contains(c model3d.Coord3D) bool {
-	return x.Solid.Contains(c.Sub(model3d.Coord3D{X: x.X}))
+	return x.Solid.Contains(c.Sub(model3d.X(x.X)))
 }
 
 type BrickCylinder struct {

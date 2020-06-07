@@ -4,8 +4,8 @@ import (
 	"io/ioutil"
 	"math"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -14,7 +14,7 @@ const AppleHeight = 1.0
 func main() {
 	bite := &model3d.Torus{
 		Center:      model3d.Coord3D{X: -1.7, Y: 0, Z: AppleHeight / 2},
-		Axis:        model3d.Coord3D{Z: 1},
+		Axis:        model3d.Z(1),
 		OuterRadius: 1.0,
 		InnerRadius: 0.3,
 	}
@@ -22,8 +22,8 @@ func main() {
 	biggerBite.InnerRadius += 0.005
 
 	stem := &model3d.Cylinder{
-		P1:     model3d.Coord3D{Z: AppleHeight / 2},
-		P2:     model3d.Coord3D{Z: AppleHeight * 1.1},
+		P1:     model3d.Z(AppleHeight / 2),
+		P2:     model3d.Z(AppleHeight * 1.1),
 		Radius: AppleHeight / 30,
 	}
 	biggerStem := *stem

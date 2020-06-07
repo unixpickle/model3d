@@ -41,7 +41,7 @@ func BoardSolid(spec *Spec) model3d.Solid {
 func BoardScrewSolid(spec *Spec) model3d.Solid {
 	return model3d.StackSolids(
 		&model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: spec.ScrewCapHeight},
+			P2:     model3d.Z(spec.ScrewCapHeight),
 			Radius: spec.ScrewCapRadius,
 		},
 		&model3d.Cylinder{

@@ -27,7 +27,7 @@ func main() {
 					Max:    0,
 				},
 				&model3d.LinearConstraint{
-					Normal: model3d.Coord3D{X: 1},
+					Normal: model3d.X(1),
 					Max:    1,
 				},
 				&model3d.LinearConstraint{
@@ -35,7 +35,7 @@ func main() {
 					Max:    0,
 				},
 				&model3d.LinearConstraint{
-					Normal: model3d.Coord3D{Y: 1},
+					Normal: model3d.Y(1),
 					Max:    1,
 				},
 				&model3d.LinearConstraint{
@@ -43,7 +43,7 @@ func main() {
 					Max:    0,
 				},
 				&model3d.LinearConstraint{
-					Normal: model3d.Coord3D{Z: 1},
+					Normal: model3d.Z(1),
 					Max:    1,
 				},
 			}

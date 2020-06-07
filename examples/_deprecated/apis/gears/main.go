@@ -48,8 +48,8 @@ func CreateGear(teeth int, path string, invert bool) {
 		},
 		Negative: &toolbox3d.ScrewSolid{
 			// Fix rounding errors resulting in filled-in sides.
-			P1: p1.Sub(model3d.Coord3D{Z: 0.001}),
-			P2: p2.Add(model3d.Coord3D{Z: 0.001}),
+			P1: p1.Sub(model3d.Z(0.001)),
+			P2: p2.Add(model3d.Z(0.001)),
 
 			Radius:     ScrewRadius + ScrewSlack,
 			GrooveSize: ScrewGrooveSize,
@@ -63,11 +63,11 @@ func CreatePole() {
 	solid := model3d.JoinedSolid{
 		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
-			P2:     model3d.Coord3D{Z: 0.2},
+			P2:     model3d.Z(0.2),
 			Radius: PoleBaseRadius,
 		},
 		&model3d.Cylinder{
-			P1:     model3d.Coord3D{Z: 0.2},
+			P1:     model3d.Z(0.2),
 			P2:     model3d.Coord3D{Z: 0.6 + PoleSlack},
 			Radius: PoleSize,
 		},
@@ -89,7 +89,7 @@ func CreateHolder() {
 	c3 := model3d.Coord3D{X: padding + Module*40/2, Y: padding + Module*40 + Module*20/2}
 	c2.X += HoleClearance
 	c3.Y += HoleClearance
-	thickness := model3d.Coord3D{Z: 0.4}
+	thickness := model3d.Z(0.4)
 	solid := &model3d.SubtractedSolid{
 		Positive: &model3d.Rect{
 			MaxVal: model3d.Coord3D{

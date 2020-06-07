@@ -12,7 +12,7 @@ func SpineMesh() *model3d.Mesh {
 
 func SpineSolid() model3d.Solid {
 	center1 := model3d.Coord3D{X: SpineWidth / 2, Y: SpineWidth / 2}
-	center2 := center1.Add(model3d.Coord3D{Y: GearDistance})
+	center2 := center1.Add(model3d.Y(GearDistance))
 	thickVec := model3d.Coord3D{Z: SpineThickness + SpineWasherSize}
 	return &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{

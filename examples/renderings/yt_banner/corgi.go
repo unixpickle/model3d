@@ -39,7 +39,7 @@ func CreateCorgi(theta, x, y float64) render3d.Object {
 
 		mesh := model3d.NewMeshTriangles(triangles)
 		mesh = mesh.MapCoords(model3d.Coord3D{X: -mid.X, Y: -mid.Y, Z: -min.Z}.Add)
-		mesh = mesh.MapCoords(model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, theta).MulColumn)
+		mesh = mesh.MapCoords(model3d.NewMatrix3Rotation(model3d.Z(1), theta).MulColumn)
 		mesh = mesh.Scale(0.8)
 		mesh = mesh.MapCoords(model3d.Coord3D{X: x, Y: y}.Add)
 

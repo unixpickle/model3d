@@ -119,7 +119,7 @@ func StackSolids(s ...Solid) Solid {
 	lastMax := s[0].Max().Z
 	for i := 1; i < len(s); i++ {
 		delta := lastMax - s[i].Min().Z
-		result[i] = TransformSolid(&Translate{Offset: Coord3D{Z: delta}}, s[i])
+		result[i] = TransformSolid(&Translate{Offset: Z(delta)}, s[i])
 		lastMax = result[i].Max().Z
 	}
 	return result
@@ -157,7 +157,7 @@ func (s StackedSolid) Contains(c Coord3D) bool {
 	currentZ := s[0].Min().Z
 	for _, solid := range s {
 		delta := currentZ - solid.Min().Z
-		if solid.Contains(c.Sub(Coord3D{Z: delta})) {
+		if solid.Contains(c.Sub(Z(delta))) {
 			return true
 		}
 		currentZ = solid.Max().Z + delta

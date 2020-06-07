@@ -19,7 +19,7 @@ const (
 func GenerateFlag() model3d.Solid {
 	return model3d.JoinedSolid{
 		&model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: FlagHeight},
+			P2:     model3d.Z(FlagHeight),
 			Radius: FlagPoleRadius,
 		},
 		FlagFabric{},

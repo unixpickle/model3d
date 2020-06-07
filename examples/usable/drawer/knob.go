@@ -8,11 +8,11 @@ import (
 func CreateKnob() model3d.Solid {
 	return model3d.StackedSolid{
 		&model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: KnobBaseLength},
+			P2:     model3d.Z(KnobBaseLength),
 			Radius: KnobBaseRadius,
 		},
 		&model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: KnobPoleLength},
+			P2:     model3d.Z(KnobPoleLength),
 			Radius: KnobPoleRadius,
 		},
 		&toolbox3d.ScrewSolid{
@@ -26,7 +26,7 @@ func CreateKnob() model3d.Solid {
 func CreateKnobNut() model3d.Solid {
 	return &model3d.SubtractedSolid{
 		Positive: &model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: KnobNutThickness},
+			P2:     model3d.Z(KnobNutThickness),
 			Radius: KnobNutRadius,
 		},
 		Negative: &toolbox3d.ScrewSolid{

@@ -19,7 +19,7 @@ func main() {
 	solid := model3d.JoinedSolid{
 		SlopedTriangle{
 			Base1: model3d.Coord3D{},
-			Base2: model3d.Coord3D{X: SideSize},
+			Base2: model3d.X(SideSize),
 			Tip:   model3d.Coord3D{X: SideSize / 2, Y: Slope, Z: SideSize * math.Sqrt(3) / 2},
 		},
 		SlopedTriangle{

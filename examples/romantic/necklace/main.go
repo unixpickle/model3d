@@ -43,7 +43,7 @@ func main() {
 	manifold := NewSpiralManifold(StartRadius, SpiralRate)
 	numLinks := int(TotalLength / LinkHeight)
 	for i := 0; i < numLinks; i++ {
-		offset := model3d.Coord3D{X: LinkOddShift / 2}
+		offset := model3d.X(LinkOddShift / 2)
 		if i%2 == 1 {
 			offset = offset.Scale(-1)
 		}

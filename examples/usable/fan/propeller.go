@@ -16,7 +16,7 @@ func PropellerMesh() *model3d.Mesh {
 func PropellerSolid() model3d.Solid {
 	positive := model3d.JoinedSolid{
 		&model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: BladeDepth},
+			P2:     model3d.Z(BladeDepth),
 			Radius: PropellerHubRadius,
 		},
 	}
@@ -45,7 +45,7 @@ func (b BladeSolid) Min() model3d.Coord3D {
 }
 
 func (b BladeSolid) Max() model3d.Coord3D {
-	return b.Min().Scale(-1).Add(model3d.Coord3D{Z: BladeDepth})
+	return b.Min().Scale(-1).Add(model3d.Z(BladeDepth))
 }
 
 func (b BladeSolid) Contains(c model3d.Coord3D) bool {
@@ -63,6 +63,6 @@ func (b BladeSolid) Contains(c model3d.Coord3D) bool {
 	}
 	normal := model3d.Coord3D{X: -vec.Y, Y: vec.X, Z: 1}.Normalize()
 
-	dist := math.Abs(c.Sub(model3d.Coord3D{Z: BladeDepth / 2}).Dot(normal))
+	dist := math.Abs(c.Sub(model3d.Z(BladeDepth / 2)).Dot(normal))
 	return dist <= BladeThickness/2
 }

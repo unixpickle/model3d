@@ -33,7 +33,7 @@ func main() {
 			MinVal: model3d.Coord3D{X: -2, Y: -0.9, Z: -0.3},
 			MaxVal: model3d.Coord3D{X: 2, Y: 0.9, Z: 0},
 		},
-		&CandleHolder{Center: model3d.Coord3D{Z: 0.6}},
+		&CandleHolder{Center: model3d.Z(0.6)},
 	}
 	for _, pole := range GeneratePoles() {
 		solid = append(solid, pole, &CandleHolder{

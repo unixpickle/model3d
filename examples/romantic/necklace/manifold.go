@@ -39,7 +39,7 @@ func (s *SpiralManifold) Convert(c model3d.Coord3D) model3d.Coord3D {
 	xBasis := model3d.Coord3D{X: math.Cos(s.theta), Y: math.Sin(s.theta)}
 	yBasis := model3d.Coord3D{X: -xBasis.Y, Y: xBasis.X}
 	center := xBasis.Scale(r)
-	z := model3d.Coord3D{Z: c.Z}
+	z := model3d.Z(c.Z)
 	return center.Add(z).Add(xBasis.Scale(c.X)).Add(yBasis.Scale(c.Y))
 }
 

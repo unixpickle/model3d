@@ -75,7 +75,7 @@ func main() {
 }
 
 func StandSolid() model3d.Solid {
-	topCenter := model3d.Coord3D{Z: StandRadius}
+	topCenter := model3d.Z(StandRadius)
 	var corners [3]model3d.Coord3D
 	for i := range corners {
 		corners[i] = model3d.Coord3D{
@@ -131,7 +131,7 @@ func StandSolid() model3d.Solid {
 		},
 		&toolbox3d.ScrewSolid{
 			P1:         topCenter,
-			P2:         topCenter.Add(model3d.Coord3D{Z: ScrewLength}),
+			P2:         topCenter.Add(model3d.Z(ScrewLength)),
 			GrooveSize: ScrewGrooves,
 			Radius:     ScrewRadius - ScrewSlack,
 		},
@@ -142,7 +142,7 @@ func ConeStandSolid() model3d.Solid {
 	return model3d.JoinedSolid{
 		ConeSolid{},
 		&toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: StandRadius},
+			P1:         model3d.Z(StandRadius),
 			P2:         model3d.Coord3D{Z: StandRadius + ScrewLength},
 			GrooveSize: ScrewGrooves,
 			Radius:     ScrewRadius - ScrewSlack,
@@ -178,27 +178,27 @@ func LegSolid() model3d.Solid {
 	return &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
 			&model3d.Cylinder{
-				P2:     model3d.Coord3D{Z: LegLength},
+				P2:     model3d.Z(LegLength),
 				Radius: PoleThickness,
 			},
 			&toolbox3d.Ramp{
 				Solid: &model3d.Cylinder{
-					P2:     model3d.Coord3D{Z: FootRadius},
+					P2:     model3d.Z(FootRadius),
 					Radius: FootRadius,
 				},
-				P1: model3d.Coord3D{Z: FootRadius},
+				P1: model3d.Z(FootRadius),
 			},
 			&toolbox3d.Ramp{
 				Solid: &model3d.Cylinder{
 					P1:     model3d.Coord3D{Z: LegLength - FootRadius},
-					P2:     model3d.Coord3D{Z: LegLength},
+					P2:     model3d.Z(LegLength),
 					Radius: FootRadius,
 				},
 				P1: model3d.Coord3D{Z: LegLength - FootRadius},
-				P2: model3d.Coord3D{Z: LegLength},
+				P2: model3d.Z(LegLength),
 			},
 			&toolbox3d.ScrewSolid{
-				P1:         model3d.Coord3D{Z: LegLength},
+				P1:         model3d.Z(LegLength),
 				P2:         model3d.Coord3D{Z: LegLength + ScrewLength},
 				Radius:     ScrewRadius - ScrewSlack,
 				GrooveSize: ScrewGrooves,
@@ -216,11 +216,11 @@ func LegSolid() model3d.Solid {
 func TopSolid() model3d.Solid {
 	return &model3d.SubtractedSolid{
 		Positive: &model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: ScrewLength},
+			P2:     model3d.Z(ScrewLength),
 			Radius: TopRadius,
 		},
 		Negative: &toolbox3d.ScrewSolid{
-			P2:         model3d.Coord3D{Z: ScrewLength},
+			P2:         model3d.Z(ScrewLength),
 			Radius:     ScrewRadius,
 			GrooveSize: ScrewGrooves,
 		},

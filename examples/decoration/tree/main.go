@@ -25,7 +25,7 @@ const (
 func main() {
 	trunk := &model3d.Cylinder{
 		P1:     model3d.Coord3D{},
-		P2:     model3d.Coord3D{Y: 2},
+		P2:     model3d.Y(2),
 		Radius: 0.15,
 	}
 	branches := CreateBranches(trunk, BranchDepth)

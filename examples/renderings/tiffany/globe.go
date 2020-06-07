@@ -27,7 +27,7 @@ func NewGlobe() *Globe {
 		Image: toolbox3d.NewEquirect(mapImage),
 		Object: &render3d.ColliderObject{
 			Collider: &model3d.Sphere{
-				Center: model3d.Coord3D{Z: 0.5},
+				Center: model3d.Z(0.5),
 				Radius: 1.5,
 			},
 		},
@@ -41,7 +41,7 @@ func (g *Globe) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 	}
 
 	point := collision.Normal
-	point = model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, -math.Pi/2).MulColumn(point)
+	point = model3d.NewMatrix3Rotation(model3d.Z(1), -math.Pi/2).MulColumn(point)
 	point.Y, point.Z = point.Z, -point.Y
 
 	red, green, blue, _ := g.Image.At(point.Geo()).RGBA()

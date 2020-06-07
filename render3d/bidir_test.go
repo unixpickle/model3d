@@ -10,7 +10,7 @@ import (
 
 func TestBidirPathTracer(t *testing.T) {
 	scene, light := testingScene()
-	camera := NewCameraAt(model3d.Coord3D{Y: -17, Z: 2}, model3d.Coord3D{Z: 2}, math.Pi/3.6)
+	camera := NewCameraAt(model3d.Coord3D{Y: -17, Z: 2}, model3d.Z(2), math.Pi/3.6)
 
 	pt := &RecursiveRayTracer{
 		Camera: camera,
@@ -67,7 +67,7 @@ func BenchmarkBidirPathTracer(b *testing.B) {
 	defer runtime.GOMAXPROCS(oldProcs)
 
 	scene, light := testingScene()
-	camera := NewCameraAt(model3d.Coord3D{Y: -17, Z: 2}, model3d.Coord3D{Z: 2}, math.Pi/3.6)
+	camera := NewCameraAt(model3d.Coord3D{Y: -17, Z: 2}, model3d.Z(2), math.Pi/3.6)
 	bpt := &BidirPathTracer{
 		Camera:     camera,
 		Light:      light,

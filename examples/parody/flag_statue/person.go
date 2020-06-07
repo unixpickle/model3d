@@ -76,7 +76,7 @@ func (p *PersonSolid) Contains(c model3d.Coord3D) bool {
 
 	// Change of basis.
 	zAxis := p.P2.Sub(p.P1).Normalize()
-	xAxis := model3d.Coord3D{Y: 1}
+	xAxis := model3d.Y(1)
 	yAxis := xAxis.Cross(zAxis)
 	c = c.Sub(p.P1)
 	c = model3d.Coord3D{X: c.Dot(xAxis), Y: c.Dot(yAxis), Z: c.Dot(zAxis)}

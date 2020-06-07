@@ -39,7 +39,7 @@ func (w *Walls) Min() model3d.Coord3D {
 }
 
 func (w *Walls) Max() model3d.Coord3D {
-	return w.Base.Max().Add(model3d.Coord3D{Z: CeilingLightDepth})
+	return w.Base.Max().Add(model3d.Z(CeilingLightDepth))
 }
 
 func (w *Walls) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, bool) {

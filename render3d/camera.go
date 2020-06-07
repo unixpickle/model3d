@@ -53,7 +53,7 @@ func NewCameraAt(source, dest model3d.Coord3D, fov float64) *Camera {
 	xAxis := model3d.Coord3D{X: zAxis.Y, Y: -zAxis.X}
 	if xAxis.Norm() < 1e-5 {
 		// There is no well-defined x-axis.
-		xAxis = model3d.Coord3D{X: 1}.ProjectOut(zAxis)
+		xAxis = model3d.X(1).ProjectOut(zAxis)
 	}
 	xAxis = xAxis.Normalize()
 	yAxis := zAxis.Cross(xAxis)

@@ -135,14 +135,14 @@ func MakeColorer() *Colorer {
 func MakeBody() model3d.Solid {
 	return model3d.JoinedSolid{
 		&model3d.Cylinder{
-			P2:     model3d.Coord3D{X: BodyLength},
+			P2:     model3d.X(BodyLength),
 			Radius: BodyRadius,
 		},
 		&model3d.Sphere{
 			Radius: BodyRadius,
 		},
 		&model3d.Sphere{
-			Center: model3d.Coord3D{X: BodyLength},
+			Center: model3d.X(BodyLength),
 			Radius: BodyRadius,
 		},
 	}
@@ -151,7 +151,7 @@ func MakeBody() model3d.Solid {
 func MakeHeadNeck() model3d.Solid {
 	return model3d.JoinedSolid{
 		&model3d.Cylinder{
-			P1: model3d.Coord3D{X: BodyLength},
+			P1: model3d.X(BodyLength),
 			P2: model3d.Coord3D{X: BodyLength + NeckLength*math.Cos(NeckTheta),
 				Z: NeckLength * math.Sin(NeckTheta)},
 			Radius: NeckRadius,
@@ -226,7 +226,7 @@ func MakeEars() model3d.Solid {
 			yDiff *= -1
 		}
 		res = append(res, &EarSolid{
-			Base: origin.Add(model3d.Coord3D{Y: y}),
+			Base: origin.Add(model3d.Y(y)),
 			Tip:  origin.Add(model3d.Coord3D{Y: y + yDiff, Z: EarHeight * math.Cos(EarTheta)}),
 		})
 	}
@@ -284,7 +284,7 @@ func (s *SnoutSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 
-	b1 := model3d.Coord3D{Y: 1}
+	b1 := model3d.Y(1)
 	b2 := diff.Cross(b1).Normalize()
 	c2 := model3d.Coord2D{X: b1.Dot(c), Y: b2.Dot(c)}
 
@@ -333,7 +333,7 @@ func (e *EarSolid) Contains(c model3d.Coord3D) bool {
 	// Curved tip
 	frac = math.Pow(1-frac, 0.3)
 
-	xAxis := model3d.Coord3D{Y: 1}.ProjectOut(diff).Normalize()
+	xAxis := model3d.Y(1).ProjectOut(diff).Normalize()
 	yAxis := diff.Cross(xAxis).Normalize()
 	return math.Abs(xAxis.Dot(c)) < frac*EarWidth/2 &&
 		math.Abs(yAxis.Dot(c)) < EarThickness/2

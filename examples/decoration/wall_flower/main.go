@@ -99,6 +99,6 @@ func (b BaseSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 	cylinderDist := c.Coord2D().Norm()
-	sphereDist := c.Dist(model3d.Coord3D{Z: Radius})
+	sphereDist := c.Dist(model3d.Z(Radius))
 	return cylinderDist < BaseRadius && sphereDist >= Radius
 }

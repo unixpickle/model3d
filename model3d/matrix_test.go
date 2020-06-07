@@ -29,7 +29,7 @@ func TestMatrix3Inverse(t *testing.T) {
 func TestMatrix3Rotation(t *testing.T) {
 	t.Run("AroundY", func(t *testing.T) {
 		theta := 0.1
-		mat := NewMatrix3Rotation(Coord3D{Y: 1}, theta)
+		mat := NewMatrix3Rotation(Y(1), theta)
 		c1 := Coord3D{X: 2, Y: 1, Z: 3}
 		newTheta := math.Atan2(c1.Z, c1.X) - theta
 		norm := Coord2D{X: c1.X, Y: c1.Z}.Norm()
@@ -46,7 +46,7 @@ func TestMatrix3Rotation(t *testing.T) {
 
 	t.Run("AroundZ", func(t *testing.T) {
 		theta := 0.1
-		mat := NewMatrix3Rotation(Coord3D{Z: 1}, theta)
+		mat := NewMatrix3Rotation(Z(1), theta)
 		c1 := Coord3D{X: 2, Y: 1, Z: 3}
 		newTheta := math.Atan2(c1.Y, c1.X) + theta
 		norm := c1.Coord2D().Norm()

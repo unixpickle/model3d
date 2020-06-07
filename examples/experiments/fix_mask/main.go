@@ -158,7 +158,7 @@ func BottomArea(m *model3d.Mesh, threshold float64) float64 {
 
 func RotateMesh(m *model3d.Mesh, angle float64) *model3d.Mesh {
 	rotation := &model3d.Matrix3Transform{
-		Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{X: 1}, angle),
+		Matrix: model3d.NewMatrix3Rotation(model3d.X(1), angle),
 	}
 	return m.MapCoords(rotation.Apply)
 }
@@ -183,7 +183,7 @@ func CreateFilterRing(m *model3d.Mesh) *model3d.Mesh {
 			realY := min.Y + float64(y)/scale
 			numColl := collider.RayCollisions(&model3d.Ray{
 				Origin:    model3d.Coord3D{X: realX, Y: realY, Z: sliceZ},
-				Direction: model3d.Coord3D{X: 1},
+				Direction: model3d.X(1),
 			}, nil)
 			numColl1 := collider.RayCollisions(&model3d.Ray{
 				Origin:    model3d.Coord3D{X: realX, Y: realY, Z: sliceZ},

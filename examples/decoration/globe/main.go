@@ -41,7 +41,7 @@ func main() {
 		Negative: &toolbox3d.Ramp{
 			Solid: &toolbox3d.Ramp{
 				Solid: dowel,
-				P1:    model3d.Coord3D{Z: DowelHeight},
+				P1:    model3d.Z(DowelHeight),
 				P2:    model3d.Coord3D{Z: DowelHeight - DowelSize},
 			},
 			P1: model3d.Coord3D{Z: -DowelHeight},

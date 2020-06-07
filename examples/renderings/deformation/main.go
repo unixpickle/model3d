@@ -59,7 +59,7 @@ func main() {
 		translate := model3d.Coord3D{X: translateX.EvalX(t), Z: translateZ.EvalX(t)}
 		transform := model3d.JoinedTransform{
 			&model3d.Matrix3Transform{
-				Matrix: model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, rotation),
+				Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), rotation),
 			},
 			&model3d.Translate{Offset: translate},
 		}
@@ -112,12 +112,12 @@ func CreateMesh() *model3d.Mesh {
 	height := 1.0
 
 	addQuad := func(p model3d.Coord3D, normalAxis int) {
-		ax1 := model3d.Coord3D{X: squareSize}
-		ax2 := model3d.Coord3D{Y: squareSize}
+		ax1 := model3d.X(squareSize)
+		ax2 := model3d.Y(squareSize)
 		if normalAxis == 0 {
-			ax1 = model3d.Coord3D{Z: squareSize}
+			ax1 = model3d.Z(squareSize)
 		} else if normalAxis == 1 {
-			ax2 = model3d.Coord3D{Z: squareSize}
+			ax2 = model3d.Z(squareSize)
 		}
 		box.Add(&model3d.Triangle{p, p.Add(ax1), p.Add(ax2)})
 		box.Add(&model3d.Triangle{p.Add(ax1), p.Add(ax2), p.Add(ax1).Add(ax2)})
@@ -149,7 +149,7 @@ func CreateMesh() *model3d.Mesh {
 
 	// Don't let the box face the camera head on,
 	// allowing us to see more detail.
-	rotate := model3d.NewMatrix3Rotation(model3d.Coord3D{Z: 1}, 0.4)
+	rotate := model3d.NewMatrix3Rotation(model3d.Z(1), 0.4)
 	return box.MapCoords(rotate.MulColumn)
 }
 

@@ -217,7 +217,7 @@ func (s *Sphere) PointSDF(c Coord3D) (Coord3D, float64) {
 	direction := c.Sub(s.Center)
 	if norm := direction.Norm(); norm == 0 {
 		// Pick an arbitrary point
-		return s.Center.Add(Coord3D{X: s.Radius}), s.Radius
+		return s.Center.Add(X(s.Radius)), s.Radius
 	} else {
 		return s.Center.Add(direction.Scale(s.Radius / norm)), s.SDF(c)
 	}

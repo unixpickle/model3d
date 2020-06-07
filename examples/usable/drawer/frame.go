@@ -116,10 +116,10 @@ func CreateFoot(x, y float64) model3d.Solid {
 	halfSize := model3d.Coord3D{X: FrameFootWidth / 2, Y: FrameFootWidth / 2}
 	return &toolbox3d.Ramp{
 		Solid: &model3d.Rect{
-			MinVal: center.Sub(halfSize).Sub(model3d.Coord3D{Z: FrameFootHeight}),
+			MinVal: center.Sub(halfSize).Sub(model3d.Z(FrameFootHeight)),
 			MaxVal: center.Add(halfSize),
 		},
-		P1: center.Sub(model3d.Coord3D{Z: FrameFootRampHeight}),
+		P1: center.Sub(model3d.Z(FrameFootRampHeight)),
 		P2: center,
 	}
 }

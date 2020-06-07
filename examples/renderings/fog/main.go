@@ -55,7 +55,7 @@ func main() {
 			Collider: &model3d.Sphere{
 				Center: model3d.NewCoord3DRandNorm().Mul(
 					model3d.Coord3D{X: 5, Y: 10, Z: 1},
-				).Add(model3d.Coord3D{Y: 5}),
+				).Add(model3d.Y(5)),
 				Radius: 1,
 			},
 			Material: &render3d.PhongMaterial{

@@ -112,7 +112,7 @@ func TestSolidCollider(t *testing.T) {
 			Radius: 0.3,
 		},
 		&SphereSolid{
-			Center: Coord3D{X: 0.1},
+			Center: X(0.1),
 			Radius: 0.3,
 		},
 	}

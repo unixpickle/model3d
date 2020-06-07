@@ -11,7 +11,7 @@ import (
 func DriveBody(s *Spec, profile model2d.Solid) model3d.Solid {
 	stack := model3d.StackSolids(
 		&model3d.Cylinder{
-			P2: model3d.Coord3D{Z: s.BottomThickness},
+			P2: model3d.Z(s.BottomThickness),
 			// Jut out the bottom of the drive a bit so that the
 			// driven gear rests on it.
 			Radius: s.DriveRadius() + s.PinRadius*2,
@@ -37,7 +37,7 @@ func DriveBody(s *Spec, profile model2d.Solid) model3d.Solid {
 func DrivenBody(s *Spec, profile model2d.Solid) model3d.Solid {
 	stack := model3d.StackSolids(
 		&model3d.Cylinder{
-			P2:     model3d.Coord3D{Z: s.BottomThickness},
+			P2:     model3d.Z(s.BottomThickness),
 			Radius: s.DrivenSupportRadius,
 		},
 		&profileSolid{

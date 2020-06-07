@@ -95,7 +95,7 @@ func CreateBody() model3d.Solid {
 		// Add a middle circle to hold things together.
 		Positive: append(circles, &model3d.Cylinder{
 			P1:     model3d.Coord3D{Z: -Thickness},
-			P2:     model3d.Coord3D{Z: Thickness},
+			P2:     model3d.Z(Thickness),
 			Radius: CircleRadius,
 		}),
 		// Hole for axle.

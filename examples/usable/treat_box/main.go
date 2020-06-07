@@ -86,11 +86,11 @@ func CreateHandle() {
 	handle := model3d.JoinedSolid{
 		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
-			P2:     model3d.Coord3D{Z: HandleHeight},
+			P2:     model3d.Z(HandleHeight),
 			Radius: HandleRadius,
 		},
 		&toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: HandleHeight},
+			P1:         model3d.Z(HandleHeight),
 			P2:         model3d.Coord3D{Z: HandleHeight + Thickness*2},
 			Radius:     ScrewRadius - ScrewSlack,
 			GrooveSize: ScrewGroove,

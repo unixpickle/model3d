@@ -11,12 +11,12 @@ func main() {
 	screw := model3d.JoinedSolid{
 		&model3d.Cylinder{
 			P1:     model3d.Coord3D{},
-			P2:     model3d.Coord3D{Z: 0.2},
+			P2:     model3d.Z(0.2),
 			Radius: 0.2,
 		},
 		&toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: 0.2},
-			P2:         model3d.Coord3D{Z: 1.0},
+			P1:         model3d.Z(0.2),
+			P2:         model3d.Z(1.0),
 			Radius:     0.14,
 			GrooveSize: 0.05,
 		},
@@ -27,12 +27,12 @@ func main() {
 	hole := &model3d.SubtractedSolid{
 		Positive: &model3d.Cylinder{
 			P1:     model3d.Coord3D{},
-			P2:     model3d.Coord3D{Z: 1.0},
+			P2:     model3d.Z(1.0),
 			Radius: 0.4,
 		},
 		Negative: &toolbox3d.ScrewSolid{
-			P1:         model3d.Coord3D{Z: 0.0},
-			P2:         model3d.Coord3D{Z: 1.0},
+			P1:         model3d.Z(0.0),
+			P2:         model3d.Z(1.0),
 			Radius:     0.16,
 			GrooveSize: 0.05,
 		},

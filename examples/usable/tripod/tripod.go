@@ -16,7 +16,7 @@ func CreateTripod() model3d.Solid {
 
 			model3d.StackSolids(
 				&model3d.Cylinder{
-					P1:     model3d.Coord3D{Z: TripodHeadZ},
+					P1:     model3d.Z(TripodHeadZ),
 					P2:     model3d.Coord3D{Z: TripodHeadZ + TripodHeadHeight},
 					Radius: TripodHeadRadius,
 				},
@@ -42,19 +42,19 @@ func createLeg(theta float64) model3d.Solid {
 	return &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
 			&model3d.Cylinder{
-				P1:     model3d.Coord3D{Z: TripodHeight},
+				P1:     model3d.Z(TripodHeight),
 				P2:     legEnd,
 				Radius: TripodLegRadius,
 			},
 			&model3d.Cylinder{
 				P1:     footEnd,
-				P2:     footEnd.Add(model3d.Coord3D{Z: TripodFootHeight}),
+				P2:     footEnd.Add(model3d.Z(TripodFootHeight)),
 				Radius: TripodFootRadius,
 			},
 		},
 		Negative: &toolbox3d.ScrewSolid{
 			P1:         footEnd.Add(model3d.Coord3D{Z: -1e-5}),
-			P2:         footEnd.Add(model3d.Coord3D{Z: 1000}),
+			P2:         footEnd.Add(model3d.Z(1000)),
 			Radius:     ScrewRadius + ScrewSlack,
 			GrooveSize: ScrewGroove,
 		},

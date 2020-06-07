@@ -133,7 +133,7 @@ func PieceSolid(bottomSize float64) model3d.Solid {
 	center := PieceSize / 2
 	return model3d.JoinedSolid{
 		&model3d.Rect{
-			MinVal: model3d.Coord3D{Z: BottomThickness},
+			MinVal: model3d.Z(BottomThickness),
 			MaxVal: model3d.Coord3D{
 				X: PieceSize,
 				Y: PieceSize,

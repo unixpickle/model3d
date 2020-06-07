@@ -84,7 +84,7 @@ func (l LockSolid) Contains(c model3d.Coord3D) bool {
 func CreateBagel() *model3d.Mesh {
 	torus := &model3d.TorusSolid{
 		Center:      model3d.Coord3D{Y: -0.85},
-		Axis:        model3d.Coord3D{X: 1},
+		Axis:        model3d.X(1),
 		InnerRadius: BagelInnerRadius,
 		OuterRadius: 0.5,
 	}
