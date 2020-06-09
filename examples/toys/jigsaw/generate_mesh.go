@@ -49,60 +49,60 @@ func CutSolid() model2d.Solid {
 	beziers := []model2d.BezierCurve{
 		// Vertical lines.
 		{
-			{X: 0.2 * BoardWidth, Y: 0},
+			{X: 0.2 * BoardWidth, Y: -0.05 * BoardWidth},
 			{X: 0.03 * BoardWidth, Y: 0.3 * BoardWidth},
 			{X: 0.3 * BoardWidth, Y: 0.6 * BoardWidth},
-			{X: 0.2 * BoardWidth, Y: BoardWidth},
+			{X: 0.2 * BoardWidth, Y: 1.05 * BoardWidth},
 		},
 		{
-			{X: 0.4 * BoardWidth, Y: 0},
+			{X: 0.4 * BoardWidth, Y: -0.05 * BoardWidth},
 			{X: 0.3 * BoardWidth, Y: 0.2 * BoardWidth},
 			{X: 0.6 * BoardWidth, Y: 0.4 * BoardWidth},
 			{X: 0.38 * BoardWidth, Y: 0.9 * BoardWidth},
-			{X: 0.4 * BoardWidth, Y: BoardWidth},
+			{X: 0.4 * BoardWidth, Y: 1.05 * BoardWidth},
 		},
 		{
-			{X: 0.5 * BoardWidth, Y: 0},
+			{X: 0.5 * BoardWidth, Y: -0.05 * BoardWidth},
 			{X: 0.7 * BoardWidth, Y: 0.4 * BoardWidth},
 			{X: 0.6 * BoardWidth, Y: 0.5 * BoardWidth},
 			{X: 0.6 * BoardWidth, Y: 0.8 * BoardWidth},
-			{X: 0.69 * BoardWidth, Y: BoardWidth},
+			{X: 0.69 * BoardWidth, Y: 1.05 * BoardWidth},
 		},
 		{
-			{X: 0.9 * BoardWidth, Y: 0},
+			{X: 0.9 * BoardWidth, Y: -0.05 * BoardWidth},
 			{X: 0.8 * BoardWidth, Y: 0.4 * BoardWidth},
 			{X: 0.7 * BoardWidth, Y: 0.5 * BoardWidth},
 			{X: 0.75 * BoardWidth, Y: 0.8 * BoardWidth},
-			{X: 0.8 * BoardWidth, Y: BoardWidth},
+			{X: 0.8 * BoardWidth, Y: 1.05 * BoardWidth},
 		},
 
 		// Horizontal lines.
 		{
-			{X: 0, Y: 0.2 * BoardWidth},
+			{X: -0.05 * BoardWidth, Y: 0.2 * BoardWidth},
 			{X: 0.3 * BoardWidth, Y: 0.03 * BoardWidth},
 			{X: 0.6 * BoardWidth, Y: 0.3 * BoardWidth},
-			{X: BoardWidth, Y: 0.2 * BoardWidth},
+			{X: 1.05 * BoardWidth, Y: 0.2 * BoardWidth},
 		},
 		{
-			{X: 0, Y: 0.4 * BoardWidth},
+			{X: -0.05 * BoardWidth, Y: 0.4 * BoardWidth},
 			{X: 0.2 * BoardWidth, Y: 0.3 * BoardWidth},
 			{X: 0.4 * BoardWidth, Y: 0.6 * BoardWidth},
 			{X: 0.9 * BoardWidth, Y: 0.38 * BoardWidth},
-			{X: BoardWidth, Y: 0.4 * BoardWidth},
+			{X: 1.05 * BoardWidth, Y: 0.4 * BoardWidth},
 		},
 		{
-			{X: 0, Y: 0.5 * BoardWidth},
+			{X: -0.05 * BoardWidth, Y: 0.5 * BoardWidth},
 			{X: 0.4 * BoardWidth, Y: 0.7 * BoardWidth},
 			{X: 0.5 * BoardWidth, Y: 0.6 * BoardWidth},
 			{X: 0.8 * BoardWidth, Y: 0.6 * BoardWidth},
-			{X: BoardWidth, Y: 0.69 * BoardWidth},
+			{X: 1.05 * BoardWidth, Y: 0.69 * BoardWidth},
 		},
 		{
-			{X: 0, Y: 0.9 * BoardWidth},
+			{X: -0.05 * BoardWidth, Y: 0.9 * BoardWidth},
 			{X: 0.4 * BoardWidth, Y: 0.8 * BoardWidth},
 			{X: 0.5 * BoardWidth, Y: 0.7 * BoardWidth},
 			{X: 0.8 * BoardWidth, Y: 0.75 * BoardWidth},
-			{X: BoardWidth, Y: 0.8 * BoardWidth},
+			{X: 1.05 * BoardWidth, Y: 0.8 * BoardWidth},
 		},
 	}
 	mesh2d := model2d.NewMesh()
