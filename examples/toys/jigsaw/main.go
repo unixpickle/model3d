@@ -1,110 +1,37 @@
 package main
 
 import (
-	"github.com/unixpickle/model3d/model2d"
-	"github.com/unixpickle/model3d/model3d"
-	"github.com/unixpickle/model3d/render3d"
-)
-
-const (
-	BoardWidth   = 5.0
-	CutThickness = 0.03
-	PieceDepth   = 0.2
+	"fmt"
+	"os"
 )
 
 func main() {
-	pieces := &PiecesSolid{
-		Cuts: CutSolid(),
+	if len(os.Args) < 2 {
+		DieUsage()
 	}
-	piecesMesh := model3d.MarchingCubesSearch(pieces, 0.02, 8)
-	piecesMesh = piecesMesh.EliminateCoplanar(1e-5)
-	piecesMesh.SaveGroupedSTL("pieces.stl")
-	render3d.SaveRandomGrid("rendering_pieces.png", piecesMesh, 3, 3, 300, nil)
-}
-
-type PiecesSolid struct {
-	Cuts model2d.Solid
-}
-
-func (p *PiecesSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{}
-}
-
-func (p *PiecesSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: BoardWidth, Y: BoardWidth, Z: PieceDepth}
-}
-
-func (p *PiecesSolid) Contains(c model3d.Coord3D) bool {
-	return model3d.InBounds(p, c) && !p.Cuts.Contains(c.XY())
-}
-
-func CutSolid() model2d.Solid {
-	beziers := []model2d.BezierCurve{
-		// Vertical lines.
-		{
-			{X: 0.2 * BoardWidth, Y: 0},
-			{X: 0.03 * BoardWidth, Y: 0.3 * BoardWidth},
-			{X: 0.3 * BoardWidth, Y: 0.6 * BoardWidth},
-			{X: 0.2 * BoardWidth, Y: BoardWidth},
-		},
-		{
-			{X: 0.4 * BoardWidth, Y: 0},
-			{X: 0.3 * BoardWidth, Y: 0.2 * BoardWidth},
-			{X: 0.6 * BoardWidth, Y: 0.4 * BoardWidth},
-			{X: 0.38 * BoardWidth, Y: 0.9 * BoardWidth},
-			{X: 0.4 * BoardWidth, Y: BoardWidth},
-		},
-		{
-			{X: 0.5 * BoardWidth, Y: 0},
-			{X: 0.7 * BoardWidth, Y: 0.4 * BoardWidth},
-			{X: 0.6 * BoardWidth, Y: 0.5 * BoardWidth},
-			{X: 0.6 * BoardWidth, Y: 0.8 * BoardWidth},
-			{X: 0.69 * BoardWidth, Y: BoardWidth},
-		},
-		{
-			{X: 0.9 * BoardWidth, Y: 0},
-			{X: 0.8 * BoardWidth, Y: 0.4 * BoardWidth},
-			{X: 0.7 * BoardWidth, Y: 0.5 * BoardWidth},
-			{X: 0.75 * BoardWidth, Y: 0.8 * BoardWidth},
-			{X: 0.8 * BoardWidth, Y: BoardWidth},
-		},
-
-		// Horizontal lines.
-		{
-			{X: 0, Y: 0.2 * BoardWidth},
-			{X: 0.3 * BoardWidth, Y: 0.03 * BoardWidth},
-			{X: 0.6 * BoardWidth, Y: 0.3 * BoardWidth},
-			{X: BoardWidth, Y: 0.2 * BoardWidth},
-		},
-		{
-			{X: 0, Y: 0.4 * BoardWidth},
-			{X: 0.2 * BoardWidth, Y: 0.3 * BoardWidth},
-			{X: 0.4 * BoardWidth, Y: 0.6 * BoardWidth},
-			{X: 0.9 * BoardWidth, Y: 0.38 * BoardWidth},
-			{X: BoardWidth, Y: 0.4 * BoardWidth},
-		},
-		{
-			{X: 0, Y: 0.5 * BoardWidth},
-			{X: 0.4 * BoardWidth, Y: 0.7 * BoardWidth},
-			{X: 0.5 * BoardWidth, Y: 0.6 * BoardWidth},
-			{X: 0.8 * BoardWidth, Y: 0.6 * BoardWidth},
-			{X: BoardWidth, Y: 0.69 * BoardWidth},
-		},
-		{
-			{X: 0, Y: 0.9 * BoardWidth},
-			{X: 0.4 * BoardWidth, Y: 0.8 * BoardWidth},
-			{X: 0.5 * BoardWidth, Y: 0.7 * BoardWidth},
-			{X: 0.8 * BoardWidth, Y: 0.75 * BoardWidth},
-			{X: BoardWidth, Y: 0.8 * BoardWidth},
-		},
-	}
-	mesh2d := model2d.NewMesh()
-	for t := 0.01; t < 1.0; t += 0.01 {
-		for _, b := range beziers {
-			p1 := b.Eval(t - 0.01)
-			p2 := b.Eval(t)
-			mesh2d.Add(&model2d.Segment{p1, p2})
+	switch os.Args[1] {
+	case "mesh":
+		GenerateMesh()
+	case "image":
+		if len(os.Args) != 4 {
+			fmt.Fprintln(os.Stderr, "the 'image' sub-command expects two arguments")
+			fmt.Fprintln(os.Stderr)
+			DieUsage()
 		}
+		GenerateImage(os.Args[2], os.Args[3])
+	default:
+		fmt.Fprintln(os.Stderr, "unknown sub-command:", os.Args[1])
+		fmt.Fprintln(os.Stderr)
+		DieUsage()
 	}
-	return model2d.NewColliderSolidHollow(model2d.MeshToCollider(mesh2d), CutThickness)
+}
+
+func DieUsage() {
+	fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "<command> [args]")
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "sub-commands are:")
+	fmt.Fprintln(os.Stderr, "    mesh                   generate a 3D mesh")
+	fmt.Fprintln(os.Stderr, "    image [in] [out.png]   cut slices out of an image")
+	fmt.Fprintln(os.Stderr)
+	os.Exit(1)
 }
