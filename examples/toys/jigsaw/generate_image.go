@@ -21,7 +21,7 @@ func GenerateImage(inPath, outPath string) {
 	bounds := img.Bounds()
 
 	cut := CutSolid()
-	scale := BoardWidth / float64(bounds.Dx())
+	scale := BoardSize / float64(bounds.Dx())
 
 	outImage := image.NewRGBA(bounds)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
