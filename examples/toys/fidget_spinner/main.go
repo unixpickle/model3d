@@ -5,9 +5,10 @@ import (
 	"log"
 	"math"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
@@ -23,19 +24,62 @@ const (
 )
 
 func main() {
+	squeeze := &toolbox3d.AxisSqueeze{
+		Axis:  toolbox3d.AxisZ,
+		Min:   -(Thickness - 0.01 - EtchInset),
+		Max:   Thickness - 0.01 - EtchInset,
+		Ratio: 0.1,
+	}
+
 	log.Println("Creating axle mesh...")
-	mesh := model3d.MarchingCubesSearch(CreateAxle(), 0.003, 8)
+	mesh := MarchTransform(CreateAxle(), squeeze)
+	mesh = MarchTransform(CreateAxle(), model3d.JoinedTransform{
+		&toolbox3d.AxisSqueeze{
+			Axis:  toolbox3d.AxisZ,
+			Min:   mesh.Max().Z - 0.01,
+			Max:   mesh.Max().Z + 0.01,
+			Ratio: 2.0,
+		},
+		squeeze,
+		&toolbox3d.AxisSqueeze{
+			Axis:  toolbox3d.AxisZ,
+			Min:   mesh.Min().Z - 0.01,
+			Max:   mesh.Min().Z + 0.01,
+			Ratio: 2.0,
+		},
+	})
+
 	log.Println("Creating body mesh...")
-	mesh.AddMesh(model3d.MarchingCubesSearch(CreateBody(), 0.003, 8))
+	mesh.AddMesh(MarchTransform(CreateBody(), model3d.JoinedTransform{
+		&toolbox3d.AxisPinch{
+			Axis:  toolbox3d.AxisZ,
+			Min:   -(Thickness + 0.01),
+			Max:   -(Thickness - 0.01),
+			Power: 0.25,
+		},
+		&toolbox3d.AxisPinch{
+			Axis:  toolbox3d.AxisZ,
+			Min:   Thickness - 0.01,
+			Max:   Thickness + 0.01,
+			Power: 0.25,
+		},
+		squeeze,
+	}))
 	log.Println("Post-processing mesh...")
-	mesh = mesh.SmoothAreas(0.05, 10)
-	mesh = mesh.EliminateCoplanar(1e-8)
+	mesh = mesh.EliminateCoplanar(1e-5)
 
 	log.Println("Saving mesh...")
 	mesh.SaveGroupedSTL("spinner.stl")
 
 	log.Println("Saving rendering of mesh...")
 	render3d.SaveRendering("rendering.png", mesh, model3d.Coord3D{Y: 2, Z: 2}, 400, 400, nil)
+}
+
+func MarchTransform(solid model3d.Solid, t model3d.Transform) *model3d.Mesh {
+	s1 := model3d.TransformSolid(t, solid)
+	m := model3d.MarchingCubesSearch(s1, 0.003, 8)
+	m = m.MapCoords(t.Inverse().Apply)
+	return m
 }
 
 func CreateAxle() model3d.Solid {
@@ -116,7 +160,7 @@ type EtchedImage struct {
 
 func NewEtchedImage(path string, theta float64) *EtchedImage {
 	bmp := model2d.MustReadBitmap(path, nil)
-	mesh := bmp.Mesh().Smooth(10)
+	mesh := bmp.Mesh().Smooth(100)
 	collider := model2d.MeshToCollider(mesh)
 	solid := model2d.NewColliderSolid(collider)
 	return &EtchedImage{
