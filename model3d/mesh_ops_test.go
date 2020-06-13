@@ -170,6 +170,65 @@ func TestMeshFlipDelaunay(t *testing.T) {
 	}
 }
 
+func TestMeshRepairNormals(t *testing.T) {
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1 + math.Sin(g.Lat*4)*0.1 + math.Cos(g.Lon*4)*0.13
+	}, 30)
+
+	mesh1, numRepairs := mesh.RepairNormals(1e-8)
+	if numRepairs > 0 {
+		t.Errorf("expected 0 repairs but got: %d", numRepairs)
+	}
+	if !meshesEqual(mesh, mesh1) {
+		t.Error("meshes are not equal")
+	}
+
+	flipped := NewMesh()
+	expectedFlipped := 0
+	mesh.Iterate(func(t *Triangle) {
+		if rand.Intn(2) == 0 {
+			flipped.Add(t)
+		} else {
+			t1 := *t
+			t1[0], t1[2] = t1[2], t1[0]
+			flipped.Add(&t1)
+			expectedFlipped++
+		}
+	})
+	mesh1, numRepairs = flipped.RepairNormals(1e-8)
+	if numRepairs != expectedFlipped {
+		t.Errorf("expected %d repairs but got %d", expectedFlipped, numRepairs)
+	}
+	if !meshesEqual(mesh, mesh1) {
+		t.Error("meshes are not equal")
+	}
+}
+
+func meshesEqual(m1, m2 *Mesh) bool {
+	seg1 := meshOrderedSegments(m1)
+	seg2 := meshOrderedSegments(m2)
+	if len(seg1) != len(seg2) {
+		return false
+	}
+	for s, c := range seg1 {
+		if seg2[s] != c {
+			return false
+		}
+	}
+	return true
+}
+
+func meshOrderedSegments(m *Mesh) map[[2]Coord3D]int {
+	res := map[[2]Coord3D]int{}
+	m.Iterate(func(t *Triangle) {
+		for i := 0; i < 3; i++ {
+			seg := [2]Coord3D{t[i], t[(i+1)%3]}
+			res[seg]++
+		}
+	})
+	return res
+}
+
 func TestMeshFlattenBase(t *testing.T) {
 	t.Run("Topology", func(t *testing.T) {
 		m := readNonIntersectingHook()
