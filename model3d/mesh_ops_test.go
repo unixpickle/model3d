@@ -108,6 +108,68 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 	}
 }
 
+func TestMeshFlipDelaunay(t *testing.T) {
+	mesh := MarchingCubesSearch(JoinedSolid{
+		&Cylinder{
+			P1:     XY(0.2, 0.3),
+			P2:     XZ(0.3, 0.5),
+			Radius: 0.1,
+		},
+		&Cylinder{
+			P1:     X(0.2),
+			P2:     XZ(0.3, 0.5),
+			Radius: 0.1,
+		},
+		&Sphere{Center: XZ(0.25, 0.25), Radius: 0.2},
+	}, 0.02, 8)
+	isDelaunay := func(m *Mesh) bool {
+		result := true
+		m.Iterate(func(t *Triangle) {
+			for _, seg := range t.Segments() {
+				tris := m.Find(seg[0], seg[1])
+				if len(tris) != 2 {
+					return
+				}
+				var sum float64
+				for _, t := range tris {
+					other := seg.other(t)
+					v1 := seg[0].Sub(other)
+					v2 := seg[1].Sub(other)
+					sum += math.Acos(v1.Normalize().Dot(v2.Normalize()))
+				}
+				if sum > math.Pi+2e-8 {
+					result = false
+				}
+			}
+		})
+		return result
+	}
+	if isDelaunay(mesh) {
+		t.Fatal("initial mesh should be non-delaunay")
+	}
+	mesh1 := mesh.FlipDelaunay()
+	if !isDelaunay(mesh1) {
+		t.Fatal("flipped mesh is non-delaunay")
+	}
+	if mesh1.NeedsRepair() {
+		t.Fatal("new mesh needs repair")
+	}
+	verts1 := mesh.VertexSlice()
+	verts2 := mesh1.VertexSlice()
+	if len(verts1) != len(verts2) {
+		t.Fatal("vertex count is different")
+	}
+	v1Set := map[Coord3D]bool{}
+	for _, v := range verts1 {
+		v1Set[v] = true
+	}
+	for _, v := range verts2 {
+		if !v1Set[v] {
+			t.Fatal("vertices are different")
+		}
+	}
+}
+
 func TestMeshFlattenBase(t *testing.T) {
 	t.Run("Topology", func(t *testing.T) {
 		m := readNonIntersectingHook()
