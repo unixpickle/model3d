@@ -73,7 +73,6 @@ func testPolytopeMesh(t *testing.T, c ConvexPolytope) {
 	mesh := c.Mesh()
 
 	if mesh.NeedsRepair() {
-		mesh.SaveGroupedSTL("/home/alex/Desktop/badmesh.stl")
 		t.Fatal("mesh needs repair")
 	}
 	if len(mesh.SingularVertices()) > 0 {
