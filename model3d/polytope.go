@@ -149,7 +149,12 @@ func addConvexFace(m *Mesh, vertices []Coord3D, normal Coord3D) {
 		diff := v.Sub(center)
 		x := basis1.Dot(diff)
 		y := basis2.Dot(diff)
-		angles[i] = math.Atan2(y, x)
+		a := math.Atan2(y, x)
+		if a < 0 {
+			// Prevent discontinuity at half of the circle.
+			a += math.Pi * 2
+		}
+		angles[i] = a
 	}
 
 	essentials.VoodooSort(angles, func(i, j int) bool {
