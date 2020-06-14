@@ -33,6 +33,15 @@ func NewCoordRandUnit() Coord {
 	}
 }
 
+// NewCoordRandUniform creates a random Coord with
+// uniformly random coordinates in [0, 1).
+func NewCoordRandUniform() Coord {
+	return Coord{
+		X: rand.Float64(),
+		Y: rand.Float64(),
+	}
+}
+
 // NewCoordArray creates a Coord from an array of x and y.
 func NewCoordArray(a [2]float64) Coord {
 	return Coord{a[0], a[1]}

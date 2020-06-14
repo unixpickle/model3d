@@ -51,10 +51,16 @@ func NewCoord2DRandNorm() Coord2D {
 	return model2d.NewCoordRandNorm()
 }
 
-// NewCoord2DRandUnit creates a random Coord with
+// NewCoord2DRandUnit creates a random Coord2D with
 // magnitude 1.
 func NewCoord2DRandUnit() Coord2D {
 	return model2d.NewCoordRandUnit()
+}
+
+// NewCoord2DRandUniform creates a random Coord2D with
+// uniformly random coordinates in [0, 1).
+func NewCoord2DRandUniform() Coord2D {
+	return model2d.NewCoordRandUniform()
 }
 
 // A Coord3D is a coordinate in 3-D Euclidean space.
@@ -90,6 +96,16 @@ func NewCoord3DRandUnit() Coord3D {
 		if norm > 1e-8 {
 			return res.Scale(1 / norm)
 		}
+	}
+}
+
+// NewCoord3DRandUniform creates a random Coord3D with
+// uniformly random coordinates in [0, 1).
+func NewCoord3DRandUniform() Coord3D {
+	return Coord3D{
+		X: rand.Float64(),
+		Y: rand.Float64(),
+		Z: rand.Float64(),
 	}
 }
 
