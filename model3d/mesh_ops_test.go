@@ -51,6 +51,40 @@ func TestMeshRepair(t *testing.T) {
 	})
 }
 
+func TestMeshRepairNormals(t *testing.T) {
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1 + math.Sin(g.Lat*4)*0.1 + math.Cos(g.Lon*4)*0.13
+	}, 30)
+
+	mesh1, numRepairs := mesh.RepairNormals(1e-8)
+	if numRepairs > 0 {
+		t.Errorf("expected 0 repairs but got: %d", numRepairs)
+	}
+	if !meshesEqual(mesh, mesh1) {
+		t.Error("meshes are not equal")
+	}
+
+	flipped := NewMesh()
+	expectedFlipped := 0
+	mesh.Iterate(func(t *Triangle) {
+		if rand.Intn(2) == 0 {
+			flipped.Add(t)
+		} else {
+			t1 := *t
+			t1[0], t1[2] = t1[2], t1[0]
+			flipped.Add(&t1)
+			expectedFlipped++
+		}
+	})
+	mesh1, numRepairs = flipped.RepairNormals(1e-8)
+	if numRepairs != expectedFlipped {
+		t.Errorf("expected %d repairs but got %d", expectedFlipped, numRepairs)
+	}
+	if !meshesEqual(mesh, mesh1) {
+		t.Error("meshes are not equal")
+	}
+}
+
 func TestMeshEliminateMinimal(t *testing.T) {
 	m := NewMesh()
 	m.Add(&Triangle{
@@ -80,8 +114,8 @@ func TestMeshEliminateMinimal(t *testing.T) {
 	elim := m.EliminateEdges(func(m *Mesh, s Segment) bool {
 		return true
 	})
-	if len(elim.triangles) != len(m.triangles) {
-		t.Error("invalid reduction")
+	if !meshesEqual(elim, m) {
+		t.Error("invalid reduction: meshes not equal")
 	}
 }
 
@@ -95,6 +129,9 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 	m2 := m1.EliminateCoplanar(1e-8)
 	if len(m2.triangles) >= len(m1.triangles) {
 		t.Fatal("reduction failed")
+	}
+	if _, n := m2.RepairNormals(1e-8); n != 0 {
+		t.Error("reduction has bad normals")
 	}
 
 	// Make sure the meshes have the same geometries.
@@ -154,6 +191,9 @@ func TestMeshFlipDelaunay(t *testing.T) {
 	if mesh1.NeedsRepair() {
 		t.Fatal("new mesh needs repair")
 	}
+	if _, n := mesh1.RepairNormals(1e-8); n != 0 {
+		t.Error("mesh has bad normals")
+	}
 	verts1 := mesh.VertexSlice()
 	verts2 := mesh1.VertexSlice()
 	if len(verts1) != len(verts2) {
@@ -167,40 +207,6 @@ func TestMeshFlipDelaunay(t *testing.T) {
 		if !v1Set[v] {
 			t.Fatal("vertices are different")
 		}
-	}
-}
-
-func TestMeshRepairNormals(t *testing.T) {
-	mesh := NewMeshPolar(func(g GeoCoord) float64 {
-		return 1 + math.Sin(g.Lat*4)*0.1 + math.Cos(g.Lon*4)*0.13
-	}, 30)
-
-	mesh1, numRepairs := mesh.RepairNormals(1e-8)
-	if numRepairs > 0 {
-		t.Errorf("expected 0 repairs but got: %d", numRepairs)
-	}
-	if !meshesEqual(mesh, mesh1) {
-		t.Error("meshes are not equal")
-	}
-
-	flipped := NewMesh()
-	expectedFlipped := 0
-	mesh.Iterate(func(t *Triangle) {
-		if rand.Intn(2) == 0 {
-			flipped.Add(t)
-		} else {
-			t1 := *t
-			t1[0], t1[2] = t1[2], t1[0]
-			flipped.Add(&t1)
-			expectedFlipped++
-		}
-	})
-	mesh1, numRepairs = flipped.RepairNormals(1e-8)
-	if numRepairs != expectedFlipped {
-		t.Errorf("expected %d repairs but got %d", expectedFlipped, numRepairs)
-	}
-	if !meshesEqual(mesh, mesh1) {
-		t.Error("meshes are not equal")
 	}
 }
 
