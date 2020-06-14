@@ -276,6 +276,23 @@ func (c Coord3D) Normalize() Coord3D {
 // OrthoBasis creates two unit vectors which are
 // orthogonal to c and to each other.
 func (c Coord3D) OrthoBasis() (Coord3D, Coord3D) {
+	var maxAbs float64
+	for _, x := range c.Array() {
+		if x < 0 {
+			x = -x
+		}
+		if x > maxAbs {
+			maxAbs = x
+		}
+	}
+	if maxAbs == 0 {
+		return X(1), Y(1)
+	}
+
+	// Normalize the coordinate to prevent overflow and
+	// underflow.
+	c = c.Scale(1 / maxAbs)
+
 	// Create the first basis vector by swapping two
 	// coordinates and negating one of them.
 	// For numerical stability, we involve the component

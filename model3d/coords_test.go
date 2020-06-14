@@ -7,8 +7,7 @@ import (
 )
 
 func TestCoord3DOrthoBasis(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		c := Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()}
+	testBasis := func(c Coord3D) {
 		b1, b2 := c.OrthoBasis()
 		if math.Abs(b1.Norm()-1) > 1e-8 || math.Abs(b2.Norm()-1) > 1e-8 {
 			t.Error("not unit vectors")
@@ -18,6 +17,10 @@ func TestCoord3DOrthoBasis(t *testing.T) {
 			t.Error("not orthogonal to each other")
 		}
 	}
+	for i := 0; i < 100; i++ {
+		testBasis(NewCoord3DRandNorm())
+	}
+	testBasis(X(1e90))
 }
 
 func BenchmarkCoord3DOrthoBasis(b *testing.B) {
