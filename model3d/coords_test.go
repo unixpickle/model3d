@@ -21,6 +21,8 @@ func TestCoord3DOrthoBasis(t *testing.T) {
 		testBasis(NewCoord3DRandNorm())
 	}
 	testBasis(X(1e90))
+	testBasis(Y(1e90))
+	testBasis(Z(1e90))
 }
 
 func BenchmarkCoord3DOrthoBasis(b *testing.B) {
