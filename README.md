@@ -1,4 +1,4 @@
-# model3d [![GoDoc](https://godoc.org/github.com/unixpickle/model3d?status.svg)](https://godoc.org/github.com/unixpickle/model3d)
+# model3d [![GoDoc](https://godoc.org/github.com/unixpickle/model3d/model3d?status.svg)](https://godoc.org/github.com/unixpickle/model3d/model3d) ![Go](https://github.com/unixpickle/model3d/workflows/Go/badge.svg)
 
 This is a collection of tools for programmatically creating, manipulating, and rendering 3D models.
 
