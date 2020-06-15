@@ -150,10 +150,6 @@ func addConvexFace(m *Mesh, vertices []Coord3D, normal Coord3D) {
 		x := basis1.Dot(diff)
 		y := basis2.Dot(diff)
 		a := math.Atan2(y, x)
-		if a < 0 {
-			// Prevent discontinuity at half of the circle.
-			a += math.Pi * 2
-		}
 		angles[i] = a
 	}
 
