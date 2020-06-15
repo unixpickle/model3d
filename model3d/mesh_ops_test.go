@@ -146,19 +146,7 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 }
 
 func TestMeshFlipDelaunay(t *testing.T) {
-	mesh := MarchingCubesSearch(JoinedSolid{
-		&Cylinder{
-			P1:     XY(0.2, 0.3),
-			P2:     XZ(0.3, 0.5),
-			Radius: 0.1,
-		},
-		&Cylinder{
-			P1:     X(0.2),
-			P2:     XZ(0.3, 0.5),
-			Radius: 0.1,
-		},
-		&Sphere{Center: XZ(0.25, 0.25), Radius: 0.2},
-	}, 0.02, 8)
+	mesh := testingNonDelaunayMesh()
 	isDelaunay := func(m *Mesh) bool {
 		result := true
 		m.Iterate(func(t *Triangle) {
@@ -334,4 +322,28 @@ func BenchmarkMeshFlattenBase(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		m.FlattenBase(0)
 	}
+}
+
+func BenchmarkMeshFlipDelaunay(b *testing.B) {
+	mesh := testingNonDelaunayMesh()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mesh.FlipDelaunay()
+	}
+}
+
+func testingNonDelaunayMesh() *Mesh {
+	return MarchingCubesSearch(JoinedSolid{
+		&Cylinder{
+			P1:     XY(0.2, 0.3),
+			P2:     XZ(0.3, 0.5),
+			Radius: 0.1,
+		},
+		&Cylinder{
+			P1:     X(0.2),
+			P2:     XZ(0.3, 0.5),
+			Radius: 0.1,
+		},
+		&Sphere{Center: XZ(0.25, 0.25), Radius: 0.2},
+	}, 0.02, 8)
 }
