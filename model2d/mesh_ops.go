@@ -91,3 +91,34 @@ func (m *Mesh) Manifold() bool {
 	}
 	return true
 }
+
+// RepairNormals flips normals when they point within the
+// shape defined by the mesh, as determined by the
+// even-odd rule.
+//
+// The repaired mesh is returned, along with the number of
+// modified segments.
+//
+// The check is performed by adding the normal, scaled by
+// epsilon, to the center of the segment, and then
+// counting the number of ray collisions from this point
+// in the direction of the normal.
+func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
+	collider := MeshToCollider(m)
+	solid := NewColliderSolid(collider)
+	numFlipped := 0
+	newMesh := NewMesh()
+
+	m.Iterate(func(s *Segment) {
+		s1 := *s
+		normal := s.Normal()
+		center := s.Mid()
+		movedOut := center.Add(normal.Scale(epsilon))
+		if solid.Contains(movedOut) {
+			numFlipped++
+			s1[0], s1[1] = s1[1], s1[0]
+		}
+		newMesh.Add(&s1)
+	})
+	return newMesh, numFlipped
+}
