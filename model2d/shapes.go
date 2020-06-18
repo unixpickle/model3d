@@ -76,3 +76,21 @@ func (c *Circle) Max() Coord {
 func (c *Circle) Contains(coord Coord) bool {
 	return InBounds(c, coord) && coord.Dist(c.Center) <= c.Radius
 }
+
+// A Rect is a 2D axis-aligned rectangle.
+type Rect struct {
+	MinVal Coord
+	MaxVal Coord
+}
+
+func (r *Rect) Min() Coord {
+	return r.MinVal
+}
+
+func (r *Rect) Max() Coord {
+	return r.MaxVal
+}
+
+func (r *Rect) Contains(c Coord) bool {
+	return InBounds(r, c)
+}
