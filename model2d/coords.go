@@ -47,6 +47,16 @@ func NewCoordArray(a [2]float64) Coord {
 	return Coord{a[0], a[1]}
 }
 
+// X gets a coordinate in the X direction.
+func X(x float64) Coord {
+	return Coord{X: x}
+}
+
+// Y gets a coordinate in the Y direction.
+func Y(y float64) Coord {
+	return Coord{Y: y}
+}
+
 // Mid computes the midpoint between c and c1.
 func (c Coord) Mid(c1 Coord) Coord {
 	return c.Add(c1).Scale(0.5)
