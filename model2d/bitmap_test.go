@@ -23,6 +23,9 @@ func TestBitmapMesh(t *testing.T) {
 	})
 
 	t.Run("Normals", func(t *testing.T) {
+		if _, n := mesh.RepairNormals(1e-5); n != 0 {
+			t.Error("normals need repair")
+		}
 		for y := 0; y < bmp.Height; y++ {
 			for x := 0; x < bmp.Width; x++ {
 				ray := &Ray{

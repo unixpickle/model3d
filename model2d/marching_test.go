@@ -25,14 +25,9 @@ func TestMarchingSquares(t *testing.T) {
 			}
 		}
 
-		mesh.Iterate(func(s *Segment) {
-			delta := s.Normal().Scale(0.001)
-			inside := s.Mid().Sub(delta)
-			outside := s.Mid().Add(delta)
-			if !meshSolid.Contains(inside) || meshSolid.Contains(outside) {
-				t.Error("invalid normal:", s.Normal())
-			}
-		})
+		if _, n := mesh.RepairNormals(0.001); n != 0 {
+			t.Error("invalid normals")
+		}
 	}
 
 	t.Run("Plain", func(t *testing.T) {
