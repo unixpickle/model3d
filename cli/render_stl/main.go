@@ -1,3 +1,5 @@
+// Command render_stl renders a 3D model in an STL file to
+// a PNG file from several randomized angles.
 package main
 
 import (
