@@ -3,6 +3,8 @@ package model3d
 import (
 	"math"
 	"sort"
+
+	"github.com/unixpickle/model3d/model2d"
 )
 
 // A Solid is a boolean function in 3D where a value of
@@ -318,4 +320,33 @@ func (s *smoothJoin) Contains(c Coord3D) bool {
 	d1 := s.radius - distances[0]
 	d2 := s.radius - distances[1]
 	return d1*d1+d2*d2 > s.radius*s.radius
+}
+
+type profileSolid struct {
+	Solid2D model2d.Solid
+	MinVal  Coord3D
+	MaxVal  Coord3D
+}
+
+// ProfileSolid turns a 2D solid into a 3D solid by
+// elongating the 2D solid along the Z axis.
+func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {
+	min, max := solid2d.Min(), solid2d.Max()
+	return &profileSolid{
+		Solid2D: solid2d,
+		MinVal:  Coord3D{X: min.X, Y: min.Y, Z: minZ},
+		MaxVal:  Coord3D{X: max.X, Y: max.Y, Z: maxZ},
+	}
+}
+
+func (p *profileSolid) Min() Coord3D {
+	return p.MinVal
+}
+
+func (p *profileSolid) Max() Coord3D {
+	return p.MaxVal
+}
+
+func (p *profileSolid) Contains(c Coord3D) bool {
+	return InBounds(p, c) && p.Solid2D.Contains(c.XY())
 }
