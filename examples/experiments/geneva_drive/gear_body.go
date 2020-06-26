@@ -16,10 +16,7 @@ func DriveBody(s *Spec, profile model2d.Solid) model3d.Solid {
 			// driven gear rests on it.
 			Radius: s.DriveRadius() + s.PinRadius*2,
 		},
-		&profileSolid{
-			Solid:     profile,
-			Thickness: s.Thickness,
-		},
+		model3d.ProfileSolid(profile, 0, s.Thickness),
 	)
 	return &model3d.SubtractedSolid{
 		Positive: stack,
@@ -40,10 +37,7 @@ func DrivenBody(s *Spec, profile model2d.Solid) model3d.Solid {
 			P2:     model3d.Z(s.BottomThickness),
 			Radius: s.DrivenSupportRadius,
 		},
-		&profileSolid{
-			Solid:     profile,
-			Thickness: s.Thickness,
-		},
+		model3d.ProfileSolid(profile, 0, s.Thickness),
 	)
 	return &model3d.SubtractedSolid{
 		Positive: stack,
@@ -54,23 +48,4 @@ func DrivenBody(s *Spec, profile model2d.Solid) model3d.Solid {
 			GrooveSize: s.ScrewGroove,
 		},
 	}
-}
-
-type profileSolid struct {
-	Solid     model2d.Solid
-	Thickness float64
-}
-
-func (p *profileSolid) Min() model3d.Coord3D {
-	m2 := p.Solid.Min()
-	return model3d.Coord3D{X: m2.X, Y: m2.Y, Z: 0}
-}
-
-func (p *profileSolid) Max() model3d.Coord3D {
-	m2 := p.Solid.Max()
-	return model3d.Coord3D{X: m2.X, Y: m2.Y, Z: p.Thickness}
-}
-
-func (p *profileSolid) Contains(c model3d.Coord3D) bool {
-	return model3d.InBounds(p, c) && p.Solid.Contains(c.Coord2D())
 }

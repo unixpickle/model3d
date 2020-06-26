@@ -91,29 +91,7 @@ func DigitSolid(a *Args, d Digit) model3d.Solid {
 	mesh2d := model2d.MarchingSquaresSearch(segments2d, 0.005, 8)
 	collider2d := model2d.MeshToCollider(mesh2d)
 	solid2d := model2d.NewColliderSolidInset(collider2d, a.SegmentInset)
-	return &segmentProfile3D{
-		Args:    a,
-		Profile: solid2d,
-	}
-}
-
-type segmentProfile3D struct {
-	Args    *Args
-	Profile model2d.Solid
-}
-
-func (s *segmentProfile3D) Min() model3d.Coord3D {
-	m := s.Profile.Min()
-	return model3d.Coord3D{X: m.X, Y: m.Y}
-}
-
-func (s *segmentProfile3D) Max() model3d.Coord3D {
-	m := s.Profile.Max()
-	return model3d.Coord3D{X: m.X, Y: m.Y, Z: s.Args.SegmentDepth}
-}
-
-func (s *segmentProfile3D) Contains(c model3d.Coord3D) bool {
-	return model3d.InBounds(s, c) && s.Profile.Contains(c.Coord2D())
+	return model3d.ProfileSolid(solid2d, 0, a.SegmentDepth)
 }
 
 type pointedSegment struct {
