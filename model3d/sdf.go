@@ -1,6 +1,10 @@
 package model3d
 
-import "math"
+import (
+	"math"
+
+	"github.com/unixpickle/model3d/model2d"
+)
 
 // An SDF is a signed distance function.
 //
@@ -212,5 +216,110 @@ func (m *meshDistFunc) PointDist(c Coord3D, curPoint *Coord3D, curDist *float64)
 			continue
 		}
 		child.PointDist(c, curPoint, curDist)
+	}
+}
+
+type profileSDF struct {
+	SDF2D  model2d.SDF
+	MinVal Coord3D
+	MaxVal Coord3D
+}
+
+// ProfileSDF turns a 2D SDF into a 3D SDF by elongating
+// the 2D SDF along the Z axis.
+func ProfileSDF(sdf2d model2d.SDF, minZ, maxZ float64) SDF {
+	min, max := sdf2d.Min(), sdf2d.Max()
+	return &profileSDF{
+		SDF2D:  sdf2d,
+		MinVal: Coord3D{X: min.X, Y: min.Y, Z: minZ},
+		MaxVal: Coord3D{X: max.X, Y: max.Y, Z: maxZ},
+	}
+}
+
+func (p *profileSDF) Min() Coord3D {
+	return p.MinVal
+}
+
+func (p *profileSDF) Max() Coord3D {
+	return p.MaxVal
+}
+
+func (p *profileSDF) SDF(c Coord3D) float64 {
+	sdf2d := p.SDF2D.SDF(c.XY())
+	zDist := math.Min(math.Abs(c.Z-p.MinVal.Z), math.Abs(c.Z-p.MaxVal.Z))
+	insideZ := c.Z >= p.MinVal.Z && c.Z <= p.MaxVal.Z
+	if !insideZ {
+		if sdf2d > 0 {
+			// We can go directly to the z-plane and hit the profile.
+			return -zDist
+		} else {
+			// We must go to the z-plane, then to the side of the profile.
+			return -math.Sqrt(zDist*zDist + sdf2d*sdf2d)
+		}
+	}
+	if sdf2d > 0 {
+		// We are inside the model, so the closest point is either at
+		// the face or the side.
+		return math.Min(sdf2d, zDist)
+	} else {
+		// We are outside the model, and the closest point is on the
+		// side of the profile.
+		return sdf2d
+	}
+}
+
+type profilePointSDF struct {
+	profileSDF
+	PointSDF2D model2d.PointSDF
+}
+
+// ProfilePointSDF turns a 2D PointSDF into a 3D PointSDF
+// by elongating the 2D SDF along the Z axis.
+func ProfilePointSDF(sdf2d model2d.PointSDF, minZ, maxZ float64) PointSDF {
+	min, max := sdf2d.Min(), sdf2d.Max()
+	return &profilePointSDF{
+		profileSDF: profileSDF{
+			SDF2D:  sdf2d,
+			MinVal: Coord3D{X: min.X, Y: min.Y, Z: minZ},
+			MaxVal: Coord3D{X: max.X, Y: max.Y, Z: maxZ},
+		},
+		PointSDF2D: sdf2d,
+	}
+}
+
+func (p *profilePointSDF) PointSDF(c Coord3D) (Coord3D, float64) {
+	point2d, sdf2d := p.PointSDF2D.PointSDF(c.XY())
+
+	minDist := math.Abs(c.Z - p.MinVal.Z)
+	maxDist := math.Abs(c.Z - p.MaxVal.Z)
+	zDist := math.Min(minDist, maxDist)
+	hitZ := p.MinVal.Z
+	if maxDist < minDist {
+		hitZ = p.MaxVal.Z
+	}
+	insideZ := c.Z >= p.MinVal.Z && c.Z <= p.MaxVal.Z
+
+	if !insideZ {
+		if sdf2d > 0 {
+			// We can go directly to the z-plane and hit the profile.
+			return Coord3D{X: c.X, Y: c.Y, Z: hitZ}, -zDist
+		} else {
+			// We must go to the z-plane, then to the side of the profile.
+			return Coord3D{X: point2d.X, Y: point2d.Y, Z: hitZ},
+				-math.Sqrt(zDist*zDist + sdf2d*sdf2d)
+		}
+	}
+	if sdf2d > 0 {
+		// We are inside the model, so the closest point is either at
+		// the face or the side.
+		if zDist < sdf2d {
+			return Coord3D{X: c.X, Y: c.Y, Z: hitZ}, zDist
+		} else {
+			return Coord3D{X: point2d.X, Y: point2d.Y, Z: c.Z}, sdf2d
+		}
+	} else {
+		// We are outside the model, and the closest point is on the
+		// side of the profile.
+		return Coord3D{X: point2d.X, Y: point2d.Y, Z: c.Z}, sdf2d
 	}
 }
