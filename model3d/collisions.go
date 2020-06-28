@@ -3,6 +3,8 @@ package model3d
 import (
 	"math"
 	"math/rand"
+
+	"github.com/unixpickle/model3d/model2d"
 )
 
 // A Ray is a line originating at a point and extending
@@ -471,4 +473,146 @@ func (s *SolidCollider) SphereCollision(c Coord3D, r float64) bool {
 		}
 	}
 	return false
+}
+
+type profileCollider struct {
+	Collider2D model2d.Collider
+	Solid2D    model2d.Solid
+	MinVal     Coord3D
+	MaxVal     Coord3D
+}
+
+// ProfileCollider turns a 2D Collider into a 3D Collider
+// by elongating the 2D Collider along the Z axis.
+func ProfileCollider(coll2d model2d.Collider, minZ, maxZ float64) Collider {
+	min, max := coll2d.Min(), coll2d.Max()
+	return &profileCollider{
+		Collider2D: coll2d,
+		Solid2D:    model2d.NewColliderSolid(coll2d),
+		MinVal:     Coord3D{X: min.X, Y: min.Y, Z: minZ},
+		MaxVal:     Coord3D{X: max.X, Y: max.Y, Z: maxZ},
+	}
+}
+
+func (p *profileCollider) Min() Coord3D {
+	return p.MinVal
+}
+
+func (p *profileCollider) Max() Coord3D {
+	return p.MaxVal
+}
+
+func (p *profileCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
+	collisions2d := make([]model2d.RayCollision, 0, 2)
+	var inside2d func(t float64) bool
+
+	if r.Direction.X == 0 && r.Direction.Y == 0 {
+		// Special case for ray coming in directly towards the faces.
+		if !p.Solid2D.Contains(r.Origin.XY()) {
+			return 0
+		}
+		inside2d = func(t float64) bool {
+			return true
+		}
+	} else {
+		ray2d := &model2d.Ray{
+			Origin:    r.Origin.XY(),
+			Direction: r.Direction.XY(),
+		}
+		p.Collider2D.RayCollisions(ray2d, func(rc model2d.RayCollision) {
+			collisions2d = append(collisions2d, rc)
+		})
+
+		inside2d = func(t float64) bool {
+			var numColl int
+			for _, rc := range collisions2d {
+				if rc.Scale == t {
+					// No matter what, we will report the 2D
+					// version of this collision.
+					return false
+				}
+				if rc.Scale > t {
+					numColl++
+				}
+			}
+			return numColl%2 == 1
+		}
+	}
+
+	if r.Direction.Z == 0 {
+		// Special cases for flat ray collisions, since these
+		// will never collide with the faces.
+		if r.Origin.Z < p.MinVal.Z || r.Origin.Z > p.MaxVal.Z {
+			return 0
+		}
+		for _, rc := range collisions2d {
+			f(RayCollision{
+				Normal: XY(rc.Normal.X, rc.Normal.Y),
+				Scale:  rc.Scale,
+			})
+		}
+		return len(collisions2d)
+	}
+
+	minT := (p.MinVal.Z - r.Origin.Z) / r.Direction.Z
+	maxT := (p.MaxVal.Z - r.Origin.Z) / r.Direction.Z
+	minTNormal := Z(-1)
+	maxTNormal := Z(1)
+	if maxT < minT {
+		minT, maxT = maxT, minT
+		minTNormal, maxTNormal = maxTNormal, minTNormal
+	}
+
+	var count int
+	if minT >= 0 && inside2d(minT) {
+		f(RayCollision{
+			Normal: minTNormal,
+			Scale:  minT,
+		})
+		count++
+	}
+	for _, rc := range collisions2d {
+		if rc.Scale >= minT && rc.Scale <= maxT {
+			f(RayCollision{
+				Normal: XY(rc.Normal.X, rc.Normal.Y),
+				Scale:  rc.Scale,
+			})
+			count++
+		}
+	}
+	if maxT >= 0 && inside2d(maxT) {
+		f(RayCollision{
+			Normal: maxTNormal,
+			Scale:  maxT,
+		})
+		count++
+	}
+
+	return count
+}
+
+func (p *profileCollider) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	var firstRC RayCollision
+	var collides bool
+	p.RayCollisions(r, func(rc RayCollision) {
+		if !collides || rc.Scale < firstRC.Scale {
+			collides = true
+			firstRC = rc
+		}
+	})
+	return firstRC, collides
+}
+
+func (p *profileCollider) SphereCollision(c Coord3D, r float64) bool {
+	faceDistance := 0.0
+	if c.Z < p.MinVal.Z {
+		faceDistance = p.MinVal.Z - c.Z
+	} else if c.Z > p.MaxVal.Z {
+		faceDistance = c.Z - p.MaxVal.Z
+	}
+	if faceDistance >= r {
+		return false
+	}
+	largestR := math.Sqrt(r*r - faceDistance*faceDistance)
+	return p.Collider2D.CircleCollision(c.XY(), largestR)
 }
