@@ -613,6 +613,15 @@ func (p *profileCollider) SphereCollision(c Coord3D, r float64) bool {
 	if faceDistance >= r {
 		return false
 	}
+
 	largestR := math.Sqrt(r*r - faceDistance*faceDistance)
-	return p.Collider2D.CircleCollision(c.XY(), largestR)
+	if p.Collider2D.CircleCollision(c.XY(), largestR) {
+		return true
+	}
+
+	// The sphere may collide with the face of the solid
+	// even if it doesn't collide with an edge of the 2D
+	// shape.
+	absFaceDist := math.Min(math.Abs(c.Z-p.MinVal.Z), math.Abs(c.Z-p.MaxVal.Z))
+	return absFaceDist < r && p.Solid2D.Contains(c.XY())
 }

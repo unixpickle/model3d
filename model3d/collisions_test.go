@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/unixpickle/model3d/model2d"
 )
 
 func TestEmptyColliders(t *testing.T) {
@@ -185,6 +187,47 @@ func TestSolidCollider(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestProfileCollider(t *testing.T) {
+	profileSolid := model2d.JoinedSolid{
+		&model2d.Circle{
+			Center: model2d.Coord{X: 1, Y: 1},
+			Radius: 1.3,
+		},
+		&model2d.Circle{
+			Center: model2d.Coord{X: -0.2, Y: 0.2},
+			Radius: 0.4,
+		},
+	}
+	profileMesh := model2d.MarchingSquaresSearch(profileSolid, 0.01, 8)
+
+	combined := newCombinedSolidColliderSDFProfile(profileMesh, -0.1, 0.2)
+	testSolidColliderSDF(t, combined)
+}
+
+type combinedSolidColliderSDF struct {
+	Collider
+	Solid       Solid
+	InternalSDF SDF
+}
+
+func newCombinedSolidColliderSDFProfile(profile *model2d.Mesh, minZ,
+	maxZ float64) *combinedSolidColliderSDF {
+	coll2d := model2d.MeshToCollider(profile)
+	return &combinedSolidColliderSDF{
+		Collider:    ProfileCollider(coll2d, minZ, maxZ),
+		Solid:       ProfileSolid(model2d.NewColliderSolid(coll2d), minZ, maxZ),
+		InternalSDF: ProfileSDF(model2d.MeshToSDF(profile), minZ, maxZ),
+	}
+}
+
+func (c *combinedSolidColliderSDF) Contains(coord Coord3D) bool {
+	return c.Solid.Contains(coord)
+}
+
+func (c *combinedSolidColliderSDF) SDF(coord Coord3D) float64 {
+	return c.InternalSDF.SDF(coord)
 }
 
 func BenchmarkMeshToCollider(b *testing.B) {
