@@ -201,9 +201,28 @@ func TestProfileCollider(t *testing.T) {
 		},
 	}
 	profileMesh := model2d.MarchingSquaresSearch(profileSolid, 0.01, 8)
-
 	combined := newCombinedSolidColliderSDFProfile(profileMesh, -0.1, 0.2)
-	testSolidColliderSDF(t, combined)
+
+	t.Run("Generic", func(t *testing.T) {
+		testSolidColliderSDF(t, combined)
+	})
+
+	t.Run("Singularities", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			ray := &Ray{Origin: NewCoord3DRandNorm()}
+			if i%2 == 0 {
+				for math.Abs(ray.Direction.Z) < 1e-2 {
+					ray.Direction = Z(rand.NormFloat64())
+				}
+			} else {
+				for ray.Direction.Norm() < 1e-2 {
+					ray.Direction = NewCoord3DRandNorm()
+					ray.Direction.Z = 0
+				}
+			}
+			testSolidColliderSDFRay(t, combined, ray)
+		}
+	})
 }
 
 type combinedSolidColliderSDF struct {

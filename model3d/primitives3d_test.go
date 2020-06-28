@@ -182,54 +182,12 @@ func TestCylinderColliderSDF(t *testing.T) {
 }
 
 func testSolidColliderSDF(t *testing.T, sc solidColliderSDF) {
-	ground := &SolidCollider{
-		Solid:               sc,
-		Epsilon:             0.005,
-		BisectCount:         64,
-		NormalSamples:       16,
-		NormalBisectEpsilon: 1e-5,
-	}
-
 	for i := 0; i < 1000; i++ {
 		ray := &Ray{
 			Origin:    NewCoord3DRandNorm(),
 			Direction: NewCoord3DRandNorm(),
 		}
-
-		var actualCollisions []RayCollision
-		sc.RayCollisions(ray, func(rc RayCollision) {
-			actualCollisions = append(actualCollisions, rc)
-			p := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
-			if math.Abs(sc.SDF(p)) > 1e-8 {
-				t.Error("ray collision not on boundary")
-			}
-		})
-
-		sort.Slice(actualCollisions, func(i, j int) bool {
-			return actualCollisions[i].Scale < actualCollisions[j].Scale
-		})
-		first, ok := sc.FirstRayCollision(ray)
-		if ok != (len(actualCollisions) > 0) {
-			t.Error("ray collision count mismatches FirstRayCollision")
-		}
-		if ok {
-			expFirst := actualCollisions[0]
-			if math.Abs(first.Scale-expFirst.Scale) > 1e-8 ||
-				first.Normal.Dot(expFirst.Normal) < 1-1e-8 {
-				t.Errorf("unexpected first collision: expected %v but got %v", expFirst, first)
-			}
-		}
-
-		// Make sure the collider isn't under-reporting
-		// collisions.
-		ground.RayCollisions(ray, func(rc RayCollision) {
-			for _, ac := range actualCollisions {
-				if math.Abs(ac.Scale-rc.Scale) < 1e-8 {
-					return
-				}
-			}
-			t.Error("unreported ray collision detected", rc, actualCollisions)
-		})
+		testSolidColliderSDFRay(t, sc, ray)
 	}
 
 	for i := 0; i < 10000; i++ {
@@ -244,4 +202,49 @@ func testSolidColliderSDF(t *testing.T, sc solidColliderSDF) {
 			t.Errorf("collides(%f)=%v but sdf=%f", r, collides, sdf)
 		}
 	}
+}
+
+func testSolidColliderSDFRay(t *testing.T, sc solidColliderSDF, ray *Ray) {
+	ground := &SolidCollider{
+		Solid:               sc,
+		Epsilon:             0.005,
+		BisectCount:         64,
+		NormalSamples:       16,
+		NormalBisectEpsilon: 1e-5,
+	}
+
+	var actualCollisions []RayCollision
+	sc.RayCollisions(ray, func(rc RayCollision) {
+		actualCollisions = append(actualCollisions, rc)
+		p := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
+		if math.Abs(sc.SDF(p)) > 1e-8 {
+			t.Error("ray collision not on boundary")
+		}
+	})
+
+	sort.Slice(actualCollisions, func(i, j int) bool {
+		return actualCollisions[i].Scale < actualCollisions[j].Scale
+	})
+	first, ok := sc.FirstRayCollision(ray)
+	if ok != (len(actualCollisions) > 0) {
+		t.Error("ray collision count mismatches FirstRayCollision")
+	}
+	if ok {
+		expFirst := actualCollisions[0]
+		if math.Abs(first.Scale-expFirst.Scale) > 1e-8 ||
+			first.Normal.Dot(expFirst.Normal) < 1-1e-8 {
+			t.Errorf("unexpected first collision: expected %v but got %v", expFirst, first)
+		}
+	}
+
+	// Make sure the collider isn't under-reporting
+	// collisions.
+	ground.RayCollisions(ray, func(rc RayCollision) {
+		for _, ac := range actualCollisions {
+			if math.Abs(ac.Scale-rc.Scale) < 1e-8 {
+				return
+			}
+		}
+		t.Error("unreported ray collision detected", rc, actualCollisions)
+	})
 }
