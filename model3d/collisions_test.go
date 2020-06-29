@@ -223,6 +223,59 @@ func TestProfileCollider(t *testing.T) {
 			testSolidColliderSDFRay(t, combined, ray)
 		}
 	})
+
+	t.Run("Normals", func(t *testing.T) {
+		rays := []*Ray{
+			&Ray{
+				Origin:    XY(2.5, 2.5),
+				Direction: XY(-1, -1),
+			},
+			&Ray{
+				Origin:    XY(2.5, 2.5),
+				Direction: Coord3D{X: -1, Y: -1, Z: 0.001},
+			},
+			&Ray{
+				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: 1.5},
+				Direction: Z(-1),
+			},
+			&Ray{
+				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: 1.5},
+				Direction: Coord3D{X: 0.1, Y: 0.1, Z: -1},
+			},
+			&Ray{
+				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: -1.5},
+				Direction: Coord3D{X: 0.1, Y: 0.1, Z: 1},
+			},
+			&Ray{
+				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: 0.1},
+				Direction: Coord3D{X: 0.1, Y: 0.1, Z: 1},
+			},
+			&Ray{
+				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: 0.1},
+				Direction: Coord3D{X: 0.1, Y: 0.1, Z: -1},
+			},
+		}
+		normals := []Coord3D{
+			XY(1, 1).Normalize(),
+			XY(1, 1).Normalize(),
+			Z(1),
+			Z(1),
+			Z(-1),
+			Z(1),
+			Z(-1),
+		}
+		for i, ray := range rays {
+			rc, ok := combined.FirstRayCollision(ray)
+			if !ok {
+				t.Fatal("expected ray collision")
+			}
+			actual := rc.Normal
+			expected := normals[i]
+			if math.Abs(1-actual.Dot(expected)) > 1e-5 {
+				t.Errorf("case %d: expected %v but got %v", i, expected, actual)
+			}
+		}
+	})
 }
 
 type combinedSolidColliderSDF struct {
