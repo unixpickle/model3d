@@ -52,7 +52,7 @@ func (v VaseSolid) Min() model3d.Coord3D {
 }
 
 func (v VaseSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: MaxRadius, Y: MaxRadius, Z: Height}
+	return model3d.XYZ(MaxRadius, MaxRadius, Height)
 }
 
 func (v VaseSolid) Contains(c model3d.Coord3D) bool {

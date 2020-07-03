@@ -3,7 +3,7 @@ package main
 import "github.com/unixpickle/model3d/model3d"
 
 var (
-	LightDirection = model3d.Coord3D{X: 2, Y: -3, Z: 3}.Normalize()
+	LightDirection = model3d.XYZ(2, -3, 3).Normalize()
 	LightCenter    = LightDirection.Normalize().Scale(50)
 )
 

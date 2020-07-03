@@ -29,7 +29,7 @@ func (h HolderSolid) Min() model3d.Coord3D {
 }
 
 func (h HolderSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: Width, Y: Depth, Z: Thickness + BackHeight}
+	return model3d.XYZ(Width, Depth, Thickness+BackHeight)
 }
 
 func (h HolderSolid) Contains(c model3d.Coord3D) bool {

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -38,11 +38,11 @@ type TextSolid struct {
 }
 
 func (t *TextSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: 0, Y: 0, Z: 0}
+	return model3d.XYZ(0, 0, 0)
 }
 
 func (t *TextSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: PrintSize, Y: PrintSize, Z: TextThickness + PrintThickness}
+	return model3d.XYZ(PrintSize, PrintSize, TextThickness+PrintThickness)
 }
 
 func (t *TextSolid) Contains(c model3d.Coord3D) bool {

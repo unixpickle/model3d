@@ -4,8 +4,8 @@ import (
 	"log"
 	"math"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -89,7 +89,7 @@ func NewHeartSolid() *HeartSolid {
 }
 
 func (h *HeartSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -HeartWidth / 2, Y: RingRadius + HeartSpacing, Z: -HeartHeight / 2}
+	return model3d.XYZ(-HeartWidth/2, RingRadius+HeartSpacing, -HeartHeight/2)
 }
 
 func (h *HeartSolid) Max() model3d.Coord3D {

@@ -52,8 +52,8 @@ func TestMarchingCubesRandom(t *testing.T) {
 
 func BenchmarkMarchingCubes(b *testing.B) {
 	solid := &CylinderSolid{
-		P1:     Coord3D{X: 1, Y: 2, Z: 3},
-		P2:     Coord3D{X: 3, Y: 1, Z: 4},
+		P1:     XYZ(1, 2, 3),
+		P2:     XYZ(3, 1, 4),
 		Radius: 0.5,
 	}
 	for i := 0; i < b.N; i++ {
@@ -68,7 +68,7 @@ func (r randomSolid) Min() Coord3D {
 }
 
 func (r randomSolid) Max() Coord3D {
-	return Coord3D{X: 1, Y: 1, Z: 1}
+	return XYZ(1, 1, 1)
 }
 
 func (r randomSolid) Contains(c Coord3D) bool {

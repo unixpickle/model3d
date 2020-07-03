@@ -109,8 +109,8 @@ func TestSolidCollider(t *testing.T) {
 	// Create a non-trivial, non-convex solid.
 	solid := JoinedSolid{
 		&CylinderSolid{
-			P1:     Coord3D{X: 0.3, Y: 0.3, Z: -1},
-			P2:     Coord3D{X: -0.3, Y: -0.3, Z: 1},
+			P1:     XYZ(0.3, 0.3, -1),
+			P2:     XYZ(-0.3, -0.3, 1),
 			Radius: 0.3,
 		},
 		&SphereSolid{
@@ -232,27 +232,27 @@ func TestProfileCollider(t *testing.T) {
 			},
 			&Ray{
 				Origin:    XY(2.5, 2.5),
-				Direction: Coord3D{X: -1, Y: -1, Z: 0.001},
+				Direction: XYZ(-1, -1, 0.001),
 			},
 			&Ray{
-				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: 1.5},
+				Origin:    XYZ(1.5, 1.5, 1.5),
 				Direction: Z(-1),
 			},
 			&Ray{
-				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: 1.5},
-				Direction: Coord3D{X: 0.1, Y: 0.1, Z: -1},
+				Origin:    XYZ(1.5, 1.5, 1.5),
+				Direction: XYZ(0.1, 0.1, -1),
 			},
 			&Ray{
-				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: -1.5},
-				Direction: Coord3D{X: 0.1, Y: 0.1, Z: 1},
+				Origin:    XYZ(1.5, 1.5, -1.5),
+				Direction: XYZ(0.1, 0.1, 1),
 			},
 			&Ray{
-				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: 0.1},
-				Direction: Coord3D{X: 0.1, Y: 0.1, Z: 1},
+				Origin:    XYZ(1.5, 1.5, 0.1),
+				Direction: XYZ(0.1, 0.1, 1),
 			},
 			&Ray{
-				Origin:    Coord3D{X: 1.5, Y: 1.5, Z: 0.1},
-				Direction: Coord3D{X: 0.1, Y: 0.1, Z: -1},
+				Origin:    XYZ(1.5, 1.5, 0.1),
+				Direction: XYZ(0.1, 0.1, -1),
 			},
 		}
 		normals := []Coord3D{
@@ -344,7 +344,7 @@ func BenchmarkMeshRayCollisions(b *testing.B) {
 }
 
 func BenchmarkMeshRayCollisionsRect(b *testing.B) {
-	mesh := NewMeshRect(Coord3D{X: -0.3, Y: -0.4, Z: -0.2}, Coord3D{X: 0.4, Y: 0.35, Z: 0.19})
+	mesh := NewMeshRect(XYZ(-0.3, -0.4, -0.2), XYZ(0.4, 0.35, 0.19))
 	collider := MeshToCollider(mesh)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -360,10 +360,10 @@ func BenchmarkMeshRayCollisionsRect(b *testing.B) {
 
 func BenchmarkMeshRayCollisionsComplex(b *testing.B) {
 	solid := JoinedSolid{
-		&Sphere{Center: Coord3D{X: 1.0, Y: 0.7, Z: 0.1}, Radius: 0.2},
-		&Sphere{Center: Coord3D{X: 1.3, Y: 0.75, Z: 0}, Radius: 0.22},
-		&Sphere{Center: Coord3D{X: 0.9, Y: 0.2, Z: 0.1}, Radius: 0.3},
-		&Cylinder{P2: Coord3D{X: 3, Y: 3, Z: 3}, Radius: 0.1},
+		&Sphere{Center: XYZ(1.0, 0.7, 0.1), Radius: 0.2},
+		&Sphere{Center: XYZ(1.3, 0.75, 0), Radius: 0.22},
+		&Sphere{Center: XYZ(0.9, 0.2, 0.1), Radius: 0.3},
+		&Cylinder{P2: XYZ(3, 3, 3), Radius: 0.1},
 	}
 	mesh := MarchingCubes(solid, 0.04)
 

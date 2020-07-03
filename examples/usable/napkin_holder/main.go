@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -24,15 +24,15 @@ func main() {
 		inscription,
 		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
-			MaxVal: model3d.Coord3D{X: SideSize, Y: SideSize, Z: Thickness},
+			MaxVal: model3d.XYZ(SideSize, SideSize, Thickness),
 		},
 		&model3d.Rect{
 			MinVal: model3d.Coord3D{Z: Depth - Thickness},
-			MaxVal: model3d.Coord3D{X: SideSize, Y: SideSize, Z: Depth},
+			MaxVal: model3d.XYZ(SideSize, SideSize, Depth),
 		},
 		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
-			MaxVal: model3d.Coord3D{X: SideSize, Y: Thickness, Z: Depth},
+			MaxVal: model3d.XYZ(SideSize, Thickness, Depth),
 		},
 	}
 	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
@@ -40,7 +40,7 @@ func main() {
 	log.Println("Post-processing mesh...")
 	mesh = mesh.EliminateCoplanar(1e-8)
 	mesh = mesh.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
-		return model3d.Coord3D{X: -c.X, Y: c.Z, Z: c.Y}
+		return model3d.XYZ(-c.X, c.Z, c.Y)
 	})
 
 	log.Println("Saving mesh...")
@@ -72,7 +72,7 @@ func (d *DeepInscription) Min() model3d.Coord3D {
 }
 
 func (d *DeepInscription) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: SideSize, Y: SideSize, Z: Depth + InscriptionDepth}
+	return model3d.XYZ(SideSize, SideSize, Depth+InscriptionDepth)
 }
 
 func (d *DeepInscription) Contains(c model3d.Coord3D) bool {

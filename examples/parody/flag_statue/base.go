@@ -20,7 +20,7 @@ func GenerateBase() model3d.Solid {
 	extra := model3d.Coord3D{X: 1, Y: 1}.Scale(BaseChunkSize)
 	return model3d.IntersectedSolid{
 		&model3d.Rect{
-			MinVal: model3d.Coord3D{X: -BaseLength / 2, Y: -BaseWidth / 2, Z: 0}.Sub(extra),
+			MinVal: model3d.XYZ(-BaseLength/2, -BaseWidth/2, 0).Sub(extra),
 			MaxVal: model3d.Coord3D{X: BaseLength / 2, Y: BaseWidth / 2,
 				Z: BaseHeight + BaseChunkSize}.Add(extra),
 		},
@@ -76,7 +76,7 @@ func SampleBasePoint() model3d.Coord3D {
 			break
 		}
 	}
-	return model3d.Coord3D{X: x, Y: y, Z: z}
+	return model3d.XYZ(x, y, z)
 }
 
 type BaseSmoothSolid struct{}
@@ -85,11 +85,11 @@ func (b BaseSmoothSolid) Min() model3d.Coord3D {
 	return model3d.Coord3D{X: -BaseLength / 2, Y: -BaseWidth / 2}
 }
 func (b BaseSmoothSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: BaseLength / 2, Y: BaseWidth / 2, Z: BaseHeight}
+	return model3d.XYZ(BaseLength/2, BaseWidth/2, BaseHeight)
 }
 
 func (b BaseSmoothSolid) Contains(c model3d.Coord3D) bool {
-	cScale := model3d.Coord3D{X: 2 / BaseLength, Y: 2 / BaseWidth, Z: 1 / BaseHeight}
+	cScale := model3d.XYZ(2/BaseLength, 2/BaseWidth, 1/BaseHeight)
 	return model3d.InBounds(b, c) && c.Mul(cScale).Norm() < 1
 }
 
@@ -100,12 +100,12 @@ type BaseChunk struct {
 
 func (b *BaseChunk) Min() model3d.Coord3D {
 	s := BaseChunkSize * math.Sqrt(3)
-	return b.Center.Sub(model3d.Coord3D{X: s, Y: s, Z: s})
+	return b.Center.Sub(model3d.XYZ(s, s, s))
 }
 
 func (b *BaseChunk) Max() model3d.Coord3D {
 	s := BaseChunkSize * math.Sqrt(3)
-	return b.Center.Add(model3d.Coord3D{X: s, Y: s, Z: s})
+	return b.Center.Add(model3d.XYZ(s, s, s))
 }
 
 func (b *BaseChunk) Contains(c model3d.Coord3D) bool {

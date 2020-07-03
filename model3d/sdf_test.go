@@ -147,7 +147,7 @@ func BenchmarkMeshSDFs(b *testing.B) {
 func sdfTestingSolid() Solid {
 	return &TorusSolid{
 		Center:      Coord3D{},
-		Axis:        Coord3D{X: 1, Y: 2, Z: -0.5}.Normalize(),
+		Axis:        XYZ(1, 2, -0.5).Normalize(),
 		InnerRadius: 0.2,
 		OuterRadius: 0.7,
 	}

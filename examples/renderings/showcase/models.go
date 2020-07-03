@@ -48,8 +48,8 @@ func ReadRose() render3d.Object {
 		// Manually add a stem so the rose is not floating.
 		&render3d.ColliderObject{
 			Collider: &model3d.Cylinder{
-				P1:     model3d.Coord3D{X: VaseX, Y: VaseY, Z: 0},
-				P2:     model3d.Coord3D{X: VaseX, Y: VaseY, Z: RoseZ},
+				P1:     model3d.XYZ(VaseX, VaseY, 0),
+				P2:     model3d.XYZ(VaseX, VaseY, RoseZ),
 				Radius: RoseStemRadius,
 			},
 			Material: &render3d.LambertMaterial{
@@ -63,7 +63,7 @@ func ReadVase() render3d.Object {
 	mesh := ReadModel("models/vase.stl.gz")
 
 	// The mesh is too big compared to the other objects.
-	mesh = mesh.MapCoords(model3d.Coord3D{X: 0.8, Y: 0.8, Z: 0.8}.Mul)
+	mesh = mesh.MapCoords(model3d.XYZ(0.8, 0.8, 0.8).Mul)
 
 	min, max := mesh.Min(), mesh.Max()
 	mesh = mesh.MapCoords(model3d.Coord3D{

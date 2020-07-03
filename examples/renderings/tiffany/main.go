@@ -90,11 +90,11 @@ func CreateTable() render3d.Object {
 	}
 
 	return render3d.JoinedObject{
-		createPiece(model3d.Coord3D{X: -3, Y: -2, Z: -1.2},
-			model3d.Coord3D{X: 3, Y: 2, Z: -1}),
-		createPiece(model3d.Coord3D{X: -3, Y: -2, Z: -5},
-			model3d.Coord3D{X: -2.8, Y: 2, Z: -1.2}),
-		createPiece(model3d.Coord3D{X: 2.8, Y: -2, Z: -5},
-			model3d.Coord3D{X: 3, Y: 2, Z: -1.2}),
+		createPiece(model3d.XYZ(-3, -2, -1.2),
+			model3d.XYZ(3, 2, -1)),
+		createPiece(model3d.XYZ(-3, -2, -5),
+			model3d.XYZ(-2.8, 2, -1.2)),
+		createPiece(model3d.XYZ(2.8, -2, -5),
+			model3d.XYZ(3, 2, -1.2)),
 	}
 }

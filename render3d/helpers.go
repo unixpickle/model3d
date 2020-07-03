@@ -173,7 +173,7 @@ func directionalCamera(object Object, direction model3d.Coord3D) *Camera {
 		for _, x := range []float64{min.X, max.X} {
 			for _, y := range []float64{min.Y, max.Y} {
 				for _, z := range []float64{min.Z, max.Z} {
-					sx, sy := uncaster(model3d.Coord3D{X: x, Y: y, Z: z})
+					sx, sy := uncaster(model3d.XYZ(x, y, z))
 					if sx < margin || sy < margin || sx >= 1-margin || sy >= 1-margin {
 						contained = false
 					}

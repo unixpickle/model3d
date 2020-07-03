@@ -8,7 +8,7 @@ import (
 	"github.com/unixpickle/model3d/render3d"
 )
 
-var LightPoint = model3d.Coord3D{X: 0, Y: -40, Z: 30}
+var LightPoint = model3d.XYZ(0, -40, 30)
 
 const (
 	LettersWidth     = 6.0

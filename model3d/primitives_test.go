@@ -75,7 +75,7 @@ func approxTriangleDist(t *Triangle, c Coord3D) float64 {
 }
 
 func TestSegmentEntersSphere(t *testing.T) {
-	center := Coord3D{X: 1, Y: 2, Z: 3}
+	center := XYZ(1, 2, 3)
 	radius := 0.5
 
 	segments := [][2]Coord3D{
@@ -102,15 +102,15 @@ func TestSegmentEntersSphere(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i++ {
-		c := Coord3D{X: rand.NormFloat64(), Y: rand.NormFloat64(), Z: rand.NormFloat64()}
+		c := XYZ(rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64())
 
 		// Vector from center of sphere to line.
-		v := Coord3D{X: rand.NormFloat64(), Y: rand.NormFloat64(), Z: rand.NormFloat64()}
+		v := XYZ(rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64())
 		v = v.Scale(1 / v.Norm())
 
 		// Direction of the line should be orthogonal to
 		// the vector from the center of the sphere.
-		v1 := Coord3D{X: rand.NormFloat64(), Y: rand.NormFloat64(), Z: rand.NormFloat64()}
+		v1 := XYZ(rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64())
 		v1 = v1.Scale(1 / v1.Norm())
 		v1 = v1.Add(v.Scale(-v1.Dot(v)))
 
@@ -181,12 +181,12 @@ func TestTriangleCollisionMismatch(t *testing.T) {
 
 func BenchmarkTriangleRayCollision(b *testing.B) {
 	t := &Triangle{
-		Coord3D{X: 0.1, Y: 0.1, Z: 0},
-		Coord3D{X: 1, Y: 0.1, Z: 0.1},
-		Coord3D{X: 0.1, Y: 1.0, Z: 0.2},
+		XYZ(0.1, 0.1, 0),
+		XYZ(1, 0.1, 0.1),
+		XYZ(0.1, 1.0, 0.2),
 	}
 	ray := &Ray{
-		Origin:    Coord3D{X: 0.2, Y: 0.2, Z: 0.3},
+		Origin:    XYZ(0.2, 0.2, 0.3),
 		Direction: Coord3D{Z: -1},
 	}
 	for i := 0; i < b.N; i++ {

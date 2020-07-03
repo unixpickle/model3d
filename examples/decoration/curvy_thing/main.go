@@ -4,8 +4,8 @@ import (
 	"log"
 	"math"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -21,8 +21,8 @@ func main() {
 	log.Println("Creating solid...")
 	solid := model3d.JoinedSolid{
 		&model3d.Rect{
-			MinVal: model3d.Coord3D{X: -BaseWidth / 2, Y: -BaseDepth / 2, Z: -Radius},
-			MaxVal: model3d.Coord3D{X: BaseWidth / 2, Y: BaseDepth / 2, Z: Radius},
+			MinVal: model3d.XYZ(-BaseWidth/2, -BaseDepth/2, -Radius),
+			MaxVal: model3d.XYZ(BaseWidth/2, BaseDepth/2, Radius),
 		},
 		&TubeSolid{
 			Curve: model2d.MeshToCollider(Mesh2D(PolyPiecewiseCurve)),
@@ -44,11 +44,11 @@ type TubeSolid struct {
 }
 
 func (t TubeSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: t.Curve.Min().Y - Radius, Y: -Radius, Z: t.Curve.Min().X - Radius}
+	return model3d.XYZ(t.Curve.Min().Y-Radius, -Radius, t.Curve.Min().X-Radius)
 }
 
 func (t TubeSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: t.Curve.Max().Y + Radius, Y: Radius, Z: t.Curve.Max().X}
+	return model3d.XYZ(t.Curve.Max().Y+Radius, Radius, t.Curve.Max().X)
 }
 
 func (t TubeSolid) Contains(c model3d.Coord3D) bool {

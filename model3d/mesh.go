@@ -88,11 +88,11 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 				// p[0] and p[1] are technically equivalent,
 				// but they are numerically slightly different,
 				// so we must make it perfect.
-				p[0] = Coord3D{X: 0, Y: -radius(GeoCoord{Lat: latitude, Lon: 0}), Z: 0}
+				p[0] = XYZ(0, -radius(GeoCoord{Lat: latitude, Lon: 0}), 0)
 			} else if latIdx == stops-1 {
 				// p[2] and p[3] are technically equivalent,
 				// but see note above.
-				p[2] = Coord3D{X: 0, Y: radius(GeoCoord{Lat: latitude, Lon: 0}), Z: 0}
+				p[2] = XYZ(0, radius(GeoCoord{Lat: latitude, Lon: 0}), 0)
 			}
 			if latIdx != 0 {
 				res.Add(&Triangle{p[0], p[1], p[2]})
@@ -298,7 +298,7 @@ TriLoop:
 // Scale creates a new mesh by scaling the coordinates by
 // a factor s.
 func (m *Mesh) Scale(s float64) *Mesh {
-	return m.MapCoords(Coord3D{X: s, Y: s, Z: s}.Mul)
+	return m.MapCoords(XYZ(s, s, s).Mul)
 }
 
 // MapCoords creates a new mesh by transforming all of the

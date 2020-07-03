@@ -3,8 +3,8 @@ package main
 import (
 	"math"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 const (
@@ -49,8 +49,8 @@ func NewForkSolid() *ForkSolid {
 	return &ForkSolid{
 		HeightCurve: c,
 		WidthCurve:  wc,
-		MinVal:      model3d.Coord3D{X: 0, Y: -ForkMaxWidth / 2, Z: minZ},
-		MaxVal:      model3d.Coord3D{X: ForkLength, Y: ForkMaxWidth / 2, Z: ForkThickness},
+		MinVal:      model3d.XYZ(0, -ForkMaxWidth/2, minZ),
+		MaxVal:      model3d.XYZ(ForkLength, ForkMaxWidth/2, ForkThickness),
 	}
 }
 

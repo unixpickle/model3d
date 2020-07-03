@@ -107,26 +107,26 @@ func MakeColorer() *Colorer {
 	}, WhiteFur)
 
 	res.Add(&model3d.Rect{
-		MinVal: model3d.Coord3D{X: math.Inf(-1), Y: math.Inf(-1), Z: BrownMinZ},
-		MaxVal: model3d.Coord3D{X: BrownMaxX, Y: math.Inf(1), Z: math.Inf(1)},
+		MinVal: model3d.XYZ(math.Inf(-1), math.Inf(-1), BrownMinZ),
+		MaxVal: model3d.XYZ(BrownMaxX, math.Inf(1), math.Inf(1)),
 	}, BrownFur)
 
 	res.Add(&model3d.Rect{
-		MinVal: model3d.Coord3D{X: math.Inf(-1), Y: math.Inf(-1), Z: BrownMinZ},
-		MaxVal: model3d.Coord3D{X: BrownMaxX, Y: math.Inf(1), Z: math.Inf(1)},
+		MinVal: model3d.XYZ(math.Inf(-1), math.Inf(-1), BrownMinZ),
+		MaxVal: model3d.XYZ(BrownMaxX, math.Inf(1), math.Inf(1)),
 	}, BrownFur)
 
 	for _, y := range []float64{HeadColorSphereY, -HeadColorSphereY} {
 		res.Add(&model3d.Sphere{
-			Center: model3d.Coord3D{X: HeadColorSphereX, Y: y, Z: HeadColorSphereZ},
+			Center: model3d.XYZ(HeadColorSphereX, y, HeadColorSphereZ),
 			Radius: HeadColorSphereRadius,
 		}, BrownFur)
 	}
 
 	// Default to white.
 	res.Add(&model3d.Rect{
-		MinVal: model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(math.Inf(-1)),
-		MaxVal: model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(math.Inf(1)),
+		MinVal: model3d.XYZ(1, 1, 1).Scale(math.Inf(-1)),
+		MaxVal: model3d.XYZ(1, 1, 1).Scale(math.Inf(1)),
 	}, WhiteFur)
 
 	return res
@@ -167,10 +167,10 @@ func MakeHeadNeck() model3d.Solid {
 func MakeHindLegMuscles() model3d.Solid {
 	return model3d.JoinedSolid{
 		HindLegMuscleSolid{
-			Center: model3d.Coord3D{X: HindLegMuscleX, Y: -BodyRadius + LegInset, Z: HindLegMuscleZ},
+			Center: model3d.XYZ(HindLegMuscleX, -BodyRadius+LegInset, HindLegMuscleZ),
 		},
 		HindLegMuscleSolid{
-			Center: model3d.Coord3D{X: HindLegMuscleX, Y: BodyRadius - LegInset, Z: HindLegMuscleZ},
+			Center: model3d.XYZ(HindLegMuscleX, BodyRadius-LegInset, HindLegMuscleZ),
 		},
 	}
 }
@@ -187,7 +187,7 @@ func MakeLegs() model3d.Solid {
 		for _, y := range []float64{y1, -y1} {
 			res = append(res, &model3d.Cylinder{
 				P1:     model3d.Coord3D{X: x, Y: y},
-				P2:     model3d.Coord3D{X: x, Y: y, Z: bottomZ},
+				P2:     model3d.XYZ(x, y, bottomZ),
 				Radius: legRadius,
 			})
 		}

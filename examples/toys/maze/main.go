@@ -59,7 +59,7 @@ func (m *MazeSolid) Min() model3d.Coord3D {
 
 func (m *MazeSolid) Max() model3d.Coord3D {
 	max := m.Collider.Max()
-	return model3d.Coord3D{X: max.X, Y: max.Y, Z: WallHeight}
+	return model3d.XYZ(max.X, max.Y, WallHeight)
 }
 
 func (m *MazeSolid) Contains(c model3d.Coord3D) bool {

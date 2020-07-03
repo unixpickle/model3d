@@ -96,7 +96,7 @@ type RidgeSolid struct {
 }
 
 func (r *RidgeSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: math.Min(r.X1, r.X2), Y: 0, Z: r.Z - RidgeDepth}
+	return model3d.XYZ(math.Min(r.X1, r.X2), 0, r.Z-RidgeDepth)
 }
 
 func (r *RidgeSolid) Max() model3d.Coord3D {
@@ -112,7 +112,7 @@ func (r *RidgeSolid) Contains(c model3d.Coord3D) bool {
 }
 
 func CreateFoot(x, y float64) model3d.Solid {
-	center := model3d.Coord3D{X: x, Y: y, Z: -FrameThickness}
+	center := model3d.XYZ(x, y, -FrameThickness)
 	halfSize := model3d.Coord3D{X: FrameFootWidth / 2, Y: FrameFootWidth / 2}
 	return &toolbox3d.Ramp{
 		Solid: &model3d.Rect{
@@ -181,7 +181,7 @@ func (b BottomFrameHole) Contains(c model3d.Coord3D) bool {
 type BackWallHole struct{}
 
 func (b BackWallHole) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -FrameThickness, Y: DrawerDepth - 1e-5, Z: -FrameThickness}
+	return model3d.XYZ(-FrameThickness, DrawerDepth-1e-5, -FrameThickness)
 }
 
 func (b BackWallHole) Max() model3d.Coord3D {

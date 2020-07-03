@@ -18,23 +18,23 @@ func CreateDrawer() model3d.Solid {
 		// Bottom face.
 		&model3d.Rect{
 			MinVal: min,
-			MaxVal: model3d.Coord3D{X: max.X, Y: max.Y, Z: min.Z + DrawerBottom},
+			MaxVal: model3d.XYZ(max.X, max.Y, min.Z+DrawerBottom),
 		},
 	}
 
 	// Side faces.
 	for _, x := range []float64{min.X, max.X - DrawerThickness} {
 		result = append(result, &model3d.Rect{
-			MinVal: model3d.Coord3D{X: x, Y: min.Y, Z: min.Z},
-			MaxVal: model3d.Coord3D{X: x + DrawerThickness, Y: max.Y, Z: max.Z},
+			MinVal: model3d.XYZ(x, min.Y, min.Z),
+			MaxVal: model3d.XYZ(x+DrawerThickness, max.Y, max.Z),
 		})
 	}
 
 	// Front/back faces.
 	for _, y := range []float64{min.Y, max.Y - DrawerThickness} {
 		result = append(result, &model3d.Rect{
-			MinVal: model3d.Coord3D{X: min.X, Y: y, Z: min.Z},
-			MaxVal: model3d.Coord3D{X: max.X, Y: y + DrawerThickness, Z: max.Z},
+			MinVal: model3d.XYZ(min.X, y, min.Z),
+			MaxVal: model3d.XYZ(max.X, y+DrawerThickness, max.Z),
 		})
 	}
 
@@ -66,11 +66,11 @@ type HoleCutout struct {
 }
 
 func (h *HoleCutout) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: h.X - h.Radius, Y: h.Y1, Z: h.Z - h.Radius}
+	return model3d.XYZ(h.X-h.Radius, h.Y1, h.Z-h.Radius)
 }
 
 func (h *HoleCutout) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: h.X + h.Radius, Y: h.Y2, Z: h.Z + h.Radius*2}
+	return model3d.XYZ(h.X+h.Radius, h.Y2, h.Z+h.Radius*2)
 }
 
 func (h *HoleCutout) Contains(c model3d.Coord3D) bool {

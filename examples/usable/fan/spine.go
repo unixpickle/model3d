@@ -17,7 +17,7 @@ func SpineSolid() model3d.Solid {
 	return &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
 			&model3d.Rect{
-				MaxVal: model3d.Coord3D{X: SpineWidth, Y: SpineLength, Z: SpineThickness},
+				MaxVal: model3d.XYZ(SpineWidth, SpineLength, SpineThickness),
 			},
 			&model3d.Cylinder{
 				P1:     center1,

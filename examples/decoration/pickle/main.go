@@ -66,12 +66,12 @@ type PickleSolid struct {
 
 func (p *PickleSolid) Min() model3d.Coord3D {
 	min := p.F.Collider.Min()
-	return model3d.Coord3D{X: min.X, Y: min.Y, Z: -PickleWidth}
+	return model3d.XYZ(min.X, min.Y, -PickleWidth)
 }
 
 func (p *PickleSolid) Max() model3d.Coord3D {
 	max := p.F.Collider.Max()
-	return model3d.Coord3D{X: max.X, Y: max.Y, Z: PickleWidth}
+	return model3d.XYZ(max.X, max.Y, PickleWidth)
 }
 
 func (p *PickleSolid) Contains(c model3d.Coord3D) bool {
@@ -150,12 +150,12 @@ func NewInscription() *Inscription {
 
 func (i *Inscription) Min() model3d.Coord3D {
 	min := i.Solid.Min()
-	return model3d.Coord3D{X: min.X, Y: min.Y, Z: -PickleWidth}
+	return model3d.XYZ(min.X, min.Y, -PickleWidth)
 }
 
 func (i *Inscription) Max() model3d.Coord3D {
 	max := i.Solid.Max()
-	return model3d.Coord3D{X: max.X, Y: max.Y, Z: PickleWidth}
+	return model3d.XYZ(max.X, max.Y, PickleWidth)
 }
 
 func (i *Inscription) Contains(c model3d.Coord3D) bool {

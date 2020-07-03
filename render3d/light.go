@@ -144,7 +144,7 @@ func (s *SphereAreaLight) SampleLight(gen *rand.Rand) (point, normal model3d.Coo
 	// Don't use model3d.NewCoord3DRandUnit() because it
 	// won't use our per-thread RNG.
 	for {
-		normal = model3d.Coord3D{X: gen.NormFloat64(), Y: gen.NormFloat64(), Z: gen.NormFloat64()}
+		normal = model3d.XYZ(gen.NormFloat64(), gen.NormFloat64(), gen.NormFloat64())
 		n := normal.Norm()
 		if n > 0.01 && n < 100.0 {
 			normal = normal.Scale(1 / n)

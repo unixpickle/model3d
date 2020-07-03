@@ -118,7 +118,7 @@ func (v *VoxelSmoother) Smooth(mesh *Mesh) *Mesh {
 		}
 		for i, c := range newCoords {
 			o := origins[i]
-			constraint := Coord3D{X: v.MaxDistance, Y: v.MaxDistance, Z: v.MaxDistance}
+			constraint := XYZ(v.MaxDistance, v.MaxDistance, v.MaxDistance)
 			c = c.Max(o.Sub(constraint))
 			c = c.Min(o.Add(constraint))
 			newCoords[i] = c

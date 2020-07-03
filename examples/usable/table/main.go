@@ -120,12 +120,12 @@ func StandSolid() model3d.Solid {
 			},
 			Negative: model3d.JoinedSolid{
 				&model3d.Rect{
-					MinVal: model3d.Coord3D{X: -StandRadius * 2, Y: -StandRadius * 2, Z: StandRadius},
-					MaxVal: model3d.Coord3D{X: StandRadius * 2, Y: StandRadius * 2, Z: StandRadius * 2},
+					MinVal: model3d.XYZ(-StandRadius*2, -StandRadius*2, StandRadius),
+					MaxVal: model3d.XYZ(StandRadius*2, StandRadius*2, StandRadius*2),
 				},
 				&model3d.Rect{
-					MinVal: model3d.Coord3D{X: -StandRadius * 2, Y: -StandRadius * 2, Z: -StandRadius},
-					MaxVal: model3d.Coord3D{X: StandRadius * 2, Y: StandRadius * 2, Z: 0},
+					MinVal: model3d.XYZ(-StandRadius*2, -StandRadius*2, -StandRadius),
+					MaxVal: model3d.XYZ(StandRadius*2, StandRadius*2, 0),
 				},
 			},
 		},
@@ -157,7 +157,7 @@ func (c ConeSolid) Min() model3d.Coord3D {
 }
 
 func (c ConeSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: StandRadius, Y: StandRadius, Z: StandRadius}
+	return model3d.XYZ(StandRadius, StandRadius, StandRadius)
 }
 
 func (c ConeSolid) Contains(coord model3d.Coord3D) bool {

@@ -117,7 +117,7 @@ func FlatPoint(x, y float64) model3d.Coord3D {
 }
 
 func RaisedPoint(x, y float64) model3d.Coord3D {
-	return model3d.Coord3D{X: x, Y: y, Z: MarkSize}
+	return model3d.XYZ(x, y, MarkSize)
 }
 
 func CreateQuad(m *model3d.Mesh, p1, p2, p3, p4 model3d.Coord3D) {

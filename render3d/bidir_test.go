@@ -95,8 +95,8 @@ func testingScene() (Object, AreaLight) {
 		&ColliderObject{
 			Collider: model3d.MeshToCollider(
 				model3d.NewMeshRect(
-					model3d.Coord3D{X: -10, Y: -10, Z: -10},
-					model3d.Coord3D{X: 10, Y: 20, Z: 0},
+					model3d.XYZ(-10, -10, -10),
+					model3d.XYZ(10, 20, 0),
 				).Scale(-1),
 			),
 			Material: &LambertMaterial{

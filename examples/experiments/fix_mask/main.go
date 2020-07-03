@@ -16,8 +16,8 @@ import (
 	"os"
 
 	"github.com/unixpickle/essentials"
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -182,11 +182,11 @@ func CreateFilterRing(m *model3d.Mesh) *model3d.Mesh {
 			realX := min.X + float64(x)/scale
 			realY := min.Y + float64(y)/scale
 			numColl := collider.RayCollisions(&model3d.Ray{
-				Origin:    model3d.Coord3D{X: realX, Y: realY, Z: sliceZ},
+				Origin:    model3d.XYZ(realX, realY, sliceZ),
 				Direction: model3d.X(1),
 			}, nil)
 			numColl1 := collider.RayCollisions(&model3d.Ray{
-				Origin:    model3d.Coord3D{X: realX, Y: realY, Z: sliceZ},
+				Origin:    model3d.XYZ(realX, realY, sliceZ),
 				Direction: model3d.Coord3D{X: -1},
 			}, nil)
 			bitmap.Set(x, y, numColl == 2 && numColl1 == 2)
@@ -234,7 +234,7 @@ func NewRingSolid(bmp *model2d.Bitmap, scale float64) *RingSolid {
 		Collider: model2d.MeshToCollider(bmp.Mesh().Blur(0.25)),
 		Scale:    scale,
 		MinVal:   min.Sub(model3d.Coord3D{X: 1, Y: 1}),
-		MaxVal:   max.Add(model3d.Coord3D{X: 1, Y: 1, Z: 8}),
+		MaxVal:   max.Add(model3d.XYZ(1, 1, 8)),
 	}
 }
 

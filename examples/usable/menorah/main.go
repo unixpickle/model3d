@@ -25,13 +25,13 @@ func main() {
 				Radius: 0.9,
 			},
 			Negative: &model3d.Rect{
-				MinVal: model3d.Coord3D{X: -1, Y: -1, Z: -2},
-				MaxVal: model3d.Coord3D{X: 1, Y: 1, Z: 0},
+				MinVal: model3d.XYZ(-1, -1, -2),
+				MaxVal: model3d.XYZ(1, 1, 0),
 			},
 		},
 		&model3d.Rect{
-			MinVal: model3d.Coord3D{X: -2, Y: -0.9, Z: -0.3},
-			MaxVal: model3d.Coord3D{X: 2, Y: 0.9, Z: 0},
+			MinVal: model3d.XYZ(-2, -0.9, -0.3),
+			MaxVal: model3d.XYZ(2, 0.9, 0),
 		},
 		&CandleHolder{Center: model3d.Z(0.6)},
 	}
@@ -97,11 +97,11 @@ type ScewedPole struct {
 }
 
 func (s *ScewedPole) Min() model3d.Coord3D {
-	return s.P1.Min(s.P2).Sub(model3d.Coord3D{X: s.Radius, Y: s.Radius, Z: s.Radius})
+	return s.P1.Min(s.P2).Sub(model3d.XYZ(s.Radius, s.Radius, s.Radius))
 }
 
 func (s *ScewedPole) Max() model3d.Coord3D {
-	return s.P1.Max(s.P2).Add(model3d.Coord3D{X: s.Radius, Y: s.Radius, Z: 0})
+	return s.P1.Max(s.P2).Add(model3d.XYZ(s.Radius, s.Radius, 0))
 }
 
 func (s *ScewedPole) Contains(c model3d.Coord3D) bool {
@@ -116,7 +116,7 @@ func (s *ScewedPole) Contains(c model3d.Coord3D) bool {
 func (s *ScewedPole) Mirror() *ScewedPole {
 	return &ScewedPole{
 		P1:     s.P1,
-		P2:     model3d.Coord3D{X: s.P1.X*2 - s.P2.X, Y: s.P2.Y, Z: s.P2.Z},
+		P2:     model3d.XYZ(s.P1.X*2-s.P2.X, s.P2.Y, s.P2.Z),
 		Radius: s.Radius,
 	}
 }
@@ -137,12 +137,12 @@ type CandleHolder struct {
 
 func (c *CandleHolder) Min() model3d.Coord3D {
 	dx := HolderRadius + HolderTopThickness
-	return c.Center.Sub(model3d.Coord3D{X: dx, Y: dx, Z: 0})
+	return c.Center.Sub(model3d.XYZ(dx, dx, 0))
 }
 
 func (c *CandleHolder) Max() model3d.Coord3D {
 	dx := HolderRadius + HolderTopThickness
-	return c.Center.Add(model3d.Coord3D{X: dx, Y: dx, Z: HolderHeight})
+	return c.Center.Add(model3d.XYZ(dx, dx, HolderHeight))
 }
 
 func (c *CandleHolder) Contains(coord model3d.Coord3D) bool {

@@ -53,7 +53,7 @@ type PumpkinSolid struct {
 }
 
 func (p PumpkinSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -p.Scale * 1.6, Y: -p.Scale * 1.6, Z: -p.Scale * 1.6}
+	return model3d.XYZ(-p.Scale*1.6, -p.Scale*1.6, -p.Scale*1.6)
 }
 
 func (p PumpkinSolid) Max() model3d.Coord3D {
@@ -129,7 +129,7 @@ func NewEtchSolid() *EtchSolid {
 }
 
 func (e *EtchSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -e.Radius, Y: -e.Height, Z: -e.Radius}
+	return model3d.XYZ(-e.Radius, -e.Height, -e.Radius)
 }
 
 func (e *EtchSolid) Max() model3d.Coord3D {

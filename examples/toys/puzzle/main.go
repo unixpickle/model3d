@@ -64,17 +64,17 @@ func BoardSolid() model3d.Solid {
 	solid := model3d.JoinedSolid{
 		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
-			MaxVal: model3d.Coord3D{X: bottomSize, Y: bottomSize, Z: BottomThickness},
+			MaxVal: model3d.XYZ(bottomSize, bottomSize, BottomThickness),
 		},
 
 		// Front and back sides
 		&model3d.Rect{
 			MinVal: model3d.Coord3D{},
-			MaxVal: model3d.Coord3D{X: bottomSize, Y: WallThickness, Z: TotalThickness},
+			MaxVal: model3d.XYZ(bottomSize, WallThickness, TotalThickness),
 		},
 		&model3d.Rect{
 			MinVal: model3d.Coord3D{Y: bottomSize - WallThickness},
-			MaxVal: model3d.Coord3D{X: bottomSize, Y: bottomSize, Z: TotalThickness},
+			MaxVal: model3d.XYZ(bottomSize, bottomSize, TotalThickness),
 		},
 
 		// Left and right sides
@@ -141,7 +141,7 @@ func PieceSolid(bottomSize float64) model3d.Solid {
 			},
 		},
 		&model3d.Cylinder{
-			P1: model3d.Coord3D{X: center, Y: center, Z: BottomThickness},
+			P1: model3d.XYZ(center, center, BottomThickness),
 			P2: model3d.Coord3D{
 				X: center,
 				Y: center,

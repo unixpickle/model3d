@@ -101,7 +101,7 @@ func BenchmarkARAPCholesky(b *testing.B) {
 	// Some arbitrary mesh shape.
 	mesh := MarchingCubesSearch(JoinedSolid{
 		&Sphere{Radius: 1},
-		&Rect{MaxVal: Coord3D{X: 1.2, Y: 0.2, Z: 0.2}},
+		&Rect{MaxVal: XYZ(1.2, 0.2, 0.2)},
 	}, 0.05, 8)
 
 	op := newARAPOperator(NewARAP(mesh), map[int]Coord3D{

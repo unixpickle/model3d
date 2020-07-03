@@ -21,13 +21,13 @@ func main() {
 	solid := &model3d.SubtractedSolid{
 		Positive: model3d.JoinedSolid{
 			&model3d.Rect{
-				MaxVal: model3d.Coord3D{X: Width, Y: HolderLength, Z: Thickness},
+				MaxVal: model3d.XYZ(Width, HolderLength, Thickness),
 			},
 			&model3d.Rect{
-				MaxVal: model3d.Coord3D{X: Width, Y: Thickness, Z: StickyHeight},
+				MaxVal: model3d.XYZ(Width, Thickness, StickyHeight),
 			},
 			&model3d.Rect{
-				MinVal: model3d.Coord3D{X: 0, Y: HolderLength, Z: 0},
+				MinVal: model3d.XYZ(0, HolderLength, 0),
 				MaxVal: model3d.Coord3D{X: Width, Y: HolderLength + Thickness,
 					Z: Thickness + HolderHeight},
 			},

@@ -17,11 +17,11 @@ type Walls struct {
 }
 
 func NewWalls(lights []*CeilingLight) *Walls {
-	mesh := model3d.NewMeshRect(model3d.Coord3D{X: -6, Y: -15, Z: -5},
-		model3d.Coord3D{X: 6, Y: 8, Z: RoomHeight})
+	mesh := model3d.NewMeshRect(model3d.XYZ(-6, -15, -5),
+		model3d.XYZ(6, 8, RoomHeight))
 
 	// Face normals inward.
-	mesh = mesh.MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul)
+	mesh = mesh.MapCoords(model3d.XYZ(-1, 1, 1).Mul)
 
 	return &Walls{
 		Base: &render3d.ColliderObject{

@@ -86,7 +86,7 @@ func TestRectSDF(t *testing.T) {
 		c2 := NewCoord3DRandNorm()
 		testSolidSDF(t, &Rect{
 			MinVal: c1.Min(c2),
-			MaxVal: c1.Max(c2).Add(Coord3D{X: 0.1, Y: 0.1, Z: 0.1}),
+			MaxVal: c1.Max(c2).Add(XYZ(0.1, 0.1, 0.1)),
 		})
 	}
 }

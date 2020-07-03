@@ -87,11 +87,11 @@ func (f *FlowerShape) Get(x, y float64) bool {
 type BaseSolid struct{}
 
 func (b BaseSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -BaseRadius, Y: -BaseRadius, Z: -BaseThickness}
+	return model3d.XYZ(-BaseRadius, -BaseRadius, -BaseThickness)
 }
 
 func (b BaseSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: BaseRadius, Y: BaseRadius, Z: Radius}
+	return model3d.XYZ(BaseRadius, BaseRadius, Radius)
 }
 
 func (b BaseSolid) Contains(c model3d.Coord3D) bool {

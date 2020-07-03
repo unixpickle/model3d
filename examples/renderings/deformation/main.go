@@ -127,8 +127,8 @@ func CreateMesh() *model3d.Mesh {
 	for x := -width; x < width-1e-8; x += squareSize {
 		for z := -height; z < height-1e-8; z += squareSize {
 			for _, y := range []float64{-width, width} {
-				addQuad(model3d.Coord3D{X: x, Y: y, Z: z}, 1)
-				addQuad(model3d.Coord3D{X: y, Y: x, Z: z}, 0)
+				addQuad(model3d.XYZ(x, y, z), 1)
+				addQuad(model3d.XYZ(y, x, z), 0)
 			}
 		}
 	}
@@ -136,8 +136,8 @@ func CreateMesh() *model3d.Mesh {
 	// Top two faces.
 	for x := -width; x < width-1e-8; x += squareSize {
 		for y := -width; y < width-1e-8; y += squareSize {
-			addQuad(model3d.Coord3D{X: x, Y: y, Z: -height}, 2)
-			addQuad(model3d.Coord3D{X: x, Y: y, Z: height}, 2)
+			addQuad(model3d.XYZ(x, y, -height), 2)
+			addQuad(model3d.XYZ(x, y, height), 2)
 		}
 	}
 

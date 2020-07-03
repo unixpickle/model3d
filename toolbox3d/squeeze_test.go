@@ -48,8 +48,8 @@ func testTransform(t *testing.T, transform model3d.Transform) {
 	solid2 := model3d.NewColliderSolid(model3d.MeshToCollider(mesh2))
 
 	min, max := solid.Min(), solid.Max()
-	min = min.Sub(model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(0.1))
-	max = max.Add(model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(0.1))
+	min = min.Sub(model3d.XYZ(1, 1, 1).Scale(0.1))
+	max = max.Add(model3d.XYZ(1, 1, 1).Scale(0.1))
 	for i := 0; i < 1000; i++ {
 		c := model3d.NewCoord3DRandUniform().Mul(max.Sub(min)).Add(min)
 		dist := sdf.SDF(c)

@@ -39,15 +39,15 @@ func NewScene() *Scene {
 		ballStates: []BallState{
 			{
 				Radius:   1.0,
-				Position: model3d.Coord3D{X: 1.2, Y: 4, Z: 3},
+				Position: model3d.XYZ(1.2, 4, 3),
 			},
 			{
 				Radius:   1.0,
-				Position: model3d.Coord3D{X: -1.5, Y: 3.8, Z: 4.0},
+				Position: model3d.XYZ(-1.5, 3.8, 4.0),
 			},
 			{
 				Radius:   1.0,
-				Position: model3d.Coord3D{X: 0, Y: 4.3, Z: 8},
+				Position: model3d.XYZ(0, 4.3, 8),
 			},
 		},
 		ballColors: []render3d.Color{
@@ -125,15 +125,15 @@ func createSceneMeshes() (room, light *model3d.Mesh) {
 		Y: RoomDepth,
 		Z: RoomHeight,
 	}
-	thickness := model3d.Coord3D{X: 1, Y: 1, Z: 1}.Scale(RoomThickness)
+	thickness := model3d.XYZ(1, 1, 1).Scale(RoomThickness)
 
 	room = model3d.NewMeshRect(roomMin.Sub(thickness), roomMax.Add(thickness))
 	room.AddMesh(model3d.NewMeshRect(roomMin, roomMax))
 	room, _ = room.RepairNormals(1e-8)
 
 	light = model3d.NewMeshRect(
-		model3d.Coord3D{X: -LightWidth / 2, Y: (RoomDepth / 2.5), Z: RoomHeight - LightThickness},
-		model3d.Coord3D{X: LightWidth / 2, Y: (RoomDepth / 2.5) + LightDepth, Z: RoomHeight},
+		model3d.XYZ(-LightWidth/2, (RoomDepth/2.5), RoomHeight-LightThickness),
+		model3d.XYZ(LightWidth/2, (RoomDepth/2.5)+LightDepth, RoomHeight),
 	)
 
 	return

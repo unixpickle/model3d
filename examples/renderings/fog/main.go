@@ -11,8 +11,8 @@ import (
 
 func main() {
 	bounds := &model3d.Rect{
-		MinVal: model3d.Coord3D{X: -20, Y: -20, Z: -3},
-		MaxVal: model3d.Coord3D{X: 20, Y: 30, Z: 10},
+		MinVal: model3d.XYZ(-20, -20, -3),
+		MaxVal: model3d.XYZ(20, 30, 10),
 	}
 	scene := render3d.JoinedObject{
 		&render3d.ParticipatingMedium{
@@ -30,7 +30,7 @@ func main() {
 				model3d.NewMeshRect(
 					bounds.MinVal,
 					bounds.MaxVal,
-				).MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul),
+				).MapCoords(model3d.XYZ(-1, 1, 1).Mul),
 			),
 			Material: &render3d.LambertMaterial{
 				DiffuseColor: render3d.NewColor(0.45),
@@ -54,7 +54,7 @@ func main() {
 		scene = append(scene, &render3d.ColliderObject{
 			Collider: &model3d.Sphere{
 				Center: model3d.NewCoord3DRandNorm().Mul(
-					model3d.Coord3D{X: 5, Y: 10, Z: 1},
+					model3d.XYZ(5, 10, 1),
 				).Add(model3d.Y(5)),
 				Radius: 1,
 			},

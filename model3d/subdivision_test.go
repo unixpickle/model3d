@@ -6,7 +6,7 @@ import (
 )
 
 func TestLoopSubdivision(t *testing.T) {
-	base := NewMeshRect(X(-1), Coord3D{X: 1, Y: 1, Z: 1})
+	base := NewMeshRect(X(-1), XYZ(1, 1, 1))
 	mesh := LoopSubdivision(base, 4)
 
 	if mesh.NeedsRepair() {
@@ -22,7 +22,7 @@ func TestLoopSubdivision(t *testing.T) {
 
 func TestSubdivider(t *testing.T) {
 	subdiv := NewSubdivider()
-	mesh := NewMeshRect(X(-1), Coord3D{X: 1, Y: 1, Z: 1})
+	mesh := NewMeshRect(X(-1), XYZ(1, 1, 1))
 	subdiv.AddFiltered(mesh, func(p1, p2 Coord3D) bool {
 		return rand.Intn(2) == 0
 	})

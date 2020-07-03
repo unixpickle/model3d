@@ -144,7 +144,7 @@ func CreateAnimation(spec *Spec) {
 		Y: boardMesh.Min().Y * 4,
 		Z: boardMesh.Max().Y * 4,
 	}
-	cameraTarget := model3d.Coord3D{X: cameraOrigin.X, Y: 0, Z: 0}
+	cameraTarget := model3d.XYZ(cameraOrigin.X, 0, 0)
 	renderer := render3d.RayCaster{
 		Camera: render3d.NewCameraAt(cameraOrigin, cameraTarget, math.Pi/3.6),
 		Lights: []*render3d.PointLight{

@@ -5,8 +5,8 @@ import (
 	"log"
 	"math"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
@@ -53,12 +53,12 @@ type LettersSolid struct {
 
 func (l *LettersSolid) Min() model3d.Coord3D {
 	min2 := l.Collider.Min()
-	return model3d.Coord3D{X: min2.X, Y: 0, Z: min2.Y}
+	return model3d.XYZ(min2.X, 0, min2.Y)
 }
 
 func (l *LettersSolid) Max() model3d.Coord3D {
 	max2 := l.Collider.Max()
-	return model3d.Coord3D{X: max2.X, Y: LettersThickness, Z: max2.Y}
+	return model3d.XYZ(max2.X, LettersThickness, max2.Y)
 }
 
 func (l *LettersSolid) Contains(c model3d.Coord3D) bool {

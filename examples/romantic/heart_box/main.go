@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -66,7 +66,7 @@ func (b *BoxSolid) Min() model3d.Coord3D {
 }
 
 func (b *BoxSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: SideSize, Y: SideSize, Z: WallHeight}
+	return model3d.XYZ(SideSize, SideSize, WallHeight)
 }
 
 func (b *BoxSolid) Contains(c model3d.Coord3D) bool {
@@ -96,7 +96,7 @@ func (l *LidSolid) Min() model3d.Coord3D {
 }
 
 func (l *LidSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: SideSize, Y: SideSize, Z: LidHeight + LidHolderSize}
+	return model3d.XYZ(SideSize, SideSize, LidHeight+LidHolderSize)
 }
 
 func (l *LidSolid) Contains(c model3d.Coord3D) bool {

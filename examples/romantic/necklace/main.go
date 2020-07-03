@@ -77,7 +77,7 @@ func VerifyMesh(m *model3d.Mesh) {
 type LinkSolid struct{}
 
 func (l LinkSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -LinkWidth / 2, Y: -LinkHeight / 2, Z: 0}
+	return model3d.XYZ(-LinkWidth/2, -LinkHeight/2, 0)
 }
 
 func (l LinkSolid) Max() model3d.Coord3D {
@@ -104,7 +104,7 @@ func (l LinkSolid) Contains(c model3d.Coord3D) bool {
 type HookSolid struct{}
 
 func (h HookSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -HookLength / 2, Y: -LinkHeight / 2, Z: 0}
+	return model3d.XYZ(-HookLength/2, -LinkHeight/2, 0)
 }
 
 func (h HookSolid) Max() model3d.Coord3D {

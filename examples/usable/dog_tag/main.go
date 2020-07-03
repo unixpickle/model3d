@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -48,7 +48,7 @@ func (s *Solid) Min() model3d.Coord3D {
 }
 
 func (s *Solid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: Width, Y: Height, Z: TextDepth}
+	return model3d.XYZ(Width, Height, TextDepth)
 }
 
 func (s *Solid) Contains(c model3d.Coord3D) bool {

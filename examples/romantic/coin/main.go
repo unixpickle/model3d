@@ -63,7 +63,7 @@ func (c *CoinSolid) Min() model3d.Coord3D {
 }
 
 func (c *CoinSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: c.Radius, Y: c.Radius, Z: c.MaxHeight}
+	return model3d.XYZ(c.Radius, c.Radius, c.MaxHeight)
 }
 
 func (c *CoinSolid) Contains(coord model3d.Coord3D) bool {

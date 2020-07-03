@@ -43,8 +43,8 @@ func main() {
 	}
 	solid := model3d.JoinedSolid{
 		&model3d.Rect{
-			MinVal: model3d.Coord3D{X: -3.7, Y: -1.2, Z: -0.2},
-			MaxVal: model3d.Coord3D{X: 3.7, Y: 1.2, Z: 0},
+			MinVal: model3d.XYZ(-3.7, -1.2, -0.2),
+			MaxVal: model3d.XYZ(3.7, 1.2, 0),
 		},
 		&XBlock{X: -2.5, Solid: tower},
 		&XBlock{X: 2.5, Solid: tower},
@@ -92,7 +92,7 @@ func (b *BrickCylinder) Min() model3d.Coord3D {
 }
 
 func (b *BrickCylinder) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: b.Radius, Y: b.Radius, Z: b.Height}
+	return model3d.XYZ(b.Radius, b.Radius, b.Height)
 }
 
 func (b *BrickCylinder) Contains(c model3d.Coord3D) bool {
@@ -123,7 +123,7 @@ func (t *TopBlocks) Min() model3d.Coord3D {
 }
 
 func (t *TopBlocks) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: t.Radius, Y: t.Radius, Z: t.Height}
+	return model3d.XYZ(t.Radius, t.Radius, t.Height)
 }
 
 func (t *TopBlocks) Contains(c model3d.Coord3D) bool {
@@ -149,7 +149,7 @@ func (w *Wall) Min() model3d.Coord3D {
 }
 
 func (w *Wall) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: w.X2, Y: WallThickness / 2, Z: WallHeight}
+	return model3d.XYZ(w.X2, WallThickness/2, WallHeight)
 }
 
 func (w *Wall) Contains(c model3d.Coord3D) bool {

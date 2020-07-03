@@ -48,7 +48,7 @@ func (t TrashCanSolid) Min() model3d.Coord3D {
 
 func (t TrashCanSolid) Max() model3d.Coord3D {
 	r := TopRadius + Bulge
-	return model3d.Coord3D{X: r, Y: r, Z: Height}
+	return model3d.XYZ(r, r, Height)
 }
 
 func (t TrashCanSolid) Contains(c model3d.Coord3D) bool {

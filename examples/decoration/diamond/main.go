@@ -84,7 +84,7 @@ func CreateDiamondPolytope() model3d.ConvexPolytope {
 
 func CreateStand(diamond *model3d.Mesh) {
 	log.Println("Creating stand...")
-	diamond = diamond.MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: -1}.Mul)
+	diamond = diamond.MapCoords(model3d.XYZ(-1, 1, -1).Mul)
 	solid := model3d.NewColliderSolid(model3d.MeshToCollider(diamond))
 
 	standSolid := &model3d.SubtractedSolid{

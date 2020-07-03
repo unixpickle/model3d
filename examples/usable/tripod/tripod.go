@@ -31,7 +31,7 @@ func CreateTripod() model3d.Solid {
 		// Cut off bottom of leg cylinders.
 		&model3d.Rect{
 			MinVal: model3d.Coord3D{X: math.Inf(-1), Y: math.Inf(-1)},
-			MaxVal: model3d.Coord3D{X: math.Inf(1), Y: math.Inf(1), Z: TripodHeight * 2},
+			MaxVal: model3d.XYZ(math.Inf(1), math.Inf(1), TripodHeight*2),
 		},
 	}
 }

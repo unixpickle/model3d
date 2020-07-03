@@ -14,8 +14,8 @@ func CreateCorgi(theta, x, y float64) render3d.Object {
 	var model render3d.JoinedObject
 
 	// Taken from all the parts together.
-	min := model3d.Coord3D{X: -0.36888350039080975, Y: -0.3312187908572959, Z: -0.5748622825455283}
-	max := model3d.Coord3D{X: 1.7179133746091901, Y: 0.33221870914270424, Z: 1.0427549049544718}
+	min := model3d.XYZ(-0.36888350039080975, -0.3312187908572959, -0.5748622825455283)
+	max := model3d.XYZ(1.7179133746091901, 0.33221870914270424, 1.0427549049544718)
 	mid := min.Mid(max)
 
 	r, err := zip.OpenReader("assets/corgi.zip")
@@ -38,7 +38,7 @@ func CreateCorgi(theta, x, y float64) render3d.Object {
 		}
 
 		mesh := model3d.NewMeshTriangles(triangles)
-		mesh = mesh.MapCoords(model3d.Coord3D{X: -mid.X, Y: -mid.Y, Z: -min.Z}.Add)
+		mesh = mesh.MapCoords(model3d.XYZ(-mid.X, -mid.Y, -min.Z).Add)
 		mesh = mesh.MapCoords(model3d.NewMatrix3Rotation(model3d.Z(1), theta).MulColumn)
 		mesh = mesh.Scale(0.8)
 		mesh = mesh.MapCoords(model3d.Coord3D{X: x, Y: y}.Add)

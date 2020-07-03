@@ -93,11 +93,11 @@ func main() {
 type PreviewCutout struct{}
 
 func (p PreviewCutout) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -OuterDiameter / 2, Y: -OuterDiameter / 2, Z: PreviewZ1}
+	return model3d.XYZ(-OuterDiameter/2, -OuterDiameter/2, PreviewZ1)
 }
 
 func (p PreviewCutout) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: OuterDiameter / 2, Y: OuterDiameter / 2, Z: PreviewZ2}
+	return model3d.XYZ(OuterDiameter/2, OuterDiameter/2, PreviewZ2)
 }
 
 func (p PreviewCutout) Contains(c model3d.Coord3D) bool {

@@ -172,11 +172,11 @@ func NewEtchedImage(path string, theta float64) *EtchedImage {
 }
 
 func (e *EtchedImage) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: e.X - e.Radius, Y: e.Y - e.Radius, Z: -(Thickness + 1e-5)}
+	return model3d.XYZ(e.X-e.Radius, e.Y-e.Radius, -(Thickness + 1e-5))
 }
 
 func (e *EtchedImage) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: e.X + e.Radius, Y: e.Y + e.Radius, Z: Thickness + 1e-5}
+	return model3d.XYZ(e.X+e.Radius, e.Y+e.Radius, Thickness+1e-5)
 }
 
 func (e *EtchedImage) Contains(c model3d.Coord3D) bool {

@@ -13,7 +13,7 @@ const AppleHeight = 1.0
 
 func main() {
 	bite := &model3d.Torus{
-		Center:      model3d.Coord3D{X: -1.7, Y: 0, Z: AppleHeight / 2},
+		Center:      model3d.XYZ(-1.7, 0, AppleHeight/2),
 		Axis:        model3d.Z(1),
 		OuterRadius: 1.0,
 		InnerRadius: 0.3,
@@ -74,11 +74,11 @@ func NewAppleSolid() *AppleSolid {
 }
 
 func (a *AppleSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -a.width(), Y: -a.width(), Z: 0}
+	return model3d.XYZ(-a.width(), -a.width(), 0)
 }
 
 func (a *AppleSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: a.width(), Y: a.width(), Z: AppleHeight}
+	return model3d.XYZ(a.width(), a.width(), AppleHeight)
 }
 
 func (a *AppleSolid) Contains(c model3d.Coord3D) bool {

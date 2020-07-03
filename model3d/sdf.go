@@ -231,8 +231,8 @@ func ProfileSDF(sdf2d model2d.SDF, minZ, maxZ float64) SDF {
 	min, max := sdf2d.Min(), sdf2d.Max()
 	return &profileSDF{
 		SDF2D:  sdf2d,
-		MinVal: Coord3D{X: min.X, Y: min.Y, Z: minZ},
-		MaxVal: Coord3D{X: max.X, Y: max.Y, Z: maxZ},
+		MinVal: XYZ(min.X, min.Y, minZ),
+		MaxVal: XYZ(max.X, max.Y, maxZ),
 	}
 }
 
@@ -280,8 +280,8 @@ func ProfilePointSDF(sdf2d model2d.PointSDF, minZ, maxZ float64) PointSDF {
 	return &profilePointSDF{
 		profileSDF: profileSDF{
 			SDF2D:  sdf2d,
-			MinVal: Coord3D{X: min.X, Y: min.Y, Z: minZ},
-			MaxVal: Coord3D{X: max.X, Y: max.Y, Z: maxZ},
+			MinVal: XYZ(min.X, min.Y, minZ),
+			MaxVal: XYZ(max.X, max.Y, maxZ),
 		},
 		PointSDF2D: sdf2d,
 	}
@@ -302,10 +302,10 @@ func (p *profilePointSDF) PointSDF(c Coord3D) (Coord3D, float64) {
 	if !insideZ {
 		if sdf2d > 0 {
 			// We can go directly to the z-plane and hit the profile.
-			return Coord3D{X: c.X, Y: c.Y, Z: hitZ}, -zDist
+			return XYZ(c.X, c.Y, hitZ), -zDist
 		} else {
 			// We must go to the z-plane, then to the side of the profile.
-			return Coord3D{X: point2d.X, Y: point2d.Y, Z: hitZ},
+			return XYZ(point2d.X, point2d.Y, hitZ),
 				-math.Sqrt(zDist*zDist + sdf2d*sdf2d)
 		}
 	}
@@ -313,13 +313,13 @@ func (p *profilePointSDF) PointSDF(c Coord3D) (Coord3D, float64) {
 		// We are inside the model, so the closest point is either at
 		// the face or the side.
 		if zDist < sdf2d {
-			return Coord3D{X: c.X, Y: c.Y, Z: hitZ}, zDist
+			return XYZ(c.X, c.Y, hitZ), zDist
 		} else {
-			return Coord3D{X: point2d.X, Y: point2d.Y, Z: c.Z}, sdf2d
+			return XYZ(point2d.X, point2d.Y, c.Z), sdf2d
 		}
 	} else {
 		// We are outside the model, and the closest point is on the
 		// side of the profile.
-		return Coord3D{X: point2d.X, Y: point2d.Y, Z: c.Z}, sdf2d
+		return XYZ(point2d.X, point2d.Y, c.Z), sdf2d
 	}
 }

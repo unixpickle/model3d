@@ -67,7 +67,7 @@ func (b BodySolid) Min() model3d.Coord3D {
 }
 
 func (b BodySolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: Size / 2, Y: Size / 2, Z: FlatLength + PointSize}
+	return model3d.XYZ(Size/2, Size/2, FlatLength+PointSize)
 }
 
 func (b BodySolid) Contains(c model3d.Coord3D) bool {

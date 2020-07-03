@@ -34,7 +34,7 @@ func CreateCradle(a *Args) model3d.Solid {
 		Negative: &toolbox3d.ScrewSolid{
 			P1: model3d.Coord3D{X: a.PhoneWidth / 2, Y: a.PhoneDepth / 2,
 				Z: -(CradleBottomThickness + 1e-5)},
-			P2:         model3d.Coord3D{X: a.PhoneWidth / 2, Y: a.PhoneDepth / 2, Z: 1e-5},
+			P2:         model3d.XYZ(a.PhoneWidth/2, a.PhoneDepth/2, 1e-5),
 			Radius:     ScrewRadius + ScrewSlack,
 			GrooveSize: ScrewGroove,
 		},

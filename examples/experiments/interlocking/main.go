@@ -20,7 +20,7 @@ func main() {
 		SlopedTriangle{
 			Base1: model3d.Coord3D{},
 			Base2: model3d.X(SideSize),
-			Tip:   model3d.Coord3D{X: SideSize / 2, Y: Slope, Z: SideSize * math.Sqrt(3) / 2},
+			Tip:   model3d.XYZ(SideSize/2, Slope, SideSize*math.Sqrt(3)/2),
 		},
 		SlopedTriangle{
 			Base1: model3d.Coord3D{X: Offset, Y: Slope},
@@ -52,11 +52,11 @@ type SlopedTriangle struct {
 }
 
 func (s SlopedTriangle) Min() model3d.Coord3D {
-	return s.Base1.Min(s.Base2).Min(s.Tip).Sub(model3d.Coord3D{X: Size, Y: Size, Z: Size})
+	return s.Base1.Min(s.Base2).Min(s.Tip).Sub(model3d.XYZ(Size, Size, Size))
 }
 
 func (s SlopedTriangle) Max() model3d.Coord3D {
-	return s.Base1.Max(s.Base2).Max(s.Tip).Add(model3d.Coord3D{X: Size, Y: Size, Z: Size})
+	return s.Base1.Max(s.Base2).Max(s.Tip).Add(model3d.XYZ(Size, Size, Size))
 }
 
 func (s SlopedTriangle) Contains(c model3d.Coord3D) bool {

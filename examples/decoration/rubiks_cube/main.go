@@ -30,14 +30,14 @@ func main() {
 				}
 				solid = append(solid, &model3d.Rect{
 					MinVal: min,
-					MaxVal: min.Add(model3d.Coord3D{X: cubieSize, Y: cubieSize, Z: cubieSize}),
+					MaxVal: min.Add(model3d.XYZ(cubieSize, cubieSize, cubieSize)),
 				})
 			}
 		}
 	}
 	// Join all the cubies together with a center cube
 	// that takes up most of the volume.
-	offset := (model3d.Coord3D{X: 1, Y: 1, Z: 1}).Scale(GapDepth)
+	offset := (model3d.XYZ(1, 1, 1)).Scale(GapDepth)
 	solid = append(solid, &model3d.Rect{
 		MinVal: offset,
 		MaxVal: solid.Max().Sub(offset),

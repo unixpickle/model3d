@@ -85,12 +85,12 @@ func NewHeartSolid() *HeartSolid {
 
 func (h *HeartSolid) Min() model3d.Coord3D {
 	xy := -(HolderRadius + HolderThickness)
-	return model3d.Coord3D{X: xy, Y: xy, Z: -BottomThickness}
+	return model3d.XYZ(xy, xy, -BottomThickness)
 }
 
 func (h *HeartSolid) Max() model3d.Coord3D {
 	xy := h.totalSize + HolderRadius + HolderThickness
-	return model3d.Coord3D{X: xy, Y: xy, Z: HolderHeight}
+	return model3d.XYZ(xy, xy, HolderHeight)
 }
 
 func (h *HeartSolid) Contains(c model3d.Coord3D) bool {

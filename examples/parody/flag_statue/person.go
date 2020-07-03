@@ -79,7 +79,7 @@ func (p *PersonSolid) Contains(c model3d.Coord3D) bool {
 	xAxis := model3d.Y(1)
 	yAxis := xAxis.Cross(zAxis)
 	c = c.Sub(p.P1)
-	c = model3d.Coord3D{X: c.Dot(xAxis), Y: c.Dot(yAxis), Z: c.Dot(zAxis)}
+	c = model3d.XYZ(c.Dot(xAxis), c.Dot(yAxis), c.Dot(zAxis))
 	c2 := c.Coord2D()
 
 	if c.Z < 0 {

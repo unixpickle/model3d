@@ -43,7 +43,7 @@ func main() {
 	// build. Instead, we use an algorithm that does not
 	// produce larger meshes for larger polytopes.
 	log.Println("Creating mesh...")
-	maxVal := model3d.Coord3D{X: 1 + LandDepth, Y: 1 + LandDepth, Z: 1 + LandDepth}
+	maxVal := model3d.XYZ(1+LandDepth, 1+LandDepth, 1+LandDepth)
 	solid := &PolySolid{Polytope: poly, MinVal: maxVal.Scale(-1), MaxVal: maxVal}
 	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 

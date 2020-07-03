@@ -51,8 +51,8 @@ func NewFloorObject() *FloorObject {
 	return &FloorObject{
 		Object: &render3d.ColliderObject{
 			Collider: &model3d.Rect{
-				MinVal: model3d.Coord3D{X: -RoomRadius, Y: -RoomRadius, Z: -0.01},
-				MaxVal: model3d.Coord3D{X: RoomRadius, Y: RoomRadius, Z: 0},
+				MinVal: model3d.XYZ(-RoomRadius, -RoomRadius, -0.01),
+				MaxVal: model3d.XYZ(RoomRadius, RoomRadius, 0),
 			},
 		},
 	}

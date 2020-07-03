@@ -16,7 +16,7 @@ func main() {
 		// Mirror ball.
 		&render3d.ColliderObject{
 			Collider: &model3d.Sphere{
-				Center: model3d.Coord3D{X: 2, Y: 7, Z: 0},
+				Center: model3d.XYZ(2, 7, 0),
 				Radius: 2,
 			},
 			Material: &render3d.PhongMaterial{
@@ -28,7 +28,7 @@ func main() {
 		// Red ball.
 		&render3d.ColliderObject{
 			Collider: &model3d.Sphere{
-				Center: model3d.Coord3D{X: -2, Y: 5.5, Z: -1},
+				Center: model3d.XYZ(-2, 5.5, -1),
 				Radius: 1,
 			},
 			Material: &render3d.PhongMaterial{
@@ -60,9 +60,9 @@ func main() {
 		&render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(
 				model3d.NewMeshRect(
-					model3d.Coord3D{X: -5, Y: -10, Z: -2},
-					model3d.Coord3D{X: 5, Y: 10, Z: 7},
-				).MapCoords(model3d.Coord3D{X: -1, Y: 1, Z: 1}.Mul),
+					model3d.XYZ(-5, -10, -2),
+					model3d.XYZ(5, 10, 7),
+				).MapCoords(model3d.XYZ(-1, 1, 1).Mul),
 			),
 			Material: &render3d.LambertMaterial{
 				DiffuseColor: render3d.NewColor(0.4),
@@ -73,8 +73,8 @@ func main() {
 		&render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(
 				model3d.NewMeshRect(
-					model3d.Coord3D{X: -2, Y: 5, Z: 6.8},
-					model3d.Coord3D{X: 2, Y: 7, Z: 7},
+					model3d.XYZ(-2, 5, 6.8),
+					model3d.XYZ(2, 7, 7),
 				),
 			),
 			Material: &render3d.LambertMaterial{
@@ -93,7 +93,7 @@ func main() {
 		// to lower variance (i.e. grain).
 		FocusPoints: []render3d.FocusPoint{
 			&render3d.PhongFocusPoint{
-				Target: model3d.Coord3D{X: 0, Y: 6, Z: 6.9},
+				Target: model3d.XYZ(0, 6, 6.9),
 				Alpha:  40.0,
 				MaterialFilter: func(m render3d.Material) bool {
 					if _, ok := m.(*render3d.LambertMaterial); ok {

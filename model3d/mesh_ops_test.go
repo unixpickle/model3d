@@ -240,10 +240,10 @@ func TestMeshFlattenBase(t *testing.T) {
 
 	t.Run("Containment", func(t *testing.T) {
 		solid := JoinedSolid{
-			&RectSolid{MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5}},
+			&RectSolid{MaxVal: XYZ(2, 1, 0.5)},
 			&RectSolid{
-				MinVal: Coord3D{X: 1, Y: 1, Z: 0},
-				MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5},
+				MinVal: XYZ(1, 1, 0),
+				MaxVal: XYZ(2, 1, 0.5),
 			},
 		}
 		m := MarchingCubesSearch(solid, 0.025, 8).Blur(-1, -1, -1, -1, -1)
@@ -251,7 +251,7 @@ func TestMeshFlattenBase(t *testing.T) {
 		c1 := NewColliderSolid(MeshToCollider(m))
 		c2 := NewColliderSolid(MeshToCollider(flat))
 		for i := 0; i < 1000; i++ {
-			p := Coord3D{X: rand.Float64(), Y: rand.Float64(), Z: rand.Float64()}
+			p := XYZ(rand.Float64(), rand.Float64(), rand.Float64())
 			p = p.Mul(solid.Max())
 			if c1.Contains(p) && !c2.Contains(p) {
 				t.Error("flattened solid is not strictly larger")
@@ -311,10 +311,10 @@ func BenchmarkEliminateCoplanar(b *testing.B) {
 
 func BenchmarkMeshFlattenBase(b *testing.B) {
 	solid := JoinedSolid{
-		&RectSolid{MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5}},
+		&RectSolid{MaxVal: XYZ(2, 1, 0.5)},
 		&RectSolid{
-			MinVal: Coord3D{X: 1, Y: 1, Z: 0},
-			MaxVal: Coord3D{X: 2, Y: 1, Z: 0.5},
+			MinVal: XYZ(1, 1, 0),
+			MaxVal: XYZ(2, 1, 0.5),
 		},
 	}
 	m := MarchingCubesSearch(solid, 0.025, 8).Blur(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1)

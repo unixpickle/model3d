@@ -37,11 +37,11 @@ func main() {
 type BrushSolid struct{}
 
 func (b BrushSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -BrushTopRadius, Y: -BrushTopRadius, Z: -HandleHeight}
+	return model3d.XYZ(-BrushTopRadius, -BrushTopRadius, -HandleHeight)
 }
 
 func (b BrushSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: BrushTopRadius, Y: BrushTopRadius, Z: BrushHeight + BrushTopRadius/2}
+	return model3d.XYZ(BrushTopRadius, BrushTopRadius, BrushHeight+BrushTopRadius/2)
 }
 
 func (b BrushSolid) Contains(c model3d.Coord3D) bool {

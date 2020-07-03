@@ -82,7 +82,7 @@ func (m *Matrix3Transform) ApplyBounds(min, max Coord3D) (Coord3D, Coord3D) {
 	for i, x := range []float64{min.X, max.X} {
 		for j, y := range []float64{min.Y, max.Y} {
 			for k, z := range []float64{min.Z, max.Z} {
-				c := m.Matrix.MulColumn(Coord3D{X: x, Y: y, Z: z})
+				c := m.Matrix.MulColumn(XYZ(x, y, z))
 				if i == 0 && j == 0 && k == 0 {
 					newMin, newMax = c, c
 				} else {

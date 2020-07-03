@@ -334,8 +334,8 @@ func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {
 	min, max := solid2d.Min(), solid2d.Max()
 	return &profileSolid{
 		Solid2D: solid2d,
-		MinVal:  Coord3D{X: min.X, Y: min.Y, Z: minZ},
-		MaxVal:  Coord3D{X: max.X, Y: max.Y, Z: maxZ},
+		MinVal:  XYZ(min.X, min.Y, minZ),
+		MaxVal:  XYZ(max.X, max.Y, maxZ),
 	}
 }
 

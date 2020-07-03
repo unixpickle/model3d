@@ -21,8 +21,8 @@ func CreateLamp() render3d.AreaLight {
 	var lights []render3d.AreaLight
 	for _, x := range []float64{-4, 4} {
 		light := render3d.NewCylinderAreaLight(&model3d.Cylinder{
-			P1:     model3d.Coord3D{X: x, Y: 6, Z: 0},
-			P2:     model3d.Coord3D{X: x, Y: 6, Z: 2},
+			P1:     model3d.XYZ(x, 6, 0),
+			P2:     model3d.XYZ(x, 6, 2),
 			Radius: 0.8,
 		}, render3d.NewColor(LampBrightness))
 
@@ -32,8 +32,8 @@ func CreateLamp() render3d.AreaLight {
 			// Base
 			&render3d.ColliderObject{
 				Collider: &model3d.Cylinder{
-					P1:     model3d.Coord3D{X: x, Y: 6, Z: -5},
-					P2:     model3d.Coord3D{X: x, Y: 6, Z: -4.9},
+					P1:     model3d.XYZ(x, 6, -5),
+					P2:     model3d.XYZ(x, 6, -4.9),
 					Radius: 0.5,
 				},
 				Material: &render3d.PhongMaterial{
@@ -46,8 +46,8 @@ func CreateLamp() render3d.AreaLight {
 			// Pole
 			&render3d.ColliderObject{
 				Collider: &model3d.Cylinder{
-					P1:     model3d.Coord3D{X: x, Y: 6, Z: -4.9},
-					P2:     model3d.Coord3D{X: x, Y: 6, Z: 0},
+					P1:     model3d.XYZ(x, 6, -4.9),
+					P2:     model3d.XYZ(x, 6, 0),
 					Radius: 0.2,
 				},
 				Material: &render3d.PhongMaterial{
@@ -68,12 +68,12 @@ func CreateLamp() render3d.AreaLight {
 func CreateWallLights() render3d.AreaLight {
 	mesh := model3d.NewMesh()
 	mesh.AddMesh(model3d.NewMeshRect(
-		model3d.Coord3D{X: -6, Y: -4, Z: 3.5},
-		model3d.Coord3D{X: -5.6, Y: 4, Z: 4},
+		model3d.XYZ(-6, -4, 3.5),
+		model3d.XYZ(-5.6, 4, 4),
 	))
 	mesh.AddMesh(model3d.NewMeshRect(
-		model3d.Coord3D{X: 5.6, Y: -4, Z: 3.5},
-		model3d.Coord3D{X: 6, Y: 4, Z: 4},
+		model3d.XYZ(5.6, -4, 3.5),
+		model3d.XYZ(6, 4, 4),
 	))
 	return render3d.NewMeshAreaLight(mesh, render3d.NewColor(WallLightBrightness))
 }
@@ -88,7 +88,7 @@ func CreateCeilingLights() []*CeilingLight {
 		for y := -5; y <= 4; y += 3 {
 			lights = append(lights, &CeilingLight{
 				Cylinder: &model3d.Cylinder{
-					P1: model3d.Coord3D{X: float64(x), Y: float64(y), Z: RoomHeight},
+					P1: model3d.XYZ(float64(x), float64(y), RoomHeight),
 					P2: model3d.Coord3D{X: float64(x), Y: float64(y),
 						Z: RoomHeight + CeilingLightDepth},
 					Radius: CeilingLightRadius,

@@ -41,7 +41,7 @@ type BladeSolid struct {
 }
 
 func (b BladeSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -BladeRadius, Y: -BladeRadius, Z: 0}
+	return model3d.XYZ(-BladeRadius, -BladeRadius, 0)
 }
 
 func (b BladeSolid) Max() model3d.Coord3D {
@@ -61,7 +61,7 @@ func (b BladeSolid) Contains(c model3d.Coord3D) bool {
 	if vec.Dot(c2) < 0 {
 		return false
 	}
-	normal := model3d.Coord3D{X: -vec.Y, Y: vec.X, Z: 1}.Normalize()
+	normal := model3d.XYZ(-vec.Y, vec.X, 1).Normalize()
 
 	dist := math.Abs(c.Sub(model3d.Z(BladeDepth / 2)).Dot(normal))
 	return dist <= BladeThickness/2

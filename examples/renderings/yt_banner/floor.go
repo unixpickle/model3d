@@ -15,8 +15,8 @@ import (
 func CreateFloor() render3d.Object {
 	return NewFloorObject(&render3d.ColliderObject{
 		Collider: &model3d.Rect{
-			MinVal: model3d.Coord3D{X: -100, Y: -100, Z: -0.01},
-			MaxVal: model3d.Coord3D{X: 100, Y: 100, Z: 0},
+			MinVal: model3d.XYZ(-100, -100, -0.01),
+			MaxVal: model3d.XYZ(100, 100, 0),
 		},
 	})
 }

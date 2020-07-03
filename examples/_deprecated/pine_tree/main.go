@@ -34,11 +34,11 @@ func main() {
 type TreeSolid struct{}
 
 func (t TreeSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -(Radius + BaseOutset), Y: -(Radius + BaseOutset), Z: -BaseThickness}
+	return model3d.XYZ(-(Radius + BaseOutset), -(Radius + BaseOutset), -BaseThickness)
 }
 
 func (t TreeSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: Radius + BaseOutset, Y: Radius + BaseOutset, Z: Height}
+	return model3d.XYZ(Radius+BaseOutset, Radius+BaseOutset, Height)
 }
 
 func (t TreeSolid) Contains(c model3d.Coord3D) bool {

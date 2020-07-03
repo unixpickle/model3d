@@ -62,7 +62,7 @@ func main() {
 		renderModel = append(renderModel, object)
 	}
 
-	render3d.SaveRendering("rendering.png", renderModel, model3d.Coord3D{X: 2.5, Y: -3, Z: 6},
+	render3d.SaveRendering("rendering.png", renderModel, model3d.XYZ(2.5, -3, 6),
 		500, 500, nil)
 	saveMesh.SaveGroupedSTL("digits.stl")
 }

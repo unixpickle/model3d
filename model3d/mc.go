@@ -471,7 +471,7 @@ func newSquareSpacer(s Solid, delta float64) *squareSpacer {
 }
 
 func (s *squareSpacer) CornerCoord(x, y, z int) Coord3D {
-	return Coord3D{X: s.Xs[x], Y: s.Ys[y], Z: s.Zs[z]}
+	return XYZ(s.Xs[x], s.Ys[y], s.Zs[z])
 }
 
 func (s *squareSpacer) Scan(solid Solid, f func(z int, bottom, top *solidCache)) {

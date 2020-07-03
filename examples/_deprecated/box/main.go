@@ -44,82 +44,82 @@ func MakeBody() {
 
 	// Inside bottom
 	addRect(
-		model3d.Coord3D{X: SideThickness, Y: SideThickness, Z: SideThickness},
-		model3d.Coord3D{X: Width + SideThickness, Y: SideThickness, Z: SideThickness},
-		model3d.Coord3D{X: SideThickness, Y: Depth + SideThickness, Z: SideThickness},
+		model3d.XYZ(SideThickness, SideThickness, SideThickness),
+		model3d.XYZ(Width+SideThickness, SideThickness, SideThickness),
+		model3d.XYZ(SideThickness, Depth+SideThickness, SideThickness),
 	)
 
 	// Outside bottom
 	addRect(
-		model3d.Coord3D{X: 0, Y: 0, Z: 0},
-		model3d.Coord3D{X: Width + SideThickness*2, Y: 0, Z: 0},
-		model3d.Coord3D{X: 0, Y: Depth + SideThickness*2, Z: 0},
+		model3d.XYZ(0, 0, 0),
+		model3d.XYZ(Width+SideThickness*2, 0, 0),
+		model3d.XYZ(0, Depth+SideThickness*2, 0),
 	)
 
 	// Left side.
 	addRect(
-		model3d.Coord3D{X: 0, Y: 0, Z: 0},
-		model3d.Coord3D{X: 0, Y: 0, Z: Height},
-		model3d.Coord3D{X: 0, Y: Depth + SideThickness*2, Z: 0},
+		model3d.XYZ(0, 0, 0),
+		model3d.XYZ(0, 0, Height),
+		model3d.XYZ(0, Depth+SideThickness*2, 0),
 	)
 
 	// Right side.
 	addRect(
-		model3d.Coord3D{X: Width + SideThickness*2, Y: 0, Z: 0},
-		model3d.Coord3D{X: Width + SideThickness*2, Y: 0, Z: Height},
-		model3d.Coord3D{X: Width + SideThickness*2, Y: Depth + SideThickness*2, Z: 0},
+		model3d.XYZ(Width+SideThickness*2, 0, 0),
+		model3d.XYZ(Width+SideThickness*2, 0, Height),
+		model3d.XYZ(Width+SideThickness*2, Depth+SideThickness*2, 0),
 	)
 
 	// Front side.
 	addRect(
-		model3d.Coord3D{X: 0, Y: 0, Z: 0},
-		model3d.Coord3D{X: 0, Y: 0, Z: Height},
-		model3d.Coord3D{X: Width + SideThickness*2, Y: 0, Z: 0},
+		model3d.XYZ(0, 0, 0),
+		model3d.XYZ(0, 0, Height),
+		model3d.XYZ(Width+SideThickness*2, 0, 0),
 	)
 
 	// Back side.
 	addRect(
-		model3d.Coord3D{X: 0, Y: Depth + SideThickness*2, Z: 0},
-		model3d.Coord3D{X: 0, Y: Depth + SideThickness*2, Z: Height},
-		model3d.Coord3D{X: Width + SideThickness*2, Y: Depth + SideThickness*2, Z: 0},
+		model3d.XYZ(0, Depth+SideThickness*2, 0),
+		model3d.XYZ(0, Depth+SideThickness*2, Height),
+		model3d.XYZ(Width+SideThickness*2, Depth+SideThickness*2, 0),
 	)
 
 	// Create top edges.
 	for _, xOffset := range []float64{0, Width + SideThickness} {
 		for _, yOffset := range []float64{0, Depth + SideThickness} {
 			addRect(
-				model3d.Coord3D{X: xOffset, Y: yOffset, Z: Height},
-				model3d.Coord3D{X: xOffset + SideThickness, Y: yOffset, Z: Height},
-				model3d.Coord3D{X: xOffset, Y: yOffset + SideThickness, Z: Height},
+				model3d.XYZ(xOffset, yOffset, Height),
+				model3d.XYZ(xOffset+SideThickness, yOffset, Height),
+				model3d.XYZ(xOffset, yOffset+SideThickness, Height),
 			)
 			if xOffset == 0 {
 				addRect(
-					model3d.Coord3D{X: SideThickness, Y: yOffset, Z: Height},
-					model3d.Coord3D{X: Width + SideThickness, Y: yOffset, Z: Height},
-					model3d.Coord3D{X: SideThickness, Y: yOffset + SideThickness, Z: Height},
+					model3d.XYZ(SideThickness, yOffset, Height),
+					model3d.XYZ(Width+SideThickness, yOffset, Height),
+					model3d.XYZ(SideThickness, yOffset+SideThickness, Height),
 				)
 			}
 		}
 		addRect(
-			model3d.Coord3D{X: xOffset, Y: SideThickness, Z: Height},
-			model3d.Coord3D{X: xOffset + SideThickness, Y: SideThickness, Z: Height},
-			model3d.Coord3D{X: xOffset, Y: Depth + SideThickness, Z: Height},
+			model3d.XYZ(xOffset, SideThickness, Height),
+			model3d.XYZ(xOffset+SideThickness, SideThickness, Height),
+			model3d.XYZ(xOffset, Depth+SideThickness, Height),
 		)
 	}
 
 	// Inside walls.
 	for _, xOffset := range []float64{SideThickness, Width + SideThickness} {
 		addRect(
-			model3d.Coord3D{X: xOffset, Y: SideThickness, Z: SideThickness},
-			model3d.Coord3D{X: xOffset, Y: SideThickness, Z: Height},
-			model3d.Coord3D{X: xOffset, Y: Depth + SideThickness, Z: SideThickness},
+			model3d.XYZ(xOffset, SideThickness, SideThickness),
+			model3d.XYZ(xOffset, SideThickness, Height),
+			model3d.XYZ(xOffset, Depth+SideThickness, SideThickness),
 		)
 	}
 	for _, yOffset := range []float64{SideThickness, Depth + SideThickness} {
 		addRect(
-			model3d.Coord3D{X: SideThickness, Y: yOffset, Z: SideThickness},
-			model3d.Coord3D{X: SideThickness, Y: yOffset, Z: Height},
-			model3d.Coord3D{X: Width + SideThickness, Y: yOffset, Z: SideThickness},
+			model3d.XYZ(SideThickness, yOffset, SideThickness),
+			model3d.XYZ(SideThickness, yOffset, Height),
+			model3d.XYZ(Width+SideThickness, yOffset, SideThickness),
 		)
 	}
 
@@ -157,7 +157,7 @@ func MakeLid() {
 		Negative: model3d.JoinedSolid{
 			&model3d.Cylinder{
 				P1:     model3d.Coord3D{X: cx, Y: cy},
-				P2:     model3d.Coord3D{X: cx, Y: cy, Z: SideThickness},
+				P2:     model3d.XYZ(cx, cy, SideThickness),
 				Radius: ScrewHoleSize,
 			},
 			&model3d.Rect{
@@ -232,11 +232,11 @@ func NewScrewBase() *ScrewBase {
 }
 
 func (s *ScrewBase) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -0.8, Y: -0.8, Z: 0}
+	return model3d.XYZ(-0.8, -0.8, 0)
 }
 
 func (s *ScrewBase) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: 0.8, Y: 0.8, Z: 0.2}
+	return model3d.XYZ(0.8, 0.8, 0.2)
 }
 
 func (s *ScrewBase) Contains(c model3d.Coord3D) bool {

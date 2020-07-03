@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewMeshRect(t *testing.T) {
-	mesh := NewMeshRect(Coord3D{X: -0.3, Y: -0.4, Z: -0.2}, Coord3D{X: 0.4, Y: 0.35, Z: 0.19})
+	mesh := NewMeshRect(XYZ(-0.3, -0.4, -0.2), XYZ(0.4, 0.35, 0.19))
 	if mesh.NeedsRepair() {
 		t.Error("mesh needs repair")
 	}

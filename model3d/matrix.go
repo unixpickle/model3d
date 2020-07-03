@@ -234,9 +234,9 @@ func (m *Matrix3) SVD(u, s, v *Matrix3) {
 }
 
 func (m *Matrix3) symEigVector(val float64) Coord3D {
-	row1 := Coord3D{X: m[0] - val, Y: m[1], Z: m[2]}
-	row2 := Coord3D{X: m[3], Y: m[4] - val, Z: m[5]}
-	row3 := Coord3D{X: m[6], Y: m[7], Z: m[8] - val}
+	row1 := XYZ(m[0]-val, m[1], m[2])
+	row2 := XYZ(m[3], m[4]-val, m[5])
+	row3 := XYZ(m[6], m[7], m[8]-val)
 
 	// Search for the null-space by trying a bunch of
 	// different possibilities and choosing the most

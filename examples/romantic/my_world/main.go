@@ -48,12 +48,12 @@ func NewGlobeSolid() *GlobeSolid {
 
 func (g *GlobeSolid) Min() model3d.Coord3D {
 	d := GlobeRadius + GlobeOutset
-	return model3d.Coord3D{X: -d, Y: -d, Z: 0}
+	return model3d.XYZ(-d, -d, 0)
 }
 
 func (g *GlobeSolid) Max() model3d.Coord3D {
 	d := GlobeRadius + GlobeOutset
-	return model3d.Coord3D{X: d, Y: d, Z: d}
+	return model3d.XYZ(d, d, d)
 }
 
 func (g *GlobeSolid) Contains(c model3d.Coord3D) bool {
@@ -84,11 +84,11 @@ func NewBaseSolid() *BaseSolid {
 }
 
 func (b *BaseSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -BoardSize / 2, Y: -BoardSize / 2, Z: -BoardThickness}
+	return model3d.XYZ(-BoardSize/2, -BoardSize/2, -BoardThickness)
 }
 
 func (b *BaseSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: BoardSize / 2, Y: BoardSize / 2, Z: 0}
+	return model3d.XYZ(BoardSize/2, BoardSize/2, 0)
 }
 
 func (b *BaseSolid) Contains(c model3d.Coord3D) bool {

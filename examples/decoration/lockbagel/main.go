@@ -47,18 +47,18 @@ func CreateLock() *model3d.Mesh {
 type LockSolid struct{}
 
 func (l LockSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -1, Y: -1, Z: -1}
+	return model3d.XYZ(-1, -1, -1)
 }
 
 func (l LockSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: 1, Y: 1, Z: 1}
+	return model3d.XYZ(1, 1, 1)
 }
 
 func (l LockSolid) Contains(c model3d.Coord3D) bool {
 	// Check the sides of the lock's hook.
 	if c.Y < 0 && c.Y > -0.4 {
-		d1 := c.Dist(model3d.Coord3D{X: -0.45, Y: c.Y, Z: 0})
-		d2 := c.Dist(model3d.Coord3D{X: 0.45, Y: c.Y, Z: 0})
+		d1 := c.Dist(model3d.XY(-0.45, c.Y))
+		d2 := c.Dist(model3d.XY(0.45, c.Y))
 		return math.Min(d1, d2) < 0.1
 	}
 
@@ -74,7 +74,7 @@ func (l LockSolid) Contains(c model3d.Coord3D) bool {
 	// Check the top of the lock's hook.
 	if c.Y < -0.4 && c.Y > -0.95 {
 		theta := math.Atan2(c.Y+0.4, c.X)
-		p := model3d.Coord3D{X: math.Cos(theta) * 0.45, Y: math.Sin(theta)*0.45 - 0.4, Z: 0}
+		p := model3d.XY(math.Cos(theta)*0.45, math.Sin(theta)*0.45-0.4)
 		return p.Dist(c) < 0.1
 	}
 

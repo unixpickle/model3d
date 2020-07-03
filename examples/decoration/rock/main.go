@@ -50,7 +50,7 @@ func main() {
 			for i := 0; i < 100; i++ {
 				rock = AddConstraint(rock)
 			}
-			min := model3d.Coord3D{X: float64(i) * 1.1, Y: float64(j) * 1.1, Z: 0}
+			min := model3d.XYZ(float64(i)*1.1, float64(j)*1.1, 0)
 			mesh.AddMesh(rock.Mesh().MapCoords(min.Add))
 		}
 	}

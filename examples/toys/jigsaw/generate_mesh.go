@@ -42,7 +42,7 @@ func GenerateMesh() {
 		},
 		Negative: &model3d.RectSolid{
 			MinVal: model3d.Coord3D{},
-			MaxVal: model3d.Coord3D{X: BoardSize, Y: BoardSize, Z: HolderInset + 1e-5},
+			MaxVal: model3d.XYZ(BoardSize, BoardSize, HolderInset+1e-5),
 		},
 	}
 	holderMesh := model3d.MarchingCubesSearch(holder, 0.02, 8)
@@ -63,7 +63,7 @@ func (p *PiecesSolid) Min() model3d.Coord3D {
 }
 
 func (p *PiecesSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: BoardSize, Y: BoardSize, Z: PieceDepth}
+	return model3d.XYZ(BoardSize, BoardSize, PieceDepth)
 }
 
 func (p *PiecesSolid) Contains(c model3d.Coord3D) bool {

@@ -123,7 +123,7 @@ func (g GlobeSolid) Contains(c model3d.Coord3D) bool {
 	dist := norm - Radius
 	return g.Collider.RayCollisions(&model3d.Ray{
 		Origin:    c,
-		Direction: model3d.Coord3D{X: 1, Y: 1, Z: 1},
+		Direction: model3d.XYZ(1, 1, 1),
 	}, nil)%2 != 0 && !g.Collider.SphereCollision(c, dist)
 }
 

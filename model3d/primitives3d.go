@@ -127,12 +127,12 @@ type Sphere struct {
 
 // Min gets the minimum point of the bounding box.
 func (s *Sphere) Min() Coord3D {
-	return Coord3D{X: s.Center.X - s.Radius, Y: s.Center.Y - s.Radius, Z: s.Center.Z - s.Radius}
+	return XYZ(s.Center.X-s.Radius, s.Center.Y-s.Radius, s.Center.Z-s.Radius)
 }
 
 // Max gets the maximum point of the bounding box.
 func (s *Sphere) Max() Coord3D {
-	return Coord3D{X: s.Center.X + s.Radius, Y: s.Center.Y + s.Radius, Z: s.Center.Z + s.Radius}
+	return XYZ(s.Center.X+s.Radius, s.Center.Y+s.Radius, s.Center.Z+s.Radius)
 }
 
 // Contains checks if a point c is inside the sphere.
@@ -489,7 +489,7 @@ type Torus struct {
 
 // Min gets the minimum point of the bounding box.
 func (t *Torus) Min() Coord3D {
-	extra := Coord3D{X: t.InnerRadius, Y: t.InnerRadius, Z: t.InnerRadius}
+	extra := XYZ(t.InnerRadius, t.InnerRadius, t.InnerRadius)
 	minOffsets := (Coord3D{
 		circleAxisBound(0, t.Axis, -1),
 		circleAxisBound(1, t.Axis, -1),
@@ -500,7 +500,7 @@ func (t *Torus) Min() Coord3D {
 
 // Max gets the maximum point of the bounding box.
 func (t *Torus) Max() Coord3D {
-	extra := Coord3D{X: t.InnerRadius, Y: t.InnerRadius, Z: t.InnerRadius}
+	extra := XYZ(t.InnerRadius, t.InnerRadius, t.InnerRadius)
 	minOffsets := (Coord3D{
 		circleAxisBound(0, t.Axis, 1),
 		circleAxisBound(1, t.Axis, 1),

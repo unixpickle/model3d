@@ -462,7 +462,7 @@ func (s *SolidCollider) SphereCollision(c Coord3D, r float64) bool {
 	for z := c.Z - r; z <= c.Z+r; z += s.Epsilon {
 		for y := c.Y - r; y <= c.Y+r; y += s.Epsilon {
 			for x := c.X - r; x <= c.X+r; x += s.Epsilon {
-				coord := Coord3D{X: x, Y: y, Z: z}
+				coord := XYZ(x, y, z)
 				if c.Dist(coord) > r {
 					continue
 				}
@@ -489,8 +489,8 @@ func ProfileCollider(coll2d model2d.Collider, minZ, maxZ float64) Collider {
 	return &profileCollider{
 		Collider2D: coll2d,
 		Solid2D:    model2d.NewColliderSolid(coll2d),
-		MinVal:     Coord3D{X: min.X, Y: min.Y, Z: minZ},
-		MaxVal:     Coord3D{X: max.X, Y: max.Y, Z: maxZ},
+		MinVal:     XYZ(min.X, min.Y, minZ),
+		MaxVal:     XYZ(max.X, max.Y, maxZ),
 	}
 }
 
