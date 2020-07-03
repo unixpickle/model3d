@@ -132,7 +132,7 @@ func (p *PointedEdges) Contains(c model3d.Coord3D) bool {
 	}
 	r := c.XY().Norm()
 	if r < p.MinRadius {
-		return false
+		return true
 	}
 	theta := math.Atan2(c.Y, c.X) + 2*math.Pi
 	modulo := math.Mod(theta/(2*math.Pi)+p.Phase, 1/p.Frequency) * p.Frequency
