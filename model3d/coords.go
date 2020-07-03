@@ -119,6 +119,11 @@ func XY(x, y float64) Coord3D {
 	return Coord3D{X: x, Y: y}
 }
 
+// XYZ creates a 3D coordinate.
+func XYZ(x, y, z float64) Coord3D {
+	return Coord3D{X: x, Y: y, Z: z}
+}
+
 // XZ gets a coordinate in the X and Z direction.
 func XZ(x, z float64) Coord3D {
 	return Coord3D{X: x, Z: z}
