@@ -74,6 +74,10 @@ type Collider interface {
 // A TriangleCollider is like a Collider, but it can also
 // check if and where a triangle intersects the surface.
 //
+// This is intended to be used for piecewise-linear
+// surfaces where triangle-surface intersections can be
+// parameterized as line segments.
+//
 // All methods of a TriangleCollider are safe for
 // concurrency.
 type TriangleCollider interface {
@@ -82,6 +86,23 @@ type TriangleCollider interface {
 	// TriangleCollisions gets all of the segments on the
 	// surface which intersect the triangle t.
 	TriangleCollisions(t *Triangle) []Segment
+}
+
+// A SegmentCollider is a surface which can detect if a
+// line segment collides with the surface.
+type SegmentCollider interface {
+	// SegmentCollision returns true if the segment
+	// collides with the surface.
+	SegmentCollision(s Segment) bool
+}
+
+// A RectCollider is a surface which can detect if a 3D
+// axis-aligned rectangular volume collides with the
+// surface.
+type RectCollider interface {
+	// RectCollision returns true if any part of the
+	// surface is inside the rect.
+	RectCollision(r *Rect) bool
 }
 
 // MeshToCollider creates an efficient TriangleCollider
