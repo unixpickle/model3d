@@ -395,6 +395,35 @@ func (t *Triangle) TriangleCollisions(t1 *Triangle) []Segment {
 	return []Segment{NewSegment(p1, p2)}
 }
 
+// SegmentCollision checks if the segment collides with
+// the triangle.
+func (t *Triangle) SegmentCollision(s Segment) bool {
+	coll, ok := t.FirstRayCollision(&Ray{Origin: s[0], Direction: s[1].Sub(s[0])})
+	return ok && coll.Scale <= 1
+}
+
+// RectCollision checks if any part of the triangle is
+// inside the rect.
+func (t *Triangle) RectCollision(rect *Rect) bool {
+	// We have a system of linear inequalities and we want
+	// to find if there's any satisfying variables a, b, c:
+	//
+	//     rMin <= a*v1 + b*v2 + c*v3 <= rMax
+	//     a >= 0
+	//     b >= 0
+	//     c >= 0
+	//     a + b + c = 1
+	//
+	// This would be solvable via the simplex method, but
+	// for now we simply use triangle collisions.
+	for _, t1 := range NewMeshRect(rect.MinVal, rect.MaxVal).TriangleSlice() {
+		if len(t.TriangleCollisions(t1)) != 0 {
+			return true
+		}
+	}
+	return rect.Contains(t[0])
+}
+
 // A Segment is a line segment in a canonical ordering,
 // such that segments can be compared via the == operator
 // even if they were created with their points in the

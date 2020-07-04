@@ -179,6 +179,40 @@ func TestTriangleCollisionMismatch(t *testing.T) {
 	}
 }
 
+func TestTriangleRectCollision(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		tri := randomTriangle()
+		samplePoint := func() Coord3D {
+			a, b := rand.Float64(), rand.Float64()
+			b *= 1 - a
+			if rand.Intn(2) == 0 {
+				a, b = b, a
+			}
+			return tri[0].Scale(1 - (a + b)).Add(tri[1].Scale(a)).Add(tri[2].Scale(b))
+		}
+
+		rect := &Rect{
+			MinVal: NewCoord3DRandNorm(),
+		}
+		rect.MaxVal = rect.MinVal.Add(NewCoord3DRandUniform())
+
+		boundingRadius := rect.MinVal.Dist(rect.MaxVal.Mid(rect.MinVal))
+		if !tri.SphereCollision(rect.MaxVal.Mid(rect.MinVal), boundingRadius) {
+			if tri.RectCollision(rect) {
+				t.Error("got rect collision outside of bounding sphere")
+			}
+		}
+
+		for j := 0; j < 10; j++ {
+			if rect.Contains(samplePoint()) {
+				if !tri.RectCollision(rect) {
+					t.Error("sampled point inside rect, but got no collision")
+				}
+			}
+		}
+	}
+}
+
 func BenchmarkTriangleRayCollision(b *testing.B) {
 	t := &Triangle{
 		XYZ(0.1, 0.1, 0),
