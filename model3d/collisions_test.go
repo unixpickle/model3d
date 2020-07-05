@@ -105,6 +105,68 @@ func TestMeshRayCollisionsConsistency(t *testing.T) {
 	}
 }
 
+func TestMeshShapeCollisions(t *testing.T) {
+	// Small mesh for fast brute force.
+	mesh := NewMeshPolar(func(g GeoCoord) float64 {
+		return 0.5 + 0.1*math.Cos(g.Lon)
+	}, 10)
+	collider := MeshToCollider(mesh)
+
+	t.Run("Sphere", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			center := NewCoord3DRandNorm()
+			radius := rand.Float64() + 0.1
+			actual := collider.SphereCollision(center, radius)
+			expected := false
+			mesh.Iterate(func(t *Triangle) {
+				if t.SphereCollision(center, radius) {
+					expected = true
+				}
+			})
+			if actual != expected {
+				t.Errorf("expected %v but got %v", expected, actual)
+			}
+		}
+	})
+
+	t.Run("Segment", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			seg := NewSegment(NewCoord3DRandNorm(), NewCoord3DRandNorm())
+			actual := collider.SegmentCollision(seg)
+			expected := false
+			mesh.Iterate(func(t *Triangle) {
+				if t.SegmentCollision(seg) {
+					expected = true
+				}
+			})
+			if actual != expected {
+				t.Errorf("expected %v but got %v", expected, actual)
+			}
+		}
+	})
+
+	t.Run("Rect", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			min := NewCoord3DRandUnit()
+			max := min.Add(NewCoord3DRandUniform().Scale(2))
+			rect := &Rect{
+				MinVal: min,
+				MaxVal: max,
+			}
+			actual := collider.RectCollision(rect)
+			expected := false
+			mesh.Iterate(func(t *Triangle) {
+				if t.RectCollision(rect) {
+					expected = true
+				}
+			})
+			if actual != expected {
+				t.Errorf("expected %v but got %v", expected, actual)
+			}
+		}
+	})
+}
+
 func TestSolidCollider(t *testing.T) {
 	// Create a non-trivial, non-convex solid.
 	solid := JoinedSolid{

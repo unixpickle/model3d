@@ -105,20 +105,26 @@ type RectCollider interface {
 	RectCollision(r *Rect) bool
 }
 
-// MeshToCollider creates an efficient TriangleCollider
-// out of a mesh.
-func MeshToCollider(m *Mesh) TriangleCollider {
+type MultiCollider interface {
+	TriangleCollider
+	SegmentCollider
+	RectCollider
+}
+
+// MeshToCollider creates an efficient MultiCollider out
+// of a mesh.
+func MeshToCollider(m *Mesh) MultiCollider {
 	tris := m.TriangleSlice()
 	GroupTriangles(tris)
 	return GroupedTrianglesToCollider(tris)
 }
 
 // GroupedTrianglesToCollider converts a mesh of triangles
-// into a TriangleCollider.
+// into a MultiCollider.
 //
 // The triangles should be sorted by GroupTriangles.
 // Otherwise, the resulting Collider may not be efficient.
-func GroupedTrianglesToCollider(tris []*Triangle) TriangleCollider {
+func GroupedTrianglesToCollider(tris []*Triangle) MultiCollider {
 	if len(tris) == 1 {
 		return tris[0]
 	} else if len(tris) == 0 {
@@ -127,12 +133,12 @@ func GroupedTrianglesToCollider(tris []*Triangle) TriangleCollider {
 	midIdx := len(tris) / 2
 	c1 := GroupedTrianglesToCollider(tris[:midIdx])
 	c2 := GroupedTrianglesToCollider(tris[midIdx:])
-	return joinedTriangleCollider{NewJoinedCollider([]Collider{c1, c2})}
+	return joinedMultiCollider{NewJoinedCollider([]Collider{c1, c2})}
 }
 
-// BVHToCollider converts a BVH into a TriangleCollider in
-// a hierarchical way.
-func BVHToCollider(b *BVH) TriangleCollider {
+// BVHToCollider converts a BVH into a MultiCollider in a
+// hierarchical way.
+func BVHToCollider(b *BVH) MultiCollider {
 	if b.Leaf != nil {
 		return b.Leaf
 	}
@@ -140,7 +146,7 @@ func BVHToCollider(b *BVH) TriangleCollider {
 	for i, b1 := range b.Branch {
 		other[i] = BVHToCollider(b1)
 	}
-	return joinedTriangleCollider{NewJoinedCollider(other)}
+	return joinedMultiCollider{NewJoinedCollider(other)}
 }
 
 // A JoinedCollider wraps multiple other Colliders and
@@ -171,7 +177,7 @@ func NewJoinedCollider(other []Collider) *JoinedCollider {
 		switch c := c.(type) {
 		case *JoinedCollider:
 			jc = c
-		case joinedTriangleCollider:
+		case joinedMultiCollider:
 			jc = c.JoinedCollider
 		}
 		if jc != nil && jc.min == res.min && jc.max == res.max {
@@ -239,11 +245,11 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 	return maxFrac >= minFrac && maxFrac >= 0
 }
 
-type joinedTriangleCollider struct {
+type joinedMultiCollider struct {
 	*JoinedCollider
 }
 
-func (j joinedTriangleCollider) TriangleCollisions(t *Triangle) []Segment {
+func (j joinedMultiCollider) TriangleCollisions(t *Triangle) []Segment {
 	min := t.Min().Max(j.min)
 	max := t.Max().Min(j.max)
 	if min.X > max.X || min.Y > max.Y || min.Z > max.Z {
@@ -255,6 +261,36 @@ func (j joinedTriangleCollider) TriangleCollisions(t *Triangle) []Segment {
 		res = append(res, c.(TriangleCollider).TriangleCollisions(t)...)
 	}
 	return res
+}
+
+func (j joinedMultiCollider) SegmentCollision(s Segment) bool {
+	minFrac, maxFrac := rayCollisionWithBounds(&Ray{
+		Origin:    s[0],
+		Direction: s[1].Sub(s[0]),
+	}, j.min, j.max)
+	if maxFrac < minFrac || maxFrac < 0 || minFrac > 1 {
+		return false
+	}
+	for _, c := range j.colliders {
+		if c.(SegmentCollider).SegmentCollision(s) {
+			return true
+		}
+	}
+	return false
+}
+
+func (j joinedMultiCollider) RectCollision(r *Rect) bool {
+	min := r.MinVal.Max(j.min)
+	max := r.MaxVal.Min(j.max)
+	if min.Min(max) != min {
+		return false
+	}
+	for _, c := range j.colliders {
+		if c.(RectCollider).RectCollision(r) {
+			return true
+		}
+	}
+	return false
 }
 
 type nullCollider struct{}
@@ -281,6 +317,14 @@ func (n nullCollider) SphereCollision(c Coord3D, r float64) bool {
 
 func (n nullCollider) TriangleCollisions(t *Triangle) []Segment {
 	return nil
+}
+
+func (n nullCollider) SegmentCollision(s Segment) bool {
+	return false
+}
+
+func (n nullCollider) RectCollision(r *Rect) bool {
+	return false
 }
 
 // A SolidCollider approximates the behavior of a Collider
