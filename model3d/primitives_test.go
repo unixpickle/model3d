@@ -228,6 +228,29 @@ func BenchmarkTriangleRayCollision(b *testing.B) {
 	}
 }
 
+func BenchmarkTriangleRectCollision(b *testing.B) {
+	t := &Triangle{
+		XYZ(0.1, 0.1, 0),
+		XYZ(1, 0.1, 0.1),
+		XYZ(0.1, 1.0, 0.2),
+	}
+	rects := []*Rect{
+		&Rect{
+			MinVal: XYZ(0.09, 0.09, -1),
+			MaxVal: XYZ(1.1, 1.1, 0.3),
+		},
+		&Rect{
+			MinVal: XYZ(2.0, 0.09, -1),
+			MaxVal: XYZ(2.1, 1.1, 0.3),
+		},
+	}
+	for i := 0; i < b.N/2; i++ {
+		for _, r := range rects {
+			t.RectCollision(r)
+		}
+	}
+}
+
 // Load a 3D model that caused various bugs in the past.
 func readNonIntersectingHook() *Mesh {
 	r, err := os.Open("test_data/non_intersecting_hook.stl")

@@ -405,23 +405,52 @@ func (t *Triangle) SegmentCollision(s Segment) bool {
 // RectCollision checks if any part of the triangle is
 // inside the rect.
 func (t *Triangle) RectCollision(rect *Rect) bool {
-	// We have a system of linear inequalities and we want
-	// to find if there's any satisfying variables a, b, c:
-	//
-	//     rMin <= a*v1 + b*v2 + c*v3 <= rMax
-	//     a >= 0
-	//     b >= 0
-	//     c >= 0
-	//     a + b + c = 1
-	//
-	// This would be solvable via the simplex method, but
-	// for now we simply use triangle collisions.
-	for _, t1 := range NewMeshRect(rect.MinVal, rect.MaxVal).TriangleSlice() {
-		if len(t.TriangleCollisions(t1)) != 0 {
+	// Check if any of the triangle's segments intersect
+	// the rect.
+	for _, s := range t.Segments() {
+		if s.RectCollision(rect) {
 			return true
 		}
 	}
-	return rect.Contains(t[0])
+	// The rect could still collide with the plane of the
+	// triangle, so check the segments of the rect.
+	for _, x := range [2]float64{rect.MinVal.X, rect.MaxVal.X} {
+		segs := [4]Segment{
+			NewSegment(XYZ(x, rect.MinVal.Y, rect.MinVal.Z), XYZ(x, rect.MinVal.Y, rect.MaxVal.Z)),
+			NewSegment(XYZ(x, rect.MinVal.Y, rect.MinVal.Z), XYZ(x, rect.MaxVal.Y, rect.MinVal.Z)),
+			NewSegment(XYZ(x, rect.MaxVal.Y, rect.MinVal.Z), XYZ(x, rect.MaxVal.Y, rect.MaxVal.Z)),
+			NewSegment(XYZ(x, rect.MinVal.Y, rect.MaxVal.Z), XYZ(x, rect.MaxVal.Y, rect.MaxVal.Z)),
+		}
+		for _, s := range segs {
+			if t.SegmentCollision(s) {
+				return true
+			}
+		}
+	}
+	segs := [4]Segment{
+		NewSegment(
+			XYZ(rect.MinVal.X, rect.MinVal.Y, rect.MinVal.Z),
+			XYZ(rect.MaxVal.X, rect.MinVal.Y, rect.MinVal.Z),
+		),
+		NewSegment(
+			XYZ(rect.MinVal.X, rect.MaxVal.Y, rect.MinVal.Z),
+			XYZ(rect.MaxVal.X, rect.MaxVal.Y, rect.MinVal.Z),
+		),
+		NewSegment(
+			XYZ(rect.MinVal.X, rect.MinVal.Y, rect.MaxVal.Z),
+			XYZ(rect.MaxVal.X, rect.MinVal.Y, rect.MaxVal.Z),
+		),
+		NewSegment(
+			XYZ(rect.MinVal.X, rect.MaxVal.Y, rect.MaxVal.Z),
+			XYZ(rect.MaxVal.X, rect.MaxVal.Y, rect.MaxVal.Z),
+		),
+	}
+	for _, s := range segs {
+		if t.SegmentCollision(s) {
+			return true
+		}
+	}
+	return false
 }
 
 // A Segment is a line segment in a canonical ordering,
@@ -467,6 +496,15 @@ func (s Segment) Closest(c Coord3D) Coord3D {
 	}
 
 	return v.Scale(mag).Add(s[0])
+}
+
+// RectCollision checks if the segment intersects a Rect.
+func (s Segment) RectCollision(r *Rect) bool {
+	minFrac, maxFrac := rayCollisionWithBounds(&Ray{
+		Origin:    s[0],
+		Direction: s[1].Sub(s[0]),
+	}, r.MinVal, r.MaxVal)
+	return maxFrac >= minFrac && maxFrac >= 0 && minFrac <= 1
 }
 
 // other gets the third point in a triangle for which s is
