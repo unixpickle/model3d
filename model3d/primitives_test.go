@@ -180,7 +180,7 @@ func TestTriangleCollisionMismatch(t *testing.T) {
 }
 
 func TestTriangleRectCollision(t *testing.T) {
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100000; i++ {
 		tri := randomTriangle()
 		samplePoint := func() Coord3D {
 			a, b := rand.Float64(), rand.Float64()
