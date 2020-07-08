@@ -47,6 +47,11 @@ func NewCoordArray(a [2]float64) Coord {
 	return Coord{a[0], a[1]}
 }
 
+// XY constructs a coordinate.
+func XY(x, y float64) Coord {
+	return Coord{X: x, Y: y}
+}
+
 // X gets a coordinate in the X direction.
 func X(x float64) Coord {
 	return Coord{X: x}
