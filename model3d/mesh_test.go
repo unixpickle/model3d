@@ -7,15 +7,7 @@ import (
 
 func TestNewMeshRect(t *testing.T) {
 	mesh := NewMeshRect(XYZ(-0.3, -0.4, -0.2), XYZ(0.4, 0.35, 0.19))
-	if mesh.NeedsRepair() {
-		t.Error("mesh needs repair")
-	}
-	if len(mesh.TriangleSlice()) != 12 {
-		t.Errorf("expected exactly 12 triangles, but got %d", len(mesh.TriangleSlice()))
-	}
-	if _, n := mesh.RepairNormals(1e-8); n != 0 {
-		t.Errorf("found %d bad normals", n)
-	}
+	MustValidateMesh(t, mesh, true)
 }
 
 func BenchmarkMeshFind(b *testing.B) {

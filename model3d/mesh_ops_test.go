@@ -107,9 +107,12 @@ func TestMeshEliminateMinimal(t *testing.T) {
 		Coord3D{1, 0, 0},
 		Coord3D{0, 0, 1},
 	})
-	if m.NeedsRepair() {
-		t.Fatal("invalid initial mesh")
-	}
+
+	// I was lazy about the normals.
+	m, _ = m.RepairNormals(1e-5)
+
+	// Sanity check.
+	MustValidateMesh(t, m, true)
 
 	elim := m.EliminateEdges(func(m *Mesh, s Segment) bool {
 		return true
@@ -176,12 +179,7 @@ func TestMeshFlipDelaunay(t *testing.T) {
 	if !isDelaunay(mesh1) {
 		t.Fatal("flipped mesh is non-delaunay")
 	}
-	if mesh1.NeedsRepair() {
-		t.Fatal("new mesh needs repair")
-	}
-	if _, n := mesh1.RepairNormals(1e-8); n != 0 {
-		t.Error("mesh has bad normals")
-	}
+	MustValidateMesh(t, mesh1, false)
 	verts1 := mesh.VertexSlice()
 	verts2 := mesh1.VertexSlice()
 	if len(verts1) != len(verts2) {
@@ -227,15 +225,7 @@ func TestMeshFlattenBase(t *testing.T) {
 	t.Run("Topology", func(t *testing.T) {
 		m := readNonIntersectingHook()
 		flat := m.FlattenBase(0)
-		if flat.SelfIntersections() != 0 {
-			t.Error("flattened mesh has self-intersections")
-		}
-		if _, n := flat.RepairNormals(1e-8); n != 0 {
-			t.Error("flattened mesh has invalid normals")
-		}
-		if flat.NeedsRepair() {
-			t.Error("flattened mesh needs repair")
-		}
+		MustValidateMesh(t, flat, true)
 	})
 
 	t.Run("Containment", func(t *testing.T) {

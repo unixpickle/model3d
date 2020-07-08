@@ -72,18 +72,7 @@ func TestPolytopeMesh(t *testing.T) {
 func testPolytopeMesh(t *testing.T, c ConvexPolytope) {
 	mesh := c.Mesh()
 
-	if mesh.NeedsRepair() {
-		t.Fatal("mesh needs repair")
-	}
-	if len(mesh.SingularVertices()) > 0 {
-		t.Fatal("mesh has singular vertices")
-	}
-	if _, n := mesh.RepairNormals(1e-8); n != 0 {
-		t.Fatal("mesh has invalid normals")
-	}
-	if mesh.SelfIntersections() != 0 {
-		t.Fatal("mesh has self-intersections")
-	}
+	MustValidateMesh(t, mesh, true)
 
 	solid := NewColliderSolid(MeshToCollider(mesh))
 	sdf := MeshToSDF(mesh)

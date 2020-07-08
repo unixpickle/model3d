@@ -9,15 +9,7 @@ func TestLoopSubdivision(t *testing.T) {
 	base := NewMeshRect(X(-1), XYZ(1, 1, 1))
 	mesh := LoopSubdivision(base, 4)
 
-	if mesh.NeedsRepair() {
-		t.Error("mesh needs repair")
-	}
-	if len(mesh.SingularVertices()) > 0 {
-		t.Error("mesh has singular vertices")
-	}
-	if _, n := mesh.RepairNormals(1e-8); n > 0 {
-		t.Error("mesh has bad normals")
-	}
+	MustValidateMesh(t, mesh, false)
 }
 
 func TestSubdivider(t *testing.T) {
@@ -31,13 +23,5 @@ func TestSubdivider(t *testing.T) {
 		return p1.Mid(p2).Add(x.Scale(1e-5 * rand.Float64())).Add(y.Scale(1e-5 * rand.Float64()))
 	})
 
-	if mesh.NeedsRepair() {
-		t.Error("mesh needs repair")
-	}
-	if len(mesh.SingularVertices()) > 0 {
-		t.Error("mesh has singular vertices")
-	}
-	if _, n := mesh.RepairNormals(1e-8); n > 0 {
-		t.Error("mesh has bad normals")
-	}
+	MustValidateMesh(t, mesh, false)
 }
