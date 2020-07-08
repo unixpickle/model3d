@@ -110,7 +110,7 @@ func (b *BrickCylinder) Contains(c model3d.Coord3D) bool {
 		effectiveRadius = math.Min(effectiveRadius, b.Radius-BrickDivot+math.Abs(dist))
 	}
 
-	return c.Coord2D().Norm() < effectiveRadius
+	return c.XY().Norm() < effectiveRadius
 }
 
 type TopBlocks struct {
@@ -130,7 +130,7 @@ func (t *TopBlocks) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(t, c) {
 		return false
 	}
-	r := c.Coord2D().Norm()
+	r := c.XY().Norm()
 	if r > t.Radius || r < t.Radius-TopBlockThickness {
 		return false
 	}

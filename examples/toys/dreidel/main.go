@@ -75,5 +75,5 @@ func (b BodySolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 	sideSize := Size / 2 * math.Pow((FlatLength+PointSize-c.Z)/PointSize, 0.5)
-	return c.Coord2D().Norm() <= sideSize
+	return c.XY().Norm() <= sideSize
 }

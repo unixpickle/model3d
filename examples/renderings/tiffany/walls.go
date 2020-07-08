@@ -64,7 +64,7 @@ func (w *Walls) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, b
 		return collision, material, ok
 	}
 	point := r.Origin.Add(r.Direction.Scale(collision.Scale))
-	c2d := point.Coord2D()
+	c2d := point.XY()
 	c2d.Y += 2
 
 	if math.Abs(point.X-w.Base.Collider.Max().X) < 1e-8 {

@@ -51,7 +51,7 @@ func (t TreeSolid) Contains(c model3d.Coord3D) bool {
 		return true
 	}
 
-	rad := c.Coord2D().Norm()
+	rad := c.XY().Norm()
 	maxRad := (Radius * (Height - c.Z) / Height)
 	if rad >= maxRad {
 		return false

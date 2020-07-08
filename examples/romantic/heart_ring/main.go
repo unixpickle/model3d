@@ -57,7 +57,7 @@ func (r RingSolid) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(r, c) {
 		return false
 	}
-	rad := c.Coord2D().Norm()
+	rad := c.XY().Norm()
 	if rad < RingRadius || rad > RingRadius+RingThickness {
 		return false
 	}

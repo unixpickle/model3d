@@ -79,7 +79,7 @@ func (d *DeepInscription) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(d, c) {
 		return false
 	}
-	c2d := c.Coord2D().Scale(d.Scale)
+	c2d := c.XY().Scale(d.Scale)
 	if !d.Solid.Contains(c2d) {
 		return false
 	}

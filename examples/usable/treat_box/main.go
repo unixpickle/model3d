@@ -131,7 +131,7 @@ func (b *BoxSolid) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(b, c) {
 		return false
 	}
-	c2 := c.Coord2D()
+	c2 := c.XY()
 	return b.Outside.Contains(c2) && (c.Z <= Thickness || !b.Inside.Contains(c2))
 }
 
@@ -159,6 +159,6 @@ func (l *LidSolid) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(l, c) {
 		return false
 	}
-	c2 := c.Coord2D()
+	c2 := c.XY()
 	return l.Inside.Contains(c2) || (c.Z < Thickness && l.Outside.Contains(c2))
 }

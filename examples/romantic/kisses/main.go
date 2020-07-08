@@ -49,7 +49,7 @@ func (t *TextSolid) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(t, c) {
 		return false
 	}
-	if !t.Text.Contains(c.Coord2D()) {
+	if !t.Text.Contains(c.XY()) {
 		return c.Z < PrintThickness
 	} else {
 		return true

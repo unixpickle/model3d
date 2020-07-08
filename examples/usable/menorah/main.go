@@ -152,6 +152,6 @@ func (c *CandleHolder) Contains(coord model3d.Coord3D) bool {
 		return false
 	}
 	thickness := zFrac*HolderTopThickness + (1-zFrac)*HolderBottomThickness
-	radius := coord.Coord2D().Norm()
+	radius := coord.XY().Norm()
 	return radius >= HolderRadius && radius <= HolderRadius+thickness
 }

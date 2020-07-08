@@ -48,7 +48,7 @@ func (f *FloorObject) Cast(ray *model3d.Ray) (model3d.RayCollision, render3d.Mat
 		return rc, mat, ok
 	}
 	p := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
-	p2 := p.Coord2D()
+	p2 := p.XY()
 
 	// Rotate the texture so it doesn't look repeated
 	// in the distance.

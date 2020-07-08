@@ -55,7 +55,7 @@ func (s *Solid) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(s, c) {
 		return false
 	}
-	c2d := c.Coord2D().Scale(1 / Scale)
+	c2d := c.XY().Scale(1 / Scale)
 	if c.Z < Depth && model2d.ColliderContains(s.Body, c2d, 0) {
 		return true
 	}

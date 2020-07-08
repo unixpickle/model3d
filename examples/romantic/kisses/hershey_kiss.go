@@ -37,7 +37,7 @@ func (h HersheyKissSolid) Contains(c model3d.Coord3D) bool {
 	if y > HersheyKissCurlStart {
 		c.X += 4 * math.Pow(y-HersheyKissCurlStart, 2)
 	}
-	x := c.Sub(h.Center).Coord2D().Norm() / HersheyKissRadius
+	x := c.Sub(h.Center).XY().Norm() / HersheyKissRadius
 	if x > 1 {
 		return false
 	} else if x < HersheyKissMinThickness {

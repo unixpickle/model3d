@@ -162,14 +162,14 @@ func (i *Inscription) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(i, c) {
 		return false
 	}
-	return i.Solid.Contains(c.Coord2D())
+	return i.Solid.Contains(c.XY())
 }
 
 func (i *Inscription) ColorAt(c model3d.Coord3D) [3]float64 {
 	if c.Z < 0 {
 		return Green
 	}
-	if i.Solid.Contains(c.Coord2D()) {
+	if i.Solid.Contains(c.XY()) {
 		return [3]float64{1, 1, 1}
 	} else {
 		return Green

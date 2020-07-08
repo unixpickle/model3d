@@ -71,6 +71,6 @@ func (t TrashCanSolid) Contains(c model3d.Coord3D) bool {
 		bulgeRadius += Bulge * (1 - math.Abs(math.Cos(BulgeRate*distAround)))
 	}
 
-	centerDist := c.Coord2D().Norm()
+	centerDist := c.XY().Norm()
 	return (c.Z < Thickness || centerDist > radius-Thickness) && centerDist < bulgeRadius
 }

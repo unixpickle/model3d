@@ -74,7 +74,7 @@ func (b *BoxSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 	scale := ImageSize / SideSize
-	c2 := c.Coord2D().Scale(scale)
+	c2 := c.XY().Scale(scale)
 	if !model2d.ColliderContains(b.Outline, c2, 0) {
 		return false
 	}
@@ -104,7 +104,7 @@ func (l *LidSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 	scale := ImageSize / SideSize
-	c2 := c.Coord2D().Scale(scale)
+	c2 := c.XY().Scale(scale)
 	if !model2d.ColliderContains(l.Outline, c2, 0) {
 		return false
 	}

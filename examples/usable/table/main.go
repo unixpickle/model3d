@@ -166,7 +166,7 @@ func (c ConeSolid) Contains(coord model3d.Coord3D) bool {
 	}
 	radiusAtZ := StandRadius - coord.Z
 	radiusAtZInner := radiusAtZ - ConeThickness
-	rad := coord.Coord2D().Norm()
+	rad := coord.XY().Norm()
 	if rad <= radiusAtZ && rad >= radiusAtZInner {
 		return true
 	}

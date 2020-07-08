@@ -49,7 +49,7 @@ func TestMatrix3Rotation(t *testing.T) {
 		mat := NewMatrix3Rotation(Z(1), theta)
 		c1 := XYZ(2, 1, 3)
 		newTheta := math.Atan2(c1.Y, c1.X) + theta
-		norm := c1.Coord2D().Norm()
+		norm := c1.XY().Norm()
 		expected := Coord3D{
 			X: norm * math.Cos(newTheta),
 			Y: norm * math.Sin(newTheta),

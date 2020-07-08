@@ -41,7 +41,7 @@ func (w WineGlassCup) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(w, c) {
 		return false
 	}
-	r := c.Coord2D().Norm()
+	r := c.XY().Norm()
 
 	curve := model2d.BezierCurve{
 		{X: 0, Y: WineGlassCupMinRadius},
@@ -73,7 +73,7 @@ func (w WineGlassStem) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 
-	r := c.Coord2D().Norm()
+	r := c.XY().Norm()
 	radius := WineGlassStemRadius
 	if c.Z < WineGlassStemTransition {
 		// Transition to base.

@@ -52,7 +52,7 @@ func (b BladeSolid) Contains(c model3d.Coord3D) bool {
 	if !model3d.InBounds(b, c) {
 		return false
 	}
-	c2 := c.Coord2D()
+	c2 := c.XY()
 	if c2.Norm() < PropellerHubRadius || c2.Norm() > BladeRadius {
 		return false
 	}

@@ -92,7 +92,7 @@ func (c *Camera) Uncaster(imageWidth, imageHeight float64) func(model3d.Coord3D)
 	cx, cy := imageWidth/2, imageHeight/2
 	return func(coord model3d.Coord3D) (float64, float64) {
 		xyz := invMat.MulColumn(coord.Sub(c.Origin))
-		xy := xyz.Coord2D().Scale(1 / xyz.Z)
+		xy := xyz.XY().Scale(1 / xyz.Z)
 		return xy.X*cx + cx, xy.Y*cy + cy
 	}
 }

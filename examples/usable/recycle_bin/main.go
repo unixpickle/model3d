@@ -104,7 +104,7 @@ func (b *BinSolid) Contains(c model3d.Coord3D) bool {
 		return true
 	}
 
-	c2 := c.Coord2D()
+	c2 := c.XY()
 
 	// Bottom is fully filled-in.
 	if c.Z < b.Thickness {

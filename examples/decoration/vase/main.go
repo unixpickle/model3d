@@ -61,7 +61,7 @@ func (v VaseSolid) Contains(c model3d.Coord3D) bool {
 	}
 	maxRadius := RadiusFunc(c.Z)
 
-	c2d := c.Coord2D()
+	c2d := c.XY()
 	theta := math.Atan2(c2d.Y, c2d.X) + c.Z*RidgeSpinRate
 
 	ridgeInset := RidgeDepth * math.Pow(math.Sin(RidgeFrequency*theta), 2)

@@ -251,7 +251,7 @@ func (r *RingSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 
-	c2d := c.Coord2D().Scale(r.Scale)
+	c2d := c.XY().Scale(r.Scale)
 
 	innerInset := 2.0
 

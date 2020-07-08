@@ -54,7 +54,7 @@ func (c CrankGearHollow) Contains(coord model3d.Coord3D) bool {
 	if !model3d.InBounds(c, coord) {
 		return false
 	}
-	c2 := coord.Coord2D()
+	c2 := coord.XY()
 	rad := c2.Norm()
 	if rad < CrankGearCenterRadius || rad > LargeGearRadius-CrankGearRimSize {
 		return false

@@ -431,7 +431,7 @@ func filledCircleDist(c, center, axis Coord3D, radius float64) float64 {
 	b1, b2 := axis.OrthoBasis()
 	mat := NewMatrix3Columns(b1, b2, axis).Transpose()
 	proj := mat.MulColumn(c.Sub(center))
-	norm2 := proj.Coord2D().Norm()
+	norm2 := proj.XY().Norm()
 	if norm2 < radius {
 		return math.Abs(proj.Z)
 	}
