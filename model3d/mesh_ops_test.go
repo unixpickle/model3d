@@ -94,8 +94,8 @@ func TestMeshEliminateMinimal(t *testing.T) {
 	})
 	m.Add(&Triangle{
 		Coord3D{0, 0, 0},
-		Coord3D{1, 0, 0},
 		Coord3D{0, 1, 0},
+		Coord3D{1, 0, 0},
 	})
 	m.Add(&Triangle{
 		Coord3D{0, 0, 0},
@@ -107,9 +107,6 @@ func TestMeshEliminateMinimal(t *testing.T) {
 		Coord3D{1, 0, 0},
 		Coord3D{0, 0, 1},
 	})
-
-	// I was lazy about the normals.
-	m, _ = m.RepairNormals(1e-5)
 
 	// Sanity check.
 	MustValidateMesh(t, m, true)
