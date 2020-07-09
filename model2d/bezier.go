@@ -17,6 +17,17 @@ func (b BezierCurve) Eval(t float64) Coord {
 		invT := 1 - t
 		invT2 := invT * invT
 		return b[0].Scale(invT2).Add(b[1].Scale(2 * invT * t)).Add(b[2].Scale(t2))
+	} else if len(b) == 4 {
+		t2 := t * t
+		t3 := t2 * t
+		invT := 1 - t
+		invT2 := invT * invT
+		invT3 := invT2 * invT
+		res := b[0].Scale(invT3)
+		res = res.Add(b[1].Scale(3 * invT2 * t))
+		res = res.Add(b[2].Scale(3 * invT * t2))
+		res = res.Add(b[3].Scale(t3))
+		return res
 	}
 	return b[:len(b)-1].Eval(t).Scale(1 - t).Add(b[1:].Eval(t).Scale(t))
 }
