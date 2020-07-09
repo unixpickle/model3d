@@ -84,3 +84,32 @@ func TestBezierInverseX(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkBezierEval(b *testing.B) {
+	b.Run("Order5", func(b *testing.B) {
+		curve := BezierCurve{
+			Coord{X: 1, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 3, Y: -2},
+			Coord{X: 2, Y: 3},
+		}
+		for i := 0; i < b.N; i++ {
+			curve.Eval(0.3)
+		}
+	})
+	b.Run("Order7", func(b *testing.B) {
+		curve := BezierCurve{
+			Coord{X: 1, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 3, Y: -2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 1, Y: 4},
+			Coord{X: 0, Y: -3},
+		}
+		for i := 0; i < b.N; i++ {
+			curve.Eval(0.3)
+		}
+	})
+}
