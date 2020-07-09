@@ -10,9 +10,13 @@ type BezierCurve []Coord
 func (b BezierCurve) Eval(t float64) Coord {
 	if len(b) < 2 {
 		panic("need at least two points")
-	}
-	if len(b) == 2 {
+	} else if len(b) == 2 {
 		return b[0].Scale(1 - t).Add(b[1].Scale(t))
+	} else if len(b) == 3 {
+		t2 := t * t
+		invT := 1 - t
+		invT2 := invT * invT
+		return b[0].Scale(invT2).Add(b[1].Scale(2 * invT * t)).Add(b[2].Scale(t2))
 	}
 	return b[:len(b)-1].Eval(t).Scale(1 - t).Add(b[1:].Eval(t).Scale(t))
 }
