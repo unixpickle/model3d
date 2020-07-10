@@ -8,6 +8,14 @@ import (
 
 func TestBezierEval(t *testing.T) {
 	curves := []BezierCurve{
+		// 4th order.
+		{
+			Coord{X: 3, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 1, Y: -2},
+		},
+		// 5th order.
 		{
 			Coord{X: 1, Y: 3},
 			Coord{X: 2, Y: 2},
@@ -15,11 +23,35 @@ func TestBezierEval(t *testing.T) {
 			Coord{X: 3, Y: -2},
 			Coord{X: 2, Y: 3},
 		},
+		// 7th order.
 		{
 			Coord{X: 3, Y: 3},
 			Coord{X: 2, Y: 2},
 			Coord{X: 2, Y: 3},
 			Coord{X: 1, Y: -2},
+			Coord{X: 2, Y: -5},
+			Coord{X: 7, Y: -2},
+			Coord{X: 8, Y: 2},
+		},
+		// 17th order.
+		{
+			Coord{X: 3, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 1, Y: -2},
+			Coord{X: 2, Y: -5},
+			Coord{X: 7, Y: -2},
+			Coord{X: 8, Y: 2},
+			Coord{X: 3, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 1, Y: -2},
+			Coord{X: 2, Y: -5},
+			Coord{X: 3, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 1, Y: -2},
+			Coord{X: 2, Y: -5},
 		},
 	}
 	for i, c := range curves {
@@ -107,6 +139,23 @@ func BenchmarkBezierEval(b *testing.B) {
 			Coord{X: 2, Y: 3},
 			Coord{X: 1, Y: 4},
 			Coord{X: 0, Y: -3},
+		}
+		for i := 0; i < b.N; i++ {
+			curve.Eval(0.3)
+		}
+	})
+	b.Run("Order10", func(b *testing.B) {
+		curve := BezierCurve{
+			Coord{X: 1, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 3, Y: -2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 1, Y: 4},
+			Coord{X: 0, Y: -3},
+			Coord{X: 3, Y: -7},
+			Coord{X: 4, Y: -8},
+			Coord{X: 5, Y: -9},
 		}
 		for i := 0; i < b.N; i++ {
 			curve.Eval(0.3)
