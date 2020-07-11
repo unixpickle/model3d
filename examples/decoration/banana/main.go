@@ -14,7 +14,11 @@ const (
 	CrossSectionRadius = 0.5
 	CrossSectionJitter = 0.2
 
-	BananaLength  = 4
+	BananaLength     = 4.0
+	BananaStemLength = 0.2
+	BananaStemFrac   = BananaStemLength / BananaLength
+	BananaStemRadius = 0.2
+
 	BaseThickness = 0.15
 )
 
@@ -47,38 +51,28 @@ func main() {
 type BananaSolid struct {
 	CrossSection model2d.Solid
 	Radius       model2d.BezierCurve
-	Curve        model2d.BezierCurve
+	Curve        *Curve
 }
 
 func NewBananaSolid() *BananaSolid {
 	return &BananaSolid{
 		CrossSection: CreateSquircle(),
 		Radius: model2d.BezierCurve{
-			model2d.XY(0, 0.2),
-			model2d.XY(0.1, 1.0),
-			model2d.XY(0.2, 1.0),
-			model2d.XY(0.5, 1.4),
-			model2d.XY(0.6, 1.2),
-			model2d.XY(0.7, 1.1),
-			model2d.XY(0.9, 0.2),
-			model2d.XY(0.95, 0.2),
-			model2d.XY(1.0, 0.2),
+			model2d.XY(0, 0),
+			model2d.XY(0, 1.0),
+			model2d.XY(1-BananaStemFrac, 1.0),
+			model2d.XY(1-BananaStemFrac, 0),
 		},
-		Curve: model2d.BezierCurve{
-			model2d.XY(0, 1.5),
-			model2d.XY(0.5, 0),
-			model2d.XY(0.9, 1.9),
-			model2d.XY(1, 2),
-		},
+		Curve: NewCurve(),
 	}
 }
 
 func (b *BananaSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: 0, Y: -CrossSectionRadius, Z: 0}
+	return model3d.Coord3D{X: -CrossSectionRadius, Y: -CrossSectionRadius, Z: 0}
 }
 
 func (b *BananaSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: BananaLength, Y: CrossSectionRadius, Z: 3}
+	return model3d.Coord3D{X: BananaLength + CrossSectionRadius, Y: CrossSectionRadius, Z: 3}
 }
 
 func (b *BananaSolid) Contains(c model3d.Coord3D) bool {
@@ -86,17 +80,25 @@ func (b *BananaSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 
-	x := c.X / BananaLength
+	x, axis1, collides := b.Curve.Project(c.XZ())
+	if !collides {
+		return false
+	}
+	c2d := model2d.XY(axis1, c.Y)
 
-	radius := b.Radius.EvalX(x)
+	var radius float64
+	if x < 1-BananaStemFrac {
+		radius = b.Radius.EvalX(x)
+	}
+	if x > 0.5 {
+		// Add in a stem.
+		radius = math.Max(radius, BananaStemRadius)
+	}
+
 	if radius <= 0 {
 		return false
 	}
 
-	curveZ := b.Curve.EvalX(x)
-
-	c2d := c.YZ()
-	c2d.Y -= curveZ
 	c2d = c2d.Scale(1 / radius)
 	return b.CrossSection.Contains(c2d)
 }
