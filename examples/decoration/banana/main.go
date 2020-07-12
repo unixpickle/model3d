@@ -14,10 +14,10 @@ const (
 	CrossSectionRadius = 0.5
 	CrossSectionJitter = 0.2
 
-	BananaLength     = 4.0
-	BananaStemLength = 0.2
+	BananaLength     = 3.0
+	BananaStemLength = 0.3
 	BananaStemFrac   = BananaStemLength / BananaLength
-	BananaStemRadius = 0.2
+	BananaStemRadius = 0.3
 
 	BaseThickness = 0.15
 )
@@ -59,8 +59,8 @@ func NewBananaSolid() *BananaSolid {
 		CrossSection: CreateSquircle(),
 		Radius: model2d.BezierCurve{
 			model2d.XY(0, 0),
-			model2d.XY(0, 1.0),
-			model2d.XY(1-BananaStemFrac, 1.0),
+			model2d.XY(0, 1.5),
+			model2d.XY(1-BananaStemFrac, 1.5),
 			model2d.XY(1-BananaStemFrac, 0),
 		},
 		Curve: NewCurve(),
