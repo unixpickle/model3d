@@ -21,6 +21,61 @@ var binomialCoeffs = [][]float64{
 	{1, 14, 91, 364, 1001, 2002, 3003, 3432, 3003, 2002, 1001, 364, 91, 14, 1},
 }
 
+// A Curve is a parametric curve that returns points for
+// values of t in the range [0, 1].
+type Curve interface {
+	Eval(t float64) Coord
+}
+
+// CurveEvalX finds the y value that occurs at the given x
+// value, assuming that the curve is monotonic in x.
+//
+// If the y value cannot be found, NaN is returned.
+func CurveEvalX(c Curve, x float64) float64 {
+	t := CurveInverseX(c, x)
+	if math.IsNaN(t) {
+		return t
+	}
+	return c.Eval(t).Y
+}
+
+// CurveInverseX gets the t value between 0 and 1 where
+// the x value is equal to some x, assuming the curve is
+// monotonic in x.
+//
+// If the t cannot be found, NaN is returned.
+func CurveInverseX(c Curve, x float64) float64 {
+	return bisectionSearch(x, func(t float64) float64 {
+		return c.Eval(t).X
+	})
+}
+
+// CurveTranspose generates a Curve where x and y are
+// swapped from the original c.
+func CurveTranspose(c Curve) Curve {
+	return &transposedCurve{C: c}
+}
+
+// A JoinedCurve combines Curves into a single curve.
+// Each curve should end where the next curve begins.
+type JoinedCurve []Curve
+
+// Eval evaluates the joint curve.
+//
+// Each sub-curve consumes an equal fraction of t.
+// For t outside of [0, 1], the first or last curve is
+// used.
+func (j JoinedCurve) Eval(t float64) Coord {
+	curveIdx := int(t * float64(len(j)))
+	if curveIdx == len(j) {
+		curveIdx--
+	} else if curveIdx < 0 {
+		curveIdx = 0
+	}
+	subT := t*float64(len(j)) - float64(curveIdx)
+	return j[curveIdx].Eval(subT)
+}
+
 // BezierCurve implements an arbitrarily high-dimensional
 // Bezier curve.
 type BezierCurve []Coord
@@ -54,8 +109,9 @@ func (b BezierCurve) Eval(t float64) Coord {
 	return b[:len(b)-1].Eval(t).Scale(1 - t).Add(b[1:].Eval(t).Scale(t))
 }
 
-// Evaluate a bezier curve without any explicit allocations.
-// in time linear with the size of the curve.
+// recursiveBezierFast evaluates a bezier curve without
+// any explicit allocations in time linear with the size
+// of the curve.
 //
 // Hack to use the stack to store invTProd in the opposite
 // order as tProd.
@@ -74,11 +130,7 @@ func recursiveBezierFast(b BezierCurve, i int, t, tProd float64) (sum Coord, inv
 //
 // If the y value cannot be found, NaN is returned.
 func (b BezierCurve) EvalX(x float64) float64 {
-	t := b.InverseX(x)
-	if math.IsNaN(t) {
-		return t
-	}
-	return b.Eval(t).Y
+	return CurveEvalX(b, x)
 }
 
 // InverseX gets the t value between 0 and 1 where the x
@@ -87,10 +139,24 @@ func (b BezierCurve) EvalX(x float64) float64 {
 //
 // If the t cannot be found, NaN is returned.
 func (b BezierCurve) InverseX(x float64) float64 {
+	return CurveInverseX(b, x)
+}
+
+// Transpose generates a BezierCurve where x and y are
+// swapped.
+func (b BezierCurve) Transpose() BezierCurve {
+	var res BezierCurve
+	for _, c := range b {
+		res = append(res, Coord{X: c.Y, Y: c.X})
+	}
+	return res
+}
+
+func bisectionSearch(x float64, f func(float64) float64) float64 {
 	lowT := 0.0
 	highT := 1.0
-	x0 := b.Eval(0).X
-	x1 := b.Eval(1).X
+	x0 := f(0)
+	x1 := f(1)
 	if x0 == x {
 		return 0
 	} else if x1 == x {
@@ -106,7 +172,7 @@ func (b BezierCurve) InverseX(x float64) float64 {
 
 	for i := 0; i < 63; i++ {
 		t := (lowT + highT) / 2
-		if b.Eval(t).X <= x {
+		if f(t) <= x {
 			lowT = t
 		} else {
 			highT = t
@@ -116,12 +182,11 @@ func (b BezierCurve) InverseX(x float64) float64 {
 	return (lowT + highT) / 2
 }
 
-// Transpose generates a BezierCurve where x and y are
-// swapped.
-func (b BezierCurve) Transpose() BezierCurve {
-	var res BezierCurve
-	for _, c := range b {
-		res = append(res, Coord{X: c.Y, Y: c.X})
-	}
-	return res
+type transposedCurve struct {
+	C Curve
+}
+
+func (t *transposedCurve) Eval(tVal float64) Coord {
+	c := t.C.Eval(tVal)
+	return XY(c.Y, c.X)
 }

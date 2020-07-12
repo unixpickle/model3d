@@ -117,6 +117,41 @@ func TestBezierInverseX(t *testing.T) {
 	}
 }
 
+func TestJoinedCurveEval(t *testing.T) {
+	curve := JoinedCurve{
+		BezierCurve{
+			Coord{X: 3, Y: 3},
+			Coord{X: 3, Y: 2},
+			Coord{X: 4, Y: 4},
+		},
+		BezierCurve{
+			Coord{X: 4, Y: 4},
+			Coord{X: 5, Y: -2},
+			Coord{X: 3, Y: 3},
+		},
+		BezierCurve{
+			Coord{X: 3, Y: 3},
+			Coord{X: 5, Y: 2},
+			Coord{X: -1, Y: 3},
+		},
+	}
+	actualExpected := [][2]Coord{
+		{curve.Eval(0.0), curve[0].Eval(0.0)},
+		{curve.Eval(0.1), curve[0].Eval(0.1 * 3)},
+		{curve.Eval(0.4), curve[1].Eval((0.4 - 1.0/3) * 3)},
+		{curve.Eval(0.8), curve[2].Eval((0.8 - 2.0/3) * 3)},
+		{curve.Eval(1.0), curve[2].Eval(1.0)},
+		{curve.Eval(1.1), curve[2].Eval((1.1 - 2.0/3) * 3)},
+		{curve.Eval(-0.1), curve[0].Eval(-0.1 * 3)},
+		{curve.Eval(-10), curve[0].Eval(-10 * 3)},
+	}
+	for i, pair := range actualExpected {
+		if d := pair[0].Dist(pair[1]); math.IsNaN(d) || d > 1e-5 {
+			t.Errorf("case %d: expected %f but got %f", i, pair[1], pair[0])
+		}
+	}
+}
+
 func BenchmarkBezierEval(b *testing.B) {
 	b.Run("Order5", func(b *testing.B) {
 		curve := BezierCurve{
