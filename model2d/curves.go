@@ -60,6 +60,34 @@ func CurveTranspose(c Curve) Curve {
 // Each curve should end where the next curve begins.
 type JoinedCurve []Curve
 
+// SmoothBezier creates a joined cubic bezier curve where
+// control points are reflected around end-points.
+// The first four points define the first bezier curve.
+// After that, each group of two points defines a control
+// point and an endpoint.
+func SmoothBezier(start1, c1, c2, end1 Coord, ctrlEnds ...Coord) JoinedCurve {
+	if len(ctrlEnds)%2 == 1 {
+		panic("must be an even number of extra points")
+	}
+	res := JoinedCurve{
+		BezierCurve{start1, c1, c2, end1},
+	}
+	lastCtrl := c2
+	lastEnd := end1
+	for i := 0; i < len(ctrlEnds); i += 2 {
+		nextCtrl := ctrlEnds[i]
+		nextEnd := ctrlEnds[i+1]
+		res = append(res, BezierCurve{
+			lastEnd,
+			lastEnd.Add(lastEnd.Sub(lastCtrl)),
+			nextCtrl,
+			nextEnd,
+		})
+		lastCtrl, lastEnd = nextCtrl, nextEnd
+	}
+	return res
+}
+
 // Eval evaluates the joint curve.
 //
 // Each sub-curve consumes an equal fraction of t.

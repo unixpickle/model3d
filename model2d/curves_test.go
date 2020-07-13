@@ -117,6 +117,27 @@ func TestBezierInverseX(t *testing.T) {
 	}
 }
 
+func TestSmoothBezier(t *testing.T) {
+	actualCurve := SmoothBezier(
+		Coord{}, Coord{X: 1, Y: 1}, Coord{X: 2, Y: 1}, Coord{X: 2},
+		Coord{X: 3, Y: -1}, Coord{X: 4},
+		Coord{X: 5, Y: 1}, Coord{X: 5},
+	)
+	expectedCurve := JoinedCurve{
+		BezierCurve{Coord{}, Coord{X: 1, Y: 1}, Coord{X: 2, Y: 1}, Coord{X: 2}},
+		BezierCurve{Coord{X: 2}, Coord{X: 2, Y: -1}, Coord{X: 3, Y: -1}, Coord{X: 4}},
+		BezierCurve{Coord{X: 4}, Coord{X: 5, Y: 1}, Coord{X: 5, Y: 1}, Coord{X: 5}},
+	}
+	for i := 0; i < 1000; i++ {
+		ti := rand.Float64()
+		actual := actualCurve.Eval(ti)
+		expected := expectedCurve.Eval(ti)
+		if actual.Dist(expected) > 1e-5 {
+			t.Errorf("expected %v but got %v", expected, actual)
+		}
+	}
+}
+
 func TestJoinedCurveEval(t *testing.T) {
 	curve := JoinedCurve{
 		BezierCurve{
