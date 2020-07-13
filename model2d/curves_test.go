@@ -152,6 +152,25 @@ func TestJoinedCurveEval(t *testing.T) {
 	}
 }
 
+func TestCurveTranspose(t *testing.T) {
+	c1 := BezierCurve{
+		Coord{X: 4, Y: 4},
+		Coord{X: 5, Y: -2},
+		Coord{X: 3, Y: 3},
+	}
+	c2 := CurveTranspose(c1)
+	c1 = c1.Transpose()
+
+	for i := 0; i < 1000; i++ {
+		ti := rand.Float64()
+		expected := c1.Eval(ti)
+		actual := c2.Eval(ti)
+		if actual.Dist(expected) > 1e-5 {
+			t.Errorf("expected %v but got %v", expected, actual)
+		}
+	}
+}
+
 func BenchmarkBezierEval(b *testing.B) {
 	b.Run("Order5", func(b *testing.B) {
 		curve := BezierCurve{
