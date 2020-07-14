@@ -59,42 +59,29 @@ func (c *Curve) Max() model2d.Coord {
 	return c.max
 }
 
-// Project projects a 2D coordinate onto the curve.
+// Project projects a 2D coordinate onto the curve by
+// finding the nearest point on the curve.
 //
 // The t return value is the fraction of the arc-length of
 // the curve (from left to right) at the projection.
 //
 // The d return value is the distance from coord to the
 // projected point.
-//
-// The collides return value is false if the projection
-// falls outside of the curve.
-func (c *Curve) Project(coord model2d.Coord) (t, d float64, collides bool) {
-	p, _ := c.pointSDF.PointSDF(coord)
-	d = coord.Dist(p)
-	seg, t := c.lookupX(p.X)
-	collides = true
-	if d > 1e-5 {
-		// If we are beyond the bounds of the curve,
-		// then the projection to it won't be normal.
-		normalDot := seg.Normal().Dot(coord.Sub(p).Normalize())
-		if math.Abs(normalDot) < 0.99 {
-			collides = false
-		}
-	}
-	return
+func (c *Curve) Project(coord model2d.Coord) (t, d float64) {
+	p, signedDist := c.pointSDF.PointSDF(coord)
+	return c.arcFractionForX(p.X), math.Abs(signedDist)
 }
 
-func (c *Curve) lookupX(x float64) (*model2d.Segment, float64) {
+func (c *Curve) arcFractionForX(x float64) float64 {
 	segIdx := sort.Search(len(c.segments), func(i int) bool {
 		return c.segments[i][0].X > x
 	})
 	if segIdx == 0 {
-		return c.segments[0], 0
+		return 0
 	}
 	segIdx--
 	seg := c.segments[segIdx]
 	length := c.cumLengths[segIdx]
 	length += seg.Length() * (x - seg[0].X) / (seg[1].X - seg[0].X)
-	return seg, length / c.cumLength
+	return length / c.cumLength
 }

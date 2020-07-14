@@ -108,10 +108,7 @@ func (b *BananaSolid) Contains(c model3d.Coord3D) bool {
 		return false
 	}
 
-	x, axis1, collides := b.Curve.Project(c.XZ())
-	if !collides {
-		return false
-	}
+	x, axis1 := b.Curve.Project(c.XZ())
 	c2d := model2d.XY(axis1, c.Y)
 
 	var radius float64
