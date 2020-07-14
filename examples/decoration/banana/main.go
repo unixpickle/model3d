@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d/model3d"
@@ -20,32 +21,46 @@ const (
 	BananaStemRadius = 0.3
 
 	BaseThickness = 0.15
+	BaseWidthFrac = 0.9
 )
 
 func main() {
-	solid := NewBananaSolid()
+	banana := NewBananaSolid()
 
-	// Create a base at the bottom of the solid.
-	lowRes := model3d.MarchingCubesSearch(solid, 0.1, 8)
-	min, max := lowRes.Min(), lowRes.Max()
-	withBase := model3d.JoinedSolid{
-		&model3d.Rect{
-			MinVal: min.Sub(model3d.Z(BaseThickness / 2)),
-			MaxVal: model3d.XYZ(max.X, max.Y, min.Z+BaseThickness/2),
-		},
-		solid,
+	// Create a small square base at the lowest part of
+	// the model to make it stickable onto a wall.
+	log.Println("Creating base...")
+	minPoint := SolidMinZ(banana)
+	baseSize := BaseWidthFrac * (banana.Max().Y - banana.Min().Y)
+	baseMin := model3d.XYZ(minPoint.X-baseSize/2, -baseSize/2, minPoint.Z-BaseThickness/2)
+	base := &model3d.Rect{
+		MinVal: baseMin,
+		MaxVal: baseMin.Add(model3d.XYZ(baseSize, baseSize, BaseThickness)),
 	}
 
+	solid := model3d.JoinedSolid{
+		base,
+		banana,
+	}
+
+	// Reduce resolution along the length of the banana
+	// to increase computation speed.
 	ax := &toolbox3d.AxisSqueeze{
 		Axis:  toolbox3d.AxisX,
 		Min:   0.1,
 		Max:   BananaLength - 0.1,
 		Ratio: 0.3,
 	}
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, withBase), 0.015, 8)
+
+	log.Println("Creating mesh...")
+	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.015, 8)
 	mesh = mesh.MapCoords(ax.Inverse().Apply)
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
+
+	log.Println("Saving mesh...")
 	mesh.SaveGroupedSTL("banana.stl")
+
+	log.Println("Rendering...")
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
 type BananaSolid struct {
@@ -137,4 +152,15 @@ func CurveMaxY(radiusCurve model2d.Curve) float64 {
 	}
 	// Make up for approximate results
 	return max + 0.01
+}
+
+func SolidMinZ(s model3d.Solid) model3d.Coord3D {
+	lowRes := model3d.MarchingCubesSearch(s, 0.05, 8)
+	var lowest model3d.Coord3D
+	for i, c := range lowRes.VertexSlice() {
+		if i == 0 || c.Z < lowest.Z {
+			lowest = c
+		}
+	}
+	return lowest
 }
