@@ -18,6 +18,9 @@ type Curve struct {
 	cumLength  float64
 
 	pointSDF model2d.PointSDF
+
+	min model2d.Coord
+	max model2d.Coord
 }
 
 func NewCurve() *Curve {
@@ -41,14 +44,28 @@ func NewCurve() *Curve {
 		mesh.Add(seg)
 	}
 	res.pointSDF = model2d.MeshToSDF(mesh)
+	res.min = mesh.Min()
+	res.max = mesh.Max()
 	return res
+}
+
+// Min gets the minimum point on the curve.
+func (c *Curve) Min() model2d.Coord {
+	return c.min
+}
+
+// Min gets the maximum point on the curve.
+func (c *Curve) Max() model2d.Coord {
+	return c.max
 }
 
 // Project projects a 2D coordinate onto the curve.
 //
-// It returns the fraction of the arclength along the
-// curve of the projected point, as well as the distance
-// to the curve.
+// The t return value is the fraction of the arc-length of
+// the curve (from left to right) at the projection.
+//
+// The d return value is the distance from coord to the
+// projected point.
 //
 // The collides return value is false if the projection
 // falls outside of the curve.

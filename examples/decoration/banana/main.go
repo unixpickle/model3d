@@ -52,27 +52,40 @@ type BananaSolid struct {
 	CrossSection model2d.Solid
 	Radius       model2d.BezierCurve
 	Curve        *Curve
+
+	MinVal model3d.Coord3D
+	MaxVal model3d.Coord3D
 }
 
 func NewBananaSolid() *BananaSolid {
+	radiusCurve := model2d.BezierCurve{
+		model2d.XY(0, 0),
+		model2d.XY(0, 1.5),
+		model2d.XY(1-BananaStemFrac, 1.5),
+		model2d.XY(1-BananaStemFrac, 0),
+	}
+	squircle := CreateSquircle()
+	curve := NewCurve()
+
+	maxRadius := CurveMaxY(radiusCurve) * squircle.Max().Sub(squircle.Min()).X / 2
+	curveMin := curve.Min()
+	curveMax := curve.Max()
+
 	return &BananaSolid{
-		CrossSection: CreateSquircle(),
-		Radius: model2d.BezierCurve{
-			model2d.XY(0, 0),
-			model2d.XY(0, 1.5),
-			model2d.XY(1-BananaStemFrac, 1.5),
-			model2d.XY(1-BananaStemFrac, 0),
-		},
-		Curve: NewCurve(),
+		CrossSection: squircle,
+		Radius:       radiusCurve,
+		Curve:        curve,
+		MinVal:       model3d.XYZ(curveMin.X-maxRadius, -maxRadius, curveMin.Y-maxRadius),
+		MaxVal:       model3d.XYZ(curveMax.X+maxRadius, maxRadius, curveMax.Y+maxRadius),
 	}
 }
 
 func (b *BananaSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -CrossSectionRadius, Y: -CrossSectionRadius, Z: 0}
+	return b.MinVal
 }
 
 func (b *BananaSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: BananaLength + CrossSectionRadius, Y: CrossSectionRadius, Z: 3}
+	return b.MaxVal
 }
 
 func (b *BananaSolid) Contains(c model3d.Coord3D) bool {
@@ -114,4 +127,14 @@ func CreateSquircle() model2d.Solid {
 		})
 	}
 	return res
+}
+
+func CurveMaxY(radiusCurve model2d.Curve) float64 {
+	var max float64
+	for i := 0; i <= 10000; i++ {
+		c := radiusCurve.Eval(float64(i) / 1000)
+		max = math.Max(max, c.Y)
+	}
+	// Make up for approximate results
+	return max + 0.01
 }
