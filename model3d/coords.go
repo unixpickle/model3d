@@ -109,6 +109,11 @@ func NewCoord3DRandUniform() Coord3D {
 	}
 }
 
+// Ones creates the unit vector scaled by a constant.
+func Ones(a float64) Coord3D {
+	return Coord3D{X: a, Y: a, Z: a}
+}
+
 // X gets a coordinate in the X direction.
 func X(x float64) Coord3D {
 	return Coord3D{X: x}
@@ -184,6 +189,15 @@ func (c Coord3D) Scale(s float64) Coord3D {
 	c.X *= s
 	c.Y *= s
 	c.Z *= s
+	return c
+}
+
+// AddScalar adds s to all of the coordinates and returns
+// the new coordinate.
+func (c Coord3D) AddScalar(s float64) Coord3D {
+	c.X += s
+	c.Y += s
+	c.Z += s
 	return c
 }
 

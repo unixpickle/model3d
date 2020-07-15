@@ -25,7 +25,7 @@ func ClampColor(c Color) Color {
 
 // NewColor creates a Color with a given brightness.
 func NewColor(b float64) Color {
-	return Color{X: b, Y: b, Z: b}
+	return model3d.Ones(b)
 }
 
 // NewColorRGB creates a Color from sRGB values.

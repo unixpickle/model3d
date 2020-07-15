@@ -47,6 +47,11 @@ func NewCoordArray(a [2]float64) Coord {
 	return Coord{a[0], a[1]}
 }
 
+// Ones creates the unit vector scaled by a constant.
+func Ones(a float64) Coord {
+	return Coord{X: a, Y: a}
+}
+
 // XY constructs a coordinate.
 func XY(x, y float64) Coord {
 	return Coord{X: x, Y: y}
@@ -92,6 +97,14 @@ func (c Coord) Div(c1 Coord) Coord {
 func (c Coord) Scale(s float64) Coord {
 	c.X *= s
 	c.Y *= s
+	return c
+}
+
+// AddScalar adds s to all of the coordinates and returns
+// the new coordinate.
+func (c Coord) AddScalar(s float64) Coord {
+	c.X += s
+	c.Y += s
 	return c
 }
 
