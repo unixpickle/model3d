@@ -6,7 +6,6 @@ import (
 
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
-	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/model3d/model2d"
 )
@@ -43,24 +42,14 @@ func main() {
 		banana,
 	}
 
-	// Reduce resolution along the length of the banana
-	// to increase computation speed.
-	ax := &toolbox3d.AxisSqueeze{
-		Axis:  toolbox3d.AxisX,
-		Min:   0.1,
-		Max:   BananaLength - 0.1,
-		Ratio: 0.3,
-	}
-
 	log.Println("Creating mesh...")
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.015, 8)
-	mesh = mesh.MapCoords(ax.Inverse().Apply)
+	mesh := model3d.MarchingCubesSearch(solid, 0.015, 8)
 
 	log.Println("Saving mesh...")
 	mesh.SaveGroupedSTL("banana.stl")
 
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
+	render3d.SaveRendering("rendering.png", mesh, model3d.XYZ(3.5, -4, 2), 500, 300, nil)
 }
 
 type BananaSolid struct {
