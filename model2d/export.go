@@ -6,11 +6,6 @@ import (
 )
 
 func EncodeSVG(m *Mesh) []byte {
-	segments := map[*Segment]bool{}
-	m.Iterate(func(s *Segment) {
-		segments[s] = true
-	})
-
 	min := m.Min()
 	max := m.Max()
 
@@ -19,36 +14,77 @@ func EncodeSVG(m *Mesh) []byte {
 	result.WriteString(
 		fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="%f %f %f %f">`,
 			min.X, min.Y, max.X-min.X, max.Y-min.Y))
-	for len(segments) > 0 {
-		var seg *Segment
-		for s := range segments {
-			seg = s
-			break
-		}
-		delete(segments, seg)
-		pointStrs := []string{fmt.Sprintf("%f,%f", seg[0].X, seg[0].Y)}
-	PathLoop:
-		for {
-			pointStrs = append(pointStrs, fmt.Sprintf("%f,%f", seg[1].X, seg[1].Y))
-			for _, s := range m.Find(seg[1]) {
-				if s == seg || s[0] != seg[1] {
-					continue
-				}
-				if segments[s] {
-					delete(segments, s)
-					seg = s
-					continue PathLoop
-				}
-			}
-			break
+
+	findPolylines(m, func(points []Coord) {
+		pointStrs := make([]string, len(points))
+		for i, c := range points {
+			pointStrs[i] = fmt.Sprintf("%f,%f", c.X, c.Y)
 		}
 		if pointStrs[0] == pointStrs[len(pointStrs)-1] {
 			pointStrs = pointStrs[1:]
+			result.WriteString(`<polygon points="`)
+		} else {
+			result.WriteString(`<polyline points="`)
 		}
-		result.WriteString(`<polygon points="`)
 		result.WriteString(strings.Join(pointStrs, " "))
 		result.WriteString(`" stroke="black" fill="none" />`)
-	}
+	})
+
 	result.WriteString("</svg>")
 	return []byte(result.String())
+}
+
+// findPolylines finds sequences of connected segments and
+// calls f for each one.
+//
+// The f function is called with all of the points in each
+// sequence, such that segments connect consecutive
+// points.
+//
+// If the figure is closed, or is open but properly
+// connected (with no vertices used more than twice), then
+// f is only called once.
+func findPolylines(m *Mesh, f func(points []Coord)) {
+	m1 := NewMesh()
+	m1.AddMesh(m)
+	for len(m1.segments) > 0 {
+		f(findNextPolyline(m1))
+	}
+}
+
+func findNextPolyline(m *Mesh) []Coord {
+	var seg *Segment
+	for s := range m.segments {
+		seg = s
+		break
+	}
+	m.Remove(seg)
+
+	before := findPolylineFromPoint(m, seg[0])
+	after := findPolylineFromPoint(m, seg[1])
+	allCoords := make([]Coord, len(before)+len(after))
+	for i, c := range before {
+		allCoords[len(before)-(i+1)] = c
+	}
+	copy(allCoords[len(before):], after)
+
+	return allCoords
+}
+
+func findPolylineFromPoint(m *Mesh, c Coord) []Coord {
+	result := []Coord{c}
+	for {
+		other := m.Find(c)
+		if len(other) == 0 {
+			return result
+		}
+		next := other[0]
+		m.Remove(next)
+		if next[0] == c {
+			c = next[1]
+		} else {
+			c = next[0]
+		}
+		result = append(result, c)
+	}
 }
