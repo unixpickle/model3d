@@ -122,6 +122,40 @@ func (s *Segment) CircleCollision(c Coord, r float64) bool {
 	return frac >= 0 && frac <= 1 && closest.Dist(c) < r
 }
 
+// SegmentCollision returns true if s intersects s1.
+func (s *Segment) SegmentCollision(s1 *Segment) bool {
+	collides, t := s.rayCollision(&Ray{Origin: s1[0], Direction: s1[1].Sub(s1[0])})
+	return collides && t >= 0 && t <= 1
+}
+
+// RectCollision returns true if any part of the segment
+// is inside of the rectangle.
+func (s *Segment) RectCollision(r *Rect) bool {
+	minPoint := s.Min()
+	maxPoint := s.Max()
+	if minPoint.X > r.MaxVal.X || minPoint.Y > r.MaxVal.Y {
+		return false
+	}
+	if maxPoint.X < r.MinVal.X || maxPoint.Y < r.MinVal.Y {
+		return false
+	}
+	if r.Contains(s[0]) || r.Contains(s[1]) {
+		return true
+	}
+	outline := [4]Segment{
+		{r.MinVal, XY(r.MaxVal.X, r.MinVal.Y)},
+		{r.MinVal, XY(r.MinVal.X, r.MaxVal.Y)},
+		{r.MaxVal, XY(r.MaxVal.X, r.MinVal.Y)},
+		{r.MaxVal, XY(r.MinVal.X, r.MaxVal.Y)},
+	}
+	for _, seg := range outline {
+		if s.SegmentCollision(&seg) {
+			return true
+		}
+	}
+	return false
+}
+
 // A Circle is a 2D perfect circle.
 type Circle struct {
 	Center Coord

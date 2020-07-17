@@ -75,6 +75,29 @@ func ColliderContains(c Collider, coord Coord, margin float64) bool {
 	return margin <= 0 || !c.CircleCollision(coord, margin)
 }
 
+// A SegmentCollider is a 2-dimensional outline which can
+// detect if a line segment collides with the outline.
+type SegmentCollider interface {
+	// SegmentCollision returns true if the segment
+	// collides with the outline.
+	SegmentCollision(s *Segment) bool
+}
+
+// A RectCollider is a 2-dimensional outline which can
+// detect if a 2D axis-aligned rectangular area collides
+// with the outline.
+type RectCollider interface {
+	// RectCollision returns true if any part of the
+	// outline is inside the rect.
+	RectCollision(r *Rect) bool
+}
+
+type MultiCollider interface {
+	Collider
+	SegmentCollider
+	RectCollider
+}
+
 // MeshToCollider converts a mesh to an efficient
 // Collider.
 func MeshToCollider(m *Mesh) Collider {
