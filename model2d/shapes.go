@@ -1,5 +1,7 @@
 package model2d
 
+import "math"
+
 // A Segment is a 2-dimensional line segment.
 //
 // The order determines the normal direction.
@@ -57,6 +59,67 @@ func (s Segment) Closest(c Coord) Coord {
 	}
 
 	return v.Scale(mag).Add(s[0])
+}
+
+// RayCollisions calls f (if non-nil) with a collision (if
+// applicable) and returns the collisions count (0 or 1).
+func (s *Segment) RayCollisions(r *Ray, f func(RayCollision)) int {
+	if collides, scale := s.rayCollision(r); collides && scale >= 0 {
+		if f != nil {
+			f(RayCollision{Scale: scale, Normal: s.Normal()})
+		}
+		return 1
+	}
+	return 0
+}
+
+// FirstRayCollision gets the ray collision if there is
+// one.
+func (s *Segment) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	if collides, scale := s.rayCollision(r); collides && scale >= 0 {
+		return RayCollision{Scale: scale, Normal: s.Normal()}, true
+	}
+	return RayCollision{}, false
+}
+
+// rayCollision computes where (and if) the ray intersects
+// the segment.
+//
+// If it returns true as the first value, then the ray or
+// its reverse hits the segment.
+//
+// The second return value is how much of the direction
+// must be added to the origin to hit the line containing
+// the segment.
+// If it is negative, it means the segment is behind the
+// ray.
+func (s *Segment) rayCollision(r *Ray) (bool, float64) {
+	v := s[1].Sub(s[0])
+	matrix := Matrix2{
+		v.X, r.Direction.X,
+		v.Y, r.Direction.Y,
+	}
+	if math.Abs(matrix.Det()) < 1e-8*s.Length()*r.Direction.Norm() {
+		return false, 0
+	}
+	matrix.InvertInPlace()
+	result := matrix.MulColumn(r.Origin.Sub(s[0]))
+	return result.X >= 0 && result.X <= 1, -result.Y
+}
+
+// CircleCollision checks if the circle intersects the
+// segment s.
+func (s *Segment) CircleCollision(c Coord, r float64) bool {
+	if s[0].Dist(c) < r || s[1].Dist(c) < r {
+		return true
+	}
+
+	// The segment may pass through the circle without
+	// either endpoint being contained.
+	v := s[1].Sub(s[0])
+	frac := (c.Dot(v) - s[0].Dot(v)) / v.Dot(v)
+	closest := s[0].Add(v.Scale(frac))
+	return frac >= 0 && frac <= 1 && closest.Dist(c) < r
 }
 
 // A Circle is a 2D perfect circle.
