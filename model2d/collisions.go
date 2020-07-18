@@ -99,8 +99,8 @@ type MultiCollider interface {
 }
 
 // MeshToCollider converts a mesh to an efficient
-// Collider.
-func MeshToCollider(m *Mesh) Collider {
+// MultiCollider.
+func MeshToCollider(m *Mesh) MultiCollider {
 	segs := m.SegmentsSlice()
 	GroupSegments(segs)
 	return GroupedSegmentsToCollider(segs)
@@ -129,19 +129,19 @@ func groupSegmentsAxis(segs []*Segment, axis int) {
 }
 
 // GroupedSegmentsToCollider converts pre-grouped segments
-// into an efficient collider.
+// into an efficient MultiCollider.
 // If the segments were not grouped with GroupSegments,
 // then the resulting collider may be highly inefficient.
-func GroupedSegmentsToCollider(segs []*Segment) Collider {
+func GroupedSegmentsToCollider(segs []*Segment) MultiCollider {
 	if len(segs) == 0 {
-		return NewJoinedCollider(nil)
+		return &joinedMultiCollider{NewJoinedCollider(nil)}
 	} else if len(segs) == 1 {
 		return segs[0]
 	} else {
 		mid := len(segs) / 2
 		c1 := GroupedSegmentsToCollider(segs[:mid])
 		c2 := GroupedSegmentsToCollider(segs[mid:])
-		return NewJoinedCollider([]Collider{c1, c2})
+		return &joinedMultiCollider{NewJoinedCollider([]Collider{c1, c2})}
 	}
 }
 
@@ -234,27 +234,66 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 	if len(j.colliders) == 0 {
 		return false
 	}
-	minFrac := math.Inf(-1)
-	maxFrac := math.Inf(1)
+	minFrac, maxFrac := rayCollisionWithBounds(r, j.min, j.max)
+	return minFrac <= maxFrac && maxFrac >= 0
+}
+
+type joinedMultiCollider struct {
+	*JoinedCollider
+}
+
+func (j joinedMultiCollider) SegmentCollision(s *Segment) bool {
+	minFrac, maxFrac := rayCollisionWithBounds(&Ray{
+		Origin:    s[0],
+		Direction: s[1].Sub(s[0]),
+	}, j.min, j.max)
+	if maxFrac < minFrac || maxFrac < 0 || minFrac > 1 {
+		return false
+	}
+	for _, c := range j.colliders {
+		if c.(SegmentCollider).SegmentCollision(s) {
+			return true
+		}
+	}
+	return false
+}
+
+func (j joinedMultiCollider) RectCollision(r *Rect) bool {
+	min := r.MinVal.Max(j.min)
+	max := r.MaxVal.Min(j.max)
+	if min.Min(max) != min {
+		return false
+	}
+	for _, c := range j.colliders {
+		if c.(RectCollider).RectCollision(r) {
+			return true
+		}
+	}
+	return false
+}
+
+func rayCollisionWithBounds(r *Ray, min, max Coord) (minFrac, maxFrac float64) {
+	minFrac = math.Inf(-1)
+	maxFrac = math.Inf(1)
 	for axis := 0; axis < 2; axis++ {
 		origin := r.Origin.Array()[axis]
 		rate := r.Direction.Array()[axis]
 		if rate == 0 {
-			if origin < j.min.Array()[axis] || origin > j.max.Array()[axis] {
-				return false
+			if origin < min.Array()[axis] || origin > max.Array()[axis] {
+				return 0, -1
 			}
 			continue
 		}
 		invRate := 1 / rate
-		t1 := (j.min.Array()[axis] - origin) * invRate
-		t2 := (j.max.Array()[axis] - origin) * invRate
+		t1 := (min.Array()[axis] - origin) * invRate
+		t2 := (max.Array()[axis] - origin) * invRate
 		if t1 > t2 {
 			t1, t2 = t2, t1
 		}
 		if t2 < 0 {
 			// No collision is possible, so we can short-circuit
 			// everything else.
-			return false
+			return 0, -1
 		}
 		if t1 > minFrac {
 			minFrac = t1
@@ -263,8 +302,7 @@ func (j *JoinedCollider) rayCollidesWithBounds(r *Ray) bool {
 			maxFrac = t2
 		}
 	}
-
-	return minFrac <= maxFrac && maxFrac >= 0
+	return
 }
 
 func circleTouchesBounds(center Coord, r float64, min, max Coord) bool {

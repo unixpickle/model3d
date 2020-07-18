@@ -38,18 +38,62 @@ func TestSegmentCollisions(t *testing.T) {
 	}
 }
 
+func TestMeshCollider(t *testing.T) {
+	mesh := colliderTestingMesh(1000)
+	collider := MeshToCollider(mesh)
+
+	t.Run("RectCollision", func(t *testing.T) {
+		for i := 0; i < 100; i++ {
+			min := NewCoordRandNorm()
+			max := min.Add(NewCoordRandUniform().AddScalar(0.01))
+			rect := &Rect{MinVal: min, MaxVal: max}
+			actual := collider.RectCollision(rect)
+			expected := false
+			mesh.Iterate(func(s *Segment) {
+				if s.RectCollision(rect) {
+					expected = true
+				}
+			})
+			if actual != expected {
+				t.Errorf("expected rect collision %v but got %v", expected, actual)
+			}
+		}
+	})
+
+	t.Run("SegmentCollision", func(t *testing.T) {
+		for i := 0; i < 100; i++ {
+			seg := &Segment{NewCoordRandNorm(), NewCoordRandNorm()}
+			actual := collider.SegmentCollision(seg)
+			expected := false
+			mesh.Iterate(func(s *Segment) {
+				if s.SegmentCollision(seg) {
+					expected = true
+				}
+			})
+			if actual != expected {
+				t.Errorf("expected rect collision %v but got %v", expected, actual)
+			}
+		}
+	})
+}
+
 func BenchmarkMeshCollisions(b *testing.B) {
-	mesh := NewMesh()
-	for i := 0; i < 10000; i++ {
-		theta1 := float64(i) * math.Pi * 2 / 10000
-		theta2 := float64(i+1) * math.Pi * 2 / 10000
-		mesh.Add(&Segment{Coord{X: math.Cos(theta1), Y: math.Sin(theta1)},
-			Coord{X: math.Cos(theta2), Y: math.Sin(theta2)}})
-	}
+	mesh := colliderTestingMesh(10000)
 	collider := MeshToCollider(mesh)
 	ray := &Ray{Direction: Coord{X: 0.5, Y: 0.5}}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		collider.RayCollisions(ray, nil)
 	}
+}
+
+func colliderTestingMesh(numStops int) *Mesh {
+	mesh := NewMesh()
+	for i := 0; i < numStops; i++ {
+		theta1 := float64(i) * math.Pi * 2 / float64(numStops)
+		theta2 := float64(i+1) * math.Pi * 2 / float64(numStops)
+		mesh.Add(&Segment{Coord{X: math.Cos(theta1), Y: math.Sin(theta1)},
+			Coord{X: math.Cos(theta2), Y: math.Sin(theta2)}})
+	}
+	return mesh
 }
