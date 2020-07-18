@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 
 	"github.com/unixpickle/model3d/model2d"
 
@@ -18,12 +19,9 @@ const (
 )
 
 func main() {
-	log.Println("Wrapping flower shape...")
-	sphereMesh := WrappedFlowerShape()
-
 	log.Println("Creating solid...")
 	solid := model3d.JoinedSolid{
-		model3d.NewColliderSolidHollow(model3d.MeshToCollider(sphereMesh), Thickness),
+		NewFlowerShape(),
 		BaseSolid{},
 	}
 
@@ -37,51 +35,63 @@ func main() {
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
-func WrappedFlowerShape() *model3d.Mesh {
-	shape := NewFlowerShape()
-	mesh := model3d.NewMeshPolar(func(g model3d.GeoCoord) float64 {
-		if shape.Get(g.Lat, g.Lon) {
-			return Radius
-		} else {
-			return 0
-		}
-	}, 2000)
-	mesh.Iterate(func(t *model3d.Triangle) {
-		if t[0].Norm() == 0 || t[1].Norm() == 0 || t[2].Norm() == 0 {
-			mesh.Remove(t)
-		}
-	})
-	mesh = mesh.MapCoords(func(f model3d.Coord3D) model3d.Coord3D {
-		f.Z *= -1
-		f.Z += Radius
-		return f
-	})
-	return mesh
-}
-
 type FlowerShape struct {
-	Solid model2d.Solid
+	Projection model2d.PointSDF
+	MinVal     model3d.Coord3D
+	MaxVal     model3d.Coord3D
 }
 
 func NewFlowerShape() *FlowerShape {
 	bitmap := model2d.MustReadBitmap("shape.png", nil)
 	mesh := bitmap.Mesh().SmoothSq(200)
-	mesh = mesh.MapCoords(model2d.Coord{
-		X: 1 / float64(bitmap.Width),
-		Y: 1 / float64(bitmap.Height),
-	}.Mul)
-	collider := model2d.MeshToCollider(mesh)
-	solid := model2d.NewColliderSolid(collider)
+	mesh = mesh.MapCoords(func(c model2d.Coord) model2d.Coord {
+		c.X /= float64(bitmap.Width)
+		c.Y /= float64(bitmap.Height)
+		c = c.Scale(2 * LengthRadians).AddScalar(-LengthRadians)
+		// The Y value is longitude, and it spans the sphere more
+		// quickly when latitude (X value) is further frome zero.
+		c.Y /= math.Cos(c.X)
+		return c
+	})
 	return &FlowerShape{
-		Solid: solid,
+		Projection: model2d.MeshToSDF(mesh),
+		// Fairly loose bounds, since the exact bounds are
+		// hard to compute.
+		MinVal: model3d.XYZ(-Radius, -Radius, 0),
+		MaxVal: model3d.XYZ(Radius, Radius, Radius),
 	}
 }
 
-func (f *FlowerShape) Get(x, y float64) bool {
-	return f.Solid.Contains(model2d.Coord{
-		X: (x + LengthRadians) / (LengthRadians * 2),
-		Y: (y + LengthRadians) / (LengthRadians * 2),
-	})
+func (f *FlowerShape) Min() model3d.Coord3D {
+	return f.MinVal
+}
+
+func (f *FlowerShape) Max() model3d.Coord3D {
+	return f.MaxVal
+}
+
+func (f *FlowerShape) Contains(c model3d.Coord3D) bool {
+	if !model3d.InBounds(f, c) {
+		return false
+	}
+	c.Z -= Radius
+	c.Z *= -1
+	proj := f.project(c)
+	return c.Dist(proj) < Thickness
+}
+
+func (f *FlowerShape) project(c model3d.Coord3D) model3d.Coord3D {
+	geo := c.Geo()
+	closest, signedDist := f.Projection.PointSDF(model2d.XY(geo.Lat, geo.Lon))
+	if signedDist > 0 {
+		// Interior projections simply land on the sphere.
+		return geo.Coord3D().Scale(Radius)
+	}
+	// Exterior projections hit the boundary of the shape.
+	// We assume that the closest point in geo coordinates
+	// is approximately the closest point in space.
+	geo = model3d.GeoCoord{Lat: closest.X, Lon: closest.Y}.Normalize()
+	return geo.Coord3D().Scale(Radius)
 }
 
 type BaseSolid struct{}
