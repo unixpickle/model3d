@@ -11,9 +11,16 @@ import (
 )
 
 const (
-	Radius        = 1.0
-	LengthRadians = 1.0
-	Thickness     = 0.1
+	// Radius of the sphere we project everything onto.
+	Radius = 1.0
+
+	// Radius spanned by the flower itself.
+	PedalLength = 0.8
+
+	// Thickness in every direction of the flower surface.
+	Thickness = 0.1
+
+	// Details of the cylindrical base.
 	BaseThickness = 0.1
 	BaseRadius    = 0.5
 )
@@ -42,17 +49,35 @@ type FlowerShape struct {
 }
 
 func NewFlowerShape() *FlowerShape {
-	bitmap := model2d.MustReadBitmap("shape.png", nil)
-	mesh := bitmap.Mesh().SmoothSq(200)
+	mesh := model2d.NewMesh()
+
+	// Polar coordinate flower shape.
+	flowerPoint := func(i int) model2d.Coord {
+		i = i % 10000
+		theta := (float64(i) / 9999.0) * math.Pi * 2
+		r := 0.3 + 0.7*math.Pow(math.Abs(math.Cos(3*theta)), 0.5)
+		return model2d.XY(math.Cos(theta), math.Sin(theta)).Scale(r)
+	}
+	for i := 0; i < 10000; i++ {
+		mesh.Add(&model2d.Segment{flowerPoint(i), flowerPoint(i + 1)})
+	}
+
+	sphere := &model3d.Sphere{Radius: Radius}
 	mesh = mesh.MapCoords(func(c model2d.Coord) model2d.Coord {
-		c.X /= float64(bitmap.Width)
-		c.Y /= float64(bitmap.Height)
-		c = c.Scale(2 * LengthRadians).AddScalar(-LengthRadians)
-		// The Y value is longitude, and it spans the sphere more
-		// quickly when latitude (X value) is further frome zero.
-		c.Y /= math.Cos(c.X)
-		return c
+		c = c.Scale(PedalLength)
+
+		// Project the point onto a sphere to get the geo coords.
+		ray := &model3d.Ray{
+			Origin:    model3d.XYZ(c.X, c.Y, Radius),
+			Direction: model3d.Z(-1),
+		}
+		rc, _ := sphere.FirstRayCollision(ray)
+		rcPoint := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
+		geoPoint := rcPoint.Geo()
+
+		return model2d.XY(geoPoint.Lat, geoPoint.Lon)
 	})
+
 	return &FlowerShape{
 		Projection: model2d.MeshToSDF(mesh),
 		// Fairly loose bounds, since the exact bounds are
