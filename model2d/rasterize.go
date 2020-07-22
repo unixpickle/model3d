@@ -4,13 +4,62 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/jpeg"
+	"image/png"
 	"math"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/pkg/errors"
 )
 
 const (
 	RasterizerDefaultSubsamples = 8
 	RasterizerDefaultLineWidth  = 1.0
 )
+
+// Rasterize renders a Solid, Collider, or Mesh to an
+// image file.
+//
+// The bounds of the object being rendered are scaled by
+// the provided scale factor to convert to pixel
+// coordinates.
+//
+// This uses the default rasterization settings, such as
+// the default line width and anti-aliasing settings.
+// To change this, use a Rasterizer object directly.
+func Rasterize(path string, obj interface{}, scale float64) error {
+	rast := Rasterizer{Scale: scale}
+	img := rast.Rasterize(obj)
+
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext != ".png" && ext != ".jpg" && ext != ".jpeg" {
+		return fmt.Errorf("rasterize image: unknown extension: %s", filepath.Ext(path))
+	}
+
+	w, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "rasterize image")
+	}
+
+	if ext == ".png" {
+		err = png.Encode(w, img)
+	} else {
+		err = jpeg.Encode(w, img, nil)
+	}
+
+	if err == nil {
+		err = w.Close()
+	} else {
+		w.Close()
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "rasterize image")
+	}
+	return nil
+}
 
 // A Rasterizer converts 2D models into raster images.
 type Rasterizer struct {
