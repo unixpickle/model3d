@@ -10,6 +10,36 @@ func TestNewMeshRect(t *testing.T) {
 	MustValidateMesh(t, mesh, true)
 }
 
+func TestVertexSlice(t *testing.T) {
+	t1 := &Triangle{
+		XY(0, 1),
+		XY(1, 0),
+		XY(1, 1),
+	}
+	t2 := &Triangle{
+		XY(0, 1),
+		XY(1, 0),
+		XY(-1, 1),
+	}
+	mesh := NewMesh()
+	mesh.Add(t1)
+	if len(mesh.VertexSlice()) != 3 {
+		t.Error("unexpected number of vertices")
+	}
+	mesh.Add(t2)
+	if len(mesh.VertexSlice()) != 4 {
+		t.Error("unexpected number of vertices")
+	}
+	mesh.Remove(t1)
+	if len(mesh.VertexSlice()) != 3 {
+		t.Error("unexpected number of vertices")
+	}
+	mesh.Remove(t2)
+	if len(mesh.VertexSlice()) != 0 {
+		t.Error("unexpected number of vertices")
+	}
+}
+
 func BenchmarkMeshFind(b *testing.B) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1

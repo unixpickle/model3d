@@ -190,7 +190,11 @@ func (m *Mesh) removeTriangleFromVertex(v2t map[Coord3D][]*Triangle, t *Triangle
 			break
 		}
 	}
-	v2t[p] = s
+	if len(s) == 0 {
+		delete(v2t, p)
+	} else {
+		v2t[p] = s
+	}
 }
 
 // Contains checks if t has been added to the mesh.

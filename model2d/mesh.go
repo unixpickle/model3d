@@ -95,7 +95,11 @@ func (m *Mesh) removeSegmentFromVertex(v2s map[Coord][]*Segment, s *Segment, p C
 			break
 		}
 	}
-	v2s[p] = segs
+	if len(segs) == 0 {
+		delete(v2s, p)
+	} else {
+		v2s[p] = segs
+	}
 }
 
 // Contains checks if s has been added to the mesh.
