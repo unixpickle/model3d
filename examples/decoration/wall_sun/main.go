@@ -17,12 +17,14 @@ func main() {
 	var ripple float64
 	var pointRadius float64
 	var pointDepth float64
+	var pointSpacing float64
 	var extraPoints bool
 	flag.Float64Var(&radius, "radius", 2.5, "radius of the sun ball")
 	flag.Float64Var(&depth, "depth", 1.5, "depth of the sun ball (no larger than radius)")
 	flag.Float64Var(&ripple, "ripple", 0.05, "relative height of sphere ripples")
 	flag.Float64Var(&pointRadius, "point-radius", 0.7, "outward radius of pointed edges")
 	flag.Float64Var(&pointDepth, "point-depth", 0.1, "depth of pointed edges")
+	flag.Float64Var(&pointSpacing, "point-spacing", 1.0, "space between points (in point size)")
 	flag.BoolVar(&extraPoints, "extra-points", false, "add an extra layer of points")
 	flag.Parse()
 
@@ -31,10 +33,11 @@ func main() {
 	}
 	solid := model3d.JoinedSolid{
 		NewSunBall(radius, depth, ripple),
-		NewPointedEdges(radius, pointRadius, pointDepth, false),
+		NewPointedEdges(radius, pointRadius, pointDepth, pointSpacing, false),
 	}
 	if extraPoints {
-		solid = append(solid, NewPointedEdges(radius, pointRadius, pointDepth*1.5, true))
+		solid = append(solid, NewPointedEdges(radius, pointRadius, pointDepth*1.5, pointSpacing,
+			true))
 	}
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.02, 8)
@@ -100,17 +103,20 @@ type PointedEdges struct {
 
 	Phase     float64
 	Frequency float64
+	Spacing   float64
 }
 
-func NewPointedEdges(baseRadius, extraRadius, depth float64, phase bool) *PointedEdges {
+func NewPointedEdges(baseRadius, extraRadius, depth, spacing float64, phase bool) *PointedEdges {
 	circum := math.Pi * 2 * (baseRadius + extraRadius/2)
 	sideLength := 2 * extraRadius / math.Sqrt(3)
+	freq := math.Floor(circum / (sideLength * spacing))
 	res := &PointedEdges{
 		MinRadius: baseRadius,
 		MaxRadius: baseRadius + extraRadius,
 		Depth:     depth,
 
-		Frequency: math.Floor(circum / sideLength),
+		Frequency: freq,
+		Spacing:   spacing,
 	}
 	if phase {
 		res.Phase += 0.5 / res.Frequency
@@ -137,5 +143,5 @@ func (p *PointedEdges) Contains(c model3d.Coord3D) bool {
 	theta := math.Atan2(c.Y, c.X) + 2*math.Pi
 	modulo := math.Mod(theta/(2*math.Pi)+p.Phase, 1/p.Frequency) * p.Frequency
 	radiusFrac := (p.MaxRadius - r) / (p.MaxRadius - p.MinRadius)
-	return math.Abs(modulo-0.5)*2 < radiusFrac
+	return math.Abs(modulo-0.5)*2*p.Spacing < radiusFrac
 }
