@@ -1,5 +1,7 @@
 package model2d
 
+import "math"
+
 // Blur moves each vertex closer to the average of its
 // neighbors.
 //
@@ -121,4 +123,61 @@ func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
 		newMesh.Add(&s1)
 	})
 	return newMesh, numFlipped
+}
+
+// Decimate repeatedly removes vertices from a manifold
+// mesh until the mesh contains maxVertices or fewer.
+func (m *Mesh) Decimate(maxVertices int) *Mesh {
+	res := NewMesh()
+	res.AddMesh(m)
+	areas := map[Coord]float64{}
+	for _, v := range res.VertexSlice() {
+		areas[v] = vertexArea(m, v)
+	}
+
+	for len(areas) > maxVertices {
+		var next Coord
+		nextArea := math.Inf(1)
+		for v, a := range areas {
+			if a < nextArea {
+				nextArea = a
+				next = v
+			}
+		}
+		delete(areas, next)
+		n1, n2 := vertexNeighbors(res, next)
+		for _, s := range res.Find(next) {
+			res.Remove(s)
+		}
+		res.Add(&Segment{n1, n2})
+		areas[n1] = vertexArea(res, n1)
+		areas[n2] = vertexArea(res, n2)
+	}
+	return res
+}
+
+func vertexArea(m *Mesh, c Coord) float64 {
+	n1, n2 := vertexNeighbors(m, c)
+	mat := NewMatrix2Columns(n2.Sub(c), n1.Sub(c))
+	return math.Abs(mat.Det() / 2)
+}
+
+func vertexNeighbors(m *Mesh, c Coord) (n1, n2 Coord) {
+	neighbors := m.Find(c)
+	if len(neighbors) != 2 {
+		panic("non-manifold mesh")
+	}
+	n1 = neighbors[0][0]
+	if n1 == c {
+		n1 = neighbors[0][1]
+	}
+	n2 = neighbors[1][1]
+	if n2 == c {
+		n2 = neighbors[1][0]
+	}
+	if c != neighbors[0][1] {
+		// Attempt to preserve normals.
+		n1, n2 = n2, n1
+	}
+	return
 }

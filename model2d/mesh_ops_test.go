@@ -61,6 +61,39 @@ func TestMeshSubdivide(t *testing.T) {
 	}
 }
 
+func TestMeshDecimate(t *testing.T) {
+	t.Run("Manifold", func(t *testing.T) {
+		mesh := MarchingSquaresSearch(&Circle{Radius: 0.9}, 0.01, 8)
+		mesh = mesh.Decimate(20)
+
+		if n := len(mesh.VertexSlice()); n != 20 {
+			t.Errorf("mesh had unexpected vertex count: %d", n)
+		}
+
+		if !mesh.Manifold() {
+			t.Error("mesh is non-manifold")
+		} else if _, n := mesh.RepairNormals(1e-5); n != 0 {
+			t.Errorf("mesh had %d bad normals", n)
+		}
+	})
+	t.Run("Correct", func(t *testing.T) {
+		mesh := NewMesh()
+		mesh.Add(&Segment{XY(0, 0), XY(1, 0)})
+		mesh.Add(&Segment{XY(1, 0), XY(1, 1)})
+		mesh.Add(&Segment{XY(1, 1), XY(0, 1)})
+		mesh.Add(&Segment{XY(0, 1), XY(0, 0)})
+		extraMesh := NewMesh()
+		mesh.Iterate(func(s *Segment) {
+			extraMesh.Add(&Segment{s[0], s.Mid()})
+			extraMesh.Add(&Segment{s.Mid(), s[1]})
+		})
+		reduced := extraMesh.Decimate(4)
+		if !meshesEqual(mesh, reduced) {
+			t.Error("got unexpected reduced mesh")
+		}
+	})
+}
+
 func meshesEqual(m1, m2 *Mesh) bool {
 	seg1 := meshSegmentValues(m1)
 	seg2 := meshSegmentValues(m2)
