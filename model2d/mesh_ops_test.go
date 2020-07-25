@@ -92,6 +92,27 @@ func TestMeshDecimate(t *testing.T) {
 			t.Error("got unexpected reduced mesh")
 		}
 	})
+	t.Run("NonManifold", func(t *testing.T) {
+		mesh := NewMesh()
+		mesh.Add(&Segment{XY(0, 0), XY(1, 0)})
+		mesh.Add(&Segment{XY(1, 0), XY(2, 1)})
+		mesh.Add(&Segment{XY(2, 1), XY(3, 0)})
+		mesh.Add(&Segment{XY(3, 0), XY(4, 0)})
+		extraMesh := NewMesh()
+		mesh.Iterate(func(s *Segment) {
+			extraMesh.Add(&Segment{s[0], s.Mid()})
+			extraMesh.Add(&Segment{s.Mid(), s[1]})
+		})
+		reduced := extraMesh.Decimate(5)
+		if !meshesEqual(mesh, reduced) {
+			t.Error("got unexpected reduced mesh")
+		}
+		reduced2 := extraMesh.Decimate(0)
+		lineMesh := NewMeshSegments([]*Segment{{X(0), X(4)}})
+		if !meshesEqual(lineMesh, reduced2) {
+			t.Error("got unexpected maximally-reduced mesh")
+		}
+	})
 }
 
 func meshesEqual(m1, m2 *Mesh) bool {

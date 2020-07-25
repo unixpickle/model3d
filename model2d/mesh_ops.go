@@ -125,8 +125,15 @@ func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
 	return newMesh, numFlipped
 }
 
-// Decimate repeatedly removes vertices from a manifold
-// mesh until the mesh contains maxVertices or fewer.
+// Decimate repeatedly removes vertices from a mesh until
+// it contains maxVertices or fewer vertices with two
+// neighbors.
+//
+// For manifold meshes, maxVertices is a hard-limit on the
+// number of resulting vertices.
+// For non-manifold meshes, more than maxVertices vertices
+// will be retained if all of the remaining vertices are
+// not part of exactly two segments.
 func (m *Mesh) Decimate(maxVertices int) *Mesh {
 	res := NewMesh()
 	res.AddMesh(m)
@@ -137,15 +144,21 @@ func (m *Mesh) Decimate(maxVertices int) *Mesh {
 
 	for len(areas) > maxVertices {
 		var next Coord
-		nextArea := math.Inf(1)
+		nextArea := -1.0
 		for v, a := range areas {
-			if a < nextArea {
+			if a == -1 {
+				continue
+			}
+			if a < nextArea || nextArea == -1 {
 				nextArea = a
 				next = v
 			}
 		}
+		if nextArea == -1 {
+			break
+		}
 		delete(areas, next)
-		n1, n2 := vertexNeighbors(res, next)
+		n1, n2, _ := vertexNeighbors(res, next)
 		for _, s := range res.Find(next) {
 			res.Remove(s)
 		}
@@ -157,16 +170,21 @@ func (m *Mesh) Decimate(maxVertices int) *Mesh {
 }
 
 func vertexArea(m *Mesh, c Coord) float64 {
-	n1, n2 := vertexNeighbors(m, c)
+	n1, n2, ok := vertexNeighbors(m, c)
+	if !ok {
+		return -1
+	}
 	mat := NewMatrix2Columns(n2.Sub(c), n1.Sub(c))
 	return math.Abs(mat.Det() / 2)
 }
 
-func vertexNeighbors(m *Mesh, c Coord) (n1, n2 Coord) {
+func vertexNeighbors(m *Mesh, c Coord) (n1, n2 Coord, ok bool) {
 	neighbors := m.Find(c)
 	if len(neighbors) != 2 {
-		panic("non-manifold mesh")
+		ok = false
+		return
 	}
+	ok = true
 	n1 = neighbors[0][0]
 	if n1 == c {
 		n1 = neighbors[0][1]
