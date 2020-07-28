@@ -125,6 +125,89 @@ func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
 	return newMesh, numFlipped
 }
 
+// Repair finds vertices that are close together and
+// combines them into one.
+//
+// The epsilon argument controls how close points have to
+// be. In particular, it sets the approximate maximum
+// distance across all dimensions.
+func (m *Mesh) Repair(epsilon float64) *Mesh {
+	hashToClass := map[Coord]*equivalenceClass{}
+	allClasses := map[*equivalenceClass]bool{}
+	for c := range m.getVertexToSegment() {
+		hashes := make([]Coord, 0, 4)
+		classes := make(map[*equivalenceClass]bool, 8)
+		for i := 0.0; i <= 1.0; i += 1.0 {
+			for j := 0.0; j <= 1.0; j += 1.0 {
+				hash := Coord{
+					X: math.Round(c.X/epsilon) + i,
+					Y: math.Round(c.Y/epsilon) + j,
+				}
+				hashes = append(hashes, hash)
+				if class, ok := hashToClass[hash]; ok {
+					classes[class] = true
+				}
+			}
+		}
+		if len(classes) == 0 {
+			class := &equivalenceClass{
+				Elements:  []Coord{c},
+				Hashes:    hashes,
+				Canonical: c,
+			}
+			for _, hash := range hashes {
+				hashToClass[hash] = class
+			}
+			allClasses[class] = true
+			continue
+		}
+		newClass := &equivalenceClass{
+			Elements:  []Coord{c},
+			Hashes:    hashes,
+			Canonical: c,
+		}
+		for class := range classes {
+			delete(allClasses, class)
+			newClass.Elements = append(newClass.Elements, class.Elements...)
+			for _, hash := range class.Hashes {
+				var found bool
+				for _, hash1 := range newClass.Hashes {
+					if hash1 == hash {
+						found = true
+						break
+					}
+				}
+				if !found {
+					newClass.Hashes = append(newClass.Hashes, hash)
+				}
+			}
+		}
+		for _, hash := range newClass.Hashes {
+			hashToClass[hash] = newClass
+		}
+		allClasses[newClass] = true
+	}
+
+	coordToClass := map[Coord]*equivalenceClass{}
+	for class := range allClasses {
+		for _, c := range class.Elements {
+			coordToClass[c] = class
+		}
+	}
+
+	return m.MapCoords(func(c Coord) Coord {
+		return coordToClass[c].Canonical
+	})
+}
+
+// An equivalenceClass stores a set of points which share
+// hashes. It is used for Repair to group vertices.
+type equivalenceClass struct {
+	Elements  []Coord
+	Hashes    []Coord
+	Canonical Coord
+}
+
 // Decimate repeatedly removes vertices from a mesh until
 // it contains maxVertices or fewer vertices with two
 // neighbors.

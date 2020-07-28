@@ -61,6 +61,44 @@ func TestMeshSubdivide(t *testing.T) {
 	}
 }
 
+func TestMeshRepair(t *testing.T) {
+	original := NewMesh()
+	for i := 0.0; i < 2*math.Pi; i += 0.1 {
+		t2 := i + 0.1
+		if t2 > 2*math.Pi {
+			t2 = 0
+		}
+		original.Add(&Segment{
+			XY(math.Cos(i), math.Sin(i)),
+			XY(math.Cos(t2), math.Sin(t2)),
+		})
+	}
+	if !original.Manifold() {
+		t.Fatal("initial mesh must be manifold")
+	}
+	repaired := original.Repair(1e-5)
+	if !meshesEqual(original, repaired) {
+		t.Fatal("repairing a manifold mesh did not work")
+	}
+	damaged := NewMesh()
+	original.Iterate(func(s *Segment) {
+		damaged.Add(&Segment{
+			s[0].Add(NewCoordRandUnit().Scale(rand.Float64() * 1e-6)),
+			s[1].Add(NewCoordRandUnit().Scale(rand.Float64() * 1e-6)),
+		})
+	})
+	if damaged.Manifold() {
+		t.Fatal("random perturbations should break the mesh")
+	}
+	repaired = damaged.Repair(1e-5)
+	if !repaired.Manifold() {
+		t.Error("mesh is not manifold after repair")
+	}
+	if len(repaired.SegmentsSlice()) != len(original.SegmentsSlice()) {
+		t.Error("invalid number of segments after repair")
+	}
+}
+
 func TestMeshDecimate(t *testing.T) {
 	t.Run("Manifold", func(t *testing.T) {
 		mesh := MarchingSquaresSearch(&Circle{Radius: 0.9}, 0.01, 8)
