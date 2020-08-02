@@ -13,8 +13,9 @@ import (
 const (
 	NotchSize     = 0.05
 	TubeThickness = 0.1
+	BottomNotchZ  = 0.5
 
-	OuterRadius = 1.0
+	OuterRadius = 0.7
 	OuterHeight = 3.0
 
 	GapRadius = TubeThickness + NotchSize*1.5
@@ -40,9 +41,12 @@ func main() {
 		radius -= GapRadius
 		height += GapHeight
 		tubes = append(tubes, &Tube{
-			Radius:       radius,
-			Height:       height,
-			OuterNotches: []float64{0.0, height - NotchSize},
+			Radius: radius,
+			Height: height,
+			// The notch at 0.0 makes things jiggle less, and
+			// makes the print have more surface area to stick
+			// to the build plate.
+			OuterNotches: []float64{0.0, BottomNotchZ, height - NotchSize},
 			InnerNotches: []float64{height - NotchSize},
 		})
 	}
@@ -50,7 +54,7 @@ func main() {
 	log.Println("Creating mesh...")
 	ax := &toolbox3d.AxisSqueeze{
 		Axis:  toolbox3d.AxisZ,
-		Min:   NotchSize*2 + 0.1,
+		Min:   BottomNotchZ + NotchSize*2 + 0.1,
 		Max:   OuterHeight - NotchSize*2 - 0.1,
 		Ratio: 0.1,
 	}
