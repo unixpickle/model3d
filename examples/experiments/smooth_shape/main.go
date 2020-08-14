@@ -2,27 +2,41 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/unixpickle/model3d/model2d"
 )
 
 func main() {
-	var inFile string
 	var smoothIters int
 	var maxVertices int
 	var subdivisions int
 	var upsampleRate float64
+	var thicken float64
 
-	flag.StringVar(&inFile, "input", "input.png", "input image file")
 	flag.IntVar(&smoothIters, "smooth-iters", 100, "number of smoothing iterations")
 	flag.IntVar(&maxVertices, "max-vertices", 70, "maximum vertices after decimation")
 	flag.IntVar(&subdivisions, "subdivisions", 2, "number of smoothing sub-divisions")
 	flag.Float64Var(&upsampleRate, "upsample-rate", 2.0, "extra resolution to add to output")
+	flag.Float64Var(&thicken, "thicken", 0.0, "extra thickness (in pixels) to give to the output")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage:", os.Args[0], "[flags] <input> <output>")
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Flags:")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
 	flag.Parse()
 
+	if len(flag.Args()) != 2 {
+		flag.Usage()
+	}
+
 	log.Println("Reading file as mesh...")
-	mesh, size := ReadImage(inFile)
+	mesh, size := ReadImage(flag.Args()[0])
 
 	log.Println("Smoothing mesh...")
 	mesh = mesh.SmoothSq(smoothIters)
@@ -34,11 +48,18 @@ func main() {
 	mesh = mesh.Subdivide(subdivisions)
 
 	log.Println("Rendering...")
-	solid := &BoundedSolid{
-		Solid:  model2d.NewColliderSolid(model2d.MeshToCollider(mesh)),
+	collider := model2d.MeshToCollider(mesh)
+	var solid model2d.Solid
+	if thicken == 0 {
+		solid = model2d.NewColliderSolid(collider)
+	} else {
+		solid = model2d.NewColliderSolidInset(collider, -thicken)
+	}
+	solid = &BoundedSolid{
+		Solid:  solid,
 		MaxVal: size,
 	}
-	model2d.Rasterize("output.png", solid, upsampleRate)
+	model2d.Rasterize(flag.Args()[1], solid, upsampleRate)
 }
 
 func ReadImage(path string) (mesh *model2d.Mesh, size model2d.Coord) {

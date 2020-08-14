@@ -1,13 +1,19 @@
 # smooth_shape
 
-This is a simple program that demonstrates how to smooth out a rasterized image and turn it into a vector graphic of arbitrary resolution.
+This program uses the `model2d` package to read a raster image of a shape, vectorize it, smooth it out, and save a higher-resolution version of the same image.
 
 # Results
 
-The program takes an ugly, blurry input image like so:
+I've included a test image for reference. Run this command to reproduce this result:
+
+```
+$ go run . input.png output.png
+``` to reproduce these results.
+
+In this example, we take a blurry raster image like so:
 
 ![input pickle](input.png)
 
-and produces a much crisper image like so:
+and produce a much crisper image in 2x the original resolution:
 
 ![output pickle](output.png)
