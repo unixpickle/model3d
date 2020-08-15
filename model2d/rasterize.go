@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/unixpickle/essentials"
 )
 
 const (
@@ -143,11 +144,85 @@ func (r *Rasterizer) RasterizeSolid(s Solid) *image.Gray {
 	return out
 }
 
+// RasterizeSolidFilter rasterizes a Solid using a
+// heuristic filter than can eliminate the need to render
+// blank regions of the image.
+//
+// If f returns false for a given rectangular region, it
+// means that the solid is definitely uniform within the
+// region (i.e. there is no boundary in the region).
+// The exact pattern with which f is called will depend on
+// the image and rasterization parameters.
+func (r *Rasterizer) RasterizeSolidFilter(s Solid, f func(r *Rect) bool) *image.Gray {
+	scale := r.scale()
+
+	min, max := s.Min(), s.Max()
+	outWidth := int(math.Ceil((max.X - min.X) * scale))
+	outHeight := int(math.Ceil((max.Y - min.Y) * scale))
+	out := image.NewGray(image.Rect(0, 0, outWidth, outHeight))
+
+	pixelWidth := (max.X - min.X) / float64(outWidth)
+	pixelHeight := (max.Y - min.Y) / float64(outHeight)
+
+	indices := make([][2]int, 0, outWidth*outHeight)
+	filterSize := essentials.MaxInt(1, 16/r.subsamples())
+	for y := 0; y < outHeight; y += filterSize {
+		for x := 0; x < outWidth; x += filterSize {
+			nextX := essentials.MinInt(outWidth, x+filterSize)
+			nextY := essentials.MinInt(outHeight, y+filterSize)
+			bounds := &Rect{
+				MinVal: XY(float64(x)*pixelWidth+min.X, float64(y)*pixelHeight+min.Y),
+				MaxVal: XY(float64(nextX)*pixelWidth+min.X, float64(nextY)*pixelHeight+min.Y),
+			}
+			shouldRender := f(bounds)
+			for subY := y; subY < nextY; subY++ {
+				for subX := x; subX < nextX; subX++ {
+					if shouldRender {
+						indices = append(indices, [2]int{subX, subY})
+					} else {
+						if s.Contains(bounds.MinVal.Mid(bounds.MaxVal)) {
+							out.Set(subX, subY, color.Gray{Y: 0})
+						} else {
+							out.Set(subX, subY, color.Gray{Y: 255})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var wg sync.WaitGroup
+	numGos := runtime.GOMAXPROCS(0)
+	for i := 0; i < numGos; i++ {
+		wg.Add(1)
+		go func(start int) {
+			defer wg.Done()
+			for j := start; j < len(indices); j += numGos {
+				x, y := indices[j][0], indices[j][1]
+				pxMin := XY(float64(x)*pixelWidth+min.X, float64(y)*pixelHeight+min.Y)
+				pxMax := XY(float64(x+1)*pixelWidth+min.X, float64(y+1)*pixelHeight+min.Y)
+				px := 1 - r.rasterizePixel(s, pxMin, pxMax)
+				out.Set(x, y, color.Gray{
+					Y: uint8(math.Floor(px * 255.999)),
+				})
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	return out
+}
+
 // RasterizeCollider rasterizes the collider as a line
 // drawing.
 func (r *Rasterizer) RasterizeCollider(c Collider) *image.Gray {
-	solid := NewColliderSolidHollow(c, 0.5*r.lineWidth()/r.scale())
-	return r.RasterizeSolid(solid)
+	extraRadius := 0.5 * r.lineWidth() / r.scale()
+	solid := NewColliderSolidHollow(c, extraRadius)
+	return r.RasterizeSolidFilter(solid, func(r *Rect) bool {
+		center := r.MinVal.Mid(r.MaxVal)
+		radius := r.MinVal.Dist(center) + extraRadius
+		return c.CircleCollision(center, radius)
+	})
 }
 
 func (r *Rasterizer) rasterizePixel(s Solid, min, max Coord) float64 {
