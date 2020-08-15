@@ -9,7 +9,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 )
@@ -111,16 +113,32 @@ func (r *Rasterizer) RasterizeSolid(s Solid) *image.Gray {
 	pixelWidth := (max.X - min.X) / float64(outWidth)
 	pixelHeight := (max.Y - min.Y) / float64(outHeight)
 
+	indices := make([][2]int, 0, outWidth*outHeight)
+
 	for y := 0; y < outHeight; y++ {
 		for x := 0; x < outWidth; x++ {
-			pxMin := XY(float64(x)*pixelWidth+min.X, float64(y)*pixelHeight+min.Y)
-			pxMax := XY(float64(x+1)*pixelWidth+min.X, float64(y+1)*pixelHeight+min.Y)
-			px := 1 - r.rasterizePixel(s, pxMin, pxMax)
-			out.Set(x, y, color.Gray{
-				Y: uint8(math.Floor(px * 255.999)),
-			})
+			indices = append(indices, [2]int{x, y})
 		}
 	}
+
+	var wg sync.WaitGroup
+	numGos := runtime.GOMAXPROCS(0)
+	for i := 0; i < numGos; i++ {
+		wg.Add(1)
+		go func(start int) {
+			defer wg.Done()
+			for j := start; j < len(indices); j += numGos {
+				x, y := indices[j][0], indices[j][1]
+				pxMin := XY(float64(x)*pixelWidth+min.X, float64(y)*pixelHeight+min.Y)
+				pxMax := XY(float64(x+1)*pixelWidth+min.X, float64(y+1)*pixelHeight+min.Y)
+				px := 1 - r.rasterizePixel(s, pxMin, pxMax)
+				out.Set(x, y, color.Gray{
+					Y: uint8(math.Floor(px * 255.999)),
+				})
+			}
+		}(i)
+	}
+	wg.Wait()
 
 	return out
 }
