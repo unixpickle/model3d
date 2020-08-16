@@ -35,15 +35,23 @@ const (
 func Rasterize(path string, obj interface{}, scale float64) error {
 	rast := Rasterizer{Scale: scale}
 	img := rast.Rasterize(obj)
+	if err := SaveImage(path, img); err != nil {
+		return errors.Wrap(err, "rasterize image")
+	}
+	return nil
+}
 
+// SaveImage saves a rasterized image to a file, inferring
+// the file type from the extension.
+func SaveImage(path string, img image.Image) error {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext != ".png" && ext != ".jpg" && ext != ".jpeg" {
-		return fmt.Errorf("rasterize image: unknown extension: %s", filepath.Ext(path))
+		return fmt.Errorf("save image: unknown extension: %s", filepath.Ext(path))
 	}
 
 	w, err := os.Create(path)
 	if err != nil {
-		return errors.Wrap(err, "rasterize image")
+		return errors.Wrap(err, "save image")
 	}
 
 	if ext == ".png" {
@@ -59,7 +67,7 @@ func Rasterize(path string, obj interface{}, scale float64) error {
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "rasterize image")
+		return errors.Wrap(err, "save image")
 	}
 	return nil
 }
@@ -221,6 +229,17 @@ func (r *Rasterizer) RasterizeCollider(c Collider) *image.Gray {
 	return r.RasterizeSolidFilter(solid, func(r *Rect) bool {
 		center := r.MinVal.Mid(r.MaxVal)
 		radius := r.MinVal.Dist(center) + extraRadius
+		return c.CircleCollision(center, radius)
+	})
+}
+
+// RasterizeColliderSolid rasterizes the collider as a
+// filled in Solid using the even-odd test.
+func (r *Rasterizer) RasterizeColliderSolid(c Collider) *image.Gray {
+	solid := NewColliderSolid(c)
+	return r.RasterizeSolidFilter(solid, func(r *Rect) bool {
+		center := r.MinVal.Mid(r.MaxVal)
+		radius := r.MinVal.Dist(center)
 		return c.CircleCollision(center, radius)
 	})
 }
