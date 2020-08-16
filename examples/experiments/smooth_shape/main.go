@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
 	"log"
 	"os"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
 )
 
@@ -51,24 +53,25 @@ func main() {
 
 	log.Println("Rendering...")
 	collider := model2d.MeshToCollider(mesh)
+	rast := &model2d.Rasterizer{Scale: upsampleRate}
+	var img image.Image
 	if outline {
-		model2d.Rasterize(flag.Args()[1], &BoundedCollider{
+		img = rast.RasterizeCollider(&BoundedCollider{
 			Collider: collider,
 			MaxVal:   size,
-		}, upsampleRate)
+		})
+	} else if thicken == 0 {
+		img = rast.RasterizeColliderSolid(&BoundedCollider{
+			Collider: collider,
+			MaxVal:   size,
+		})
 	} else {
-		var solid model2d.Solid
-		if thicken == 0 {
-			solid = model2d.NewColliderSolid(collider)
-		} else {
-			solid = model2d.NewColliderSolidInset(collider, -thicken)
-		}
-		solid = &BoundedSolid{
-			Solid:  solid,
+		img = rast.RasterizeSolid(&BoundedSolid{
+			Solid:  model2d.NewColliderSolidInset(collider, -thicken),
 			MaxVal: size,
-		}
-		model2d.Rasterize(flag.Args()[1], solid, upsampleRate)
+		})
 	}
+	essentials.Must(model2d.SaveImage(flag.Args()[1], img))
 }
 
 func ReadImage(path string) (mesh *model2d.Mesh, size model2d.Coord) {
