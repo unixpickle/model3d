@@ -350,3 +350,33 @@ func (p *profileSolid) Max() Coord3D {
 func (p *profileSolid) Contains(c Coord3D) bool {
 	return InBounds(p, c) && p.Solid2D.Contains(c.XY())
 }
+
+type forcedBoundsSolid struct {
+	Solid  Solid
+	MinVal Coord3D
+	MaxVal Coord3D
+}
+
+// ForceSolidBounds creates a new solid that reports the
+// exact bounds given by min and max.
+//
+// Points outside of these bounds will be removed from s,
+// but otherwise s is preserved.
+func ForceSolidBounds(s Solid, min, max Coord3D) Solid {
+	return &forcedBoundsSolid{Solid: s, MinVal: min, MaxVal: max}
+}
+
+func (f *forcedBoundsSolid) Contains(c Coord3D) bool {
+	if !InBounds(f, c) {
+		return false
+	}
+	return f.Solid.Contains(c)
+}
+
+func (f *forcedBoundsSolid) Min() Coord3D {
+	return f.MinVal
+}
+
+func (f *forcedBoundsSolid) Max() Coord3D {
+	return f.MaxVal
+}

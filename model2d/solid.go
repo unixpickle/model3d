@@ -195,3 +195,33 @@ func (s *scaledSolid) Max() Coord {
 func (s *scaledSolid) Contains(c Coord) bool {
 	return s.Solid.Contains(c.Scale(s.Scale))
 }
+
+type forcedBoundsSolid struct {
+	Solid  Solid
+	MinVal Coord
+	MaxVal Coord
+}
+
+// ForceSolidBounds creates a new solid that reports the
+// exact bounds given by min and max.
+//
+// Points outside of these bounds will be removed from s,
+// but otherwise s is preserved.
+func ForceSolidBounds(s Solid, min, max Coord) Solid {
+	return &forcedBoundsSolid{Solid: s, MinVal: min, MaxVal: max}
+}
+
+func (f *forcedBoundsSolid) Contains(c Coord) bool {
+	if !InBounds(f, c) {
+		return false
+	}
+	return f.Solid.Contains(c)
+}
+
+func (f *forcedBoundsSolid) Min() Coord {
+	return f.MinVal
+}
+
+func (f *forcedBoundsSolid) Max() Coord {
+	return f.MaxVal
+}

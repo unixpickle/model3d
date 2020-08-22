@@ -119,10 +119,11 @@ func LoadLabels() (solidOut model2d.Solid, centers []float64) {
 		fullMesh.AddMesh(m)
 	}
 
-	return &fixedBounds{
-		Solid:  model2d.NewColliderSolid(model2d.MeshToCollider(fullMesh)),
-		MaxVal: model2d.XY(curX, maxHeight),
-	}, centers
+	return model2d.ForceSolidBounds(
+		model2d.NewColliderSolid(model2d.MeshToCollider(fullMesh)),
+		model2d.Coord{},
+		model2d.XY(curX, maxHeight),
+	), centers
 }
 
 func LoadHeart() model2d.Solid {
@@ -145,18 +146,4 @@ func GraphAxisSqueeze(heights []float64) *toolbox3d.AxisSqueeze {
 		Max:   maxZ,
 		Ratio: 0.1,
 	}
-}
-
-type fixedBounds struct {
-	model2d.Solid
-	MinVal model2d.Coord
-	MaxVal model2d.Coord
-}
-
-func (f *fixedBounds) Min() model2d.Coord {
-	return f.MinVal
-}
-
-func (f *fixedBounds) Max() model2d.Coord {
-	return f.MaxVal
 }
