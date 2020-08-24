@@ -134,3 +134,105 @@ func (a *AxisPinch) Inverse() model3d.Transform {
 		Power: 1 / a.Power,
 	}
 }
+
+// SmartSqueeze creates a transformation to squeeze a
+// model along a certain axis without affecting certain
+// regions that don't lend themselves to squeezing.
+type SmartSqueeze struct {
+	Axis Axis
+
+	// Ranges along the axis that cannot be squeezed.
+	Unsqueezable [][2]float64
+
+	// Values of the axis at which a pinch should be used
+	// to flatten plateaus.
+	Pinches []float64
+
+	// PinchRange specifies how much space should be added
+	// before and after a pinch to avoid singularities.
+	// Should be small, but larger than the marching cubes
+	// epsilon.
+	PinchRange float64
+
+	// SqueezeRatio is the axis squeeze ratio to use.
+	SqueezeRatio float64
+
+	// PinchPower is the power for pinches.
+	PinchPower float64
+}
+
+// AddUnsqueezable adds a range of axis values in which no
+// squeezing should be performed.
+func (s *SmartSqueeze) AddUnsqueezable(min, max float64) {
+	s.Unsqueezable = append(s.Unsqueezable, [2]float64{min, max})
+}
+
+// AddPinch adds an axis value at which the coordinates
+// should be squeezed to flatten plateaus.
+func (s *SmartSqueeze) AddPinch(val float64) {
+	s.Pinches = append(s.Pinches, val)
+}
+
+// Transform creates a transformation for the squeezes and
+// pinches, given the bounds of a model.
+func (s *SmartSqueeze) Transform(b model3d.Bounder) model3d.Transform {
+	min, max := b.Min().Array()[s.Axis], b.Max().Array()[s.Axis]
+
+	squeezes := model3d.JoinedTransform{}
+	value := min
+	for value < max {
+		isSqueezable, next := s.checkSqueezed(value)
+		if isSqueezable {
+			squeezes = append(squeezes, &AxisSqueeze{
+				Axis:  s.Axis,
+				Min:   value,
+				Max:   next,
+				Ratio: s.SqueezeRatio,
+			})
+		}
+		value = next
+	}
+	for _, p := range s.Pinches {
+		squeezes = append(squeezes, &AxisPinch{
+			Axis:  s.Axis,
+			Min:   p - s.PinchRange,
+			Max:   p + s.PinchRange,
+			Power: s.PinchPower,
+		})
+	}
+
+	reversed := make(model3d.JoinedTransform, 0, len(squeezes))
+	for i := len(squeezes) - 1; i >= 0; i-- {
+		reversed = append(reversed, squeezes[i])
+	}
+	return reversed
+}
+
+func (s *SmartSqueeze) checkSqueezed(axisValue float64) (isSqueezable bool, next float64) {
+	next = math.Inf(1)
+
+	for _, us := range s.Unsqueezable {
+		if axisValue >= us[0] && axisValue < us[1] {
+			isSqueezable = false
+			next = us[1]
+			return
+		} else if us[0] > axisValue && us[0] < next {
+			next = us[0]
+		}
+	}
+
+	for _, p := range s.Pinches {
+		pStart := p - s.PinchRange
+		pEnd := p + s.PinchRange
+		if axisValue >= pStart && axisValue < pEnd {
+			isSqueezable = false
+			next = pEnd
+			return
+		} else if pStart > axisValue && pStart < next {
+			next = pStart
+		}
+	}
+
+	isSqueezable = true
+	return
+}
