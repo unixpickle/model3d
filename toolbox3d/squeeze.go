@@ -178,11 +178,19 @@ func (s *SmartSqueeze) AddPinch(val float64) {
 func (s *SmartSqueeze) Transform(b model3d.Bounder) model3d.Transform {
 	min, max := b.Min().Array()[s.Axis], b.Max().Array()[s.Axis]
 
+	if len(s.Pinches) > 0 && s.PinchRange <= 0 {
+		panic("pinch range must be greater than zero")
+	}
+
 	squeezes := model3d.JoinedTransform{}
 	value := min
 	for value < max {
 		isSqueezable, next := s.checkSqueezed(value)
+		next = math.Min(next, max) // cap infinite or very large values.
 		if isSqueezable {
+			if s.SqueezeRatio <= 0 {
+				panic("squeeze ratio must be greater than zero")
+			}
 			squeezes = append(squeezes, &AxisSqueeze{
 				Axis:  s.Axis,
 				Min:   value,
@@ -193,6 +201,9 @@ func (s *SmartSqueeze) Transform(b model3d.Bounder) model3d.Transform {
 		value = next
 	}
 	for _, p := range s.Pinches {
+		if s.PinchPower <= 0 {
+			panic("pinch power must be greater than zero")
+		}
 		squeezes = append(squeezes, &AxisPinch{
 			Axis:  s.Axis,
 			Min:   p - s.PinchRange,

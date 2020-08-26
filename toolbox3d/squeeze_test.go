@@ -3,6 +3,7 @@ package toolbox3d
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 
 	"github.com/unixpickle/model3d/model3d"
@@ -70,6 +71,176 @@ func testTransform(t *testing.T, transform model3d.Transform) {
 			}
 			if contained != contained2 {
 				t.Errorf("disagreement on mesh transform at %v", c)
+			}
+		}
+	}
+}
+
+func TestSmartSqueeze(t *testing.T) {
+	bounds := &model3d.Rect{
+		MinVal: model3d.XYZ(-1, -2, -3),
+		MaxVal: model3d.XYZ(2, 1, -1),
+	}
+
+	t.Run("Empty", func(t *testing.T) {
+		ss := &SmartSqueeze{
+			Axis:         AxisZ,
+			SqueezeRatio: 0.3,
+		}
+		testSmartSqueezePermuted(t, bounds, ss, &AxisSqueeze{
+			Axis:  AxisZ,
+			Min:   -3,
+			Max:   -1,
+			Ratio: 0.3,
+		})
+	})
+
+	t.Run("SingleMiddle", func(t *testing.T) {
+		ss := &SmartSqueeze{
+			Axis:         AxisZ,
+			SqueezeRatio: 0.3,
+		}
+		ss.AddUnsqueezable(-2.5, -1.5)
+		testSmartSqueezePermuted(t, bounds, ss, model3d.JoinedTransform{
+			&AxisSqueeze{
+				Axis:  AxisZ,
+				Min:   -1.5,
+				Max:   -1,
+				Ratio: 0.3,
+			},
+			&AxisSqueeze{
+				Axis:  AxisZ,
+				Min:   -3,
+				Max:   -2.5,
+				Ratio: 0.3,
+			},
+		})
+
+		// Sanity check that points below the squeezed region are unchanged.
+		xform := ss.Transform(bounds)
+		c := model3d.XYZ(1, 2, -4)
+		if xform.Apply(c).Dist(c) > 1e-5 {
+			t.Error("unexpected change to lower point")
+		}
+	})
+
+	t.Run("SingleBottom", func(t *testing.T) {
+		ss := &SmartSqueeze{
+			Axis:         AxisZ,
+			SqueezeRatio: 0.3,
+		}
+		ss.AddUnsqueezable(-4, -2.5)
+		testSmartSqueezePermuted(t, bounds, ss, &AxisSqueeze{
+			Axis:  AxisZ,
+			Min:   -2.5,
+			Max:   -1,
+			Ratio: 0.3,
+		})
+	})
+
+	t.Run("SingleTop", func(t *testing.T) {
+		ss := &SmartSqueeze{
+			Axis:         AxisZ,
+			SqueezeRatio: 0.3,
+		}
+		ss.AddUnsqueezable(-1.5, 0)
+		testSmartSqueezePermuted(t, bounds, ss, &AxisSqueeze{
+			Axis:  AxisZ,
+			Min:   -3,
+			Max:   -1.5,
+			Ratio: 0.3,
+		})
+	})
+
+	t.Run("PinchAndSqueeze", func(t *testing.T) {
+		ss := &SmartSqueeze{
+			Axis:         AxisZ,
+			SqueezeRatio: 0.3,
+			PinchRange:   0.05,
+			PinchPower:   2,
+		}
+		ss.AddUnsqueezable(-2.5, -2)
+		ss.AddPinch(-2.9)
+		testSmartSqueezePermuted(t, bounds, ss, model3d.JoinedTransform{
+			&AxisPinch{
+				Axis:  AxisZ,
+				Min:   -2.95,
+				Max:   -2.85,
+				Power: 2,
+			},
+			&AxisSqueeze{
+				Axis:  AxisZ,
+				Min:   -2,
+				Max:   -1,
+				Ratio: 0.3,
+			},
+			&AxisSqueeze{
+				Axis:  AxisZ,
+				Min:   -2.85,
+				Max:   -2.5,
+				Ratio: 0.3,
+			},
+			&AxisSqueeze{
+				Axis:  AxisZ,
+				Min:   -3,
+				Max:   -2.95,
+				Ratio: 0.3,
+			},
+		})
+	})
+
+	t.Run("SqueezeOverlap", func(t *testing.T) {
+		ss := &SmartSqueeze{
+			Axis:         AxisZ,
+			SqueezeRatio: 0.3,
+			PinchRange:   0.05,
+			PinchPower:   2,
+		}
+		ss.AddUnsqueezable(-2.5, -2)
+		ss.AddUnsqueezable(-2.3, -2)
+		ss.AddUnsqueezable(-2.6, -1.9)
+		ss.AddUnsqueezable(-2.2, -1.9)
+		testSmartSqueezePermuted(t, bounds, ss, model3d.JoinedTransform{
+			&AxisSqueeze{
+				Axis:  AxisZ,
+				Min:   -1.9,
+				Max:   -1,
+				Ratio: 0.3,
+			},
+			&AxisSqueeze{
+				Axis:  AxisZ,
+				Min:   -3,
+				Max:   -2.6,
+				Ratio: 0.3,
+			},
+		})
+	})
+}
+
+func testSmartSqueezePermuted(t *testing.T, b model3d.Bounder, s *SmartSqueeze,
+	expected model3d.Transform) {
+	for i := 0; i < 10; i++ {
+		s1 := &SmartSqueeze{
+			Axis:         s.Axis,
+			PinchRange:   s.PinchRange,
+			SqueezeRatio: s.SqueezeRatio,
+			PinchPower:   s.PinchPower,
+		}
+		for _, j := range rand.Perm(len(s.Pinches)) {
+			s1.AddPinch(s.Pinches[j])
+		}
+		for _, j := range rand.Perm(len(s.Unsqueezable)) {
+			r := s.Unsqueezable[j]
+			s1.AddUnsqueezable(r[0], r[1])
+		}
+		actual := s1.Transform(b)
+		for i := 0; i < 100; i++ {
+			c := model3d.NewCoord3DRandNorm()
+			actualPoint := actual.Apply(c)
+			expectedPoint := expected.Apply(c)
+			if actualPoint.Dist(expectedPoint) > 1e-5 {
+				t.Errorf("expected %v but got %v for input %v", expectedPoint, actualPoint, c)
+				break
 			}
 		}
 	}
