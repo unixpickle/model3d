@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/unixpickle/model3d/toolbox3d"
+
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -33,8 +35,11 @@ func main() {
 		model2d.MustReadBitmap("sections.png", nil).FlipY().Mesh().SmoothSq(100),
 	)
 
+	boxSolid := &BoxSolid{Outline: outline, Sections: sections}
+	lidSolid := &LidSolid{Outline: outline}
+
 	log.Println("Creating box...")
-	mesh := model3d.MarchingCubesSearch(&BoxSolid{Outline: outline, Sections: sections}, 0.02, 8)
+	mesh := CreateBoxSqueeze().MarchingCubesSearch(boxSolid, 0.02, 8)
 	log.Println(" - eliminating co-planar...")
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println(" - flattening base...")
@@ -45,7 +50,7 @@ func main() {
 	render3d.SaveRandomGrid("rendering_box.png", mesh, 3, 3, 300, nil)
 
 	log.Println("Creating lid...")
-	mesh = model3d.MarchingCubesSearch(&LidSolid{Outline: outline}, 0.02, 8)
+	mesh = CreateLidSqueeze().MarchingCubesSearch(lidSolid, 0.02, 8)
 	log.Println(" - eliminating co-planar...")
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println(" - flattening base...")
@@ -54,6 +59,34 @@ func main() {
 	mesh.SaveGroupedSTL("lid.stl")
 	log.Println(" - rendering...")
 	render3d.SaveRandomGrid("rendering_lid.png", mesh, 3, 3, 300, nil)
+}
+
+func CreateBoxSqueeze() *toolbox3d.SmartSqueeze {
+	squeeze := &toolbox3d.SmartSqueeze{
+		Axis:         toolbox3d.AxisZ,
+		PinchRange:   0.05,
+		SqueezeRatio: 0.1,
+		PinchPower:   0.25,
+	}
+	squeeze.AddPinch(0)
+	squeeze.AddPinch(BottomThickness)
+	squeeze.AddPinch(SectionHeight)
+	squeeze.AddPinch(WallHeight)
+	return squeeze
+}
+
+func CreateLidSqueeze() *toolbox3d.SmartSqueeze {
+	squeeze := &toolbox3d.SmartSqueeze{
+		Axis:         toolbox3d.AxisZ,
+		PinchRange:   0.05,
+		SqueezeRatio: 0.1,
+		PinchPower:   0.25,
+	}
+	squeeze.AddPinch(0)
+	squeeze.AddPinch(LidThickness)
+	squeeze.AddPinch(LidHeight)
+	squeeze.AddPinch(LidHeight + LidHolderSize)
+	return squeeze
 }
 
 type BoxSolid struct {
