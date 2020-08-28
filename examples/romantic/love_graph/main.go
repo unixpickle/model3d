@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"sort"
 
 	"github.com/unixpickle/model3d/toolbox3d"
 
@@ -60,21 +59,9 @@ func main() {
 	}
 
 	log.Println("Creating mesh...")
-	xform := GraphAxisSqueeze(heights)
+	xform := GraphAxisSqueeze(heights, fullSolid)
 	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(xform, fullSolid), 0.01, 16)
 	mesh = mesh.MapCoords(xform.Inverse().Apply)
-
-	log.Println("Flattening Z surfaces...")
-	// Without this, the top of the text and the hearts may be jagged.
-	pinchZ := append([]float64{TextThickness}, heights...)
-	for _, z := range pinchZ {
-		mesh = mesh.MapCoords((&toolbox3d.AxisPinch{
-			Axis:  toolbox3d.AxisZ,
-			Min:   BaseThickness + z - 0.02,
-			Max:   BaseThickness + z + 0.02,
-			Power: 4,
-		}).Apply)
-	}
 
 	log.Println("Simplifying mesh...")
 	mesh = mesh.EliminateCoplanar(1e-5)
@@ -135,15 +122,18 @@ func LoadHeart() model2d.Solid {
 	return model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
 }
 
-func GraphAxisSqueeze(heights []float64) *toolbox3d.AxisSqueeze {
-	sorted := append([]float64{}, heights...)
-	sort.Float64s(sorted)
-	minZ := sorted[len(sorted)-2] + BaseThickness + 0.02
-	maxZ := sorted[len(sorted)-1] - 0.02
-	return &toolbox3d.AxisSqueeze{
-		Axis:  toolbox3d.AxisZ,
-		Min:   minZ,
-		Max:   maxZ,
-		Ratio: 0.1,
+func GraphAxisSqueeze(heights []float64, bounds model3d.Bounder) model3d.Transform {
+	squeeze := &toolbox3d.SmartSqueeze{
+		Axis:         toolbox3d.AxisZ,
+		PinchRange:   0.02,
+		PinchPower:   0.25,
+		SqueezeRatio: 0.1,
 	}
+	squeeze.AddPinch(0)
+	squeeze.AddPinch(BaseThickness)
+	squeeze.AddPinch(BaseThickness + TextThickness)
+	for _, h := range heights {
+		squeeze.AddPinch(h + BaseThickness)
+	}
+	return squeeze.Transform(bounds)
 }
