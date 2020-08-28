@@ -59,9 +59,7 @@ func main() {
 	}
 
 	log.Println("Creating mesh...")
-	xform := GraphAxisSqueeze(heights, fullSolid)
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(xform, fullSolid), 0.01, 16)
-	mesh = mesh.MapCoords(xform.Inverse().Apply)
+	mesh := GraphSqueeze(heights).MarchingCubesSearch(fullSolid, 0.01, 16)
 
 	log.Println("Simplifying mesh...")
 	mesh = mesh.EliminateCoplanar(1e-5)
@@ -122,7 +120,7 @@ func LoadHeart() model2d.Solid {
 	return model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
 }
 
-func GraphAxisSqueeze(heights []float64, bounds model3d.Bounder) model3d.Transform {
+func GraphSqueeze(heights []float64) *toolbox3d.SmartSqueeze {
 	squeeze := &toolbox3d.SmartSqueeze{
 		Axis:         toolbox3d.AxisZ,
 		PinchRange:   0.02,
@@ -135,5 +133,5 @@ func GraphAxisSqueeze(heights []float64, bounds model3d.Bounder) model3d.Transfo
 	for _, h := range heights {
 		squeeze.AddPinch(h + BaseThickness)
 	}
-	return squeeze.Transform(bounds)
+	return squeeze
 }

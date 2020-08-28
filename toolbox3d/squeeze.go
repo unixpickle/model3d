@@ -173,6 +173,21 @@ func (s *SmartSqueeze) AddPinch(val float64) {
 	s.Pinches = append(s.Pinches, val)
 }
 
+// MachingCubesSearch uses the smart squeeze to convert a
+// solid into a mesh efficiently.
+//
+// In particular, the model is transformed, meshified, and
+// then the inverse transformation is applied.
+//
+// For usage information, see model3d.MarchingCubesSearch.
+func (s *SmartSqueeze) MarchingCubesSearch(solid model3d.Solid, delta float64,
+	iters int) *model3d.Mesh {
+	xform := s.Transform(solid)
+	solid = model3d.TransformSolid(xform, solid)
+	mesh := model3d.MarchingCubesSearch(solid, delta, iters)
+	return mesh.MapCoords(xform.Inverse().Apply)
+}
+
 // Transform creates a transformation for the squeezes and
 // pinches, given the bounds of a model.
 func (s *SmartSqueeze) Transform(b model3d.Bounder) model3d.Transform {
