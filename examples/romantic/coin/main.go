@@ -13,6 +13,7 @@ import (
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 func main() {
@@ -45,7 +46,17 @@ func main() {
 		Radius:    radius,
 	}
 
-	m := model3d.MarchingCubesSearch(solid, radius/200, 8)
+	epsilon := radius / 200
+	squeeze := &toolbox3d.SmartSqueeze{
+		Axis:         toolbox3d.AxisZ,
+		PinchRange:   epsilon * 2,
+		PinchPower:   4.0,
+		SqueezeRatio: 0.1,
+	}
+	squeeze.AddPinch(0)
+	squeeze.AddUnsqueezable(minHeight, maxHeight)
+	m := squeeze.MarchingCubesSearch(solid, epsilon, 8)
+	m = m.EliminateCoplanar(1e-5)
 
 	essentials.Must(ioutil.WriteFile(outFile, m.EncodeSTL(), 0755))
 	essentials.Must(render3d.SaveRandomGrid(renderFile, m, 4, 4, 200, nil))

@@ -139,14 +139,11 @@ func (a *AxisPinch) Inverse() model3d.Transform {
 // model along a certain axis without affecting certain
 // regions that don't lend themselves to squeezing.
 type SmartSqueeze struct {
+	// Axis is the axis to squeeze along.
 	Axis Axis
 
-	// Ranges along the axis that cannot be squeezed.
-	Unsqueezable [][2]float64
-
-	// Values of the axis at which a pinch should be used
-	// to flatten plateaus.
-	Pinches []float64
+	// SqueezeRatio is the axis squeeze ratio to use.
+	SqueezeRatio float64
 
 	// PinchRange specifies how much space should be added
 	// before and after a pinch to avoid singularities.
@@ -154,11 +151,17 @@ type SmartSqueeze struct {
 	// epsilon.
 	PinchRange float64
 
-	// SqueezeRatio is the axis squeeze ratio to use.
-	SqueezeRatio float64
-
 	// PinchPower is the power for pinches.
 	PinchPower float64
+
+	// Ranges along the axis that cannot be squeezed.
+	// Typically ranges should be added via AddUnsqueezable().
+	Unsqueezable [][2]float64
+
+	// Values of the axis at which a pinch should be used
+	// to flatten plateaus.
+	// Typically pinches will be added via AddPinch().
+	Pinches []float64
 }
 
 // AddUnsqueezable adds a range of axis values in which no
