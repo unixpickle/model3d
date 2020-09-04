@@ -15,7 +15,7 @@ func TestMeshVolume(t *testing.T) {
 		mesh := MarchingCubesSearch(solid, 0.02, 8)
 		expected := 4.0 / 3.0 * math.Pi * math.Pow(solid.Radius, 3)
 		actual := mesh.Volume()
-		if math.Abs(expected-actual)/actual > 1e-3 {
+		if math.Abs(expected-actual)/actual > 1e-2 {
 			t.Errorf("expected volume %f but got %f", expected, actual)
 		}
 	}
