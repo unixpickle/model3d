@@ -7,14 +7,14 @@ import (
 	"math"
 
 	"github.com/unixpickle/model3d/model2d"
-	"github.com/unixpickle/model3d/render3d"
-
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
-	KnobPoleRadius      = 0.25
+	KnobPoleRadius      = 0.3
+	KnobPoleHoleRadius  = 0.25
 	KnobPoleSlack       = 0.03
 	KnobRadius          = 1.0
 	KnobLength          = 1.0
@@ -50,7 +50,7 @@ func main() {
 				Z:      height / 2,
 				Y1:     -1e-5,
 				Y2:     thickness + 1e-5,
-				Radius: KnobPoleRadius + KnobPoleSlack,
+				Radius: KnobPoleHoleRadius + KnobPoleSlack,
 			},
 		},
 	}
@@ -73,12 +73,16 @@ func main() {
 			Radius: KnobRadius,
 		},
 		&model3d.Cylinder{
-			P2:     model3d.Z(KnobLength + thickness),
+			P2:     model3d.Z(KnobLength),
 			Radius: KnobPoleRadius,
+		},
+		&model3d.Cylinder{
+			P2:     model3d.Z(thickness),
+			Radius: KnobPoleHoleRadius,
 		},
 		&toolbox3d.ScrewSolid{
 			P2:         model3d.Z(KnobNutThickness),
-			Radius:     KnobPoleRadius,
+			Radius:     KnobPoleHoleRadius,
 			GrooveSize: KnobScrewGrooveSize,
 		},
 	)
@@ -94,7 +98,7 @@ func main() {
 		Negative: &toolbox3d.ScrewSolid{
 			P1:         model3d.Z(-1e-5),
 			P2:         model3d.Z(KnobNutThickness + 1e-5),
-			Radius:     KnobPoleRadius + KnobScrewGrooveSize,
+			Radius:     KnobPoleHoleRadius + KnobScrewGrooveSize,
 			GrooveSize: KnobScrewGrooveSize,
 		},
 	}
