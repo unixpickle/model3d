@@ -4,9 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math"
 
-	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
@@ -45,13 +43,11 @@ func main() {
 				MinVal: model3d.XYZ(thickness, thickness, thickness),
 				MaxVal: model3d.XYZ(width-thickness, depth-thickness, height+1e-5),
 			},
-			&PoleCutout{
-				X:      width / 2,
-				Z:      height / 2,
-				Y1:     -1e-5,
-				Y2:     thickness + 1e-5,
-				Radius: KnobPoleHoleRadius + KnobPoleSlack,
-			},
+			toolbox3d.Teardrop3D(
+				model3d.XYZ(width/2, -1e-5, height/2),
+				model3d.XYZ(width/2, thickness+1e-5, height/2),
+				KnobPoleHoleRadius+KnobPoleSlack,
+			),
 		},
 	}
 
@@ -72,10 +68,11 @@ func main() {
 			P2:     model3d.Z(KnobThickness),
 			Radius: KnobRadius,
 		},
-		&model3d.Cylinder{
-			P2:     model3d.Z(KnobLength),
-			Radius: KnobPoleRadius,
-		},
+		toolbox3d.Teardrop3D(
+			model3d.Coord3D{},
+			model3d.Z(KnobLength),
+			KnobPoleRadius,
+		),
 		&model3d.Cylinder{
 			P2:     model3d.Z(thickness),
 			Radius: KnobPoleHoleRadius,
@@ -115,45 +112,4 @@ func FinalizeMesh(mesh *model3d.Mesh, name string) {
 
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid(fmt.Sprintf("rendering_%s.png", name), mesh, 3, 3, 300, nil)
-}
-
-type PoleCutout struct {
-	X      float64
-	Z      float64
-	Y1     float64
-	Y2     float64
-	Radius float64
-}
-
-func (p *PoleCutout) Min() model3d.Coord3D {
-	return model3d.XYZ(p.X-p.Radius, p.Y1, p.Z-p.Radius)
-}
-
-func (p *PoleCutout) Max() model3d.Coord3D {
-	return model3d.XYZ(p.X+p.Radius, p.Y2, p.Z+p.Radius*2)
-}
-
-func (p *PoleCutout) Contains(c model3d.Coord3D) bool {
-	if !model3d.InBounds(p, c) {
-		return false
-	}
-	c2 := c.XZ().Sub(model2d.XY(p.X, p.Z))
-	if c2.Norm() < p.Radius {
-		return true
-	}
-
-	// A triangular top of the hole for printing without
-	// support structures.
-	if c2.Y < p.Radius/math.Sqrt2 {
-		return false
-	}
-	triangleVec := model2d.XY(math.Sqrt2, math.Sqrt2).Scale(0.5)
-	if c2.Dot(triangleVec) > p.Radius {
-		return false
-	}
-	triangleVec.X *= -1
-	if c2.Dot(triangleVec) > p.Radius {
-		return false
-	}
-	return true
 }
