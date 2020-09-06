@@ -111,7 +111,7 @@ func MarchingSquaresASCII(s Solid, delta float64) string {
 	topCache.FetchY(0)
 
 	table := msLookupTableASCII()
-	rows := make([]string, len(spacer.Ys)*2)
+	rows := make([]string, (len(spacer.Ys)-1)*2)
 
 	for y := 1; y < len(spacer.Ys); y++ {
 		bottomCache, topCache = topCache, bottomCache
@@ -120,8 +120,8 @@ func MarchingSquaresASCII(s Solid, delta float64) string {
 		for x := 0; x < len(spacer.Xs)-1; x++ {
 			bits := bottomCache.GetSegment(x) | (topCache.GetSegment(x) << 2)
 			box := table[bits]
-			rows[len(rows)-y*2] += box[:2]
-			rows[len(rows)-(y*2+1)] += box[2:]
+			rows[len(rows)-y*2+1] += box[:2]
+			rows[len(rows)-y*2] += box[2:]
 		}
 	}
 
