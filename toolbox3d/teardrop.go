@@ -13,6 +13,26 @@ import (
 //
 // This can be used to cut circles out of shapes while
 // avoiding support structures in FDM printing.
+//
+// The shape, rendered in ASCII, looks like so:
+//
+//                 --(&)--
+//            @@@@/       (@@@@
+//         @@@                 @@@
+//       /@@                     @@.
+//      @@                         @@
+//      @@                         @@
+//     &@                           @
+//      @%                         @@
+//      @@                         @@
+//       @@#                     @@@
+//         @@@                 @@@
+//           &@@             @@*
+//              @@&       @@@
+//                @@@   @@#
+//                   @@@
+//                    ^
+//
 type Teardrop2D struct {
 	// Center is the center of the circle.
 	Center model2d.Coord
