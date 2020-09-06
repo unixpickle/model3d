@@ -40,3 +40,35 @@ func TestMarchingSquares(t *testing.T) {
 		testMesh(mesh)
 	})
 }
+
+func TestMarchingSquaresASCII(t *testing.T) {
+	expected := `` + "\n" +
+		`                                                                ` + "\n" +
+		`                 /\                          /\                 ` + "\n" +
+		`        ________/  \________        ________/  \________        ` + "\n" +
+		`       /                    \      /                    \       ` + "\n" +
+		`      /                      \    /                      \      ` + "\n" +
+		`     /                        \  /                        \     ` + "\n" +
+		`    /                          \/                          \    ` + "\n" +
+		`   /                                                        \   ` + "\n" +
+		`  /                                                          \  ` + "\n" +
+		` /                                                            \ ` + "\n" +
+		` \                                                            / ` + "\n" +
+		`  \                                                          /  ` + "\n" +
+		`   \                                                        /   ` + "\n" +
+		`    \                          /\                          /    ` + "\n" +
+		`     \                        /  \                        /     ` + "\n" +
+		`      \                      /    \                      /      ` + "\n" +
+		`       \________    ________/      \________    ________/       ` + "\n" +
+		`                \  /                        \  /                ` + "\n" +
+		`                 \/                          \/                 ` + "\n" +
+		`                                                                ` + "\n"
+	solid := JoinedSolid{
+		&Circle{Radius: 8.0},
+		&Circle{Center: X(14), Radius: 8.0},
+	}
+	ascii := MarchingSquaresASCII(solid, 1.0)
+	if ascii != expected {
+		t.Errorf("expected:\n----\n%s\n----\nbut got:\n----\n%s\n----\n", expected, ascii)
+	}
+}

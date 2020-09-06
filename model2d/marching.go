@@ -1,6 +1,9 @@
 package model2d
 
-import "math"
+import (
+	"math"
+	"strings"
+)
 
 /***************************************
  * NOTE: based off of model3d/mc.go on *
@@ -89,6 +92,40 @@ func MarchingSquaresSearch(s Solid, delta float64, iters int) *Mesh {
 		arr[axis] = (falsePoint + truePoint) / 2
 		return NewCoordArray(arr)
 	})
+}
+
+// MarchingSquaresASCII turns a Solid into an ASCII-art
+// line-drawing using a 2D version of marching cubes.
+//
+// The delta is used as the horizontal spacing, and an
+// aspect ratio of 2.0 (height/width) is assumed.
+func MarchingSquaresASCII(s Solid, delta float64) string {
+	// Correct for character aspect ratio.
+	s = TransformSolid(&Matrix2Transform{
+		Matrix: &Matrix2{1.0, 0.0, 0.0, 1.0 / 2.0},
+	}, s)
+
+	spacer := newSquareSpacer(s, delta)
+	bottomCache := newSolidCache(s, spacer)
+	topCache := newSolidCache(s, spacer)
+	topCache.FetchY(0)
+
+	table := msLookupTableASCII()
+	rows := make([]string, len(spacer.Ys)*2)
+
+	for y := 1; y < len(spacer.Ys); y++ {
+		bottomCache, topCache = topCache, bottomCache
+		topCache.FetchY(y)
+
+		for x := 0; x < len(spacer.Xs)-1; x++ {
+			bits := bottomCache.GetSegment(x) | (topCache.GetSegment(x) << 2)
+			box := table[bits]
+			rows[len(rows)-y*2] += box[:2]
+			rows[len(rows)-(y*2+1)] += box[2:]
+		}
+	}
+
+	return strings.Join(rows, "\n")
 }
 
 // msCorner represents a corner on a square.
@@ -184,6 +221,42 @@ func msLookupTable() [16][]msSegment {
 	}
 
 	res := [16][]msSegment{}
+	for x, y := range mapping {
+		res[x] = y
+	}
+	return res
+}
+
+// msLookupTable creates a lookup table which maps cases
+// to four-character ASCII line-drawings, in row-major
+// order.
+func msLookupTableASCII() [16]string {
+	mapping := map[msIntersections]string{
+		newMsIntersections():     "    ",
+		newMsIntersections(0):    "\\   ",
+		newMsIntersections(1):    " /  ",
+		newMsIntersections(2):    "  / ",
+		newMsIntersections(3):    "   \\",
+		newMsIntersections(0, 1): "  __",
+		newMsIntersections(0, 2): " | |",
+		// Resolve ambiguities and don't create holes
+		// by covering both cases explicitly.
+		newMsIntersections(0, 3): "\\  \\",
+		newMsIntersections(1, 2): " // ",
+	}
+
+	// Add inverses to complete the table.
+	for ints, chars := range mapping {
+		invInts := 0xf ^ ints
+		if _, ok := mapping[invInts]; !ok {
+			mapping[invInts] = chars
+		}
+	}
+	if len(mapping) != 16 {
+		panic("incorrect number of cases")
+	}
+
+	res := [16]string{}
 	for x, y := range mapping {
 		res[x] = y
 	}
