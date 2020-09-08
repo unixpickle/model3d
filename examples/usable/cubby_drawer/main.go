@@ -73,17 +73,27 @@ func main() {
 			model3d.Z(KnobLength),
 			KnobPoleRadius,
 		),
-		&model3d.Cylinder{
-			P2:     model3d.Z(thickness),
-			Radius: KnobPoleHoleRadius,
-		},
+		toolbox3d.Teardrop3D(
+			model3d.Coord3D{},
+			model3d.Z(thickness),
+			KnobPoleHoleRadius,
+		),
 		&toolbox3d.ScrewSolid{
 			P2:         model3d.Z(KnobNutThickness),
 			Radius:     KnobPoleHoleRadius,
 			GrooveSize: KnobScrewGrooveSize,
 		},
 	)
-	knobMesh := model3d.MarchingCubesSearch(knobSolid, 0.01, 8)
+	squeeze := &toolbox3d.SmartSqueeze{
+		Axis:         toolbox3d.AxisZ,
+		SqueezeRatio: 0.1,
+		PinchPower:   0.25,
+		PinchRange:   0.02,
+	}
+	squeeze.AddUnsqueezable(KnobThickness+KnobLength-0.02, knobSolid.Max().Z)
+	squeeze.AddPinch(0)
+	squeeze.AddPinch(KnobThickness)
+	knobMesh := squeeze.MarchingCubesSearch(knobSolid, 0.01, 8)
 	FinalizeMesh(knobMesh, "knob")
 
 	log.Println("Creating nut mesh...")
@@ -95,7 +105,7 @@ func main() {
 		Negative: &toolbox3d.ScrewSolid{
 			P1:         model3d.Z(-1e-5),
 			P2:         model3d.Z(KnobNutThickness + 1e-5),
-			Radius:     KnobPoleHoleRadius + KnobScrewGrooveSize,
+			Radius:     KnobPoleHoleRadius + KnobScrewSlack,
 			GrooveSize: KnobScrewGrooveSize,
 		},
 	}
