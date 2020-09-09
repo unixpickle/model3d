@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/unixpickle/model3d/toolbox3d"
+
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -24,7 +26,7 @@ func GenerateMesh() {
 		Cuts: CutSolid(),
 	}
 	log.Println("Creating mesh...")
-	piecesMesh := model3d.MarchingCubesSearch(pieces, 0.02, 8)
+	piecesMesh := PiecesSqueeze().MarchingCubesSearch(pieces, 0.02, 8)
 	log.Println("Simplifying mesh...")
 	piecesMesh = piecesMesh.EliminateCoplanar(1e-5)
 	log.Println("Saving mesh...")
@@ -33,7 +35,18 @@ func GenerateMesh() {
 	render3d.SaveRandomGrid("rendering_pieces.png", piecesMesh, 3, 3, 300, nil)
 
 	log.Println("Creating holder mesh...")
-	holder := &model3d.SubtractedSolid{
+	holder := HolderSolid()
+	holderMesh := HolderSqueeze().MarchingCubesSearch(holder, 0.02, 8)
+	log.Println("Simplifying mesh...")
+	holderMesh = holderMesh.EliminateCoplanar(1e-5)
+	log.Println("Saving mesh...")
+	holderMesh.SaveGroupedSTL("holder.stl")
+	log.Println("Rendering...")
+	render3d.SaveRandomGrid("rendering_holder.png", holderMesh, 3, 3, 300, nil)
+}
+
+func HolderSolid() model3d.Solid {
+	return &model3d.SubtractedSolid{
 		Positive: &model3d.RectSolid{
 			MinVal: model3d.Coord3D{X: -HolderBorder, Y: -HolderBorder,
 				Z: -(HolderDepth - HolderInset)},
@@ -45,13 +58,31 @@ func GenerateMesh() {
 			MaxVal: model3d.XYZ(BoardSize, BoardSize, HolderInset+1e-5),
 		},
 	}
-	holderMesh := model3d.MarchingCubesSearch(holder, 0.02, 8)
-	log.Println("Simplifying mesh...")
-	holderMesh = holderMesh.EliminateCoplanar(1e-5)
-	log.Println("Saving mesh...")
-	holderMesh.SaveGroupedSTL("holder.stl")
-	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering_holder.png", holderMesh, 3, 3, 300, nil)
+}
+
+func HolderSqueeze() *toolbox3d.SmartSqueeze {
+	holderSqueeze := &toolbox3d.SmartSqueeze{
+		Axis:         toolbox3d.AxisZ,
+		SqueezeRatio: 0.1,
+		PinchRange:   0.02,
+		PinchPower:   0.25,
+	}
+	holderSqueeze.AddPinch(-(HolderDepth - HolderInset))
+	holderSqueeze.AddPinch(0)
+	holderSqueeze.AddPinch(HolderInset)
+	return holderSqueeze
+}
+
+func PiecesSqueeze() *toolbox3d.SmartSqueeze {
+	pieceSqueeze := &toolbox3d.SmartSqueeze{
+		Axis:         toolbox3d.AxisZ,
+		SqueezeRatio: 0.1,
+		PinchRange:   0.02,
+		PinchPower:   0.25,
+	}
+	pieceSqueeze.AddPinch(0)
+	pieceSqueeze.AddPinch(PieceDepth)
+	return pieceSqueeze
 }
 
 type PiecesSolid struct {
