@@ -1,7 +1,7 @@
 package model2d
 
 /*******************************************
- * NOTE: based off of model2d/transform.go *
+ * NOTE: based off of model3d/transform.go *
  * on Sep 5, 2020.                         *
  *******************************************/
 
