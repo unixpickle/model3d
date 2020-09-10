@@ -44,6 +44,11 @@ type MeshSmoother struct {
 	// This is independent of ConstraintDistance and
 	// ConstraintWeight, which can be used simultaneously.
 	ConstraintFunc func(origin, newCoord Coord3D) Coord3D
+
+	// HardConstraintFunc, if non-nil, is a function that
+	// returns true for all of the initial points that
+	// should not be modified at all.
+	HardConstraintFunc func(origin Coord3D) bool
 }
 
 // Smooth applies gradient descent to smooth the mesh.
@@ -51,6 +56,17 @@ func (m *MeshSmoother) Smooth(mesh *Mesh) *Mesh {
 	im := newIndexMesh(mesh)
 	origins := append([]Coord3D{}, im.Coords...)
 	newCoords := append([]Coord3D{}, im.Coords...)
+
+	// List of coordinate indices to never change.
+	var hardConstraints []int
+	if m.HardConstraintFunc != nil {
+		for i, c := range im.Coords {
+			if m.HardConstraintFunc(c) {
+				hardConstraints = append(hardConstraints, i)
+			}
+		}
+	}
+
 	for step := 0; step < m.Iterations; step++ {
 		if m.ConstraintWeight != 0 {
 			for i, c := range newCoords {
@@ -77,6 +93,11 @@ func (m *MeshSmoother) Smooth(mesh *Mesh) *Mesh {
 			for i, grad := range t.AreaGradient() {
 				j := indexTri[i]
 				newCoords[j] = newCoords[j].Add(grad.Scale(-m.StepSize))
+			}
+		}
+		if hardConstraints != nil {
+			for _, i := range hardConstraints {
+				newCoords[i] = im.Coords[i]
 			}
 		}
 		copy(im.Coords, newCoords)
