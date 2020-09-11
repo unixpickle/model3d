@@ -95,15 +95,9 @@ type HeightMapSolid struct {
 }
 
 func NewHeightMapSolid(hm *HeightMap) *HeightMapSolid {
-	var maxHeight float64
-	for _, h := range hm.Data {
-		if h > maxHeight {
-			maxHeight = h
-		}
-	}
 	return &HeightMapSolid{
 		HeightMap: hm,
-		MaxHeight: maxHeight,
+		MaxHeight: hm.MaxHeight(),
 	}
 }
 
@@ -116,5 +110,5 @@ func (h *HeightMapSolid) Max() model3d.Coord3D {
 }
 
 func (h *HeightMapSolid) Contains(c model3d.Coord3D) bool {
-	return model3d.InBounds(h, c) && c.Z < h.HeightMap.GetHeight(c.XY())
+	return model3d.InBounds(h, c) && c.Z*c.Z < h.HeightMap.GetHeightSquared(c.XY())
 }

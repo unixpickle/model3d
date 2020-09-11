@@ -31,15 +31,26 @@ func NewHeightMap(min, max model2d.Coord, maxSize int) *HeightMap {
 	}
 }
 
+func (h *HeightMap) MaxHeight() float64 {
+	var maxHeight float64
+	for _, h := range h.Data {
+		if h > maxHeight {
+			maxHeight = h
+		}
+	}
+	return math.Sqrt(maxHeight)
+}
+
 func (h *HeightMap) AddSphere(center model2d.Coord, radius float64) {
 	minRow, minCol := h.coordToIndex(center.Sub(model2d.XY(radius, radius)))
 	maxRow, maxCol := h.coordToIndex(center.Add(model2d.XY(radius, radius)))
+	r2 := radius * radius
 	for row := minRow; row <= maxRow+1; row++ {
 		for col := minCol; col <= maxCol+1; col++ {
 			c := h.indexToCoord(row, col)
-			dist := c.Dist(center)
-			if dist < radius {
-				h.updateAt(row, col, math.Sqrt(radius*radius-dist*dist))
+			d2 := (c.X-center.X)*(c.X-center.X) + (c.Y-center.Y)*(c.Y-center.Y)
+			if d2 < r2 {
+				h.updateAt(row, col, r2-d2)
 			}
 		}
 	}
@@ -54,7 +65,7 @@ func (h *HeightMap) AddHeightMap(h1 *HeightMap) {
 	}
 }
 
-func (h *HeightMap) GetHeight(c model2d.Coord) float64 {
+func (h *HeightMap) GetHeightSquared(c model2d.Coord) float64 {
 	rowMin, colMin := h.coordToIndex(c)
 	c1 := h.indexToCoord(rowMin, colMin)
 
@@ -77,7 +88,9 @@ func (h *HeightMap) updateAt(row, col int, height float64) {
 		return
 	}
 	idx := row*h.Cols + col
-	h.Data[idx] = math.Max(h.Data[idx], height)
+	if h.Data[idx] < height {
+		h.Data[idx] = height
+	}
 }
 
 func (h *HeightMap) getAt(row, col int) float64 {
