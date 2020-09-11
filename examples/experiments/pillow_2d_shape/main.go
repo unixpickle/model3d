@@ -18,11 +18,13 @@ func main() {
 	var rasterResolution int
 	var mcDelta float64
 	var smoothIters int
+	var smoothStep float64
 	flag.IntVar(&numSpheres, "spheres", 5000, "number of spheres to generate")
 	flag.IntVar(&rasterResolution, "raster-resolution", 1000,
 		"larger side-length for the rasterized height map")
 	flag.Float64Var(&mcDelta, "delta", 0.01, "delta for marching cubes")
-	flag.IntVar(&smoothIters, "smooth-iters", 10, "number of smoothing iterations")
+	flag.IntVar(&smoothIters, "smooth-iters", 50, "number of smoothing iterations")
+	flag.Float64Var(&smoothStep, "smooth-step", 0.05, "smoothing gradient step size")
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: pillow_2d_shape [flags] <input.png> <output.stl>")
 		fmt.Fprintln(os.Stderr)
@@ -79,36 +81,17 @@ func main() {
 	mesh := model3d.MarchingCubesSearch(solid, mcDelta, 8)
 
 	log.Println("Smoothing mesh...")
-	var smoothRates []float64
-	for i := 0; i < smoothIters; i++ {
-		smoothRates = append(smoothRates, -1)
+	mesh = mesh.FlattenBase(math.Pi/2 - 0.001)
+	minZ := mesh.Min().Z
+	smoother := &model3d.MeshSmoother{
+		StepSize:   smoothStep,
+		Iterations: smoothIters,
+		HardConstraintFunc: func(c model3d.Coord3D) bool {
+			return c.Z == minZ
+		},
 	}
-	mesh = mesh.Blur(smoothRates...)
+	mesh = smoother.Smooth(mesh)
 
 	log.Println("Saving mesh...")
 	mesh.SaveGroupedSTL(outPath)
-}
-
-type HeightMapSolid struct {
-	HeightMap *HeightMap
-	MaxHeight float64
-}
-
-func NewHeightMapSolid(hm *HeightMap) *HeightMapSolid {
-	return &HeightMapSolid{
-		HeightMap: hm,
-		MaxHeight: hm.MaxHeight(),
-	}
-}
-
-func (h *HeightMapSolid) Min() model3d.Coord3D {
-	return model3d.XY(h.HeightMap.Min.X, h.HeightMap.Min.Y)
-}
-
-func (h *HeightMapSolid) Max() model3d.Coord3D {
-	return model3d.XYZ(h.HeightMap.Max.X, h.HeightMap.Max.Y, h.MaxHeight)
-}
-
-func (h *HeightMapSolid) Contains(c model3d.Coord3D) bool {
-	return model3d.InBounds(h, c) && c.Z*c.Z < h.HeightMap.GetHeightSquared(c.XY())
 }
