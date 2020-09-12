@@ -14,17 +14,22 @@ import (
 )
 
 func main() {
+	var rounding2D float64
 	var numSpheres int
 	var rasterResolution int
 	var mcDelta float64
 	var smoothIters int
 	var smoothStep float64
+	var maxRadius float64
+	flag.Float64Var(&rounding2D, "rounding", 0.0,
+		"pixels by which to round the input image's corners")
 	flag.IntVar(&numSpheres, "spheres", 5000, "number of spheres to generate")
 	flag.IntVar(&rasterResolution, "raster-resolution", 1000,
 		"larger side-length for the rasterized height map")
 	flag.Float64Var(&mcDelta, "delta", 0.01, "delta for marching cubes")
 	flag.IntVar(&smoothIters, "smooth-iters", 50, "number of smoothing iterations")
 	flag.Float64Var(&smoothStep, "smooth-step", 0.05, "smoothing gradient step size")
+	flag.Float64Var(&maxRadius, "max-radius", -1, "if specified, the maximum sphere radius")
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: pillow_2d_shape [flags] <input.png> <output.stl>")
 		fmt.Fprintln(os.Stderr)
@@ -42,9 +47,19 @@ func main() {
 	inPath := flag.Args()[0]
 	outPath := flag.Args()[1]
 
-	log.Println("Loading 2D bitmap into an SDF...")
+	log.Println("Loading 2D bitmap into a 2D mesh...")
 	bmp := model2d.MustReadBitmap(inPath, nil).FlipY()
-	mesh2d := bmp.Mesh().SmoothSq(10)
+	mesh2d := bmp.Mesh().Subdivide(1).SmoothSq(50)
+
+	if rounding2D != 0 {
+		log.Println("Rounding 2D mesh...")
+		solid2d := model2d.NewColliderSolidInset(model2d.MeshToCollider(mesh2d), rounding2D)
+		mesh2d = model2d.MarchingSquaresSearch(solid2d, 0.5, 8)
+		solid2d = model2d.NewColliderSolidInset(model2d.MeshToCollider(mesh2d), -rounding2D)
+		mesh2d = model2d.MarchingSquaresSearch(solid2d, 0.5, 8)
+	}
+
+	log.Println("Converting 2D mesh into SDF...")
 	mesh2d = mesh2d.Scale(1 / math.Max(float64(bmp.Width), float64(bmp.Height)))
 	sdf2d := model2d.MeshToSDF(mesh2d)
 
@@ -66,6 +81,9 @@ func main() {
 				if dist < 0 {
 					i--
 					continue
+				}
+				if maxRadius != -1 && dist > maxRadius {
+					dist = maxRadius
 				}
 				localHM.AddSphere(c, dist)
 			}
