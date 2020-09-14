@@ -67,6 +67,7 @@ func main() {
 
 	var hmLock sync.Mutex
 	hm := NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
+	totalCovered := 0
 
 	numGos := runtime.GOMAXPROCS(0)
 	var wg sync.WaitGroup
@@ -75,6 +76,7 @@ func main() {
 		go func() {
 			defer wg.Done()
 			localHM := NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
+			localCovered := 0
 			for i := 0; i <= numSpheres/numGos; i++ {
 				c := model2d.NewCoordRandUniform().Mul(sdf2d.Max().Sub(sdf2d.Min())).Add(sdf2d.Min())
 				dist := sdf2d.SDF(c)
@@ -85,14 +87,19 @@ func main() {
 				if maxRadius != -1 && dist > maxRadius {
 					dist = maxRadius
 				}
-				localHM.AddSphere(c, dist)
+				if localHM.AddSphere(c, dist) {
+					localCovered++
+				}
 			}
 			hmLock.Lock()
 			defer hmLock.Unlock()
 			hm.AddHeightMap(localHM)
+			totalCovered += localCovered
 		}()
 	}
 	wg.Wait()
+	log.Printf(" => spheres used: %d/%d", totalCovered, (numSpheres/numGos)*numGos)
+	log.Printf(" =>   max height: %f", hm.MaxHeight())
 
 	log.Println("Creating mesh from height map...")
 	solid := NewHeightMapSolid(hm)

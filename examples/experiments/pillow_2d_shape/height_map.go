@@ -65,19 +65,26 @@ func (h *HeightMap) MaxHeight() float64 {
 
 // AddSphere adds a hemisphere to the height map.
 // where the hemisphere is on the Z plane.
-func (h *HeightMap) AddSphere(center model2d.Coord, radius float64) {
+//
+// Returns true if the sphere changed the height map in
+// any way, or false if the sphere was already covered.
+func (h *HeightMap) AddSphere(center model2d.Coord, radius float64) bool {
 	minRow, minCol := h.coordToIndex(center.Sub(model2d.XY(radius, radius)))
 	maxRow, maxCol := h.coordToIndex(center.Add(model2d.XY(radius, radius)))
 	r2 := radius * radius
+	covered := false
 	for row := minRow; row <= maxRow+1; row++ {
 		for col := minCol; col <= maxCol+1; col++ {
 			c := h.indexToCoord(row, col)
 			d2 := (c.X-center.X)*(c.X-center.X) + (c.Y-center.Y)*(c.Y-center.Y)
 			if d2 < r2 {
-				h.updateAt(row, col, r2-d2)
+				if h.updateAt(row, col, r2-d2) {
+					covered = true
+				}
 			}
 		}
 	}
+	return covered
 }
 
 // AddHeightMap writes the union of h and h1 to h.
@@ -123,14 +130,16 @@ func (h *HeightMap) HeightSquaredAt(c model2d.Coord) float64 {
 		rowFrac*colFrac*h22
 }
 
-func (h *HeightMap) updateAt(row, col int, height float64) {
+func (h *HeightMap) updateAt(row, col int, height float64) bool {
 	if row < 0 || col < 0 || row >= h.Rows || col >= h.Cols {
-		return
+		return false
 	}
 	idx := row*h.Cols + col
 	if h.Data[idx] < height {
 		h.Data[idx] = height
+		return true
 	}
+	return false
 }
 
 func (h *HeightMap) getAt(row, col int) float64 {
