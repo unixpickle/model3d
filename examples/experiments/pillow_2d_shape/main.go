@@ -21,6 +21,7 @@ func main() {
 	var smoothIters int
 	var smoothStep float64
 	var maxRadius float64
+	var useMedialAxis bool
 	flag.Float64Var(&rounding2D, "rounding", 0.0,
 		"pixels by which to round the input image's corners")
 	flag.IntVar(&numSpheres, "spheres", 5000, "number of spheres to generate")
@@ -30,6 +31,7 @@ func main() {
 	flag.IntVar(&smoothIters, "smooth-iters", 50, "number of smoothing iterations")
 	flag.Float64Var(&smoothStep, "smooth-step", 0.05, "smoothing gradient step size")
 	flag.Float64Var(&maxRadius, "max-radius", -1, "if specified, the maximum sphere radius")
+	flag.BoolVar(&useMedialAxis, "medial-axis", false, "use centers along the medial axis")
 	flag.Usage = func() {
 		fmt.Fprintln(os.Stderr, "Usage: pillow_2d_shape [flags] <input.png> <output.stl>")
 		fmt.Fprintln(os.Stderr)
@@ -79,6 +81,9 @@ func main() {
 			localCovered := 0
 			for i := 0; i <= numSpheres/numGos; i++ {
 				c := model2d.NewCoordRandUniform().Mul(sdf2d.Max().Sub(sdf2d.Min())).Add(sdf2d.Min())
+				if useMedialAxis {
+					c = model2d.ProjectMedialAxis(sdf2d, c, 0, 0)
+				}
 				dist := sdf2d.SDF(c)
 				if dist < 0 {
 					i--
@@ -98,7 +103,7 @@ func main() {
 		}()
 	}
 	wg.Wait()
-	log.Printf(" => spheres used: %d/%d", totalCovered, (numSpheres/numGos)*numGos)
+	log.Printf(" => spheres used: %d/%d", totalCovered, (numSpheres/numGos+1)*numGos)
 	log.Printf(" =>   max height: %f", hm.MaxHeight())
 
 	log.Println("Creating mesh from height map...")
