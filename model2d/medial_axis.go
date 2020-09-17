@@ -1,5 +1,7 @@
 package model2d
 
+import "math"
+
 const (
 	DefaultMedialAxisIters = 32
 	DefaultMedialAxisEps   = 1e-8
@@ -28,26 +30,31 @@ func ProjectMedialAxis(p PointSDF, c Coord, iters int, eps float64) Coord {
 	}
 
 	initPoint, initSDF := p.PointSDF(c)
-	if initSDF < eps {
+	if math.Abs(initSDF) < eps {
 		// Randomly perturb c to avoid the boundary and
 		// therefore find the normal of p.
 		initPoint, initSDF = p.PointSDF(c.Add(NewCoordRandUnit().Scale(eps)))
 	}
 
+	var minPoint, maxPoint Coord
 	maxScale := p.Max().Dist(p.Min())
-	if initSDF < 0 {
-		// If we start outside the boundary, we may have
-		// to search further to find the medial axis.
-		maxScale += -initSDF
+	if initSDF > 0 {
+		minPoint = c
+		maxPoint = c.Add(c.Sub(initPoint).Normalize().Scale(maxScale))
+	} else {
+		// Do the search along the inside of the shape.
+		minPoint = initPoint
+		maxPoint = minPoint.Add(initPoint.Sub(c).Normalize().Scale(maxScale))
 	}
-
-	minPoint := c
-	maxPoint := c.Add(c.Sub(initPoint).Normalize().Scale(maxScale))
 
 	for i := 0; i < iters; i++ {
 		c1 := minPoint.Mid(maxPoint)
-		curPoint, _ := p.PointSDF(c1)
-		if curPoint.Dist(initPoint) < eps {
+		curPoint, curSDF := p.PointSDF(c1)
+		if curSDF < 0 {
+			// If we've gone outside the shape, we've gone
+			// too far.
+			maxPoint = curPoint
+		} else if curPoint.Dist(initPoint) < eps {
 			minPoint = c1
 		} else {
 			maxPoint = c1
