@@ -190,28 +190,41 @@ func (h *HeightMap) coordToIndex(c model2d.Coord) (row, col int) {
 	return
 }
 
-// A HeightMapSolid is a 3D solid representing the volume
-// under a height map and above the Z plane.
-type HeightMapSolid struct {
+type heightMapSolid struct {
 	heightMap *HeightMap
 	maxHeight float64
+	minHeight float64
 }
 
-func NewHeightMapSolid(hm *HeightMap) *HeightMapSolid {
-	return &HeightMapSolid{
+// HeightMapToSolid creates a 3D solid representing the
+// volume under a height map and above the Z plane.
+func HeightMapToSolid(hm *HeightMap) model3d.Solid {
+	return &heightMapSolid{
 		heightMap: hm,
 		maxHeight: hm.MaxHeight(),
+		minHeight: 0,
 	}
 }
 
-func (h *HeightMapSolid) Min() model3d.Coord3D {
-	return model3d.XY(h.heightMap.Min.X, h.heightMap.Min.Y)
+// HeightMapToSolidBidir is like HeightMapToSolid, but it
+// mirrors the solid across the Z plane to make it
+// symmetric.
+func HeightMapToSolidBidir(hm *HeightMap) model3d.Solid {
+	return &heightMapSolid{
+		heightMap: hm,
+		maxHeight: hm.MaxHeight(),
+		minHeight: -hm.MaxHeight(),
+	}
 }
 
-func (h *HeightMapSolid) Max() model3d.Coord3D {
+func (h *heightMapSolid) Min() model3d.Coord3D {
+	return model3d.XYZ(h.heightMap.Min.X, h.heightMap.Min.Y, h.minHeight)
+}
+
+func (h *heightMapSolid) Max() model3d.Coord3D {
 	return model3d.XYZ(h.heightMap.Max.X, h.heightMap.Max.Y, h.maxHeight)
 }
 
-func (h *HeightMapSolid) Contains(c model3d.Coord3D) bool {
-	return model3d.InBounds(h, c) && h.heightMap.HigherAt(c.XY(), c.Z)
+func (h *heightMapSolid) Contains(c model3d.Coord3D) bool {
+	return model3d.InBounds(h, c) && h.heightMap.HigherAt(c.XY(), math.Abs(c.Z))
 }
