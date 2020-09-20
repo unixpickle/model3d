@@ -83,7 +83,7 @@ func main() {
 			localHM := toolbox3d.NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
 			localCovered := 0
 			for i := 0; i <= numSpheres/numGos; i++ {
-				c := model2d.NewCoordRandUniform().Mul(sdf2d.Max().Sub(sdf2d.Min())).Add(sdf2d.Min())
+				c := model2d.NewCoordRandBounds(sdf2d.Min(), sdf2d.Max())
 				if useMedialAxis {
 					c = model2d.ProjectMedialAxis(sdf2d, c, 0, 0)
 				}
