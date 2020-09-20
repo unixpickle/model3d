@@ -3,6 +3,8 @@ package main
 import (
 	"math"
 
+	"github.com/unixpickle/model3d/toolbox3d"
+
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 )
@@ -15,8 +17,8 @@ const (
 )
 
 func CreateHeart() model3d.Solid {
-	slowHeart := createSlowHeart()
-	mesh := model3d.MarchingCubesSearch(slowHeart, MarchingDelta, 8)
+	roughHeart := createRoughHeart()
+	mesh := model3d.MarchingCubesSearch(roughHeart, MarchingDelta, 8)
 	smoother := model3d.MeshSmoother{
 		StepSize:   0.05,
 		Iterations: 50,
@@ -25,7 +27,7 @@ func CreateHeart() model3d.Solid {
 	return model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
 }
 
-func createSlowHeart() model3d.Solid {
+func createRoughHeart() model3d.Solid {
 	mesh2d := model2d.MustReadBitmap("heart.png", nil).FlipY().Mesh().SmoothSq(50)
 	min := mesh2d.Min()
 	max := mesh2d.Max()
@@ -40,21 +42,20 @@ func createSlowHeart() model3d.Solid {
 
 	sdf2d := model2d.MeshToSDF(mesh2d)
 
-	var spheres model3d.JoinedSolid
-	for len(spheres) < HeartSamples {
+	hm := toolbox3d.NewHeightMap(sdf2d.Min(), sdf2d.Max(), 1000)
+	var sphereCount int
+	for sphereCount < HeartSamples {
 		c := model2d.NewCoordRandUniform()
 		if sdf2d.SDF(c) < 0 {
 			continue
 		}
+		sphereCount++
 		proj := model2d.ProjectMedialAxis(sdf2d, c, 0, 0)
 		radius := sdf2d.SDF(proj)
-		spheres = append(spheres, &model3d.Sphere{
-			Center: model3d.XY(proj.X, proj.Y),
-			Radius: math.Min(radius, HeartMaxRadius),
-		})
+		hm.AddSphere(proj, math.Min(radius, HeartMaxRadius))
 	}
 
 	return model3d.TransformSolid(&model3d.Matrix3Transform{
 		Matrix: &model3d.Matrix3{1, 0, 0, 0, 0, HeartDepthScale, 0, 1, 0},
-	}, model3d.CacheSolidBounds(spheres))
+	}, toolbox3d.HeightMapToSolidBidir(hm))
 }
