@@ -11,6 +11,7 @@ import (
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 func main() {
@@ -68,7 +69,7 @@ func main() {
 	log.Println("Creating height map of spheres...")
 
 	var hmLock sync.Mutex
-	hm := NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
+	hm := toolbox3d.NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
 	totalCovered := 0
 
 	numGos := runtime.GOMAXPROCS(0)
@@ -77,7 +78,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			localHM := NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
+			localHM := toolbox3d.NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
 			localCovered := 0
 			for i := 0; i <= numSpheres/numGos; i++ {
 				c := model2d.NewCoordRandUniform().Mul(sdf2d.Max().Sub(sdf2d.Min())).Add(sdf2d.Min())
@@ -107,7 +108,7 @@ func main() {
 	log.Printf(" =>   max height: %f", hm.MaxHeight())
 
 	log.Println("Creating mesh from height map...")
-	solid := NewHeightMapSolid(hm)
+	solid := toolbox3d.NewHeightMapSolid(hm)
 	mesh := model3d.MarchingCubesSearch(solid, mcDelta, 8)
 
 	log.Println("Smoothing mesh...")
