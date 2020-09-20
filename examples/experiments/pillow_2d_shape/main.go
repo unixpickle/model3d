@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/toolbox3d"
@@ -108,7 +110,7 @@ func main() {
 	log.Printf(" =>   max height: %f", hm.MaxHeight())
 
 	log.Println("Creating mesh from height map...")
-	solid := toolbox3d.NewHeightMapSolid(hm)
+	solid := toolbox3d.HeightMapToSolid(hm)
 	mesh := model3d.MarchingCubesSearch(solid, mcDelta, 8)
 
 	log.Println("Smoothing mesh...")
@@ -125,4 +127,7 @@ func main() {
 
 	log.Println("Saving mesh...")
 	mesh.SaveGroupedSTL(outPath)
+
+	log.Println("Rendering...")
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
