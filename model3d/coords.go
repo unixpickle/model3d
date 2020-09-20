@@ -63,6 +63,12 @@ func NewCoord2DRandUniform() Coord2D {
 	return model2d.NewCoordRandUniform()
 }
 
+// NewCoord2DRandBounds creates a random Coord2D uniformly
+// inside the given rectangular boundary.
+func NewCoordRandBounds(min, max Coord2D) Coord2D {
+	return model2d.NewCoordRandBounds(min, max)
+}
+
 // A Coord3D is a coordinate in 3-D Euclidean space.
 type Coord3D struct {
 	X float64
@@ -107,6 +113,13 @@ func NewCoord3DRandUniform() Coord3D {
 		Y: rand.Float64(),
 		Z: rand.Float64(),
 	}
+}
+
+// NewCoord3DRandBounds creates a random Coord3D uniformly
+// inside the given rectangular boundary.
+func NewCoord3DRandBounds(min, max Coord3D) Coord3D {
+	c := NewCoord3DRandUniform()
+	return c.Mul(max.Sub(min)).Add(min)
 }
 
 // Ones creates the unit vector scaled by a constant.

@@ -42,6 +42,13 @@ func NewCoordRandUniform() Coord {
 	}
 }
 
+// NewCoordRandBounds creates a random Coord uniformly
+// inside the given rectangular boundary.
+func NewCoordRandBounds(min, max Coord) Coord {
+	c := NewCoordRandUniform()
+	return c.Mul(max.Sub(min)).Add(min)
+}
+
 // NewCoordArray creates a Coord from an array of x and y.
 func NewCoordArray(a [2]float64) Coord {
 	return Coord{a[0], a[1]}
