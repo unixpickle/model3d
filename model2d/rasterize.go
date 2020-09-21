@@ -95,6 +95,12 @@ type Rasterizer struct {
 	//
 	// If 0, RasterizerDefaultLineWidth is used.
 	LineWidth float64
+
+	// Bounds, if non-nil, is used to override the bounds
+	// of any rasterized object.
+	// This can be used to add padding, or have a
+	// consistent canvas when drawing a moving scene.
+	Bounds Bounder
 }
 
 // Rasterize rasterizes a Solid, Mesh, or Collider.
@@ -114,7 +120,7 @@ func (r *Rasterizer) Rasterize(obj interface{}) *image.Gray {
 func (r *Rasterizer) RasterizeSolid(s Solid) *image.Gray {
 	scale := r.scale()
 
-	min, max := s.Min(), s.Max()
+	min, max := r.bounds(s)
 	outWidth := int(math.Ceil((max.X - min.X) * scale))
 	outHeight := int(math.Ceil((max.Y - min.Y) * scale))
 	out := image.NewGray(image.Rect(0, 0, outWidth, outHeight))
@@ -164,7 +170,7 @@ func (r *Rasterizer) RasterizeSolid(s Solid) *image.Gray {
 func (r *Rasterizer) RasterizeSolidFilter(s Solid, f func(r *Rect) bool) *image.Gray {
 	scale := r.scale()
 
-	min, max := s.Min(), s.Max()
+	min, max := r.bounds(s)
 	outWidth := int(math.Ceil((max.X - min.X) * scale))
 	outHeight := int(math.Ceil((max.Y - min.Y) * scale))
 	out := image.NewGray(image.Rect(0, 0, outWidth, outHeight))
@@ -242,6 +248,14 @@ func (r *Rasterizer) RasterizeColliderSolid(c Collider) *image.Gray {
 		radius := r.MinVal.Dist(center)
 		return c.CircleCollision(center, radius)
 	})
+}
+
+func (r *Rasterizer) bounds(b Bounder) (min, max Coord) {
+	if r.Bounds == nil {
+		return b.Min(), b.Max()
+	} else {
+		return r.Bounds.Min(), r.Bounds.Max()
+	}
 }
 
 func (r *Rasterizer) rasterizePixel(s Solid, min, max Coord) float64 {
