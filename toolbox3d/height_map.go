@@ -53,6 +53,13 @@ func NewHeightMap(min, max model2d.Coord, maxSize int) *HeightMap {
 	}
 }
 
+// Copy creates a deep copy of h.
+func (h *HeightMap) Copy() *HeightMap {
+	res := *h
+	res.Data = append([]float64{}, h.Data...)
+	return &res
+}
+
 // MaxHeight gets the maximum height at any cell in the
 // height map.
 func (h *HeightMap) MaxHeight() float64 {
