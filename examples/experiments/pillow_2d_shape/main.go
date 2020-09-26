@@ -6,13 +6,11 @@ import (
 	"log"
 	"math"
 	"os"
-	"runtime"
-	"sync"
 
-	"github.com/unixpickle/model3d/render3d"
-
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -70,43 +68,41 @@ func main() {
 
 	log.Println("Creating height map of spheres...")
 
-	var hmLock sync.Mutex
 	hm := toolbox3d.NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
 	totalCovered := 0
 
-	numGos := runtime.GOMAXPROCS(0)
-	var wg sync.WaitGroup
-	for i := 0; i < numGos; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			localHM := toolbox3d.NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
-			localCovered := 0
-			for i := 0; i <= numSpheres/numGos; i++ {
+	essentials.ReduceConcurrentMap(0, numSpheres, func() (func(int), func()) {
+		localHM := toolbox3d.NewHeightMap(sdf2d.Min(), sdf2d.Max(), rasterResolution)
+		localCovered := 0
+		sampleCenter := func() (model2d.Coord, float64) {
+			for {
 				c := model2d.NewCoordRandBounds(sdf2d.Min(), sdf2d.Max())
 				if useMedialAxis {
 					c = model2d.ProjectMedialAxis(sdf2d, c, 0, 0)
 				}
 				dist := sdf2d.SDF(c)
-				if dist < 0 {
-					i--
-					continue
-				}
-				if maxRadius != -1 && dist > maxRadius {
-					dist = maxRadius
-				}
-				if localHM.AddSphere(c, dist) {
-					localCovered++
+				if dist > 0 {
+					return c, dist
 				}
 			}
-			hmLock.Lock()
-			defer hmLock.Unlock()
+		}
+		makeSphere := func(_ int) {
+			c, dist := sampleCenter()
+			if maxRadius != -1 && dist > maxRadius {
+				dist = maxRadius
+			}
+			if localHM.AddSphere(c, dist) {
+				localCovered++
+			}
+		}
+		aggregate := func() {
 			hm.AddHeightMap(localHM)
 			totalCovered += localCovered
-		}()
-	}
-	wg.Wait()
-	log.Printf(" => spheres used: %d/%d", totalCovered, (numSpheres/numGos+1)*numGos)
+		}
+		return makeSphere, aggregate
+	})
+
+	log.Printf(" => spheres used: %d/%d", totalCovered, numSpheres)
 	log.Printf(" =>   max height: %f", hm.MaxHeight())
 
 	log.Println("Creating mesh from height map...")
