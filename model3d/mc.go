@@ -4,8 +4,9 @@ import (
 	"math"
 	"runtime"
 	"sort"
-	"sync"
 	"sync/atomic"
+
+	"github.com/unixpickle/essentials"
 )
 
 // MarchingCubes turns a Solid into a surface mesh using a
@@ -50,18 +51,9 @@ func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 	outVertices := make([]Coord3D, len(inVertices))
 
 	min := s.Min().Array()
-	numGos := runtime.GOMAXPROCS(0)
-	var wg sync.WaitGroup
-	for i := 0; i < numGos; i++ {
-		wg.Add(1)
-		go func(start int) {
-			defer wg.Done()
-			for i := start; i < len(inVertices); i += numGos {
-				outVertices[i] = mcSearchPoint(s, delta, iters, mesh, min, inVertices[i])
-			}
-		}(i)
-	}
-	wg.Wait()
+	essentials.ConcurrentMap(0, len(inVertices), func(i int) {
+		outVertices[i] = mcSearchPoint(s, delta, iters, mesh, min, inVertices[i])
+	})
 
 	v2t := mesh.getVertexToTriangle()
 	for i, original := range inVertices {

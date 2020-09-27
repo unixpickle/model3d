@@ -9,9 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/unixpickle/essentials"
@@ -136,24 +134,15 @@ func (r *Rasterizer) RasterizeSolid(s Solid) *image.Gray {
 		}
 	}
 
-	var wg sync.WaitGroup
-	numGos := runtime.GOMAXPROCS(0)
-	for i := 0; i < numGos; i++ {
-		wg.Add(1)
-		go func(start int) {
-			defer wg.Done()
-			for j := start; j < len(indices); j += numGos {
-				x, y := indices[j][0], indices[j][1]
-				pxMin := XY(float64(x)*pixelWidth+min.X, float64(y)*pixelHeight+min.Y)
-				pxMax := XY(float64(x+1)*pixelWidth+min.X, float64(y+1)*pixelHeight+min.Y)
-				px := 1 - r.rasterizePixel(s, pxMin, pxMax)
-				out.Set(x, y, color.Gray{
-					Y: uint8(math.Floor(px * 255.999)),
-				})
-			}
-		}(i)
-	}
-	wg.Wait()
+	essentials.ConcurrentMap(0, len(indices), func(i int) {
+		x, y := indices[i][0], indices[i][1]
+		pxMin := XY(float64(x)*pixelWidth+min.X, float64(y)*pixelHeight+min.Y)
+		pxMax := XY(float64(x+1)*pixelWidth+min.X, float64(y+1)*pixelHeight+min.Y)
+		px := 1 - r.rasterizePixel(s, pxMin, pxMax)
+		out.Set(x, y, color.Gray{
+			Y: uint8(math.Floor(px * 255.999)),
+		})
+	})
 
 	return out
 }
@@ -205,24 +194,15 @@ func (r *Rasterizer) RasterizeSolidFilter(s Solid, f func(r *Rect) bool) *image.
 		}
 	}
 
-	var wg sync.WaitGroup
-	numGos := runtime.GOMAXPROCS(0)
-	for i := 0; i < numGos; i++ {
-		wg.Add(1)
-		go func(start int) {
-			defer wg.Done()
-			for j := start; j < len(indices); j += numGos {
-				x, y := indices[j][0], indices[j][1]
-				pxMin := XY(float64(x)*pixelWidth+min.X, float64(y)*pixelHeight+min.Y)
-				pxMax := XY(float64(x+1)*pixelWidth+min.X, float64(y+1)*pixelHeight+min.Y)
-				px := 1 - r.rasterizePixel(s, pxMin, pxMax)
-				out.Set(x, y, color.Gray{
-					Y: uint8(math.Floor(px * 255.999)),
-				})
-			}
-		}(i)
-	}
-	wg.Wait()
+	essentials.ConcurrentMap(0, len(indices), func(i int) {
+		x, y := indices[i][0], indices[i][1]
+		pxMin := XY(float64(x)*pixelWidth+min.X, float64(y)*pixelHeight+min.Y)
+		pxMax := XY(float64(x+1)*pixelWidth+min.X, float64(y+1)*pixelHeight+min.Y)
+		px := 1 - r.rasterizePixel(s, pxMin, pxMax)
+		out.Set(x, y, color.Gray{
+			Y: uint8(math.Floor(px * 255.999)),
+		})
+	})
 
 	return out
 }
