@@ -53,7 +53,14 @@ func NewMeshTriangles(ts []*Triangle) *Mesh {
 }
 
 // NewMeshPolar creates a mesh with a 3D polar function.
+//
+// If radius is nil, a radius of 1 is used.
 func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
+	if radius == nil {
+		radius = func(g GeoCoord) float64 {
+			return 1
+		}
+	}
 	res := NewMesh()
 	lonStep := math.Pi * 2 / float64(stops)
 	latStep := math.Pi / float64(stops)
