@@ -22,6 +22,37 @@ func (l *LinearConstraint) Contains(c Coord3D) bool {
 // constraints.
 type ConvexPolytope []*LinearConstraint
 
+// NewConvexPolytopeRect creates a rectangular convex
+// polytope.
+func NewConvexPolytopeRect(min, max Coord3D) ConvexPolytope {
+	return ConvexPolytope{
+		&LinearConstraint{
+			Normal: X(1),
+			Max:    max.X,
+		},
+		&LinearConstraint{
+			Normal: X(-1),
+			Max:    -min.X,
+		},
+		&LinearConstraint{
+			Normal: Y(1),
+			Max:    max.Y,
+		},
+		&LinearConstraint{
+			Normal: Y(-1),
+			Max:    -min.Y,
+		},
+		&LinearConstraint{
+			Normal: Z(1),
+			Max:    max.Z,
+		},
+		&LinearConstraint{
+			Normal: Z(-1),
+			Max:    -min.Z,
+		},
+	}
+}
+
 // Contains checks that c satisfies the constraints.
 func (c ConvexPolytope) Contains(coord Coord3D) bool {
 	for _, l := range c {
