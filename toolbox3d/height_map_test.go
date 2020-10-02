@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 )
 
 func TestHeigthMapInterp(t *testing.T) {
@@ -38,6 +39,25 @@ func TestHeightMapAdd(t *testing.T) {
 		a := h2.Data[i]
 		if math.Abs(x-a) > 1e-4 {
 			t.Fatalf("unexpected interpolation: got %f but expected %f", a, x)
+		}
+	}
+}
+
+func TestHeightMapAddSphere(t *testing.T) {
+	h := NewHeightMap(model2d.XY(-1, -1), model2d.XY(1, 1), 1000)
+	h.AddSphere(model2d.XY(0.1, 0.1), 0.3)
+
+	expectedSDF := &model3d.Sphere{Center: model3d.XY(0.1, 0.1), Radius: 0.3}
+	actualMesh := model3d.MarchingCubesSearch(HeightMapToSolidBidir(h), 0.01, 8)
+	actualSDF := model3d.MeshToSDF(actualMesh)
+
+	for i := 0; i < 1000; i++ {
+		coord := model3d.NewCoord3DRandNorm()
+		actual := actualSDF.SDF(coord)
+		expected := expectedSDF.SDF(coord)
+		if math.Abs(actual-expected) > 0.01 {
+			t.Errorf("unexpected SDF at %v (expected %f but got %f)",
+				coord, expected, actual)
 		}
 	}
 }
