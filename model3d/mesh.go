@@ -131,22 +131,17 @@ func NewMeshRect(min, max Coord3D) *Mesh {
 		return res
 	}
 
-	addFace := func(p1, p2, p3, p4 Coord3D) {
-		mesh.Add(&Triangle{p1, p3, p2})
-		mesh.Add(&Triangle{p2, p3, p4})
-	}
-
 	// Front and back faces.
-	addFace(min, point(0, 0, 1), point(1, 0, 0), point(1, 0, 1))
-	addFace(max, point(0, 1, 1), point(1, 1, 0), point(0, 1, 0))
+	mesh.AddQuad(min, point(1, 0, 0), point(1, 0, 1), point(0, 0, 1))
+	mesh.AddQuad(max, point(1, 1, 0), point(0, 1, 0), point(0, 1, 1))
 
 	// Left and right faces.
-	addFace(min, point(0, 1, 0), point(0, 0, 1), point(0, 1, 1))
-	addFace(max, point(1, 1, 0), point(1, 0, 1), point(1, 0, 0))
+	mesh.AddQuad(min, point(0, 0, 1), point(0, 1, 1), point(0, 1, 0))
+	mesh.AddQuad(max, point(1, 0, 1), point(1, 0, 0), point(1, 1, 0))
 
 	// Top and bottom faces.
-	addFace(min, point(1, 0, 0), point(0, 1, 0), point(1, 1, 0))
-	addFace(max, point(1, 0, 1), point(0, 1, 1), point(0, 0, 1))
+	mesh.AddQuad(min, point(0, 1, 0), point(1, 1, 0), point(1, 0, 0))
+	mesh.AddQuad(max, point(0, 1, 1), point(0, 0, 1), point(1, 0, 1))
 
 	return mesh
 }
@@ -165,6 +160,20 @@ func (m *Mesh) Add(t *Triangle) {
 		v2t[p] = append(v2t[p], t)
 	}
 	m.triangles[t] = true
+}
+
+// AddQuad adds a quadrilateral to the mesh.
+//
+// For correct normals, the vertices should be in counter-
+// clockwise order as seen from the outside of the mesh.
+func (m *Mesh) AddQuad(p1, p2, p3, p4 Coord3D) [2]*Triangle {
+	res := [2]*Triangle{
+		&Triangle{p1, p2, p4},
+		&Triangle{p2, p3, p4},
+	}
+	m.Add(res[0])
+	m.Add(res[1])
+	return res
 }
 
 // AddMesh adds all the triangles from m1 to m.
