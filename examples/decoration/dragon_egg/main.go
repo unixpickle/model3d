@@ -73,13 +73,7 @@ func NewEggSolid() *EggSolid {
 
 		RidgeInset: 0.025,
 		RidgeFreq:  18.0,
-		RidgeFrac: model2d.BezierCurve{
-			model2d.XY(0, 0),
-			model2d.XY(0, 1),
-			model2d.XY(1, 0.7),
-			model2d.XY(0.9, 0),
-			model2d.XY(1.0, 0),
-		},
+		RidgeFrac:  radius,
 	}
 }
 
@@ -107,7 +101,7 @@ func (e *EggSolid) Contains(c model3d.Coord3D) bool {
 
 	xTheta := math.Atan2(c2d.X, c2d.Y)
 	yTheta := e.RadiusIntegral.EvalX(c.Z)
-	yOffset := math.Sin(e.RidgeFreq * yTheta * math.Pi * 1.2)
+	yOffset := math.Sin(e.RidgeFreq * yTheta)
 	xOffset := math.Sin(e.RidgeFreq * xTheta)
 	inset := e.RidgeFrac.EvalX(c.Z) * 0.5 * e.RidgeInset * (2 - math.Abs(xOffset+yOffset))
 
@@ -126,7 +120,11 @@ func NewRadiusIntegral(radius model2d.BezierCurve) *RadiusIntegral {
 	for x := 0.0; x < 1.0; x += dx {
 		res.X = append(res.X, x)
 		res.Y = append(res.Y, sum)
-		sum += math.Sqrt(math.Pow(radius.EvalX(x)*dx, 2) + dx*dx)
+		r := radius.EvalX(x)
+		if r < 1e-5 {
+			r = 1e-5
+		}
+		sum += math.Sqrt(math.Pow(r*dx, 2)+dx*dx) / r
 	}
 	return res
 }
