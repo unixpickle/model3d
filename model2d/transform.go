@@ -1,10 +1,5 @@
 package model2d
 
-/*******************************************
- * NOTE: based off of model3d/transform.go *
- * on Sep 5, 2020.                         *
- *******************************************/
-
 // Transform is an invertible coordinate transformation.
 type Transform interface {
 	// Apply applies the transformation to c.
@@ -86,13 +81,17 @@ func (m *Matrix2Transform) ApplyBounds(min, max Coord) (Coord, Coord) {
 	var newMin, newMax Coord
 	for i, x := range []float64{min.X, max.X} {
 		for j, y := range []float64{min.Y, max.Y} {
+			// add-codegen: for k, z := range []float64{min.Z, max.Z} {
 			c := m.Matrix.MulColumn(XY(x, y))
+			// replace-codegen: c := m.Matrix.MulColumn(XYZ(x, y, z))
 			if i == 0 && j == 0 {
+				// replace-codegen: if i == 0 && j == 0 && k == 0 {
 				newMin, newMax = c, c
 			} else {
 				newMin = newMin.Min(c)
 				newMax = newMax.Max(c)
 			}
+			// add-codegen: }
 		}
 	}
 	return newMin, newMax

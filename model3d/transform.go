@@ -1,3 +1,5 @@
+// Generated from model2d/transform.go
+
 package model3d
 
 // Transform is an invertible coordinate transformation.
