@@ -230,6 +230,11 @@ func (m *Mesh) MapCoords(f func(Coord) Coord) *Mesh {
 	return m1
 }
 
+// Transform applies t to the coordinates.
+func (m *Mesh) Transform(t Transform) *Mesh {
+	return m.MapCoords(t.Apply)
+}
+
 // SegmentsSlice gets a snapshot of all the Segments
 // currently in the mesh. The resulting slice is a copy,
 // and will not change as the mesh is updated.

@@ -4,14 +4,23 @@ import (
 	"log"
 	"math"
 
+	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
+
+const AddEars = false
 
 func main() {
 	pumpkin := model3d.JoinedSolid{
 		PumpkinSolid{},
 		StemSolid{},
+	}
+
+	if AddEars {
+		for _, sign := range []float64{-1, 1} {
+			pumpkin = append(pumpkin, CreateEar(0.7*sign))
+		}
 	}
 
 	log.Println("Creating and clipping base...")
@@ -80,4 +89,30 @@ func (s StemSolid) Contains(c model3d.Coord3D) bool {
 	radius := 0.05*math.Sin(theta*5) + 0.15
 	radius += 0.7 * math.Pow(s.Max().Y-c.Y, 2)
 	return c.XZ().Norm() < radius
+}
+
+func CreateEar(angle float64) model3d.Solid {
+	curve := func(x float64) float64 {
+		return -0.5*math.Pow(math.Abs(x), 2.5) - 0.2*x*x
+	}
+	point := func(x float64) model2d.Coord {
+		return model2d.XY(x, curve(x))
+	}
+	mesh := model2d.NewMesh()
+	var lastPoint model2d.Coord
+	for x := -2.8; x <= 2.8; x += 0.001 {
+		mesh.Add(&model2d.Segment{point(x), point(x + 0.001)})
+		lastPoint = point(x + 0.001)
+	}
+	mesh.Add(&model2d.Segment{lastPoint, point(-2.8)})
+
+	mesh = mesh.MapCoords(model2d.Y(-lastPoint.Y).Add)
+	mesh = mesh.Scale(-1 / lastPoint.Y).Scale(0.9)
+	mesh = mesh.Transform(model2d.JoinedTransform{
+		&model2d.Translate{Offset: model2d.Y(1.3)},
+		&model2d.Matrix2Transform{Matrix: model2d.NewMatrix2Rotation(angle)},
+	})
+	collider2d := model2d.MeshToCollider(mesh)
+	collider3d := model3d.ProfileCollider(collider2d, -0.001, 0.001)
+	return model3d.NewColliderSolidHollow(collider3d, 0.05)
 }
