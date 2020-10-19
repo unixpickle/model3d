@@ -196,6 +196,11 @@ func (c Coord3D) Div(c1 Coord3D) Coord3D {
 	return XYZ(c.X/c1.X, c.Y/c1.Y, c.Z/c1.Z)
 }
 
+// Recip gets a coordinate as 1 / c.
+func (c Coord3D) Recip() Coord3D {
+	return XYZ(1/c.X, 1/c.Y, 1/c.Z)
+}
+
 // Scale scales all the coordinates by s and returns the
 // new coordinate.
 func (c Coord3D) Scale(s float64) Coord3D {

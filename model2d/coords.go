@@ -99,6 +99,11 @@ func (c Coord) Div(c1 Coord) Coord {
 	return Coord{X: c.X / c1.X, Y: c.Y / c1.Y}
 }
 
+// Recip gets a coordinate as 1 / c.
+func (c Coord) Recip() Coord {
+	return XY(1/c.X, 1/c.Y)
+}
+
 // Scale scales all the coordinates by s and returns the
 // new coordinate.
 func (c Coord) Scale(s float64) Coord {
