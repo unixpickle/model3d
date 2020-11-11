@@ -12,13 +12,30 @@ const (
 	StarThickness   = 1.0
 	StarPointRadius = 2.0
 
+	HolderRadius    = 0.4
+	HolderLength    = 1.0
+	HolderThickness = 0.05
+	HolderOffset    = 0.2
+
 	NumPoints = 6
 )
 
 func main() {
 	baseMesh := CreateStarMesh()
-	baseMesh.SaveGroupedSTL("star.stl")
-	render3d.SaveRandomGrid("rendering.png", baseMesh, 3, 3, 300, nil)
+	solid := model3d.JoinedSolid{
+		model3d.NewColliderSolid(model3d.MeshToCollider(baseMesh)),
+		CreateHolder(model3d.X(StarPointRadius - HolderOffset)),
+		&model3d.Torus{
+			Axis:        model3d.Z(1),
+			Center:      model3d.X(-StarPointRadius),
+			InnerRadius: 0.05,
+			OuterRadius: 0.2,
+		},
+	}
+	mesh := model3d.MarchingCubesSearch(solid, 0.02, 8)
+
+	mesh.SaveGroupedSTL("star.stl")
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
 func CreateStarMesh() *model3d.Mesh {
@@ -26,9 +43,9 @@ func CreateStarMesh() *model3d.Mesh {
 
 	mesh := model3d.NewMesh()
 	for i := 0; i < NumPoints*2; i += 2 {
-		theta0 := float64(i) / float64(NumPoints*2) * math.Pi * 2
-		theta1 := float64(i+1) / float64(NumPoints*2) * math.Pi * 2
-		theta2 := float64(i+2) / float64(NumPoints*2) * math.Pi * 2
+		theta0 := float64(i-1) / float64(NumPoints*2) * math.Pi * 2
+		theta1 := float64(i) / float64(NumPoints*2) * math.Pi * 2
+		theta2 := float64(i+1) / float64(NumPoints*2) * math.Pi * 2
 
 		p1 := model3d.XY(math.Cos(theta0), math.Sin(theta0))
 		p2 := model3d.XY(math.Cos(theta1), math.Sin(theta1)).Scale(StarPointRadius)
@@ -44,4 +61,27 @@ func CreateStarMesh() *model3d.Mesh {
 	mesh = mesh.Repair(1e-5)
 	mesh, _ = mesh.RepairNormals(1e-5)
 	return mesh
+}
+
+func CreateHolder(tip model3d.Coord3D) model3d.Solid {
+	conePoint := func(t, theta float64) model3d.Coord3D {
+		r := HolderRadius * t
+		x := t*HolderLength + tip.X
+		return model3d.XYZ(x, math.Cos(theta)*r, math.Sin(theta)*r)
+	}
+
+	surfaceMesh := model3d.NewMesh()
+	dTheta := math.Pi * 2 / 100.0
+	dT := 1.0 / 100.0
+	for t := 0.0; t < 1.0; t += dT {
+		for theta := 0.0; theta < math.Pi*2; theta += dTheta {
+			p1 := conePoint(t, theta)
+			p2 := conePoint(t, theta+dTheta)
+			p3 := conePoint(t+dT, theta+dTheta)
+			p4 := conePoint(t+dT, theta)
+			surfaceMesh.AddQuad(p1, p2, p3, p4)
+		}
+	}
+
+	return model3d.NewColliderSolidHollow(model3d.MeshToCollider(surfaceMesh), HolderThickness)
 }
