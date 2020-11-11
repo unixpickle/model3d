@@ -12,6 +12,11 @@ import (
 // MarchingCubes turns a Solid into a surface mesh using a
 // corrected marching cubes algorithm.
 func MarchingCubes(s Solid, delta float64) *Mesh {
+	if math.IsNaN(s.Min().Sum()) || math.IsNaN(s.Max().Sum()) ||
+		math.IsInf(s.Min().Sum(), 0) || math.IsInf(s.Max().Sum(), 0) {
+		panic("got NaN or Infinity in solid bounds")
+	}
+
 	table := mcLookupTable()
 	spacer := newSquareSpacer(s, delta)
 	mesh := NewMesh()
