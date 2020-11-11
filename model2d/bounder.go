@@ -30,7 +30,7 @@ func BoundsValid(b Bounder) bool {
 	if max.X < min.X {
 		return false
 	}
-	if max.Y < min.X {
+	if max.Y < min.Y {
 		return false
 	}
 	return true
