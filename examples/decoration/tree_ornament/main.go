@@ -5,55 +5,43 @@ import (
 
 	"github.com/unixpickle/model3d/render3d"
 
-	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 )
 
-const PointScale = 4.0
+const (
+	StarThickness   = 1.0
+	StarPointRadius = 2.0
+
+	NumPoints = 6
+)
 
 func main() {
-	shape := Create2DShape(6)
-	maxZ := shape.SDF(model2d.XY(0, 0))
-	shape3D := &Shape3D{Star2D: shape, MaxZ: maxZ}
-	mesh := model3d.MarchingCubesSearch(shape3D, 0.03, 8)
-	mesh.SaveGroupedSTL("star.stl")
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
+	baseMesh := CreateStarMesh()
+	baseMesh.SaveGroupedSTL("star.stl")
+	render3d.SaveRandomGrid("rendering.png", baseMesh, 3, 3, 300, nil)
 }
 
-func Create2DShape(sides int) model2d.SDF {
-	var points []model2d.Coord
-	for i := 0; i < sides*2; i++ {
-		theta := float64(i) / float64(sides*2) * math.Pi * 2
-		p := model2d.XY(math.Cos(theta), math.Sin(theta))
-		if i%2 == 0 {
-			p = p.Scale(PointScale)
-		}
-		points = append(points, p)
+func CreateStarMesh() *model3d.Mesh {
+	midPoint := model3d.Z(StarThickness / 2)
+
+	mesh := model3d.NewMesh()
+	for i := 0; i < NumPoints*2; i += 2 {
+		theta0 := float64(i) / float64(NumPoints*2) * math.Pi * 2
+		theta1 := float64(i+1) / float64(NumPoints*2) * math.Pi * 2
+		theta2 := float64(i+2) / float64(NumPoints*2) * math.Pi * 2
+
+		p1 := model3d.XY(math.Cos(theta0), math.Sin(theta0))
+		p2 := model3d.XY(math.Cos(theta1), math.Sin(theta1)).Scale(StarPointRadius)
+		p3 := model3d.XY(math.Cos(theta2), math.Sin(theta2))
+
+		mesh.Add(&model3d.Triangle{p2, p1, midPoint})
+		mesh.Add(&model3d.Triangle{p2, p3, midPoint})
 	}
+	mesh.AddMesh(mesh.MapCoords(model3d.XYZ(1, 1, -1).Mul))
 
-	var segments []*model2d.Segment
-	for i := 0; i < len(points); i++ {
-		segments = append(segments, &model2d.Segment{points[i], points[(i+1)%len(points)]})
-	}
-	baseMesh := model2d.NewMeshSegments(segments)
-	return model2d.MeshToSDF(baseMesh)
-}
-
-type Shape3D struct {
-	Star2D model2d.SDF
-	MaxZ   float64
-}
-
-func (s *Shape3D) Min() model3d.Coord3D {
-	min := s.Star2D.Min()
-	return model3d.XYZ(min.X, min.Y, -s.MaxZ)
-}
-
-func (s *Shape3D) Max() model3d.Coord3D {
-	max := s.Star2D.Max()
-	return model3d.XYZ(max.X, max.Y, s.MaxZ)
-}
-
-func (s *Shape3D) Contains(c model3d.Coord3D) bool {
-	return s.Star2D.SDF(c.XY()) > math.Abs(c.Z)
+	// We created the mesh in a lazy way, so we must
+	// fix holes and normals.
+	mesh = mesh.Repair(1e-5)
+	mesh, _ = mesh.RepairNormals(1e-5)
+	return mesh
 }
