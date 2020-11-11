@@ -13,6 +13,9 @@ import (
 // MarchingSquares turns a Solid into a mesh using a 2D
 // version of the marching cubes algorithm.
 func MarchingSquares(s Solid, delta float64) *Mesh {
+	if !BoundsValid(s) {
+		panic("invalid bounds for solid")
+	}
 	table := msLookupTable()
 
 	spacer := newSquareSpacer(s, delta)
