@@ -1,6 +1,9 @@
 package model2d
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestVertexSlice(t *testing.T) {
 	s1 := &Segment{
@@ -15,5 +18,17 @@ func TestVertexSlice(t *testing.T) {
 	mesh.Remove(s1)
 	if len(mesh.VertexSlice()) != 0 {
 		t.Error("unexpected number of vertices")
+	}
+}
+
+func TestNewMeshPolar(t *testing.T) {
+	mesh := NewMeshPolar(func(theta float64) float64 {
+		return math.Cos(theta) + 2
+	}, 100)
+	if !mesh.Manifold() {
+		t.Fatal("mesh is non-manifold")
+	}
+	if _, n := mesh.RepairNormals(1e-5); n != 0 {
+		t.Fatal("mesh has incorrect normals")
 	}
 }

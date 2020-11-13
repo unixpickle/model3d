@@ -1,6 +1,7 @@
 package model2d
 
 import (
+	"math"
 	"os"
 	"sort"
 	"sync"
@@ -38,6 +39,34 @@ func NewMesh() *Mesh {
 	return &Mesh{
 		segments: map[*Segment]bool{},
 	}
+}
+
+// NewMeshPolar creates a closed polar mesh.
+//
+// The mesh will have correct normals if the radius
+// function returns positive values when theta is in the
+// range [0, 2*pi].
+//
+// Even if the polar function does not reach its original
+// value at 2*pi radians, the mesh will be closed by
+// connecting the first point to the last.
+func NewMeshPolar(radius func(theta float64) float64, stops int) *Mesh {
+	getPoint := func(t int) Coord {
+		theta := float64(t) * math.Pi * 2 / float64(stops)
+		return XY(math.Cos(theta), math.Sin(theta)).Scale(radius(theta))
+	}
+
+	firstPoint := getPoint(0)
+	lastPoint := firstPoint
+
+	res := NewMesh()
+	for i := 1; i < stops; i++ {
+		p := getPoint(i)
+		res.Add(&Segment{p, lastPoint})
+		lastPoint = p
+	}
+	res.Add(&Segment{firstPoint, lastPoint})
+	return res
 }
 
 // NewMeshSegments creates a mesh with the given
