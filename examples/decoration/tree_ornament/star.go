@@ -12,9 +12,9 @@ const (
 	StarRingRadius  = 0.2
 
 	StarHolderRadius    = 0.4
-	StarHolderLength    = 1.0
+	StarHolderLength    = 2.0
 	StarHolderThickness = 0.05
-	StarHolderOffset    = 0.2
+	StarHolderOffset    = 0.4
 
 	StarNumPoints = 6
 )
@@ -60,7 +60,7 @@ func CreateStarMesh() *model3d.Mesh {
 
 func CreateHolder(tip model3d.Coord3D) model3d.Solid {
 	conePoint := func(t, theta float64) model3d.Coord3D {
-		r := StarHolderRadius * t
+		r := StarHolderRadius * math.Sqrt(t)
 		x := t*StarHolderLength + tip.X
 		return model3d.XYZ(x, math.Cos(theta)*r, math.Sin(theta)*r)
 	}
