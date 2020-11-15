@@ -16,6 +16,8 @@ const (
 	HangerHookDrop    = 1.0
 	HangerHookRadius  = 0.5
 	HangerHookWidth   = 0.15
+
+	HangerSpacerLength = 3.0
 )
 
 func CreateHangerSolid() model3d.Solid {
@@ -32,6 +34,23 @@ func CreateHangerSolid() model3d.Solid {
 			MaxVal: model3d.XYZ(HangerMountHeight, HangerArmLength, HangerArmWidth),
 		},
 		model3d.ProfileSolid(hookProfile, 0, HangerHookWidth),
+	}
+}
+
+func CreateHangerSpacerSolid() model3d.Solid {
+	return model3d.JoinedSolid{
+		&model3d.Rect{
+			MinVal: model3d.XYZ(0, 0, 0),
+			MaxVal: model3d.XYZ(HangerMountWidth, HangerSpacerLength, HangerThickness),
+		},
+		&model3d.Rect{
+			MinVal: model3d.XYZ(0, 0, 0),
+			MaxVal: model3d.XYZ(HangerMountWidth, HangerThickness, HangerMountHeight),
+		},
+		&model3d.Rect{
+			MinVal: model3d.XYZ(0, HangerSpacerLength-HangerThickness, 0),
+			MaxVal: model3d.XYZ(HangerMountWidth, HangerSpacerLength, HangerMountHeight),
+		},
 	}
 }
 
