@@ -59,7 +59,7 @@ type DeepInscription struct {
 func NewDeepInscription() *DeepInscription {
 	bmp := model2d.MustReadBitmap("image.png", nil).FlipY()
 	solid := model2d.BitmapToSolid(bmp)
-	collider := model2d.MeshToCollider(bmp.Mesh().Smooth(40))
+	collider := model2d.MeshToCollider(bmp.Mesh().SmoothSq(50))
 	return &DeepInscription{
 		Collider: collider,
 		Solid:    solid,
