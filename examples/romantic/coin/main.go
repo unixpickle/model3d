@@ -50,10 +50,12 @@ func main() {
 	squeeze := &toolbox3d.SmartSqueeze{
 		Axis:         toolbox3d.AxisZ,
 		PinchRange:   epsilon * 2,
-		PinchPower:   4.0,
+		PinchPower:   0.25,
 		SqueezeRatio: 0.1,
 	}
 	squeeze.AddPinch(0)
+	squeeze.AddPinch(minHeight)
+	squeeze.AddPinch(maxHeight)
 	squeeze.AddUnsqueezable(minHeight, maxHeight)
 	m := squeeze.MarchingCubesSearch(solid, epsilon, 8)
 	m = m.EliminateCoplanar(1e-5)
