@@ -79,6 +79,17 @@ func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 	return mesh
 }
 
+// MarchingCubesConj is like MarchingCubesSearch, but in a
+// transformed space. In particular, it applies a series of
+// transformations to the Solid, and then applies the
+// inverse to the resulting mesh.
+func MarchingCubesConj(s Solid, delta float64, iters int, xforms ...Transform) *Mesh {
+	joined := JoinedTransform(xforms)
+	solid := TransformSolid(joined, s)
+	mesh := MarchingCubesSearch(solid, delta, iters)
+	return mesh.MapCoords(joined.Inverse().Apply)
+}
+
 func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, min [3]float64, c Coord3D) Coord3D {
 	arr := c.Array()
 

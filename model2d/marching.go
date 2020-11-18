@@ -97,6 +97,17 @@ func MarchingSquaresSearch(s Solid, delta float64, iters int) *Mesh {
 	})
 }
 
+// MarchingSquaresConj is like MarchingSquaresSearch, but
+// in a transformed space. In particular, it applies a
+// series of transformations to the Solid, and then
+// applies the inverse to the resulting mesh.
+func MarchingSquaresConj(s Solid, delta float64, iters int, xforms ...Transform) *Mesh {
+	joined := JoinedTransform(xforms)
+	solid := TransformSolid(joined, s)
+	mesh := MarchingSquaresSearch(solid, delta, iters)
+	return mesh.MapCoords(joined.Inverse().Apply)
+}
+
 // MarchingSquaresASCII turns a Solid into an ASCII-art
 // line-drawing using a 2D version of marching cubes.
 //

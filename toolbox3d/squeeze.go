@@ -185,10 +185,7 @@ func (s *SmartSqueeze) AddPinch(val float64) {
 // For usage information, see model3d.MarchingCubesSearch.
 func (s *SmartSqueeze) MarchingCubesSearch(solid model3d.Solid, delta float64,
 	iters int) *model3d.Mesh {
-	xform := s.Transform(solid)
-	solid = model3d.TransformSolid(xform, solid)
-	mesh := model3d.MarchingCubesSearch(solid, delta, iters)
-	return mesh.MapCoords(xform.Inverse().Apply)
+	return model3d.MarchingCubesConj(solid, delta, iters, s.Transform(solid))
 }
 
 // Transform creates a transformation for the squeezes and
