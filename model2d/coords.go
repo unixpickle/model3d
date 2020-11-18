@@ -54,6 +54,11 @@ func NewCoordArray(a [2]float64) Coord {
 	return Coord{a[0], a[1]}
 }
 
+// NewCoordPolar converts polar coordinates to a Coord.
+func NewCoordPolar(theta, radius float64) Coord {
+	return XY(math.Cos(theta), math.Sin(theta)).Scale(radius)
+}
+
 // Ones creates the unit vector scaled by a constant.
 func Ones(a float64) Coord {
 	return Coord{X: a, Y: a}

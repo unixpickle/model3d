@@ -69,6 +69,12 @@ func NewCoordRandBounds(min, max Coord2D) Coord2D {
 	return model2d.NewCoordRandBounds(min, max)
 }
 
+// NewCoord2DPolar converts polar coordinates to a
+// Coord2D.
+func NewCoord2DPolar(theta, radius float64) Coord2D {
+	return model2d.NewCoordPolar(theta, radius)
+}
+
 // A Coord3D is a coordinate in 3-D Euclidean space.
 type Coord3D struct {
 	X float64

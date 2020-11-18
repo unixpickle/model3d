@@ -53,7 +53,7 @@ func NewMesh() *Mesh {
 func NewMeshPolar(radius func(theta float64) float64, stops int) *Mesh {
 	getPoint := func(t int) Coord {
 		theta := float64(t) * math.Pi * 2 / float64(stops)
-		return XY(math.Cos(theta), math.Sin(theta)).Scale(radius(theta))
+		return NewCoordPolar(theta, radius(theta))
 	}
 
 	firstPoint := getPoint(0)
