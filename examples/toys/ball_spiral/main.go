@@ -92,7 +92,7 @@ func SpiralTheta(c model2d.Coord) float64 {
 }
 
 func SpiralCenter(theta float64) model2d.Coord {
-	return model2d.XY(math.Cos(theta), math.Sin(theta)).Scale(RungRadius * theta / math.Pi)
+	return model2d.NewCoordPolar(theta, RungRadius*theta/math.Pi)
 }
 
 type SpiralDistances struct {

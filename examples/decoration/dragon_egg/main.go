@@ -33,8 +33,7 @@ func main() {
 		Power: 0.25,
 	}
 
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(squeeze, solid), 0.005, 8)
-	mesh = mesh.Transform(squeeze.Inverse())
+	mesh := model3d.MarchingCubesConj(solid, 0.005, 8, squeeze)
 
 	log.Println("Saving mesh...")
 	mesh.SaveGroupedSTL("egg.stl")

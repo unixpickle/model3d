@@ -56,7 +56,7 @@ func NewFlowerShape() *FlowerShape {
 		i = i % 10000
 		theta := (float64(i) / 9999.0) * math.Pi * 2
 		r := 0.3 + 0.7*math.Pow(math.Abs(math.Cos(3*theta)), 0.5)
-		return model2d.XY(math.Cos(theta), math.Sin(theta)).Scale(r)
+		return model2d.NewCoordPolar(theta, r)
 	}
 	for i := 0; i < 10000; i++ {
 		mesh.Add(&model2d.Segment{flowerPoint(i), flowerPoint(i + 1)})
