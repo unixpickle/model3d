@@ -2,6 +2,7 @@ package model2d
 
 import (
 	"math"
+	"sort"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/splaytree"
@@ -111,11 +112,173 @@ func removeColinearPoints(poly []Coord) []Coord {
 	return res
 }
 
+type triangulateVertexType int
+
+const (
+	triangulateVertexSplit triangulateVertexType = iota
+	triangulateVertexMerge
+	triangulateVertexStart
+	triangulateVertexEnd
+	triangulateVertexUpperChain
+	triangulateVertexLowerChain
+)
+
+// triangulateMonotoneSplits creates segments which induce
+// monotone sub-polygons for a polygon.
+//
+// The are several assumptions on m:
+//
+//     * No two coordinates have the same x value
+//     * No segments have infinite slope.
+//     * This is either a simple polygon, or a polygon with one
+//       layer of holes.
+//     * The normals are correct.
+//
+func triangulateMonotoneSplits(m *Mesh) []*Segment {
+	state := newTriangulateSweepState(m)
+	for !state.Done() {
+		state.Next()
+	}
+	return state.Generated
+}
+
 type triangulateSweepState struct {
+	Mesh       *Mesh
 	Coords     []Coord
 	CurrentIdx int
 
 	EdgeTree *triangulateEdgeTree
+	Helpers  map[*Segment]Coord
+
+	Generated []*Segment
+}
+
+func newTriangulateSweepState(m *Mesh) *triangulateSweepState {
+	vertices := m.VertexSlice()
+	sort.Slice(vertices, func(i, j int) bool {
+		return vertices[i].X < vertices[j].X
+	})
+
+	state := &triangulateSweepState{
+		Mesh:       m,
+		Coords:     vertices,
+		CurrentIdx: -1,
+		EdgeTree:   &triangulateEdgeTree{},
+		Helpers:    map[*Segment]Coord{},
+	}
+	if state.vertexType(state.Coords[0]) != triangulateVertexStart {
+		panic("invalid initial vertex type")
+	}
+	return state
+}
+
+func (t *triangulateSweepState) Done() bool {
+	return t.CurrentIdx+1 >= len(t.Coords)
+}
+
+func (t *triangulateSweepState) Next() {
+	t.CurrentIdx++
+	v := t.Coords[t.CurrentIdx]
+
+	switch t.vertexType(v) {
+	case triangulateVertexStart:
+		s1, s2 := t.findEdges(v)
+		t.EdgeTree.Insert(s1)
+		t.EdgeTree.Insert(s2)
+		t.Helpers[triangulateHigherSegment(s1, s2)] = v
+	case triangulateVertexEnd:
+		s1, s2 := t.findEdges(v)
+		t.fixUp(v, triangulateHigherSegment(s1, s2))
+		t.removeEdges(s1, s2)
+	case triangulateVertexUpperChain:
+		newEdge, oldEdge := t.findEdges(v)
+		t.fixUp(v, oldEdge)
+		t.removeEdges(oldEdge)
+		t.EdgeTree.Insert(newEdge)
+		t.Helpers[newEdge] = v
+	case triangulateVertexLowerChain:
+		oldEdge, newEdge := t.findEdges(v)
+		t.fixUp(v, oldEdge)
+		t.removeEdges(oldEdge)
+		t.EdgeTree.Insert(newEdge)
+		t.Helpers[newEdge] = v
+	case triangulateVertexSplit:
+		s1, s2 := t.findEdges(v)
+		above := t.EdgeTree.FindAbove(v)
+		helper := t.Helpers[above]
+		t.Generated = append(t.Generated, &Segment{helper, v})
+		for _, seg := range []*Segment{s1, s2} {
+			t.EdgeTree.Insert(seg)
+			t.Helpers[seg] = v
+		}
+	case triangulateVertexMerge:
+		s1, s2 := t.findEdges(v)
+		lowerEdge := triangulateLowerSegment(s1, s2)
+		t.removeEdges(s1, s2)
+		above := t.EdgeTree.FindAbove(v)
+		t.fixUp(v, lowerEdge)
+		t.fixUp(v, above)
+		t.Helpers[above] = v
+	}
+}
+
+func (t *triangulateSweepState) fixUp(c Coord, s *Segment) {
+	helper, ok := t.Helpers[s]
+	if !ok {
+		panic("no helper found")
+	}
+	if t.vertexType(helper) == triangulateVertexMerge {
+		t.Generated = append(t.Generated, &Segment{c, helper})
+	}
+}
+
+func (t *triangulateSweepState) vertexType(c Coord) triangulateVertexType {
+	s1, s2 := t.findEdges(c)
+	start, end := s1[0], s2[1]
+	if start.X == end.X || start.X == c.X || end.X == c.X {
+		panic("no x values should be exactly equal")
+	}
+	if start.X > c.X && end.X > c.X {
+		if triangulateHigherSegment(s1, s2) == s1 {
+			return triangulateVertexStart
+		} else {
+			return triangulateVertexSplit
+		}
+	} else if start.X < c.X && end.X < c.X {
+		if triangulateHigherSegment(s1, s2) == s1 {
+			return triangulateVertexMerge
+		} else {
+			return triangulateVertexEnd
+		}
+	} else {
+		if start.X < end.X {
+			return triangulateVertexLowerChain
+		} else {
+			return triangulateVertexUpperChain
+		}
+	}
+}
+
+func (t *triangulateSweepState) findEdges(c Coord) (s1, s2 *Segment) {
+	segs := t.Mesh.Find(c)
+	if len(segs) != 2 {
+		panic("mesh is non-manifold")
+	}
+	s1, s2 = segs[0], segs[1]
+	if s1[1] != c {
+		s1, s2 = s2, s1
+	}
+	if s1[1] != c {
+		panic("mesh has incorrect normal orientation (segment out of order)")
+	}
+	return
+}
+
+func (t *triangulateSweepState) removeEdges(segs ...*Segment) {
+	for _, seg := range segs {
+		t.EdgeTree.Delete(seg)
+		delete(t.Helpers, seg)
+	}
 }
 
 type triangulateEdgeTree struct {
@@ -255,4 +418,20 @@ func (s *sortedEdge) yAtX(x float64) float64 {
 	}
 	fraction := (x - s.minX) / (s.maxX - s.minX)
 	return fraction*s.yAtMaxX + (1-fraction)*s.yAtMinX
+}
+
+func triangulateHigherSegment(s1, s2 *Segment) *Segment {
+	if newSortedEdge(s1).Compare(newSortedEdge(s2)) == 1 {
+		return s1
+	} else {
+		return s1
+	}
+}
+
+func triangulateLowerSegment(s1, s2 *Segment) *Segment {
+	if triangulateHigherSegment(s1, s2) == s1 {
+		return s2
+	} else {
+		return s1
+	}
 }
