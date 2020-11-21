@@ -123,17 +123,59 @@ const (
 	triangulateVertexLowerChain
 )
 
-// triangulateMonotoneSplits creates segments which induce
-// monotone sub-polygons for a polygon.
+// triangulateMonotoneMeshes creates monotone meshes that
+// comprise the entire mesh m.
 //
 // The are several assumptions on m:
 //
 //     * No two coordinates have the same x value
 //     * No segments have infinite slope.
 //     * This is either a simple polygon, or a polygon with one
-//       layer of holes.
+//       depth of holes.
 //     * The normals are correct.
 //
+func triangulateMonotoneMeshes(m *Mesh) []*Mesh {
+	splits := triangulateMonotoneSplits(m)
+
+	combined := NewMeshSegments(m.SegmentsSlice())
+	for _, s := range splits {
+		combined.Add(s)
+		combined.Add(&Segment{s[1], s[0]})
+	}
+
+	var subMeshes []*Mesh
+	for {
+		segs := combined.SegmentsSlice()
+		if len(segs) == 0 {
+			break
+		}
+		// Walk a polygon in order, i.e. the first coordinate of each
+		// segment should be the second coordinate of the previous.
+		// This way, each ordering of the split segments should be
+		// attached to a different polygon.
+		seg := segs[0]
+		subMesh := NewMesh()
+		for seg != nil {
+			subMesh.Add(seg)
+			combined.Remove(seg)
+			nextStart := seg[1]
+			seg = nil
+			for _, s := range subMesh.Find(nextStart) {
+				if s[0] == nextStart {
+					seg = s
+					break
+				}
+			}
+		}
+		subMeshes = append(subMeshes, subMesh)
+	}
+	return subMeshes
+}
+
+// triangulateMonotoneSplits creates segments which induce
+// monotone sub-polygons for a polygon.
+//
+// See triangulateMonotoneMeshes() for restrictions.
 func triangulateMonotoneSplits(m *Mesh) []*Segment {
 	state := newTriangulateSweepState(m)
 	for !state.Done() {
