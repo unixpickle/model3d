@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/splaytree"
 )
 
 // Triangulate turns any simple polygon into a set of
@@ -108,4 +109,150 @@ func removeColinearPoints(poly []Coord) []Coord {
 		}
 	}
 	return res
+}
+
+type triangulateSweepState struct {
+	Coords     []Coord
+	CurrentIdx int
+
+	EdgeTree *triangulateEdgeTree
+}
+
+type triangulateEdgeTree struct {
+	Tree splaytree.Tree
+}
+
+func (t *triangulateEdgeTree) Insert(s *Segment) {
+	t.Tree.Insert(newSortedEdge(s))
+}
+
+func (t *triangulateEdgeTree) Delete(s *Segment) {
+	t.Tree.Delete(newSortedEdge(s))
+}
+
+func (t *triangulateEdgeTree) FindAbove(c Coord) *Segment {
+	return t.findAbove(t.Tree.Root, c)
+}
+
+func (t *triangulateEdgeTree) findAbove(n *splaytree.Node, c Coord) *Segment {
+	if n.Value == nil {
+		return nil
+	}
+	comp := n.Value.(*sortedEdge).ComparePoint(c)
+	if comp == -1 {
+		// This node is below the vertex.
+		return t.findAbove(n.Right, c)
+	} else if comp == 1 {
+		res := t.findAbove(n.Left, c)
+		if res == nil {
+			return n.Value.(*sortedEdge).Segment
+		}
+		return res
+	} else {
+		panic("vertex intersects an edge in the state")
+	}
+}
+
+type sortedEdge struct {
+	Segment *Segment
+
+	minX    float64
+	yAtMinX float64
+	maxX    float64
+	yAtMaxX float64
+	slope   float64
+}
+
+func newSortedEdge(s *Segment) *sortedEdge {
+	minX, yAtMinX := s[0].X, s[0].Y
+	maxX, yAtMaxX := s[1].X, s[1].Y
+	if minX > maxX {
+		minX, maxX = maxX, minX
+		yAtMinX, yAtMaxX = yAtMaxX, yAtMinX
+	}
+	return &sortedEdge{
+		Segment: s,
+		minX:    minX,
+		yAtMinX: yAtMinX,
+		maxX:    maxX,
+		yAtMaxX: yAtMaxX,
+		slope:   (yAtMaxX - yAtMinX) / (maxX - minX),
+	}
+}
+
+// Compare compares two edges in terms of y value,
+// assuming the edges overlap in the x axis but do not
+// intersect.
+func (s *sortedEdge) Compare(other splaytree.Value) int {
+	s1 := other.(*sortedEdge)
+	if s1.Segment == s.Segment {
+		return 0
+	}
+
+	// Deal with segments that have the same endpoint.
+	if s1.minX == s.minX {
+		if s.slope == s1.slope {
+			panic("segments overlap with same slope")
+		} else if s.slope > s1.slope {
+			return 1
+		} else {
+			return -1
+		}
+	} else if s1.maxX == s.maxX {
+		if s.slope == s1.slope {
+			panic("segments overlap with same slope")
+		} else if s.slope < s1.slope {
+			return 1
+		} else {
+			return -1
+		}
+	}
+
+	var sY, s1Y float64
+	if s1.minX > s.minX {
+		sY = s.yAtX(s1.minX)
+		s1Y = s1.yAtMinX
+	} else {
+		sY = s.yAtMinX
+		s1Y = s.yAtX(s.minX)
+	}
+	if sY > s1Y {
+		return 1
+	} else if s1Y < sY {
+		return 0
+	} else {
+		panic("edges intersect")
+	}
+}
+
+// ComparePoint compares the edge against a point.
+// It returns 1 if the edge is above the point, -1 if
+// below, and 0 if they intersect.
+func (s *sortedEdge) ComparePoint(c Coord) int {
+	if c == s.Segment[0] || c == s.Segment[1] {
+		return 0
+	}
+	if c.X < s.minX || c.Y > s.maxX {
+		panic("coordinate out of bounds")
+	}
+	y := s.yAtX(c.X)
+	if y > c.Y {
+		return 1
+	} else if y < c.Y {
+		return -1
+	} else {
+		return 0
+	}
+}
+
+func (s *sortedEdge) yAtX(x float64) float64 {
+	// Return exact correct values at endpoints to avoid
+	// edge cases from rounding error.
+	if x == s.minX {
+		return s.yAtMinX
+	} else if x == s.maxX {
+		return s.yAtMaxX
+	}
+	fraction := (x - s.minX) / (s.maxX - s.minX)
+	return fraction*s.yAtMaxX + (1-fraction)*s.yAtMinX
 }
