@@ -123,6 +123,91 @@ const (
 	triangulateVertexLowerChain
 )
 
+func triangulateMesh(m *Mesh) [][3]Coord {
+	hierarchies := MeshToHierarchy(m)
+	tris := [][3]Coord{}
+	for _, h := range hierarchies {
+		tris = append(tris, triangulateHierarchy(h)...)
+	}
+	return tris
+}
+
+func triangulateHierarchy(m *MeshHierarchy) [][3]Coord {
+	combined := m.Mesh
+	for _, child := range m.Children {
+		combined.AddMesh(child.Mesh)
+	}
+	tris := triangulateSingleMesh(combined)
+	for _, child := range m.Children {
+		for _, childChild := range child.Children {
+			tris = append(tris, triangulateHierarchy(childChild)...)
+		}
+	}
+	return tris
+}
+
+// triangulateSingleMesh triangulates a mesh with the same
+// restrictions as triangulateMonotoneMeshes().
+func triangulateSingleMesh(m *Mesh) [][3]Coord {
+	tris := [][3]Coord{}
+	for _, m := range triangulateMonotoneMeshes(m) {
+		tris = append(tris, triangulateMonotoneMesh(m)...)
+	}
+	return tris
+}
+
+// triangulateMonotoneMesh triangulates a monotone mesh.
+func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
+	state := newTriangulateSweepState(m)
+
+	stack := []Coord{state.Coords[0]}
+	var stackType triangulateVertexType
+
+	var triangles [][3]Coord
+
+	for i, c := range state.Coords[1:] {
+		vType := state.VertexType(c)
+		if i == 0 {
+			stackType = vType
+			stack = append(stack, c)
+			continue
+		}
+		if vType != stackType {
+			// Create triangles across the entire chain.
+			for i := 0; i < len(stack)-1; i++ {
+				triangles = append(triangles, [3]Coord{stack[i], stack[i+1], c})
+			}
+			stack = []Coord{stack[len(stack)-1], c}
+			stackType = vType
+		} else if stackType == triangulateVertexLowerChain && c.Y > stack[len(stack)-1].Y {
+			for len(stack) > 1 {
+				i := len(stack) - 2
+				if stack[i].Y >= stack[i+1].Y {
+					break
+				}
+				triangles = append(triangles, [3]Coord{stack[i], stack[i+1], c})
+				stack = stack[:i+1]
+			}
+		} else if stackType == triangulateVertexUpperChain && c.Y < stack[len(stack)-1].Y {
+			for len(stack) > 1 {
+				i := len(stack) - 2
+				if stack[i].Y <= stack[i+1].Y {
+					break
+				}
+				triangles = append(triangles, [3]Coord{stack[i], stack[i+1], c})
+				stack = stack[:i+1]
+			}
+		} else {
+			stack = append(stack, c)
+		}
+	}
+	// Close off the remaining triangles
+	for i := 0; i < len(stack)-2; i++ {
+		triangles = append(triangles, [3]Coord{stack[i], stack[i+1], stack[i+2]})
+	}
+	return triangles
+}
+
 // triangulateMonotoneMeshes creates monotone meshes that
 // comprise the entire mesh m.
 //
@@ -208,7 +293,7 @@ func newTriangulateSweepState(m *Mesh) *triangulateSweepState {
 		EdgeTree:   &triangulateEdgeTree{},
 		Helpers:    map[*Segment]Coord{},
 	}
-	if state.vertexType(state.Coords[0]) != triangulateVertexStart {
+	if state.VertexType(state.Coords[0]) != triangulateVertexStart {
 		panic("invalid initial vertex type")
 	}
 	return state
@@ -222,7 +307,7 @@ func (t *triangulateSweepState) Next() {
 	t.CurrentIdx++
 	v := t.Coords[t.CurrentIdx]
 
-	switch t.vertexType(v) {
+	switch t.VertexType(v) {
 	case triangulateVertexStart:
 		s1, s2 := t.findEdges(v)
 		t.EdgeTree.Insert(s1)
@@ -269,12 +354,12 @@ func (t *triangulateSweepState) fixUp(c Coord, s *Segment) {
 	if !ok {
 		panic("no helper found")
 	}
-	if t.vertexType(helper) == triangulateVertexMerge {
+	if t.VertexType(helper) == triangulateVertexMerge {
 		t.Generated = append(t.Generated, &Segment{c, helper})
 	}
 }
 
-func (t *triangulateSweepState) vertexType(c Coord) triangulateVertexType {
+func (t *triangulateSweepState) VertexType(c Coord) triangulateVertexType {
 	s1, s2 := t.findEdges(c)
 	start, end := s1[0], s2[1]
 	if start.X == end.X || start.X == c.X || end.X == c.X {
