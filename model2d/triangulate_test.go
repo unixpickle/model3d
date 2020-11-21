@@ -1,6 +1,7 @@
 package model2d
 
 import (
+	"math"
 	"testing"
 
 	"github.com/unixpickle/essentials"
@@ -54,6 +55,28 @@ func TestTriangulate(t *testing.T) {
 					t.Errorf("mismatched result for uncontained point %v (case %d %d)", c, i, j)
 				}
 			}
+		}
+	}
+}
+
+func TestTriangulateMeshBasic(t *testing.T) {
+	mesh := NewMeshPolar(func(theta float64) float64 {
+		return math.Cos(theta) + 1.5
+	}, 30)
+	tris := triangulateMesh(mesh)
+
+	solid := NewColliderSolid(MeshToCollider(mesh))
+	for i := 0; i < 1000; i++ {
+		c := NewCoordRandBounds(solid.Min(), solid.Max())
+		expected := solid.Contains(c)
+		actual := false
+		for _, t := range tris {
+			if triangle2DContains(t, c) {
+				actual = true
+			}
+		}
+		if actual != expected {
+			t.Fatalf("point %v: contains=%v but got %v", c, expected, actual)
 		}
 	}
 }

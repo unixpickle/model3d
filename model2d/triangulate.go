@@ -124,10 +124,17 @@ const (
 )
 
 func triangulateMesh(m *Mesh) [][3]Coord {
+	m, inv := misalignMesh(m)
 	hierarchies := MeshToHierarchy(m)
 	tris := [][3]Coord{}
 	for _, h := range hierarchies {
 		tris = append(tris, triangulateHierarchy(h)...)
+	}
+	for i, t := range tris {
+		for j, c := range t {
+			t[j] = inv(c)
+		}
+		tris[i] = t
 	}
 	return tris
 }
@@ -245,7 +252,7 @@ func triangulateMonotoneMeshes(m *Mesh) []*Mesh {
 			combined.Remove(seg)
 			nextStart := seg[1]
 			seg = nil
-			for _, s := range subMesh.Find(nextStart) {
+			for _, s := range combined.Find(nextStart) {
 				if s[0] == nextStart {
 					seg = s
 					break
@@ -318,15 +325,16 @@ func (t *triangulateSweepState) Next() {
 		t.fixUp(v, triangulateHigherSegment(s1, s2))
 		t.removeEdges(s1, s2)
 	case triangulateVertexUpperChain:
-		newEdge, oldEdge := t.findEdges(v)
+		oldEdge, newEdge := t.findEdges(v)
 		t.fixUp(v, oldEdge)
 		t.removeEdges(oldEdge)
 		t.EdgeTree.Insert(newEdge)
 		t.Helpers[newEdge] = v
 	case triangulateVertexLowerChain:
-		oldEdge, newEdge := t.findEdges(v)
-		t.fixUp(v, oldEdge)
+		newEdge, oldEdge := t.findEdges(v)
 		t.removeEdges(oldEdge)
+		aboveEdge := t.EdgeTree.FindAbove(v)
+		t.fixUp(v, aboveEdge)
 		t.EdgeTree.Insert(newEdge)
 		t.Helpers[newEdge] = v
 	case triangulateVertexSplit:
@@ -366,19 +374,19 @@ func (t *triangulateSweepState) VertexType(c Coord) triangulateVertexType {
 		panic("no x values should be exactly equal")
 	}
 	if start.X > c.X && end.X > c.X {
-		if triangulateHigherSegment(s1, s2) == s1 {
+		if triangulateHigherSegment(s1, s2) == s2 {
 			return triangulateVertexStart
 		} else {
 			return triangulateVertexSplit
 		}
 	} else if start.X < c.X && end.X < c.X {
-		if triangulateHigherSegment(s1, s2) == s1 {
+		if triangulateHigherSegment(s1, s2) == s2 {
 			return triangulateVertexMerge
 		} else {
 			return triangulateVertexEnd
 		}
 	} else {
-		if start.X < end.X {
+		if start.X > end.X {
 			return triangulateVertexLowerChain
 		} else {
 			return triangulateVertexUpperChain
@@ -425,7 +433,7 @@ func (t *triangulateEdgeTree) FindAbove(c Coord) *Segment {
 }
 
 func (t *triangulateEdgeTree) findAbove(n *splaytree.Node, c Coord) *Segment {
-	if n.Value == nil {
+	if n == nil {
 		return nil
 	}
 	comp := n.Value.(*sortedEdge).ComparePoint(c)
@@ -504,12 +512,12 @@ func (s *sortedEdge) Compare(other splaytree.Value) int {
 		s1Y = s1.yAtMinX
 	} else {
 		sY = s.yAtMinX
-		s1Y = s.yAtX(s.minX)
+		s1Y = s1.yAtX(s.minX)
 	}
 	if sY > s1Y {
 		return 1
-	} else if s1Y < sY {
-		return 0
+	} else if sY < s1Y {
+		return -1
 	} else {
 		panic("edges intersect")
 	}
@@ -522,7 +530,7 @@ func (s *sortedEdge) ComparePoint(c Coord) int {
 	if c == s.Segment[0] || c == s.Segment[1] {
 		return 0
 	}
-	if c.X < s.minX || c.Y > s.maxX {
+	if c.X < s.minX || c.X > s.maxX {
 		panic("coordinate out of bounds")
 	}
 	y := s.yAtX(c.X)
@@ -551,7 +559,7 @@ func triangulateHigherSegment(s1, s2 *Segment) *Segment {
 	if newSortedEdge(s1).Compare(newSortedEdge(s2)) == 1 {
 		return s1
 	} else {
-		return s1
+		return s2
 	}
 }
 

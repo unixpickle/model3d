@@ -7,8 +7,8 @@ import "math"
 // The order determines the normal direction.
 //
 // In particular, if the segments in a polygon go in the
-// clockwise direction (assuming the y-axis faces down),
-// then the normals face outwards from the polygon.
+// clockwise direction, assuming the y-axis faces up, then
+// the normals face outwards from the polygon.
 type Segment [2]Coord
 
 // Normal computes the normal vector to the segment,
