@@ -231,8 +231,9 @@ func triangulateMonotoneMeshes(m *Mesh) []*Mesh {
 
 	combined := NewMeshSegments(m.SegmentsSlice())
 	for _, s := range splits {
+		reverse := &Segment{s[1], s[0]}
 		combined.Add(s)
-		combined.Add(&Segment{s[1], s[0]})
+		combined.Add(reverse)
 	}
 
 	var subMeshes []*Mesh
@@ -246,22 +247,42 @@ func triangulateMonotoneMeshes(m *Mesh) []*Mesh {
 		// This way, each ordering of the split segments should be
 		// attached to a different polygon.
 		seg := segs[0]
+		startPoint := seg[0]
 		subMesh := NewMesh()
 		for seg != nil {
 			subMesh.Add(seg)
 			combined.Remove(seg)
+			if seg[1] == startPoint {
+				break
+			}
 			nextStart := seg[1]
-			seg = nil
+			potentialSegs := []*Segment{}
 			for _, s := range combined.Find(nextStart) {
-				if s[0] == nextStart {
-					seg = s
-					break
+				if s[0] == seg[1] && (s[1] != seg[0] || s[0] != seg[1]) {
+					potentialSegs = append(potentialSegs, s)
 				}
 			}
+			seg = segmentWithSmallestAngle(seg, potentialSegs)
 		}
 		subMeshes = append(subMeshes, subMesh)
 	}
 	return subMeshes
+}
+
+func segmentWithSmallestAngle(s *Segment, potential []*Segment) *Segment {
+	if len(potential) == 0 {
+		return nil
+	}
+	bestAngle := 10.0
+	bestSegment := potential[0]
+	for _, s1 := range potential {
+		theta := clockwiseAngle(s[0], s[1], s1[1])
+		if theta < bestAngle {
+			bestAngle = theta
+			bestSegment = s1
+		}
+	}
+	return bestSegment
 }
 
 // triangulateMonotoneSplits creates segments which induce
@@ -349,9 +370,9 @@ func (t *triangulateSweepState) Next() {
 	case triangulateVertexMerge:
 		s1, s2 := t.findEdges(v)
 		lowerEdge := triangulateLowerSegment(s1, s2)
+		t.fixUp(v, lowerEdge)
 		t.removeEdges(s1, s2)
 		above := t.EdgeTree.FindAbove(v)
-		t.fixUp(v, lowerEdge)
 		t.fixUp(v, above)
 		t.Helpers[above] = v
 	}
