@@ -1,6 +1,7 @@
 package model2d
 
 import (
+	"image/color"
 	"math"
 	"testing"
 
@@ -64,6 +65,45 @@ func TestTriangulateMeshBasic(t *testing.T) {
 		return math.Cos(theta) + 1.5
 	}, 30)
 	tris := triangulateMesh(mesh)
+
+	solid := NewColliderSolid(MeshToCollider(mesh))
+	for i := 0; i < 1000; i++ {
+		c := NewCoordRandBounds(solid.Min(), solid.Max())
+		expected := solid.Contains(c)
+		actual := false
+		for _, t := range tris {
+			if triangle2DContains(t, c) {
+				actual = true
+			}
+		}
+		if actual != expected {
+			t.Fatalf("point %v: contains=%v but got %v", c, expected, actual)
+		}
+	}
+}
+
+func TestTriangulateMeshComplex(t *testing.T) {
+	// Create a testing mesh with holes, etc.
+	bitmap := MustReadBitmap("test_data/test_bitmap_small.png", func(c color.Color) bool {
+		r, g, b, _ := c.RGBA()
+		return r == 0 && g == 0 && b == 0
+	})
+	mesh := bitmap.Mesh().SmoothSq(30)
+	if !mesh.Manifold() {
+		t.Fatal("non-manifold mesh")
+	}
+
+	tris := triangulateMesh(mesh)
+	if len(tris) == 0 {
+		panic("no triangles")
+	}
+
+	for _, tri := range tris {
+		if !isPolygonClockwise(tri[:]) {
+			t.Errorf("triangle is not clockwise: %v", tri)
+			break
+		}
+	}
 
 	solid := NewColliderSolid(MeshToCollider(mesh))
 	for i := 0; i < 1000; i++ {

@@ -182,7 +182,11 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 		if vType != stackType {
 			// Create triangles across the entire chain.
 			for i := 0; i < len(stack)-1; i++ {
-				triangles = append(triangles, [3]Coord{stack[i], stack[i+1], c})
+				tri := [3]Coord{stack[i], stack[i+1], c}
+				if !isPolygonClockwise(tri[:]) {
+					tri[0], tri[1] = tri[1], tri[0]
+				}
+				triangles = append(triangles, tri)
 			}
 			stack = []Coord{stack[len(stack)-1], c}
 			stackType = vType
@@ -192,7 +196,7 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 				if stack[i].Y >= stack[i+1].Y {
 					break
 				}
-				triangles = append(triangles, [3]Coord{stack[i], stack[i+1], c})
+				triangles = append(triangles, [3]Coord{stack[i+1], stack[i], c})
 				stack = stack[:i+1]
 			}
 		} else if stackType == triangulateVertexUpperChain && c.Y < stack[len(stack)-1].Y {
@@ -210,7 +214,11 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 	}
 	// Close off the remaining triangles
 	for i := 0; i < len(stack)-2; i++ {
-		triangles = append(triangles, [3]Coord{stack[i], stack[i+1], stack[i+2]})
+		if stackType == triangulateVertexLowerChain {
+			triangles = append(triangles, [3]Coord{stack[i+1], stack[i], stack[i+2]})
+		} else {
+			triangles = append(triangles, [3]Coord{stack[i], stack[i+1], stack[i+2]})
+		}
 	}
 	return triangles
 }
