@@ -49,6 +49,9 @@ func TriangulateMesh(m *Mesh) [][3]Coord {
 // Unlike TriangulateMesh, the order of the coordinates
 // needn't be clockwise, and the orientation of the
 // resulting triangles is undefined.
+//
+// This should only be used for polygons with several
+// vertices. For more complex shapes, use TriangulateMesh.
 func Triangulate(polygon []Coord) [][3]Coord {
 	polygon = removeColinearPoints(polygon)
 
@@ -198,7 +201,20 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 			stack = append(stack, c)
 			continue
 		}
-		if vType != stackType {
+		if vType == triangulateVertexEnd {
+			// Close off the remaining triangles
+			for i := 0; i < len(stack)-1; i++ {
+				tri := [3]Coord{stack[i], stack[i+1], c}
+				if !isPolygonClockwise(tri[:]) {
+					tri[0], tri[1] = tri[1], tri[0]
+				}
+				triangles = append(triangles, tri)
+			}
+			if i != len(state.Coords)-2 {
+				panic("polygon was not monotone")
+			}
+			stack = nil
+		} else if vType != stackType {
 			// Create triangles across the entire chain.
 			for i := 0; i < len(stack)-1; i++ {
 				tri := [3]Coord{stack[i], stack[i+1], c}
@@ -212,32 +228,29 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 		} else if stackType == triangulateVertexLowerChain && c.Y > stack[len(stack)-1].Y {
 			for len(stack) > 1 {
 				i := len(stack) - 2
-				if stack[i].Y >= stack[i+1].Y {
+				if stack[i].Y <= stack[i+1].Y {
 					break
 				}
 				triangles = append(triangles, [3]Coord{stack[i+1], stack[i], c})
 				stack = stack[:i+1]
 			}
+			stack = append(stack, c)
 		} else if stackType == triangulateVertexUpperChain && c.Y < stack[len(stack)-1].Y {
 			for len(stack) > 1 {
 				i := len(stack) - 2
-				if stack[i].Y <= stack[i+1].Y {
+				if stack[i].Y >= stack[i+1].Y {
 					break
 				}
 				triangles = append(triangles, [3]Coord{stack[i], stack[i+1], c})
 				stack = stack[:i+1]
 			}
+			stack = append(stack, c)
 		} else {
 			stack = append(stack, c)
 		}
 	}
-	// Close off the remaining triangles
-	for i := 0; i < len(stack)-2; i++ {
-		if stackType == triangulateVertexLowerChain {
-			triangles = append(triangles, [3]Coord{stack[i+1], stack[i], stack[i+2]})
-		} else {
-			triangles = append(triangles, [3]Coord{stack[i], stack[i+1], stack[i+2]})
-		}
+	if len(stack) != 0 {
+		panic("polygon was not monotone")
 	}
 	return triangles
 }

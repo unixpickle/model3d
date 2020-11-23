@@ -66,6 +66,8 @@ func TestTriangulateMeshBasic(t *testing.T) {
 	}, 30)
 	tris := TriangulateMesh(mesh)
 
+	testTriangulatedEdgeCounts(t, tris, mesh)
+
 	solid := NewColliderSolid(MeshToCollider(mesh))
 	for i := 0; i < 1000; i++ {
 		c := NewCoordRandBounds(solid.Min(), solid.Max())
@@ -98,6 +100,8 @@ func TestTriangulateMeshComplex(t *testing.T) {
 		panic("no triangles")
 	}
 
+	testTriangulatedEdgeCounts(t, tris, mesh)
+
 	for _, tri := range tris {
 		if !isPolygonClockwise(tri[:]) {
 			t.Errorf("triangle is not clockwise: %v", tri)
@@ -127,4 +131,33 @@ func triangle2DContains(tri [3]Coord, p Coord) bool {
 	mat := (&Matrix2{v1.X, v2.X, v1.Y, v2.Y}).Inverse()
 	coords := mat.MulColumn(p.Sub(tri[1]))
 	return coords.X >= 0 && coords.Y >= 0 && coords.X+coords.Y <= 1
+}
+
+func testTriangulatedEdgeCounts(t *testing.T, tris [][3]Coord, m *Mesh) {
+	dupMesh := NewMesh()
+	for _, t := range tris {
+		for i := 0; i < 3; i++ {
+			dupMesh.Add(&Segment{t[i], t[(i+1)%3]})
+		}
+	}
+	broken := NewMesh()
+	dupMesh.Iterate(func(s *Segment) {
+		dupCount := len(dupMesh.Find(s[0], s[1]))
+		if len(m.Find(s[0], s[1])) == 1 {
+			// This is an exterior edge.
+			if dupCount != 1 {
+				t.Errorf("expected exactly 1 copy of exterior edge but got %d", dupCount)
+			}
+		} else {
+			if dupCount != 2 {
+				t.Errorf("expected exactly 2 copies of interior edge but got %d", dupCount)
+				broken.Add(s)
+			}
+		}
+	})
+	m.Iterate(func(s *Segment) {
+		if n := len(dupMesh.Find(s[0], s[1])); n != 1 {
+			t.Errorf("exterior edge should have count 1 but got %d", n)
+		}
+	})
 }
