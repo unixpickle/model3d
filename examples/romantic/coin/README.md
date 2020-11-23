@@ -1,6 +1,6 @@
 # coin
 
-This tool creates one-sided coin models. The depth of the face of the coin is determined at each point by an image, where black represents a protruding part of the coin, and white represents a recessed part.
+This tool creates one-sided coin models. The pattern on the coin is defined by an image, which is black on the face of the coin, and white on the recessed parts.
 
 Here is a sample rendering:
 
