@@ -87,6 +87,16 @@ func (m *MeshHierarchy) insertLeaf(mesh *Mesh, solid Solid, c Coord) {
 	})
 }
 
+// FullMesh re-combines the root mesh with all of its
+// children.
+func (m *MeshHierarchy) FullMesh() *Mesh {
+	res := NewMeshSegments(m.Mesh.SegmentsSlice())
+	for _, child := range m.Children {
+		res.AddMesh(child.FullMesh())
+	}
+	return res
+}
+
 // MapCoords creates a new MeshHierarchy by applying f to
 // every coordinate in every mesh.
 func (m *MeshHierarchy) MapCoords(f func(Coord) Coord) *MeshHierarchy {
