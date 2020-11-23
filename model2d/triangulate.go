@@ -349,8 +349,9 @@ type triangulateSweepState struct {
 	Coords     []Coord
 	CurrentIdx int
 
-	EdgeTree *triangulateEdgeTree
-	Helpers  map[*Segment]Coord
+	EdgeTree   *triangulateEdgeTree
+	Helpers    map[*Segment]Coord
+	DoneMerges map[Coord]bool
 
 	Generated []*Segment
 }
@@ -367,6 +368,7 @@ func newTriangulateSweepState(m *Mesh) *triangulateSweepState {
 		CurrentIdx: -1,
 		EdgeTree:   &triangulateEdgeTree{},
 		Helpers:    map[*Segment]Coord{},
+		DoneMerges: map[Coord]bool{},
 	}
 	if state.VertexType(state.Coords[0]) != triangulateVertexStart {
 		panic("invalid initial vertex type")
@@ -457,8 +459,9 @@ func (t *triangulateSweepState) fixUp(c Coord, s *Segment) {
 	if !ok {
 		panic("no helper found")
 	}
-	if t.VertexType(helper) == triangulateVertexMerge {
+	if t.VertexType(helper) == triangulateVertexMerge && !t.DoneMerges[helper] {
 		t.Generated = append(t.Generated, &Segment{c, helper})
+		t.DoneMerges[helper] = true
 	}
 }
 

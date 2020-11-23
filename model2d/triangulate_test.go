@@ -2,7 +2,10 @@ package model2d
 
 import (
 	"image/color"
+	"io/ioutil"
 	"math"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/unixpickle/essentials"
@@ -131,6 +134,40 @@ func triangle2DContains(tri [3]Coord, p Coord) bool {
 	mat := (&Matrix2{v1.X, v2.X, v1.Y, v2.Y}).Inverse()
 	coords := mat.MulColumn(p.Sub(tri[1]))
 	return coords.X >= 0 && coords.Y >= 0 && coords.X+coords.Y <= 1
+}
+
+func TestTriangulateMeshErrorCase(t *testing.T) {
+	data, err := ioutil.ReadFile("test_data/triangulate_breaker.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := strings.Split(strings.TrimSpace(string(data)), " ")
+	mesh := NewMesh()
+	for _, part := range parts {
+		coordStrs := strings.Split(part, ",")
+		coords := [4]float64{}
+		for i, s := range coordStrs {
+			coords[i], err = strconv.ParseFloat(s, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		mesh.Add(&Segment{XY(coords[0], coords[1]), XY(coords[2], coords[3])})
+	}
+
+	// The interior mesh is the one with issues.
+	mesh = MeshToHierarchy(mesh)[0].Children[0].FullMesh()
+	mesh.Iterate(func(s *Segment) {
+		mesh.Remove(s)
+		mesh.Add(&Segment{s[1], s[0]})
+	})
+
+	tris := TriangulateMesh(mesh)
+	if len(tris) == 0 {
+		panic("no triangles")
+	}
+
+	testTriangulatedEdgeCounts(t, tris, mesh)
 }
 
 func testTriangulatedEdgeCounts(t *testing.T, tris [][3]Coord, m *Mesh) {
