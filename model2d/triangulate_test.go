@@ -64,7 +64,7 @@ func TestTriangulateMeshBasic(t *testing.T) {
 	mesh := NewMeshPolar(func(theta float64) float64 {
 		return math.Cos(theta) + 1.5
 	}, 30)
-	tris := triangulateMesh(mesh)
+	tris := TriangulateMesh(mesh)
 
 	solid := NewColliderSolid(MeshToCollider(mesh))
 	for i := 0; i < 1000; i++ {
@@ -93,7 +93,7 @@ func TestTriangulateMeshComplex(t *testing.T) {
 		t.Fatal("non-manifold mesh")
 	}
 
-	tris := triangulateMesh(mesh)
+	tris := TriangulateMesh(mesh)
 	if len(tris) == 0 {
 		panic("no triangles")
 	}

@@ -8,12 +8,47 @@ import (
 	"github.com/unixpickle/splaytree"
 )
 
+// TriangulateMesh creates a minimal collection of
+// triangles that cover the enclosed region of a mesh.
+//
+// The mesh must be manifold, non-intersecting, and have
+// the correct orientation (i.e. correct normals).
+// The mesh may have holes, and is assumed to obey the
+// even-odd rule for containment.
+// If the mesh does not meet the expected criteria, the
+// behavior of TriangulateMesh is undefined and may result
+// in a panic.
+//
+// The vertices of the resulting triangles are ordered
+// clockwise (assuming a y-axis that points upward).
+// This way, each triangle can itself be considered a
+// minimal, correctly-oriented mesh.
+func TriangulateMesh(m *Mesh) [][3]Coord {
+	m, inv := misalignMesh(m)
+	hierarchies := misalignedMeshToHierarchy(m)
+	tris := [][3]Coord{}
+	for _, h := range hierarchies {
+		tris = append(tris, triangulateHierarchy(h)...)
+	}
+	for i, t := range tris {
+		for j, c := range t {
+			t[j] = inv(c)
+		}
+		tris[i] = t
+	}
+	return tris
+}
+
 // Triangulate turns any simple polygon into a set of
 // equivalent triangles.
 //
 // The polygon is passed as a series of points, in order.
 // The first point is re-used as the ending point, so no
 // ending should be explicitly specified.
+//
+// Unlike TriangulateMesh, the order of the coordinates
+// needn't be clockwise, and the orientation of the
+// resulting triangles is undefined.
 func Triangulate(polygon []Coord) [][3]Coord {
 	polygon = removeColinearPoints(polygon)
 
@@ -123,22 +158,6 @@ const (
 	triangulateVertexLowerChain
 )
 
-func triangulateMesh(m *Mesh) [][3]Coord {
-	m, inv := misalignMesh(m)
-	hierarchies := MeshToHierarchy(m)
-	tris := [][3]Coord{}
-	for _, h := range hierarchies {
-		tris = append(tris, triangulateHierarchy(h)...)
-	}
-	for i, t := range tris {
-		for j, c := range t {
-			t[j] = inv(c)
-		}
-		tris[i] = t
-	}
-	return tris
-}
-
 func triangulateHierarchy(m *MeshHierarchy) [][3]Coord {
 	combined := m.Mesh
 	for _, child := range m.Children {
@@ -154,10 +173,10 @@ func triangulateHierarchy(m *MeshHierarchy) [][3]Coord {
 }
 
 // triangulateSingleMesh triangulates a mesh with the same
-// restrictions as triangulateMonotoneMeshes().
+// restrictions as triangulateMonotoneDecomp().
 func triangulateSingleMesh(m *Mesh) [][3]Coord {
 	tris := [][3]Coord{}
-	for _, m := range triangulateMonotoneMeshes(m) {
+	for _, m := range triangulateMonotoneDecomp(m) {
 		tris = append(tris, triangulateMonotoneMesh(m)...)
 	}
 	return tris
@@ -223,8 +242,8 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 	return triangles
 }
 
-// triangulateMonotoneMeshes creates monotone meshes that
-// comprise the entire mesh m.
+// triangulateMonotoneDecomp creates monotone meshes that
+// cover the entire mesh m.
 //
 // The are several assumptions on m:
 //
@@ -234,7 +253,7 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 //       depth of holes.
 //     * The normals are correct.
 //
-func triangulateMonotoneMeshes(m *Mesh) []*Mesh {
+func triangulateMonotoneDecomp(m *Mesh) []*Mesh {
 	splits := triangulateMonotoneSplits(m)
 
 	combined := NewMeshSegments(m.SegmentsSlice())
@@ -296,7 +315,7 @@ func segmentWithSmallestAngle(s *Segment, potential []*Segment) *Segment {
 // triangulateMonotoneSplits creates segments which induce
 // monotone sub-polygons for a polygon.
 //
-// See triangulateMonotoneMeshes() for restrictions.
+// See triangulateMonotoneDecomp() for restrictions.
 func triangulateMonotoneSplits(m *Mesh) []*Segment {
 	state := newTriangulateSweepState(m)
 	for !state.Done() {
@@ -305,6 +324,13 @@ func triangulateMonotoneSplits(m *Mesh) []*Segment {
 	return state.Generated
 }
 
+// triangulateSweepState tracks the process of a sweep
+// along the x-axis while decomposing a polygon into
+// monotone polygons.
+//
+// The implementation is based on the analysis from
+// "CMSC 754: Lecture 5 - Polygon Triangulation"
+// (http://www.cs.umd.edu/class/spring2020/cmsc754/Lects/lect05-triangulate.pdf).
 type triangulateSweepState struct {
 	Mesh       *Mesh
 	Coords     []Coord
@@ -386,16 +412,6 @@ func (t *triangulateSweepState) Next() {
 	}
 }
 
-func (t *triangulateSweepState) fixUp(c Coord, s *Segment) {
-	helper, ok := t.Helpers[s]
-	if !ok {
-		panic("no helper found")
-	}
-	if t.VertexType(helper) == triangulateVertexMerge {
-		t.Generated = append(t.Generated, &Segment{c, helper})
-	}
-}
-
 func (t *triangulateSweepState) VertexType(c Coord) triangulateVertexType {
 	s1, s2 := t.findEdges(c)
 	start, end := s1[0], s2[1]
@@ -423,6 +439,16 @@ func (t *triangulateSweepState) VertexType(c Coord) triangulateVertexType {
 	}
 }
 
+func (t *triangulateSweepState) fixUp(c Coord, s *Segment) {
+	helper, ok := t.Helpers[s]
+	if !ok {
+		panic("no helper found")
+	}
+	if t.VertexType(helper) == triangulateVertexMerge {
+		t.Generated = append(t.Generated, &Segment{c, helper})
+	}
+}
+
 func (t *triangulateSweepState) findEdges(c Coord) (s1, s2 *Segment) {
 	segs := t.Mesh.Find(c)
 	if len(segs) != 2 {
@@ -445,6 +471,11 @@ func (t *triangulateSweepState) removeEdges(segs ...*Segment) {
 	}
 }
 
+// triangulateEdgeTree sorts edges in a mesh along the
+// y-axis, for efficient modification and lookup.
+//
+// Edges can be sorted in this way so long as they do not
+// intersect, and all overlap in their x-axis projections.
 type triangulateEdgeTree struct {
 	Tree splaytree.Tree
 }
