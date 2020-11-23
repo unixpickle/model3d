@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"image/color"
 	_ "image/jpeg"
 	_ "image/png"
@@ -41,14 +40,6 @@ func main() {
 
 	log.Println("Creating 2D mesh from template...")
 	mesh := ReadTemplateIntoMesh(template, msResolution, smoothIters, radius)
-	data := ""
-	mesh.Iterate(func(s *model2d.Segment) {
-		if len(data) > 0 {
-			data += " "
-		}
-		data += fmt.Sprintf("%f,%f,%f,%f", s[0].X, s[0].Y, s[1].X, s[1].Y)
-	})
-	fmt.Println(data)
 
 	mesh3d := model3d.NewMesh()
 
