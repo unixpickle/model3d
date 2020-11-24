@@ -70,21 +70,7 @@ func TestTriangulateMeshBasic(t *testing.T) {
 	tris := TriangulateMesh(mesh)
 
 	testTriangulatedEdgeCounts(t, tris, mesh)
-
-	solid := NewColliderSolid(MeshToCollider(mesh))
-	for i := 0; i < 1000; i++ {
-		c := NewCoordRandBounds(solid.Min(), solid.Max())
-		expected := solid.Contains(c)
-		actual := false
-		for _, t := range tris {
-			if triangle2DContains(t, c) {
-				actual = true
-			}
-		}
-		if actual != expected {
-			t.Fatalf("point %v: contains=%v but got %v", c, expected, actual)
-		}
-	}
+	testTriangulatedContainment(t, tris, mesh, 1000)
 }
 
 func TestTriangulateMeshComplex(t *testing.T) {
@@ -104,6 +90,7 @@ func TestTriangulateMeshComplex(t *testing.T) {
 	}
 
 	testTriangulatedEdgeCounts(t, tris, mesh)
+	testTriangulatedContainment(t, tris, mesh, 1000)
 
 	for _, tri := range tris {
 		if !isPolygonClockwise(tri[:]) {
@@ -111,29 +98,6 @@ func TestTriangulateMeshComplex(t *testing.T) {
 			break
 		}
 	}
-
-	solid := NewColliderSolid(MeshToCollider(mesh))
-	for i := 0; i < 1000; i++ {
-		c := NewCoordRandBounds(solid.Min(), solid.Max())
-		expected := solid.Contains(c)
-		actual := false
-		for _, t := range tris {
-			if triangle2DContains(t, c) {
-				actual = true
-			}
-		}
-		if actual != expected {
-			t.Fatalf("point %v: contains=%v but got %v", c, expected, actual)
-		}
-	}
-}
-
-func triangle2DContains(tri [3]Coord, p Coord) bool {
-	v1 := tri[0].Sub(tri[1])
-	v2 := tri[2].Sub(tri[1])
-	mat := (&Matrix2{v1.X, v2.X, v1.Y, v2.Y}).Inverse()
-	coords := mat.MulColumn(p.Sub(tri[1]))
-	return coords.X >= 0 && coords.Y >= 0 && coords.X+coords.Y <= 1
 }
 
 func TestTriangulateMeshErrorCase(t *testing.T) {
@@ -168,6 +132,15 @@ func TestTriangulateMeshErrorCase(t *testing.T) {
 	}
 
 	testTriangulatedEdgeCounts(t, tris, mesh)
+	testTriangulatedContainment(t, tris, mesh, 100)
+}
+
+func triangle2DContains(tri [3]Coord, p Coord) bool {
+	v1 := tri[0].Sub(tri[1])
+	v2 := tri[2].Sub(tri[1])
+	mat := (&Matrix2{v1.X, v2.X, v1.Y, v2.Y}).Inverse()
+	coords := mat.MulColumn(p.Sub(tri[1]))
+	return coords.X >= 0 && coords.Y >= 0 && coords.X+coords.Y <= 1
 }
 
 func testTriangulatedEdgeCounts(t *testing.T, tris [][3]Coord, m *Mesh) {
@@ -195,6 +168,75 @@ func testTriangulatedEdgeCounts(t *testing.T, tris [][3]Coord, m *Mesh) {
 	m.Iterate(func(s *Segment) {
 		if n := len(dupMesh.Find(s[0], s[1])); n != 1 {
 			t.Errorf("exterior edge should have count 1 but got %d", n)
+		}
+	})
+}
+
+func testTriangulatedContainment(t *testing.T, tris [][3]Coord, m *Mesh, n int) {
+	solid := NewColliderSolid(MeshToCollider(m))
+	for i := 0; i < n; i++ {
+		c := NewCoordRandBounds(solid.Min(), solid.Max())
+		expected := solid.Contains(c)
+		actual := false
+		for _, t := range tris {
+			if triangle2DContains(t, c) {
+				actual = true
+			}
+		}
+		if actual != expected {
+			t.Fatalf("point %v: contains=%v but got %v", c, expected, actual)
+		}
+	}
+}
+
+func BenchmarkTriangulate7(b *testing.B) {
+	poly := []Coord{
+		{0, 0},
+		{1, 2},
+		{3, 3},
+		{1, 5},
+		{-1, 3},
+		{2, 3},
+		{0, 2},
+	}
+	mesh := NewMesh()
+	for i := 0; i < len(poly); i++ {
+		mesh.Add(&Segment{poly[(i+1)%len(poly)], poly[i]})
+	}
+
+	b.Run("Triangulate", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Triangulate(poly)
+		}
+	})
+	b.Run("TriangulateMesh", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			TriangulateMesh(mesh)
+		}
+	})
+}
+
+func BenchmarkTriangulate50(b *testing.B) {
+	poly := []Coord{}
+	const numPoints = 50
+	for i := 0; i < numPoints; i++ {
+		theta := math.Pi * 2 * float64(i) / numPoints
+		coord := NewCoordPolar(theta, math.Abs(math.Cos(11*theta))+0.1)
+		poly = append(poly, coord)
+	}
+	mesh := NewMesh()
+	for i := 0; i < len(poly); i++ {
+		mesh.Add(&Segment{poly[(i+1)%len(poly)], poly[i]})
+	}
+
+	b.Run("Triangulate", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Triangulate(poly)
+		}
+	})
+	b.Run("TriangulateMesh", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			TriangulateMesh(mesh)
 		}
 	})
 }
