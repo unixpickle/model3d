@@ -349,9 +349,8 @@ type triangulateSweepState struct {
 	Coords     []Coord
 	CurrentIdx int
 
-	EdgeTree   *triangulateEdgeTree
-	Helpers    map[*Segment]Coord
-	DoneMerges map[Coord]bool
+	EdgeTree *triangulateEdgeTree
+	Helpers  map[*Segment]Coord
 
 	Generated []*Segment
 }
@@ -368,7 +367,6 @@ func newTriangulateSweepState(m *Mesh) *triangulateSweepState {
 		CurrentIdx: -1,
 		EdgeTree:   &triangulateEdgeTree{},
 		Helpers:    map[*Segment]Coord{},
-		DoneMerges: map[Coord]bool{},
 	}
 	if state.VertexType(state.Coords[0]) != triangulateVertexStart {
 		panic("invalid initial vertex type")
@@ -406,7 +404,7 @@ func (t *triangulateSweepState) Next() {
 		aboveEdge := t.EdgeTree.FindAbove(v)
 		t.fixUp(v, aboveEdge)
 		t.EdgeTree.Insert(newEdge)
-		t.Helpers[newEdge] = v
+		t.Helpers[aboveEdge] = v
 	case triangulateVertexSplit:
 		s1, s2 := t.findEdges(v)
 		above := t.EdgeTree.FindAbove(v)
@@ -414,8 +412,10 @@ func (t *triangulateSweepState) Next() {
 		t.Generated = append(t.Generated, &Segment{helper, v})
 		for _, seg := range []*Segment{s1, s2} {
 			t.EdgeTree.Insert(seg)
-			t.Helpers[seg] = v
 		}
+		lower := triangulateLowerSegment(s1, s2)
+		t.Helpers[lower] = v
+		t.Helpers[above] = v
 	case triangulateVertexMerge:
 		s1, s2 := t.findEdges(v)
 		lowerEdge := triangulateLowerSegment(s1, s2)
@@ -459,9 +459,8 @@ func (t *triangulateSweepState) fixUp(c Coord, s *Segment) {
 	if !ok {
 		panic("no helper found")
 	}
-	if t.VertexType(helper) == triangulateVertexMerge && !t.DoneMerges[helper] {
+	if t.VertexType(helper) == triangulateVertexMerge {
 		t.Generated = append(t.Generated, &Segment{c, helper})
-		t.DoneMerges[helper] = true
 	}
 }
 
