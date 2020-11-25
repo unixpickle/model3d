@@ -123,7 +123,16 @@ func clockwiseAngle(p1, p2, p3 Coord) float64 {
 	v2 := p3.Sub(p2)
 	n1 := v1.Normalize()
 	n2 := v2.Normalize()
-	theta := math.Acos(n1.Dot(n2))
+	cosTheta := n1.Dot(n2)
+
+	// Prevent NaN due to rounding error.
+	if cosTheta < -1 {
+		cosTheta = -1
+	} else if cosTheta > 1 {
+		cosTheta = 1
+	}
+
+	theta := math.Acos(cosTheta)
 	theta1 := 2*math.Pi - theta
 
 	rot1 := Matrix2{math.Cos(theta), -math.Sin(theta), math.Sin(theta), math.Cos(theta)}

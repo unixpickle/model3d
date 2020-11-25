@@ -135,6 +135,19 @@ func TestTriangulateMeshErrorCase(t *testing.T) {
 	testTriangulatedContainment(t, tris, mesh, 100)
 }
 
+func TestTriangulateMeshErrorCase2(t *testing.T) {
+	// This error case used to trigger a NaN when
+	// computing angles between segments.
+	bitmap := MustReadBitmap("test_data/test_bitmap.png", func(c color.Color) bool {
+		r, g, b, _ := c.RGBA()
+		return r == 0 && g == 0 && b == 0
+	})
+	mesh := bitmap.Mesh()
+	tris := TriangulateMesh(mesh)
+	testTriangulatedEdgeCounts(t, tris, mesh)
+	testTriangulatedContainment(t, tris, mesh, 100)
+}
+
 func triangle2DContains(tri [3]Coord, p Coord) bool {
 	v1 := tri[0].Sub(tri[1])
 	v2 := tri[2].Sub(tri[1])
