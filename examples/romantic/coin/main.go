@@ -55,7 +55,7 @@ func main() {
 		log.Println("Triangulating mid face...")
 		childTriangles := [][3]model2d.Coord{}
 		for _, child := range h.Children {
-			subTris := model2d.TriangulateMesh(FlipSegments(child.FullMesh()))
+			subTris := model2d.TriangulateMesh(child.FullMesh().Invert())
 			childTriangles = append(childTriangles, subTris...)
 		}
 
@@ -115,12 +115,4 @@ func ReadTemplateIntoMesh(filename string, msResolution float64, smoothIters int
 		&model2d.Circle{Radius: radius},
 	}
 	return model2d.MarchingSquaresSearch(solid, radius*msResolution, 8)
-}
-
-func FlipSegments(m *model2d.Mesh) *model2d.Mesh {
-	res := model2d.NewMesh()
-	m.Iterate(func(s *model2d.Segment) {
-		res.Add(&model2d.Segment{s[1], s[0]})
-	})
-	return res
 }

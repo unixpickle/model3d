@@ -2,6 +2,16 @@ package model2d
 
 import "math"
 
+// Invert flips every segment in the mesh, effectively
+// inverting all the normals.
+func (m *Mesh) Invert() *Mesh {
+	res := NewMesh()
+	m.Iterate(func(s *Segment) {
+		res.Add(&Segment{s[1], s[0]})
+	})
+	return res
+}
+
 // Blur moves each vertex closer to the average of its
 // neighbors.
 //
