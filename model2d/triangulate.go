@@ -135,8 +135,9 @@ func clockwiseAngle(p1, p2, p3 Coord) float64 {
 	theta := math.Acos(cosTheta)
 	theta1 := 2*math.Pi - theta
 
-	rot1 := Matrix2{math.Cos(theta), -math.Sin(theta), math.Sin(theta), math.Cos(theta)}
-	rot2 := Matrix2{math.Cos(theta1), -math.Sin(theta1), math.Sin(theta1), math.Cos(theta1)}
+	cos, sin := math.Cos(theta), math.Sin(theta)
+	rot1 := Matrix2{cos, -sin, sin, cos}
+	rot2 := Matrix2{cos, sin, -sin, cos}
 	dot1 := rot1.MulColumn(n1).Dot(n2)
 	dot2 := rot2.MulColumn(n1).Dot(n2)
 	if math.Abs(1-dot1) < math.Abs(1-dot2) {
