@@ -287,14 +287,17 @@ func triangulateMonotoneDecomp(m *ptrMesh) []*ptrMesh {
 	}
 
 	var subMeshes []*ptrMesh
+
+	// Reset every inner loop, but re-used to prevent
+	// extra allocations.
+	var subSegs []*Segment
 	for m.Peek() != nil {
-		// Walk a polygon in order, i.e. the first coordinate of each
-		// segment should be the second coordinate of the previous.
-		// This way, each ordering of the split segments should be
-		// attached to a different polygon.
+		subSegs = subSegs[:0]
+
+		// Walk a polygon in order, and always chose the smallest
+		// possible interior angle for each vertex.
 		startPoint := m.Peek()
 		seg := [2]*ptrCoord{startPoint, m.Outgoing(startPoint)[0]}
-		subSegs := []*Segment{}
 		for {
 			subSegs = append(subSegs, &Segment{seg[0].Coord, seg[1].Coord})
 			m.Remove(seg[0], seg[1])
@@ -355,7 +358,13 @@ type triangulateSweepState struct {
 	CurrentIdx int
 
 	EdgeTree *triangulateEdgeTree
-	Helpers  map[[2]*ptrCoord]*ptrCoord
+
+	// Helpers maps upper segments to a coordinate that can
+	// be connected to any point under that segment.
+	// However, since segments are uniquely defined by
+	// their first point (in a manifold mesh), this simply
+	// maps first vertices to helper vertices.
+	Helpers map[*ptrCoord]*ptrCoord
 
 	Generated [][2]*ptrCoord
 }
@@ -374,7 +383,7 @@ func newTriangulateSweepState(m *ptrMesh) *triangulateSweepState {
 		Coords:     vertices,
 		CurrentIdx: -1,
 		EdgeTree:   &triangulateEdgeTree{},
-		Helpers:    map[[2]*ptrCoord]*ptrCoord{},
+		Helpers:    map[*ptrCoord]*ptrCoord{},
 	}
 	if state.VertexType(state.Coords[0]) != triangulateVertexStart {
 		panic("invalid initial vertex type")
@@ -395,7 +404,7 @@ func (t *triangulateSweepState) Next() {
 		s1, s2 := t.findEdges(v)
 		t.EdgeTree.Insert(s1)
 		t.EdgeTree.Insert(s2)
-		t.Helpers[triangulateHigherSegment(s1, s2)] = v
+		t.Helpers[triangulateHigherSegment(s1, s2)[0]] = v
 	case triangulateVertexEnd:
 		s1, s2 := t.findEdges(v)
 		t.fixUp(v, triangulateHigherSegment(s1, s2))
@@ -405,25 +414,25 @@ func (t *triangulateSweepState) Next() {
 		t.fixUp(v, oldEdge)
 		t.removeEdges(oldEdge)
 		t.EdgeTree.Insert(newEdge)
-		t.Helpers[newEdge] = v
+		t.Helpers[newEdge[0]] = v
 	case triangulateVertexLowerChain:
 		newEdge, oldEdge := t.findEdges(v)
 		t.removeEdges(oldEdge)
 		aboveEdge := t.EdgeTree.FindAbove(v.Coord)
 		t.fixUp(v, aboveEdge)
 		t.EdgeTree.Insert(newEdge)
-		t.Helpers[aboveEdge] = v
+		t.Helpers[aboveEdge[0]] = v
 	case triangulateVertexSplit:
 		s1, s2 := t.findEdges(v)
 		above := t.EdgeTree.FindAbove(v.Coord)
-		helper := t.Helpers[above]
+		helper := t.Helpers[above[0]]
 		t.Generated = append(t.Generated, [2]*ptrCoord{helper, v})
 		for _, seg := range [][2]*ptrCoord{s1, s2} {
 			t.EdgeTree.Insert(seg)
 		}
 		lower := triangulateLowerSegment(s1, s2)
-		t.Helpers[lower] = v
-		t.Helpers[above] = v
+		t.Helpers[lower[0]] = v
+		t.Helpers[above[0]] = v
 	case triangulateVertexMerge:
 		s1, s2 := t.findEdges(v)
 		lowerEdge := triangulateLowerSegment(s1, s2)
@@ -431,7 +440,7 @@ func (t *triangulateSweepState) Next() {
 		t.removeEdges(s1, s2)
 		above := t.EdgeTree.FindAbove(v.Coord)
 		t.fixUp(v, above)
-		t.Helpers[above] = v
+		t.Helpers[above[0]] = v
 	}
 }
 
@@ -464,7 +473,7 @@ func (t *triangulateSweepState) VertexType(v *ptrCoord) triangulateVertexType {
 }
 
 func (t *triangulateSweepState) fixUp(c *ptrCoord, s [2]*ptrCoord) {
-	helper, ok := t.Helpers[s]
+	helper, ok := t.Helpers[s[0]]
 	if !ok {
 		panic("no helper found")
 	}
@@ -482,7 +491,7 @@ func (t *triangulateSweepState) findEdges(c *ptrCoord) (s1, s2 [2]*ptrCoord) {
 func (t *triangulateSweepState) removeEdges(segs ...[2]*ptrCoord) {
 	for _, seg := range segs {
 		t.EdgeTree.Delete(seg)
-		delete(t.Helpers, seg)
+		delete(t.Helpers, seg[0])
 	}
 }
 
