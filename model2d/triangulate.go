@@ -176,7 +176,7 @@ func triangulateHierarchy(m *MeshHierarchy) [][3]Coord {
 	for _, child := range m.Children {
 		combined.AddMesh(child.Mesh)
 	}
-	tris := triangulateSingleMesh(combined)
+	tris := triangulateSingleMesh(newPtrMesh(combined))
 	for _, child := range m.Children {
 		for _, childChild := range child.Children {
 			tris = append(tris, triangulateHierarchy(childChild)...)
@@ -187,7 +187,7 @@ func triangulateHierarchy(m *MeshHierarchy) [][3]Coord {
 
 // triangulateSingleMesh triangulates a mesh with the same
 // restrictions as triangulateMonotoneDecomp().
-func triangulateSingleMesh(m *Mesh) [][3]Coord {
+func triangulateSingleMesh(m *ptrMesh) [][3]Coord {
 	tris := [][3]Coord{}
 	for _, m := range triangulateMonotoneDecomp(m) {
 		tris = append(tris, triangulateMonotoneMesh(m)...)
@@ -196,10 +196,10 @@ func triangulateSingleMesh(m *Mesh) [][3]Coord {
 }
 
 // triangulateMonotoneMesh triangulates a monotone mesh.
-func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
+func triangulateMonotoneMesh(m *ptrMesh) [][3]Coord {
 	state := newTriangulateSweepState(m)
 
-	stack := []Coord{state.Coords[0]}
+	stack := []*ptrCoord{state.Coords[0]}
 	var stackType triangulateVertexType
 
 	var triangles [][3]Coord
@@ -214,7 +214,7 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 		if vType == triangulateVertexEnd {
 			// Close off the remaining triangles
 			for i := 0; i < len(stack)-1; i++ {
-				tri := [3]Coord{stack[i], stack[i+1], c}
+				tri := [3]Coord{stack[i].Coord, stack[i+1].Coord, c.Coord}
 				if !isPolygonClockwise(tri[:]) {
 					tri[0], tri[1] = tri[1], tri[0]
 				}
@@ -227,31 +227,33 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 		} else if vType != stackType {
 			// Create triangles across the entire chain.
 			for i := 0; i < len(stack)-1; i++ {
-				tri := [3]Coord{stack[i], stack[i+1], c}
+				tri := [3]Coord{stack[i].Coord, stack[i+1].Coord, c.Coord}
 				if !isPolygonClockwise(tri[:]) {
 					tri[0], tri[1] = tri[1], tri[0]
 				}
 				triangles = append(triangles, tri)
 			}
-			stack = []Coord{stack[len(stack)-1], c}
+			stack = []*ptrCoord{stack[len(stack)-1], c}
 			stackType = vType
-		} else if stackType == triangulateVertexLowerChain && c.Y > stack[len(stack)-1].Y {
+		} else if stackType == triangulateVertexLowerChain &&
+			c.Coord.Y > stack[len(stack)-1].Coord.Y {
 			for len(stack) > 1 {
 				i := len(stack) - 2
-				if stack[i].Y <= stack[i+1].Y {
+				if stack[i].Coord.Y <= stack[i+1].Coord.Y {
 					break
 				}
-				triangles = append(triangles, [3]Coord{stack[i+1], stack[i], c})
+				triangles = append(triangles, [3]Coord{stack[i+1].Coord, stack[i].Coord, c.Coord})
 				stack = stack[:i+1]
 			}
 			stack = append(stack, c)
-		} else if stackType == triangulateVertexUpperChain && c.Y < stack[len(stack)-1].Y {
+		} else if stackType == triangulateVertexUpperChain &&
+			c.Coord.Y < stack[len(stack)-1].Coord.Y {
 			for len(stack) > 1 {
 				i := len(stack) - 2
-				if stack[i].Y >= stack[i+1].Y {
+				if stack[i].Coord.Y >= stack[i+1].Coord.Y {
 					break
 				}
-				triangles = append(triangles, [3]Coord{stack[i], stack[i+1], c})
+				triangles = append(triangles, [3]Coord{stack[i].Coord, stack[i+1].Coord, c.Coord})
 				stack = stack[:i+1]
 			}
 			stack = append(stack, c)
@@ -276,60 +278,53 @@ func triangulateMonotoneMesh(m *Mesh) [][3]Coord {
 //       depth of holes.
 //     * The normals are correct.
 //
-func triangulateMonotoneDecomp(m *Mesh) []*Mesh {
+// The mesh m will be destroyed in the process.
+func triangulateMonotoneDecomp(m *ptrMesh) []*ptrMesh {
 	splits := triangulateMonotoneSplits(m)
-
-	combined := NewMeshSegments(m.SegmentsSlice())
-	for _, s := range splits {
-		reverse := &Segment{s[1], s[0]}
-		combined.Add(s)
-		combined.Add(reverse)
+	for _, split := range splits {
+		m.Add(split[0], split[1])
+		m.Add(split[1], split[0])
 	}
 
-	var subMeshes []*Mesh
-	for {
-		segs := combined.SegmentsSlice()
-		if len(segs) == 0 {
-			break
-		}
+	var subMeshes []*ptrMesh
+	for m.Peek() != nil {
 		// Walk a polygon in order, i.e. the first coordinate of each
 		// segment should be the second coordinate of the previous.
 		// This way, each ordering of the split segments should be
 		// attached to a different polygon.
-		seg := segs[0]
-		startPoint := seg[0]
-		subMesh := NewMesh()
-		for seg != nil {
-			subMesh.Add(seg)
-			combined.Remove(seg)
+		startPoint := m.Peek()
+		seg := [2]*ptrCoord{startPoint, m.Outgoing(startPoint)[0]}
+		subSegs := []*Segment{}
+		for {
+			subSegs = append(subSegs, &Segment{seg[0].Coord, seg[1].Coord})
+			m.Remove(seg[0], seg[1])
 			if seg[1] == startPoint {
 				break
 			}
-			nextStart := seg[1]
-			potentialSegs := []*Segment{}
-			for _, s := range combined.Find(nextStart) {
-				if s[0] == seg[1] && (s[1] != seg[0] || s[0] != seg[1]) {
-					potentialSegs = append(potentialSegs, s)
+			potentialSegs := [][2]*ptrCoord{}
+			for _, c1 := range m.Outgoing(seg[1]) {
+				if c1 != seg[0] {
+					potentialSegs = append(potentialSegs, [2]*ptrCoord{seg[1], c1})
 				}
 			}
-			seg = segmentWithSmallestAngle(seg, potentialSegs)
+			seg = segmentWithSmallestAngle(seg[0], potentialSegs)
 		}
-		subMeshes = append(subMeshes, subMesh)
+		subMeshes = append(subMeshes, newPtrMeshSegments(subSegs))
 	}
 	return subMeshes
 }
 
-func segmentWithSmallestAngle(s *Segment, potential []*Segment) *Segment {
+func segmentWithSmallestAngle(p1 *ptrCoord, potential [][2]*ptrCoord) [2]*ptrCoord {
 	if len(potential) == 0 {
-		return nil
+		panic("mesh was non-manifold")
 	}
 	bestAngle := 10.0
 	bestSegment := potential[0]
-	for _, s1 := range potential {
-		theta := clockwiseAngle(s[0], s[1], s1[1])
+	for _, s := range potential {
+		theta := clockwiseAngle(p1.Coord, s[0].Coord, s[1].Coord)
 		if theta < bestAngle {
 			bestAngle = theta
-			bestSegment = s1
+			bestSegment = s
 		}
 	}
 	return bestSegment
@@ -339,7 +334,7 @@ func segmentWithSmallestAngle(s *Segment, potential []*Segment) *Segment {
 // monotone sub-polygons for a polygon.
 //
 // See triangulateMonotoneDecomp() for restrictions.
-func triangulateMonotoneSplits(m *Mesh) []*Segment {
+func triangulateMonotoneSplits(m *ptrMesh) [][2]*ptrCoord {
 	state := newTriangulateSweepState(m)
 	for !state.Done() {
 		state.Next()
@@ -355,20 +350,23 @@ func triangulateMonotoneSplits(m *Mesh) []*Segment {
 // "CMSC 754: Lecture 5 - Polygon Triangulation"
 // (http://www.cs.umd.edu/class/spring2020/cmsc754/Lects/lect05-triangulate.pdf).
 type triangulateSweepState struct {
-	Mesh       *Mesh
-	Coords     []Coord
+	Mesh       *ptrMesh
+	Coords     []*ptrCoord
 	CurrentIdx int
 
 	EdgeTree *triangulateEdgeTree
-	Helpers  map[*Segment]Coord
+	Helpers  map[[2]*ptrCoord]*ptrCoord
 
-	Generated []*Segment
+	Generated [][2]*ptrCoord
 }
 
-func newTriangulateSweepState(m *Mesh) *triangulateSweepState {
-	vertices := m.VertexSlice()
+func newTriangulateSweepState(m *ptrMesh) *triangulateSweepState {
+	var vertices []*ptrCoord
+	m.Iterate(func(c *ptrCoord) {
+		vertices = append(vertices, c)
+	})
 	sort.Slice(vertices, func(i, j int) bool {
-		return vertices[i].X < vertices[j].X
+		return vertices[i].Coord.X < vertices[j].Coord.X
 	})
 
 	state := &triangulateSweepState{
@@ -376,7 +374,7 @@ func newTriangulateSweepState(m *Mesh) *triangulateSweepState {
 		Coords:     vertices,
 		CurrentIdx: -1,
 		EdgeTree:   &triangulateEdgeTree{},
-		Helpers:    map[*Segment]Coord{},
+		Helpers:    map[[2]*ptrCoord]*ptrCoord{},
 	}
 	if state.VertexType(state.Coords[0]) != triangulateVertexStart {
 		panic("invalid initial vertex type")
@@ -411,16 +409,16 @@ func (t *triangulateSweepState) Next() {
 	case triangulateVertexLowerChain:
 		newEdge, oldEdge := t.findEdges(v)
 		t.removeEdges(oldEdge)
-		aboveEdge := t.EdgeTree.FindAbove(v)
+		aboveEdge := t.EdgeTree.FindAbove(v.Coord)
 		t.fixUp(v, aboveEdge)
 		t.EdgeTree.Insert(newEdge)
 		t.Helpers[aboveEdge] = v
 	case triangulateVertexSplit:
 		s1, s2 := t.findEdges(v)
-		above := t.EdgeTree.FindAbove(v)
+		above := t.EdgeTree.FindAbove(v.Coord)
 		helper := t.Helpers[above]
-		t.Generated = append(t.Generated, &Segment{helper, v})
-		for _, seg := range []*Segment{s1, s2} {
+		t.Generated = append(t.Generated, [2]*ptrCoord{helper, v})
+		for _, seg := range [][2]*ptrCoord{s1, s2} {
 			t.EdgeTree.Insert(seg)
 		}
 		lower := triangulateLowerSegment(s1, s2)
@@ -431,15 +429,16 @@ func (t *triangulateSweepState) Next() {
 		lowerEdge := triangulateLowerSegment(s1, s2)
 		t.fixUp(v, lowerEdge)
 		t.removeEdges(s1, s2)
-		above := t.EdgeTree.FindAbove(v)
+		above := t.EdgeTree.FindAbove(v.Coord)
 		t.fixUp(v, above)
 		t.Helpers[above] = v
 	}
 }
 
-func (t *triangulateSweepState) VertexType(c Coord) triangulateVertexType {
-	s1, s2 := t.findEdges(c)
-	start, end := s1[0], s2[1]
+func (t *triangulateSweepState) VertexType(v *ptrCoord) triangulateVertexType {
+	s1, s2 := t.findEdges(v)
+	c := v.Coord
+	start, end := s1[0].Coord, s2[1].Coord
 	if start.X == end.X || start.X == c.X || end.X == c.X {
 		panic("no x values should be exactly equal")
 	}
@@ -464,32 +463,23 @@ func (t *triangulateSweepState) VertexType(c Coord) triangulateVertexType {
 	}
 }
 
-func (t *triangulateSweepState) fixUp(c Coord, s *Segment) {
+func (t *triangulateSweepState) fixUp(c *ptrCoord, s [2]*ptrCoord) {
 	helper, ok := t.Helpers[s]
 	if !ok {
 		panic("no helper found")
 	}
 	if t.VertexType(helper) == triangulateVertexMerge {
-		t.Generated = append(t.Generated, &Segment{c, helper})
+		t.Generated = append(t.Generated, [2]*ptrCoord{c, helper})
 	}
 }
 
-func (t *triangulateSweepState) findEdges(c Coord) (s1, s2 *Segment) {
-	segs := t.Mesh.Find(c)
-	if len(segs) != 2 {
-		panic("mesh is non-manifold")
-	}
-	s1, s2 = segs[0], segs[1]
-	if s1[1] != c {
-		s1, s2 = s2, s1
-	}
-	if s1[1] != c {
-		panic("mesh has incorrect normal orientation (segment out of order)")
-	}
+func (t *triangulateSweepState) findEdges(c *ptrCoord) (s1, s2 [2]*ptrCoord) {
+	s1 = [2]*ptrCoord{firstOfExactlyOne(t.Mesh.Incoming(c)), c}
+	s2 = [2]*ptrCoord{c, firstOfExactlyOne(t.Mesh.Outgoing(c))}
 	return
 }
 
-func (t *triangulateSweepState) removeEdges(segs ...*Segment) {
+func (t *triangulateSweepState) removeEdges(segs ...[2]*ptrCoord) {
 	for _, seg := range segs {
 		t.EdgeTree.Delete(seg)
 		delete(t.Helpers, seg)
@@ -505,39 +495,40 @@ type triangulateEdgeTree struct {
 	Tree splaytree.Tree
 }
 
-func (t *triangulateEdgeTree) Insert(s *Segment) {
+func (t *triangulateEdgeTree) Insert(s [2]*ptrCoord) {
 	t.Tree.Insert(newSortedEdge(s))
 }
 
-func (t *triangulateEdgeTree) Delete(s *Segment) {
+func (t *triangulateEdgeTree) Delete(s [2]*ptrCoord) {
 	t.Tree.Delete(newSortedEdge(s))
 }
 
-func (t *triangulateEdgeTree) FindAbove(c Coord) *Segment {
-	return t.findAbove(t.Tree.Root, c)
+func (t *triangulateEdgeTree) FindAbove(c Coord) [2]*ptrCoord {
+	res, _ := t.findAbove(t.Tree.Root, c)
+	return res
 }
 
-func (t *triangulateEdgeTree) findAbove(n *splaytree.Node, c Coord) *Segment {
+func (t *triangulateEdgeTree) findAbove(n *splaytree.Node, c Coord) ([2]*ptrCoord, bool) {
 	if n == nil {
-		return nil
+		return [2]*ptrCoord{}, false
 	}
 	comp := n.Value.(*sortedEdge).ComparePoint(c)
 	if comp == -1 {
 		// This node is below the vertex.
 		return t.findAbove(n.Right, c)
 	} else if comp == 1 {
-		res := t.findAbove(n.Left, c)
-		if res == nil {
-			return n.Value.(*sortedEdge).Segment
+		res, ok := t.findAbove(n.Left, c)
+		if !ok {
+			return n.Value.(*sortedEdge).Segment, true
 		}
-		return res
+		return res, true
 	} else {
 		panic("vertex intersects an edge in the state")
 	}
 }
 
 type sortedEdge struct {
-	Segment *Segment
+	Segment [2]*ptrCoord
 
 	minX    float64
 	yAtMinX float64
@@ -546,9 +537,9 @@ type sortedEdge struct {
 	slope   float64
 }
 
-func newSortedEdge(s *Segment) *sortedEdge {
-	minX, yAtMinX := s[0].X, s[0].Y
-	maxX, yAtMaxX := s[1].X, s[1].Y
+func newSortedEdge(s [2]*ptrCoord) *sortedEdge {
+	minX, yAtMinX := s[0].Coord.X, s[0].Coord.Y
+	maxX, yAtMaxX := s[1].Coord.X, s[1].Coord.Y
 	if minX > maxX {
 		minX, maxX = maxX, minX
 		yAtMinX, yAtMaxX = yAtMaxX, yAtMinX
@@ -612,7 +603,7 @@ func (s *sortedEdge) Compare(other splaytree.Value) int {
 // It returns 1 if the edge is above the point, -1 if
 // below, and 0 if they intersect.
 func (s *sortedEdge) ComparePoint(c Coord) int {
-	if c == s.Segment[0] || c == s.Segment[1] {
+	if c == s.Segment[0].Coord || c == s.Segment[1].Coord {
 		return 0
 	}
 	if c.X < s.minX || c.X > s.maxX {
@@ -640,7 +631,7 @@ func (s *sortedEdge) yAtX(x float64) float64 {
 	return fraction*s.yAtMaxX + (1-fraction)*s.yAtMinX
 }
 
-func triangulateHigherSegment(s1, s2 *Segment) *Segment {
+func triangulateHigherSegment(s1, s2 [2]*ptrCoord) [2]*ptrCoord {
 	if newSortedEdge(s1).Compare(newSortedEdge(s2)) == 1 {
 		return s1
 	} else {
@@ -648,10 +639,17 @@ func triangulateHigherSegment(s1, s2 *Segment) *Segment {
 	}
 }
 
-func triangulateLowerSegment(s1, s2 *Segment) *Segment {
+func triangulateLowerSegment(s1, s2 [2]*ptrCoord) [2]*ptrCoord {
 	if triangulateHigherSegment(s1, s2) == s1 {
 		return s2
 	} else {
 		return s1
 	}
+}
+
+func firstOfExactlyOne(coords []*ptrCoord) *ptrCoord {
+	if len(coords) != 1 {
+		panic("mesh is non-manifold")
+	}
+	return coords[0]
 }

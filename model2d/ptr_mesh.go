@@ -6,9 +6,13 @@ type ptrMesh struct {
 }
 
 func newPtrMesh(m *Mesh) *ptrMesh {
+	return newPtrMeshSegments(m.SegmentsSlice())
+}
+
+func newPtrMeshSegments(segs []*Segment) *ptrMesh {
 	res := &ptrMesh{}
 	coordMap := map[Coord]*ptrCoord{}
-	m.Iterate(func(s *Segment) {
+	for _, s := range segs {
 		coords := [2]*ptrCoord{}
 		for i, c := range s {
 			ptrC, ok := coordMap[c]
@@ -30,8 +34,8 @@ func newPtrMesh(m *Mesh) *ptrMesh {
 			coords[i] = ptrC
 		}
 		coords[0].nextCoords = append(coords[0].nextCoords, coords[1])
-		coords[1].prevCoords = append(coords[0].prevCoords, coords[0])
-	})
+		coords[1].prevCoords = append(coords[1].prevCoords, coords[0])
+	}
 	return res
 }
 
