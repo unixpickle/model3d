@@ -253,3 +253,16 @@ func BenchmarkTriangulate50(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkTriangulateLarge(b *testing.B) {
+	bitmap := MustReadBitmap("test_data/test_bitmap.png", func(c color.Color) bool {
+		r, g, b, _ := c.RGBA()
+		return r == 0 && g == 0 && b == 0
+	})
+	mesh := bitmap.Mesh()
+	b.Run("Triangulate", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			TriangulateMesh(mesh)
+		}
+	})
+}

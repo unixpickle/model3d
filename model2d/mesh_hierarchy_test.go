@@ -83,3 +83,20 @@ func validateHierarchyContainment(t *testing.T, h *MeshHierarchy) {
 		validateHierarchyContainment(t, c)
 	}
 }
+
+func BenchmarkMeshHierarchy(b *testing.B) {
+	// Create a testing mesh with a complex hierarchy.
+	bitmap := MustReadBitmap("test_data/test_bitmap.png", func(c color.Color) bool {
+		r, g, b, _ := c.RGBA()
+		return r == 0 && g == 0 && b == 0
+	})
+	mesh := bitmap.Mesh().SmoothSq(30)
+	if !mesh.Manifold() {
+		b.Fatal("non-manifold mesh")
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		MeshToHierarchy(mesh)
+	}
+}
