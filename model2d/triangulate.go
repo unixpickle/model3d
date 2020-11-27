@@ -172,11 +172,11 @@ const (
 )
 
 func triangulateHierarchy(m *MeshHierarchy) [][3]Coord {
-	combined := m.Mesh
+	segments := m.Mesh.SegmentsSlice()
 	for _, child := range m.Children {
-		combined.AddMesh(child.Mesh)
+		segments = append(segments, child.Mesh.SegmentsSlice()...)
 	}
-	tris := triangulateSingleMesh(newPtrMesh(combined))
+	tris := triangulateSingleMesh(newPtrMeshSegments(segments))
 	for _, child := range m.Children {
 		for _, childChild := range child.Children {
 			tris = append(tris, triangulateHierarchy(childChild)...)

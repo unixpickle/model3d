@@ -36,34 +36,34 @@ func MeshToHierarchy(m *Mesh) []*MeshHierarchy {
 }
 
 func misalignedMeshToHierarchy(m *Mesh) []*MeshHierarchy {
+	pm := newPtrMesh(m)
+
 	var result []*MeshHierarchy
 
 ClosedMeshLoop:
-	for {
-		vertices := m.VertexSlice()
-		if len(vertices) == 0 {
-			break
-		}
-		minVertex := vertices[0]
-		m.IterateVertices(func(c Coord) {
-			if c.X < minVertex.X {
+	for pm.Peek() != nil {
+		minVertex := pm.Peek()
+		pm.Iterate(func(c *ptrCoord) {
+			if c.Coord.X < minVertex.Coord.X {
 				minVertex = c
 			}
 		})
-		stripped := removeAllConnected(m, minVertex)
-		solid := NewColliderSolid(MeshToCollider(stripped))
+		stripped := removeAllConnected(pm, minVertex)
+		GroupSegments(stripped)
+		solid := NewColliderSolid(GroupedSegmentsToCollider(stripped))
+		strippedMesh := NewMeshSegments(stripped)
 		for _, x := range result {
-			if x.MeshSolid.Contains(minVertex) {
+			if x.MeshSolid.Contains(minVertex.Coord) {
 				// We know the mesh is a leaf, because if it contained
 				// any other mesh, that mesh would have to have a higher
 				// minVertex x value, and would not have been added yet.
-				x.insertLeaf(stripped, solid, minVertex)
+				x.insertLeaf(strippedMesh, solid, minVertex.Coord)
 				continue ClosedMeshLoop
 			}
 		}
 		// If we are here, this is a root mesh.
 		result = append(result, &MeshHierarchy{
-			Mesh:      stripped,
+			Mesh:      strippedMesh,
 			MeshSolid: solid,
 		})
 	}
@@ -160,23 +160,21 @@ func misalignMesh(m *Mesh) (misaligned *Mesh, inv func(Coord) Coord) {
 }
 
 // removeAllConnected strips all segments connected to c
-// out of m and returns them in a separate mesh.
-func removeAllConnected(m *Mesh, c Coord) (connected *Mesh) {
-	connected = NewMesh()
-	queue := []Coord{c}
-	for len(queue) > 0 {
-		next := queue[0]
-		queue = queue[1:]
-		segs := m.Find(next)
-		for _, seg := range segs {
-			for _, c1 := range seg {
-				if c1 != next {
-					queue = append(queue, c1)
-				}
-			}
-			m.Remove(seg)
-			connected.Add(seg)
+// out of m and returns them as segments.
+func removeAllConnected(m *ptrMesh, c *ptrCoord) []*Segment {
+	first := c
+	var result []*Segment
+	for c != nil {
+		if len(m.Outgoing(c)) != 1 || len(m.Incoming(c)) != 1 {
+			panic("mesh is non-manifold")
 		}
+		next := m.Outgoing(c)[0]
+		result = append(result, &Segment{c.Coord, next.Coord})
+		m.RemoveFromList(c)
+		if next == first {
+			break
+		}
+		c = next
 	}
-	return connected
+	return result
 }

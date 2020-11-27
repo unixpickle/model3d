@@ -128,18 +128,27 @@ func (p *ptrMesh) Remove(p1, p2 *ptrCoord) {
 	}
 	for _, c := range []*ptrCoord{p1, p2} {
 		if c.NumEdges() == 0 {
-			if c.listPrev == nil {
-				p.first = c.listNext
-			} else {
-				c.listPrev.listNext = c.listNext
-			}
-			if c.listNext != nil {
-				c.listNext.listPrev = c.listPrev
-			}
-			c.listPrev = nil
-			c.listNext = nil
+			p.RemoveFromList(c)
 		}
 	}
+}
+
+// RemoveFromList removes the point from the ptrMesh, but
+// does not remove its connections to neighbors.
+//
+// This is generally unsafe, and should be used with great
+// caution.
+func (p *ptrMesh) RemoveFromList(c *ptrCoord) {
+	if c.listPrev == nil {
+		p.first = c.listNext
+	} else {
+		c.listPrev.listNext = c.listNext
+	}
+	if c.listNext != nil {
+		c.listNext.listPrev = c.listPrev
+	}
+	c.listPrev = nil
+	c.listNext = nil
 }
 
 // Add adds an edge segment.
