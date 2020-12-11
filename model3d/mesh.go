@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/model2d"
 )
 
 // A Mesh is a collection of triangles.
@@ -144,6 +145,46 @@ func NewMeshRect(min, max Coord3D) *Mesh {
 	mesh.AddQuad(max, point(0, 1, 1), point(0, 0, 1), point(1, 0, 1))
 
 	return mesh
+}
+
+// ProfileMesh creates a 3D mesh from a 2D mesh by using
+// the 2D mesh as a face surface and extending it along
+// the Z axis.
+//
+// The 2D mesh must be manifold, closed, and oriented.
+func ProfileMesh(m2d *model2d.Mesh, minZ, maxZ float64) *Mesh {
+	tris := model2d.TriangulateMesh(m2d)
+	m := NewMesh()
+	for _, t := range tris {
+		m.Add(&Triangle{
+			XYZ(t[0].X, t[0].Y, minZ),
+			XYZ(t[1].X, t[1].Y, minZ),
+			XYZ(t[2].X, t[2].Y, minZ),
+		})
+		m.Add(&Triangle{
+			XYZ(t[1].X, t[1].Y, maxZ),
+			XYZ(t[0].X, t[0].Y, maxZ),
+			XYZ(t[2].X, t[2].Y, maxZ),
+		})
+	}
+
+	// Add sides to triangle edges with no neighbors.
+	m.Iterate(func(t *Triangle) {
+		if t[0].Z != minZ {
+			return
+		}
+		for i := 0; i < 3; i++ {
+			seg := [2]Coord3D{t[(i+1)%3], t[i]}
+			if len(m.Find(seg[0], seg[1])) == 1 {
+				// This needs to be connected from minZ to maxZ.
+				p3, p4 := seg[1], seg[0]
+				p3.Z = maxZ
+				p4.Z = maxZ
+				m.AddQuad(seg[0], seg[1], p3, p4)
+			}
+		}
+	})
+	return m
 }
 
 // Add adds the triangle t to the mesh.

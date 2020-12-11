@@ -1,13 +1,24 @@
 package model3d
 
 import (
+	"math"
 	"math/rand"
 	"testing"
+
+	"github.com/unixpickle/model3d/model2d"
 )
 
 func TestNewMeshRect(t *testing.T) {
 	mesh := NewMeshRect(XYZ(-0.3, -0.4, -0.2), XYZ(0.4, 0.35, 0.19))
 	MustValidateMesh(t, mesh, true)
+}
+
+func TestProfileMesh(t *testing.T) {
+	mesh2d := model2d.NewMeshPolar(func(t float64) float64 {
+		return 2 + math.Cos(t*10)
+	}, 100)
+	mesh3d := ProfileMesh(mesh2d, 0.1, 0.5)
+	MustValidateMesh(t, mesh3d, true)
 }
 
 func TestVertexSlice(t *testing.T) {
