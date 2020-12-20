@@ -6,9 +6,10 @@ import (
 	"github.com/unixpickle/model3d/model3d"
 )
 
-// A RectSet maintains a union of rectangular volumes.
+// A RectSet maintains the set of all points contained in
+// a union of rectangular volumes.
 //
-// The exact set of original rectangles is not preserved,
+// The exact list of original rectangles is not preserved,
 // but the information about the combined solid is.
 type RectSet struct {
 	rects map[model3d.Rect]bool
@@ -18,7 +19,7 @@ type RectSet struct {
 	splits [3][]float64
 }
 
-// Add a rectangular volume to the set.
+// Add adds a rectangular volume to the set.
 func (r *RectSet) Add(rect *model3d.Rect) {
 	r.addRectSplits(*rect)
 	for _, rect := range r.splitRect(*rect) {
@@ -26,10 +27,21 @@ func (r *RectSet) Add(rect *model3d.Rect) {
 	}
 }
 
-// Remove subtracts the rectangular volume from the set.
-//
-// Only the intersection of the rectangular volume and the
-// current rectangles in the set is affected.
+// AddRectSet adds another RectSet's volume to the set.
+func (r *RectSet) AddRectSet(r1 *RectSet) {
+	for axis, otherSplits := range r1.splits {
+		for _, s := range otherSplits {
+			r.addSplit(axis, s)
+		}
+	}
+	for rect := range r1.rects {
+		for _, rect := range r.splitRect(rect) {
+			r.rects[rect] = true
+		}
+	}
+}
+
+// Remove subtracts a rectangular volume from the set.
 func (r *RectSet) Remove(rect *model3d.Rect) {
 	r.addRectSplits(*rect)
 	for _, rect := range r.splitRect(*rect) {
@@ -37,7 +49,51 @@ func (r *RectSet) Remove(rect *model3d.Rect) {
 			delete(r.rects, rect)
 		}
 	}
-	// TODO: rebuild splits since some may have been removed.
+	r.rebuildSplits()
+}
+
+// RemoveRectSet subtracts another RectSet's volume from
+// the set.
+func (r *RectSet) RemoveRectSet(r1 *RectSet) {
+	for axis, otherSplits := range r1.splits {
+		for _, s := range otherSplits {
+			r.addSplit(axis, s)
+		}
+	}
+
+	for rect := range r1.rects {
+		for _, rect := range r.splitRect(rect) {
+			if r.rects[rect] {
+				delete(r.rects, rect)
+			}
+		}
+	}
+
+	r.rebuildSplits()
+}
+
+func (r *RectSet) rebuildSplits() {
+	var axisValues [3]map[float64]bool
+	for i := range axisValues {
+		axisValues[i] = map[float64]bool{}
+	}
+
+	for rect := range r.rects {
+		for _, c := range []model3d.Coord3D{rect.MinVal, rect.MaxVal} {
+			for axis, value := range c.Array() {
+				axisValues[axis][value] = true
+			}
+		}
+	}
+
+	for axis, values := range axisValues {
+		valuesSlice := make([]float64, 0, len(values))
+		for x := range values {
+			valuesSlice = append(valuesSlice, x)
+		}
+		sort.Float64s(valuesSlice)
+		r.splits[axis] = valuesSlice
+	}
 }
 
 func (r *RectSet) splitRect(rect model3d.Rect) []model3d.Rect {
