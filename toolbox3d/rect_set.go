@@ -11,12 +11,25 @@ import (
 //
 // The exact list of original rectangles is not preserved,
 // but the information about the combined solid is.
+//
+// A RectSet may use up to O(N^3) memory, where N is the
+// number of contained rectangular volumes.
+// In particular, usage is proportional to X*Y*Z, where X,
+// Y and Z are the number of unique x, y, and z
+// coordinates.
 type RectSet struct {
 	rects map[model3d.Rect]bool
 
 	// For each axis, stores a set of values sorted in
 	// ascending order, for each endpoint of some rect.
 	splits [3][]float64
+}
+
+// NewRectSet creates an empty RectSet.
+func NewRectSet() *RectSet {
+	return &RectSet{
+		rects: map[model3d.Rect]bool{},
+	}
 }
 
 // Add adds a rectangular volume to the set.
@@ -165,7 +178,7 @@ func (r *RectSet) rectSlice() []model3d.Rect {
 func splitRect(r model3d.Rect, axis int, value float64) (model3d.Rect, model3d.Rect, bool) {
 	min := r.MinVal.Array()
 	max := r.MaxVal.Array()
-	if min[axis] >= value || min[axis] <= value {
+	if min[axis] >= value || max[axis] <= value {
 		return r, r, false
 	}
 	newMax := max
