@@ -32,6 +32,33 @@ func NewRectSet() *RectSet {
 	}
 }
 
+// Min gets the minimum of the bounding box containing the
+// set.
+func (r *RectSet) Min() model3d.Coord3D {
+	if len(r.rects) == 0 {
+		return model3d.Coord3D{}
+	}
+	return model3d.XYZ(r.splits[0][0], r.splits[1][0], r.splits[2][0])
+}
+
+// Min gets the maximum of the bounding box containing the
+// set.
+func (r *RectSet) Max() model3d.Coord3D {
+	if len(r.rects) == 0 {
+		return model3d.Coord3D{}
+	}
+	var res [3]float64
+	for i, splits := range r.splits {
+		res[i] = splits[len(splits)-1]
+	}
+	return model3d.NewCoord3DArray(res)
+}
+
+// Solid creates a 3D solid from the set.
+func (r *RectSet) Solid() model3d.Solid {
+	return newRectSetSolid(r)
+}
+
 // Add adds a rectangular volume to the set.
 func (r *RectSet) Add(rect *model3d.Rect) {
 	r.addRectSplits(*rect)
@@ -194,4 +221,102 @@ func splitRect(r model3d.Rect, axis int, value float64) (model3d.Rect, model3d.R
 		MaxVal: r.MaxVal,
 	}
 	return r1, r2, true
+}
+
+type rectSetSolid struct {
+	axis   int
+	cutoff float64
+
+	singleRect *model3d.Rect
+
+	below *rectSetSolid
+	above *rectSetSolid
+
+	min model3d.Coord3D
+	max model3d.Coord3D
+}
+
+func newRectSetSolid(rs *RectSet) *rectSetSolid {
+	if len(rs.rects) == 0 {
+		return &rectSetSolid{
+			singleRect: &model3d.Rect{},
+		}
+	} else if len(rs.rects) == 1 {
+		var rect model3d.Rect
+		for r := range rs.rects {
+			rect = r
+		}
+		return &rectSetSolid{
+			singleRect: &rect,
+		}
+	}
+
+	rs1, rs2, axis, cutoff := splitRectSet(rs)
+	return &rectSetSolid{
+		axis:   axis,
+		cutoff: cutoff,
+		below:  newRectSetSolid(rs1),
+		above:  newRectSetSolid(rs2),
+		min:    rs.Min(),
+		max:    rs.Max(),
+	}
+}
+
+func (r *rectSetSolid) Min() model3d.Coord3D {
+	if r.singleRect != nil {
+		return r.singleRect.MinVal
+	}
+	return r.min
+}
+
+func (r *rectSetSolid) Max() model3d.Coord3D {
+	if r.singleRect != nil {
+		return r.singleRect.MaxVal
+	}
+	return r.max
+}
+
+func (r *rectSetSolid) Contains(c model3d.Coord3D) bool {
+	if r.singleRect != nil {
+		return r.singleRect.Contains(c)
+	}
+	if !model3d.InBounds(r, c) {
+		return false
+	}
+	arr := c.Array()
+	if arr[r.axis] < r.cutoff {
+		return r.below.Contains(c)
+	} else if arr[r.axis] > r.cutoff {
+		return r.above.Contains(c)
+	} else {
+		return r.below.Contains(c) || r.above.Contains(c)
+	}
+}
+
+func splitRectSet(rs *RectSet) (*RectSet, *RectSet, int, float64) {
+	if len(rs.rects) < 2 {
+		panic("cannot split singleton RectSet")
+	}
+	splitAxis := 0
+	splitLen := 0
+	for i, splits := range rs.splits {
+		if len(splits) >= splitLen {
+			splitLen = len(splits)
+			splitAxis = i
+		}
+	}
+
+	cutoff := rs.splits[splitAxis][splitLen/2]
+	rs1 := NewRectSet()
+	rs2 := NewRectSet()
+	for rect := range rs.rects {
+		if rect.MinVal.Array()[splitAxis] < cutoff {
+			rs1.rects[rect] = true
+		} else {
+			rs2.rects[rect] = true
+		}
+	}
+	rs1.rebuildSplits()
+	rs2.rebuildSplits()
+	return rs1, rs2, splitAxis, cutoff
 }

@@ -63,6 +63,15 @@ func TestRemoveRectSet(t *testing.T) {
 	}
 }
 
+func TestRectSetSolid(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		rs1 := randomRectSet()
+		actual := rs1.Solid()
+		expected := naiveRectSetSolid(rs1)
+		testSolidsEquivalent(t, expected, actual, expected)
+	}
+}
+
 func randomRectSet() *RectSet {
 	rectSet := NewRectSet()
 	for len(rectSet.rectSlice()) == 0 {
