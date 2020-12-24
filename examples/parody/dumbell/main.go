@@ -4,6 +4,8 @@ import (
 	"log"
 	"math"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
@@ -61,6 +63,10 @@ func main() {
 	log.Println("Saving meshes...")
 	mesh.SaveGroupedSTL("side.stl")
 	barMesh.SaveGroupedSTL("bar.stl")
+
+	log.Println("Rendering...")
+	render3d.SaveRandomGrid("rendering_side.png", mesh, 3, 3, 300, nil)
+	render3d.SaveRandomGrid("rendering_bar.png", barMesh, 3, 3, 300, nil)
 }
 
 func CreateSide() model3d.ConvexPolytope {
