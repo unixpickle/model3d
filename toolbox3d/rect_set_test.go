@@ -72,6 +72,19 @@ func TestRectSetSolid(t *testing.T) {
 	}
 }
 
+func TestRectSetMesh(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		rs := randomRectSet()
+		mesh := rs.Mesh()
+		if _, n := mesh.RepairNormals(1e-5); n != 0 {
+			t.Errorf("mesh has %d bad normals", n)
+		}
+		actual := model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
+		expected := rs.Solid()
+		testSolidsEquivalent(t, expected, actual, expected)
+	}
+}
+
 func randomRectSet() *RectSet {
 	rectSet := NewRectSet()
 	for len(rectSet.rectSlice()) == 0 {

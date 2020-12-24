@@ -59,6 +59,64 @@ func (r *RectSet) Solid() model3d.Solid {
 	return newRectSetSolid(r)
 }
 
+// Mesh creates a 3D mesh from the set.
+//
+// The returned mesh is not guaranteed to be manifold.
+// For example, it is possible to create two rects that
+// touch at a single vertex or edge, in which case there
+// will be a singularity in the resulting mesh.
+func (r *RectSet) Mesh() *model3d.Mesh {
+	// Map (min, max) pairs to ordered quads to track
+	// which faces are on the inside of the solid.
+	uniqueQuads := map[[2]model3d.Coord3D][4]model3d.Coord3D{}
+
+	for rect := range r.rects {
+		min := rect.MinVal
+		max := rect.MaxVal
+
+		point := func(x, y, z int) model3d.Coord3D {
+			res := min
+			if x == 1 {
+				res.X = max.X
+			}
+			if y == 1 {
+				res.Y = max.Y
+			}
+			if z == 1 {
+				res.Z = max.Z
+			}
+			return res
+		}
+
+		quads := [6][4]model3d.Coord3D{
+			// Front and back faces.
+			{min, point(1, 0, 0), point(1, 0, 1), point(0, 0, 1)},
+			{max, point(1, 1, 0), point(0, 1, 0), point(0, 1, 1)},
+			// Left and right faces.
+			{min, point(0, 0, 1), point(0, 1, 1), point(0, 1, 0)},
+			{max, point(1, 0, 1), point(1, 0, 0), point(1, 1, 0)},
+			// Top and bottom faces.
+			{min, point(0, 1, 0), point(1, 1, 0), point(1, 0, 0)},
+			{max, point(0, 1, 1), point(0, 0, 1), point(1, 0, 1)},
+		}
+
+		for _, q := range quads {
+			key := quadMinMax(q[0], q[1], q[2], q[3])
+			if _, ok := uniqueQuads[key]; ok {
+				delete(uniqueQuads, key)
+			} else {
+				uniqueQuads[key] = q
+			}
+		}
+	}
+
+	res := model3d.NewMesh()
+	for _, q := range uniqueQuads {
+		res.AddQuad(q[0], q[1], q[2], q[3])
+	}
+	return res
+}
+
 // Add adds a rectangular volume to the set.
 func (r *RectSet) Add(rect *model3d.Rect) {
 	r.addRectSplits(*rect)
@@ -319,4 +377,10 @@ func splitRectSet(rs *RectSet) (*RectSet, *RectSet, int, float64) {
 	rs1.rebuildSplits()
 	rs2.rebuildSplits()
 	return rs1, rs2, splitAxis, cutoff
+}
+
+func quadMinMax(p1, p2, p3, p4 model3d.Coord3D) [2]model3d.Coord3D {
+	min := p1.Min(p2.Min(p3.Min(p4)))
+	max := p1.Max(p2.Max(p3.Max(p4)))
+	return [2]model3d.Coord3D{min, max}
 }
