@@ -25,39 +25,29 @@ func main() {
 	flag.Float64Var(&slitWidth, "slit-width", 0.2, "maximum size of the power cord")
 	flag.Parse()
 
-	solid := model3d.JoinedSolid{
-		// Base
-		&model3d.Rect{
-			MinVal: model3d.XYZ(0, 0, -thickness),
-			MaxVal: model3d.XYZ(width, depth, 0),
-		},
-		// Mount
-		&model3d.Rect{
-			MinVal: model3d.XYZ(0, depth, -thickness),
-			MaxVal: model3d.XYZ(width, depth+thickness, mountHeight),
-		},
-		// Edge
-		&model3d.Rect{
-			MinVal: model3d.XYZ(0, -thickness, -thickness),
-			MaxVal: model3d.XYZ(width/2-slitWidth/2, 0, edgeHeight),
-		},
-		&model3d.Rect{
-			MinVal: model3d.XYZ(width/2+slitWidth/2, -thickness, -thickness),
-			MaxVal: model3d.XYZ(width, 0, edgeHeight),
-		},
-	}
-	squeeze := &toolbox3d.SmartSqueeze{
-		Axis:         toolbox3d.AxisY,
-		SqueezeRatio: 0.1,
-		PinchRange:   0.02,
-		PinchPower:   0.25,
-	}
-	squeeze.AddPinch(-thickness)
-	squeeze.AddPinch(0)
-	squeeze.AddPinch(depth)
-	squeeze.AddPinch(depth + thickness)
-	mesh := squeeze.MarchingCubesSearch(solid, 0.01, 8)
+	rs := toolbox3d.NewRectSet()
 
+	// Base
+	rs.Add(&model3d.Rect{
+		MinVal: model3d.XYZ(0, 0, -thickness),
+		MaxVal: model3d.XYZ(width, depth, 0),
+	})
+	// Mount
+	rs.Add(&model3d.Rect{
+		MinVal: model3d.XYZ(0, depth, -thickness),
+		MaxVal: model3d.XYZ(width, depth+thickness, mountHeight),
+	})
+	// Edge
+	rs.Add(&model3d.Rect{
+		MinVal: model3d.XYZ(0, -thickness, -thickness),
+		MaxVal: model3d.XYZ(width/2-slitWidth/2, 0, edgeHeight),
+	})
+	rs.Add(&model3d.Rect{
+		MinVal: model3d.XYZ(width/2+slitWidth/2, -thickness, -thickness),
+		MaxVal: model3d.XYZ(width, 0, edgeHeight),
+	})
+
+	mesh := rs.Mesh()
 	mesh.SaveGroupedSTL("watch_holder.stl")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
