@@ -25,8 +25,8 @@ func loopSubdivision(m *Mesh) *Mesh {
 			if len(ts) != 2 {
 				panic("singular edge detected")
 			}
-			o1 := seg.other(ts[0])
-			o2 := seg.other(ts[1])
+			o1 := seg.Other(ts[0])
+			o2 := seg.Other(ts[1])
 			edgePoints[seg] = seg[0].Add(seg[1]).Scale(3.0 / 8).Add(o1.Add(o2).Scale(1.0 / 8))
 		}
 	})

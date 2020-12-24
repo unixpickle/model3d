@@ -426,7 +426,7 @@ func (m *Mesh) FlipDelaunay() *Mesh {
 				}
 				var sum float64
 				for _, t := range tris {
-					other := seg.other(t)
+					other := seg.Other(t)
 					v1 := seg[0].Sub(other)
 					v2 := seg[1].Sub(other)
 					sum += math.Acos(v1.Normalize().Dot(v2.Normalize()))
@@ -442,7 +442,7 @@ func (m *Mesh) FlipDelaunay() *Mesh {
 				//     p1
 				//
 				p1, p2 := seg[0], seg[1]
-				o1, o2 := seg.other(tris[0]), seg.other(tris[1])
+				o1, o2 := seg.Other(tris[0]), seg.Other(tris[1])
 				if (&Triangle{o1, p1, p2}).Normal().Dot(tris[0].Normal()) < 0 {
 					p1, p2 = p2, p1
 				}

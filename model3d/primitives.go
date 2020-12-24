@@ -507,9 +507,9 @@ func (s Segment) RectCollision(r *Rect) bool {
 	return maxFrac >= minFrac && maxFrac >= 0 && minFrac <= 1
 }
 
-// other gets the third point in a triangle for which s is
-// a segment.
-func (s Segment) other(t *Triangle) Coord3D {
+// Other gets a point in t that is not in s, provided that
+// t is not degenerate.
+func (s Segment) Other(t *Triangle) Coord3D {
 	if t[0] != s[0] && t[0] != s[1] {
 		return t[0]
 	} else if t[1] != s[0] && t[1] != s[1] {

@@ -157,7 +157,7 @@ func TestMeshFlipDelaunay(t *testing.T) {
 				}
 				var sum float64
 				for _, t := range tris {
-					other := seg.other(t)
+					other := seg.Other(t)
 					v1 := seg[0].Sub(other)
 					v2 := seg[1].Sub(other)
 					sum += math.Acos(v1.Normalize().Dot(v2.Normalize()))
