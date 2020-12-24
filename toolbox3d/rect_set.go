@@ -1,6 +1,7 @@
 package toolbox3d
 
 import (
+	"math"
 	"sort"
 
 	"github.com/unixpickle/model3d/model3d"
@@ -59,13 +60,32 @@ func (r *RectSet) Solid() model3d.Solid {
 	return newRectSetSolid(r)
 }
 
-// Mesh creates a 3D mesh from the set.
+// Mesh creates a manifold 3D mesh from the set of rects.
+func (r *RectSet) Mesh() *model3d.Mesh {
+	m := r.ExactMesh()
+
+	epsilon := r.Max().Dist(r.Min()) * 1e-8
+	for _, splits := range r.splits {
+		for i := 1; i < len(splits); i++ {
+			epsilon = math.Min(epsilon, 0.1*(splits[i]-splits[i-1]))
+		}
+	}
+
+	fixSingularEdges(m, epsilon)
+	fixSingularVertices(m, epsilon*0.01)
+
+	return m
+}
+
+// ExactMesh creates a 3D mesh from the set of rects.
 //
 // The returned mesh is not guaranteed to be manifold.
 // For example, it is possible to create two rects that
 // touch at a single vertex or edge, in which case there
 // will be a singularity in the resulting mesh.
-func (r *RectSet) Mesh() *model3d.Mesh {
+//
+// To create a manifold mesh, use Mesh().
+func (r *RectSet) ExactMesh() *model3d.Mesh {
 	// Map (min, max) pairs to ordered quads to track
 	// which faces are on the inside of the solid.
 	uniqueQuads := map[[2]model3d.Coord3D][4]model3d.Coord3D{}
@@ -383,4 +403,184 @@ func quadMinMax(p1, p2, p3, p4 model3d.Coord3D) [2]model3d.Coord3D {
 	min := p1.Min(p2.Min(p3.Min(p4)))
 	max := p1.Max(p2.Max(p3.Max(p4)))
 	return [2]model3d.Coord3D{min, max}
+}
+
+// fixSingularEdges fixes edges of two touching diagonal
+// edge boxes, since these edges belong to four faces at
+// once (which is not allowed).
+// The fix is done by splitting the edge apart and pulling
+// the two middle vertices apart, producing singular
+// points but no singular edges. Singular edges really
+// ought not to be touching, since there is only a
+// singularity because the touching vertices are not in
+// the solid.
+func fixSingularEdges(m *model3d.Mesh, epsilon float64) {
+	changed := true
+	for changed {
+		changed = false
+		sideToTriangle := map[model3d.Segment][]*model3d.Triangle{}
+		m.Iterate(func(t *model3d.Triangle) {
+			for _, seg := range t.Segments() {
+				sideToTriangle[seg] = append(sideToTriangle[seg], t)
+			}
+		})
+		for seg, triangles := range sideToTriangle {
+			if len(triangles) == 2 {
+				continue
+			} else if len(triangles) == 4 {
+				fixSingularEdge(m, seg, triangles, epsilon)
+				changed = true
+			} else {
+				panic("unexpected edge situation")
+			}
+		}
+	}
+}
+
+func fixSingularEdge(m *model3d.Mesh, seg model3d.Segment, tris []*model3d.Triangle, epsilon float64) {
+	for _, t := range tris {
+		if !m.Contains(t) {
+			return
+		}
+	}
+	t1 := tris[0]
+	var minDot float64
+	var t2 *model3d.Triangle
+	for _, t := range tris[1:] {
+		dir := seg.Other(t).Sub(seg.Other(t1))
+		dot := dir.Dot(t1.Normal())
+		if dot < minDot {
+			minDot = dot
+			t2 = t
+		}
+	}
+
+	var t3, t4 *model3d.Triangle
+	for _, t := range tris[1:] {
+		if t != t2 {
+			if t3 == nil {
+				t3 = t
+			} else {
+				t4 = t
+			}
+		}
+	}
+
+	fixSingularEdgePair(m, seg, t1, t2, epsilon)
+	fixSingularEdgePair(m, seg, t3, t4, epsilon)
+}
+
+func fixSingularEdgePair(m *model3d.Mesh, seg model3d.Segment, t1, t2 *model3d.Triangle, epsilon float64) {
+	p1 := seg.Other(t1)
+	p2 := seg.Other(t2)
+
+	// Move the segment's midpoint away from the singular
+	// edge to make the edges not touch.
+	target := p1.Mid(p2)
+	source := seg.Mid()
+	direction := target.Sub(seg.Mid()).Normalize().Scale(epsilon)
+	mp := source.Add(direction)
+
+	fixSingularEdgeTriangle(m, seg, mp, t1)
+	fixSingularEdgeTriangle(m, seg, mp, t2)
+}
+
+func fixSingularEdgeTriangle(m *model3d.Mesh, seg model3d.Segment, mid model3d.Coord3D, t *model3d.Triangle) {
+	m.Remove(t)
+	other := seg.Other(t)
+	t1 := &model3d.Triangle{other, seg[0], seg.Mid()}
+	t2 := &model3d.Triangle{other, seg[1], seg.Mid()}
+	if t1.Normal().Dot(t.Normal()) < 0 {
+		t1[0], t1[1] = t1[1], t1[0]
+	}
+	t1[2] = mid
+	if t2.Normal().Dot(t.Normal()) < 0 {
+		t2[0], t2[1] = t2[1], t2[0]
+	}
+	t2[2] = mid
+	m.Add(t1)
+	m.Add(t2)
+}
+
+// fixSingularVertices fixes singular vertices by
+// duplicating them and then moving the duplicates
+// slightly away from each other.
+func fixSingularVertices(m *model3d.Mesh, epsilon float64) {
+	for _, v := range m.SingularVertices() {
+		for _, family := range singularVertexFamilies(m, v) {
+			// Move the vertex closer to the mean of all points
+			// in the triangle family. This is not guaranteed to
+			// work in general, but seems effective in this case.
+			mean := model3d.Coord3D{}
+			count := 0.0
+			for _, t := range family {
+				for _, p := range t {
+					count++
+					mean = mean.Add(p)
+				}
+			}
+			mean = mean.Scale(1 / count)
+			offset := mean.Sub(v).Normalize().Scale(epsilon)
+			v1 := v.Add(offset)
+			for _, t := range family {
+				m.Remove(t)
+				for i, p := range t {
+					if p == v {
+						t[i] = v1
+					}
+				}
+				m.Add(t)
+			}
+		}
+	}
+}
+
+func singularVertexFamilies(m *model3d.Mesh, v model3d.Coord3D) [][]*model3d.Triangle {
+	var families [][]*model3d.Triangle
+	tris := m.Find(v)
+	for len(tris) > 0 {
+		var family []*model3d.Triangle
+		family, tris = singularVertexNextFamily(m, tris)
+		families = append(families, family)
+	}
+	return families
+}
+
+func singularVertexNextFamily(m *model3d.Mesh, tris []*model3d.Triangle) (family, leftover []*model3d.Triangle) {
+	// See mesh.SingularVertices() for an explanation of
+	// this algorithm.
+
+	queue := make([]int, len(tris))
+	queue[0] = 1
+	changed := true
+	numVisited := 1
+	for changed {
+		changed = false
+		for i, status := range queue {
+			if status != 1 {
+				continue
+			}
+			t := tris[i]
+			for j, t1 := range tris {
+				if queue[j] == 0 && t.SharesEdge(t1) {
+					queue[j] = 1
+					numVisited++
+					changed = true
+				}
+			}
+			queue[i] = 2
+		}
+	}
+	if numVisited == len(tris) {
+		return tris, nil
+	} else {
+		for i, status := range queue {
+			if status == 0 {
+				leftover = append(leftover, tris[i])
+			} else {
+				family = append(family, tris[i])
+			}
+		}
+		return
+	}
 }

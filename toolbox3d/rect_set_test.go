@@ -73,16 +73,47 @@ func TestRectSetSolid(t *testing.T) {
 }
 
 func TestRectSetMesh(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		rs := randomRectSet()
-		mesh := rs.Mesh()
-		if _, n := mesh.RepairNormals(1e-5); n != 0 {
-			t.Errorf("mesh has %d bad normals", n)
+	t.Run("Unaligned", func(t *testing.T) {
+		for i := 0; i < 10; i++ {
+			rs := randomRectSet()
+			mesh := rs.Mesh()
+			if mesh.NeedsRepair() {
+				t.Error("mesh needs repair")
+			}
+			if n := len(mesh.SingularVertices()); n != 0 {
+				t.Errorf("mesh has %d singular vertices", n)
+			}
+			if _, n := mesh.RepairNormals(1e-5); n != 0 {
+				t.Errorf("mesh has %d bad normals", n)
+			}
+			actual := model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
+			expected := rs.Solid()
+			testSolidsEquivalent(t, expected, actual, expected)
 		}
-		actual := model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
-		expected := rs.Solid()
-		testSolidsEquivalent(t, expected, actual, expected)
-	}
+	})
+	t.Run("Aligned", func(t *testing.T) {
+		scales := []model3d.Coord3D{
+			model3d.XYZ(1, 1, 1),
+			model3d.XYZ(1, 10, 1),
+			model3d.XYZ(1, 10, 10),
+			model3d.XYZ(1, 10, 100),
+			model3d.XYZ(1, 1, 100),
+			model3d.XYZ(1, 1, 1000),
+		}
+		for _, scale := range scales {
+			rs := alignedNonManifoldRectSet(scale)
+			mesh := rs.Mesh()
+			if mesh.NeedsRepair() {
+				t.Error("mesh needs repair")
+			}
+			if n := len(mesh.SingularVertices()); n != 0 {
+				t.Errorf("mesh has %d singular vertices", n)
+			}
+			if _, n := mesh.RepairNormals(1e-5); n != 0 {
+				t.Errorf("mesh has %d bad normals", n)
+			}
+		}
+	})
 }
 
 func randomRectSet() *RectSet {
@@ -98,6 +129,28 @@ func randomRectSet() *RectSet {
 		}
 	}
 	return rectSet
+}
+
+func alignedNonManifoldRectSet(scale model3d.Coord3D) *RectSet {
+	for {
+		rs := NewRectSet()
+		for x := 0; x < 10; x++ {
+			for y := 0; y < 10; y++ {
+				for z := 0; z < 10; z++ {
+					if rand.Intn(2) == 0 {
+						rs.Add(&model3d.Rect{
+							MinVal: model3d.XYZ(float64(x), float64(y), float64(z)).Mul(scale),
+							MaxVal: model3d.XYZ(float64(x+1), float64(y+1), float64(z+1)).Mul(scale),
+						})
+					}
+				}
+			}
+		}
+		m := rs.ExactMesh()
+		if m.NeedsRepair() && len(m.SingularVertices()) != 0 {
+			return rs
+		}
+	}
 }
 
 func naiveRectSetSolid(r *RectSet) model3d.Solid {
