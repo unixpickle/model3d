@@ -71,8 +71,12 @@ func (r *RectSet) Mesh() *model3d.Mesh {
 		}
 	}
 
-	fixSingularEdges(m, epsilon)
-	fixSingularVertices(m, epsilon*0.01)
+	fixer := &singularityFixer{
+		Mesh:    m,
+		Epsilon: epsilon,
+	}
+	fixer.FixSingularEdges()
+	fixer.FixSingularVertices()
 
 	return m
 }
@@ -405,21 +409,24 @@ func quadMinMax(p1, p2, p3, p4 model3d.Coord3D) [2]model3d.Coord3D {
 	return [2]model3d.Coord3D{min, max}
 }
 
-// fixSingularEdges fixes edges of two touching diagonal
-// edge boxes, since these edges belong to four faces at
-// once (which is not allowed).
-// The fix is done by splitting the edge apart and pulling
-// the two middle vertices apart, producing singular
-// points but no singular edges. Singular edges really
-// ought not to be touching, since there is only a
-// singularity because the touching vertices are not in
-// the solid.
-func fixSingularEdges(m *model3d.Mesh, epsilon float64) {
+type singularityFixer struct {
+	Mesh    *model3d.Mesh
+	Epsilon float64
+}
+
+// FixSingularEdges fixes edges which are present on two
+// diagonally-touching boxes. These edges belong to four
+// triangles at once.
+//
+// The fix is done by splitting the edge in half and
+// pulling the two middle vertices apart. This produces
+// singular vertices but removes singular edges.
+func (s *singularityFixer) FixSingularEdges() {
 	changed := true
 	for changed {
 		changed = false
 		sideToTriangle := map[model3d.Segment][]*model3d.Triangle{}
-		m.Iterate(func(t *model3d.Triangle) {
+		s.Mesh.Iterate(func(t *model3d.Triangle) {
 			for _, seg := range t.Segments() {
 				sideToTriangle[seg] = append(sideToTriangle[seg], t)
 			}
@@ -428,7 +435,7 @@ func fixSingularEdges(m *model3d.Mesh, epsilon float64) {
 			if len(triangles) == 2 {
 				continue
 			} else if len(triangles) == 4 {
-				fixSingularEdge(m, seg, triangles, epsilon)
+				s.fixSingularEdge(seg, triangles)
 				changed = true
 			} else {
 				panic("unexpected edge situation")
@@ -437,9 +444,9 @@ func fixSingularEdges(m *model3d.Mesh, epsilon float64) {
 	}
 }
 
-func fixSingularEdge(m *model3d.Mesh, seg model3d.Segment, tris []*model3d.Triangle, epsilon float64) {
+func (s *singularityFixer) fixSingularEdge(seg model3d.Segment, tris []*model3d.Triangle) {
 	for _, t := range tris {
-		if !m.Contains(t) {
+		if !s.Mesh.Contains(t) {
 			return
 		}
 	}
@@ -466,11 +473,11 @@ func fixSingularEdge(m *model3d.Mesh, seg model3d.Segment, tris []*model3d.Trian
 		}
 	}
 
-	fixSingularEdgePair(m, seg, t1, t2, epsilon)
-	fixSingularEdgePair(m, seg, t3, t4, epsilon)
+	s.fixSingularEdgePair(seg, t1, t2)
+	s.fixSingularEdgePair(seg, t3, t4)
 }
 
-func fixSingularEdgePair(m *model3d.Mesh, seg model3d.Segment, t1, t2 *model3d.Triangle, epsilon float64) {
+func (s *singularityFixer) fixSingularEdgePair(seg model3d.Segment, t1, t2 *model3d.Triangle) {
 	p1 := seg.Other(t1)
 	p2 := seg.Other(t2)
 
@@ -478,15 +485,16 @@ func fixSingularEdgePair(m *model3d.Mesh, seg model3d.Segment, t1, t2 *model3d.T
 	// edge to make the edges not touch.
 	target := p1.Mid(p2)
 	source := seg.Mid()
-	direction := target.Sub(seg.Mid()).Normalize().Scale(epsilon)
+	direction := target.Sub(seg.Mid()).Normalize().Scale(s.Epsilon)
 	mp := source.Add(direction)
 
-	fixSingularEdgeTriangle(m, seg, mp, t1)
-	fixSingularEdgeTriangle(m, seg, mp, t2)
+	s.fixSingularEdgeTriangle(seg, mp, t1)
+	s.fixSingularEdgeTriangle(seg, mp, t2)
 }
 
-func fixSingularEdgeTriangle(m *model3d.Mesh, seg model3d.Segment, mid model3d.Coord3D, t *model3d.Triangle) {
-	m.Remove(t)
+func (s *singularityFixer) fixSingularEdgeTriangle(seg model3d.Segment, mid model3d.Coord3D,
+	t *model3d.Triangle) {
+	s.Mesh.Remove(t)
 	other := seg.Other(t)
 	t1 := &model3d.Triangle{other, seg[0], seg.Mid()}
 	t2 := &model3d.Triangle{other, seg[1], seg.Mid()}
@@ -498,16 +506,16 @@ func fixSingularEdgeTriangle(m *model3d.Mesh, seg model3d.Segment, mid model3d.C
 		t2[0], t2[1] = t2[1], t2[0]
 	}
 	t2[2] = mid
-	m.Add(t1)
-	m.Add(t2)
+	s.Mesh.Add(t1)
+	s.Mesh.Add(t2)
 }
 
-// fixSingularVertices fixes singular vertices by
+// FixSingularVertices fixes singular vertices by
 // duplicating them and then moving the duplicates
 // slightly away from each other.
-func fixSingularVertices(m *model3d.Mesh, epsilon float64) {
-	for _, v := range m.SingularVertices() {
-		for _, family := range singularVertexFamilies(m, v) {
+func (s *singularityFixer) FixSingularVertices() {
+	for _, v := range s.Mesh.SingularVertices() {
+		for _, family := range s.singularVertexFamilies(v) {
 			// Move the vertex closer to the mean of all points
 			// in the triangle family. This is not guaranteed to
 			// work in general, but seems effective in this case.
@@ -520,33 +528,36 @@ func fixSingularVertices(m *model3d.Mesh, epsilon float64) {
 				}
 			}
 			mean = mean.Scale(1 / count)
-			offset := mean.Sub(v).Normalize().Scale(epsilon)
+			// Use smaller epsilon to avoid unforseen conflicts with
+			// the singular edge removal that preceded this.
+			offset := mean.Sub(v).Normalize().Scale(s.Epsilon * 0.01)
 			v1 := v.Add(offset)
 			for _, t := range family {
-				m.Remove(t)
+				s.Mesh.Remove(t)
 				for i, p := range t {
 					if p == v {
 						t[i] = v1
 					}
 				}
-				m.Add(t)
+				s.Mesh.Add(t)
 			}
 		}
 	}
 }
 
-func singularVertexFamilies(m *model3d.Mesh, v model3d.Coord3D) [][]*model3d.Triangle {
+func (s *singularityFixer) singularVertexFamilies(v model3d.Coord3D) [][]*model3d.Triangle {
 	var families [][]*model3d.Triangle
-	tris := m.Find(v)
+	tris := s.Mesh.Find(v)
 	for len(tris) > 0 {
 		var family []*model3d.Triangle
-		family, tris = singularVertexNextFamily(m, tris)
+		family, tris = s.singularVertexNextFamily(tris)
 		families = append(families, family)
 	}
 	return families
 }
 
-func singularVertexNextFamily(m *model3d.Mesh, tris []*model3d.Triangle) (family, leftover []*model3d.Triangle) {
+func (s *singularityFixer) singularVertexNextFamily(tris []*model3d.Triangle) (family,
+	leftover []*model3d.Triangle) {
 	// See mesh.SingularVertices() for an explanation of
 	// this algorithm.
 
