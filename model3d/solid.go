@@ -60,6 +60,29 @@ func (j JoinedSolid) Contains(c Coord3D) bool {
 	return false
 }
 
+// Optimize creates a version of the solid that is faster
+// when joining a large number of smaller solids.
+func (j JoinedSolid) Optimize() Solid {
+	bounders := make([]Bounder, len(j))
+	for i, s := range j {
+		bounders[i] = s
+	}
+	GroupBounders(bounders)
+	return groupedBoundersToSolid(bounders)
+}
+
+func groupedBoundersToSolid(bs []Bounder) Solid {
+	if len(bs) == 1 {
+		return CacheSolidBounds(bs[0].(Solid))
+	}
+	firstHalf := bs[:len(bs)/2]
+	secondHalf := bs[len(bs)/2:]
+	return CacheSolidBounds(JoinedSolid{
+		groupedBoundersToSolid(firstHalf),
+		groupedBoundersToSolid(secondHalf),
+	})
+}
+
 // SubtractedSolid is a Solid consisting of all the points
 // in Positive which are not in Negative.
 type SubtractedSolid struct {

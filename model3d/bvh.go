@@ -5,6 +5,64 @@ import (
 	"sort"
 )
 
+// GeneralBVH represents a (possibly unbalanced)
+// axis-aligned bounding volume hierarchy.
+//
+// A GeneralBVH can store arbitrary Bounders.
+// For a triangle-specific version, see BNH.
+type GeneralBVH struct {
+	// Leaf, if non-nil, is the final bounder.
+	Leaf Bounder
+
+	// Branch, if Leaf is nil, points to two children.
+	Branch []*GeneralBVH
+}
+
+// NewGeneralBVHAreaDensity creates a GeneralBVH by
+// minimizing the product of each bounding box's area with
+// the number of objects contained in the bounding box at
+// each branch.
+//
+// This is good for efficient ray collision detection.
+func NewGeneralBVHAreaDensity(objects []Bounder) *GeneralBVH {
+	return newGeneralBVH(sortBounders(objects), make([]float64, len(objects)),
+		areaDensityBVHSplit)
+}
+
+func newGeneralBVH(sortedBounders [3][]*flaggedBounder, cache []float64,
+	splitter func([]*flaggedBounder, []float64) (int, float64)) *GeneralBVH {
+	numTris := len(sortedBounders[0])
+	if numTris == 0 {
+		panic("empty sorted triangles")
+	} else if numTris == 1 {
+		return &GeneralBVH{Leaf: sortedBounders[0][0].B}
+	} else if numTris == 2 {
+		return &GeneralBVH{Branch: []*GeneralBVH{
+			{Leaf: sortedBounders[0][0].B},
+			{Leaf: sortedBounders[0][1].B},
+		}}
+	}
+
+	xIndex, xScore := splitter(sortedBounders[0], cache)
+	yIndex, yScore := splitter(sortedBounders[1], cache)
+	zIndex, zScore := splitter(sortedBounders[2], cache)
+
+	var split [2][3][]*flaggedBounder
+	if xScore < yScore && xScore < zScore {
+		split = splitBounders(sortedBounders, 0, xIndex)
+	} else if yScore < xScore && yScore < zScore {
+		split = splitBounders(sortedBounders, 1, yIndex)
+	} else {
+		split = splitBounders(sortedBounders, 2, zIndex)
+	}
+	return &GeneralBVH{
+		Branch: []*GeneralBVH{
+			newGeneralBVH(split[0], cache, splitter),
+			newGeneralBVH(split[1], cache, splitter),
+		},
+	}
+}
+
 // BVH represents a (possibly unbalanced) axis-aligned
 // bounding volume hierarchy of triangles.
 //
@@ -13,6 +71,9 @@ import (
 //
 // A BVH node is either a leaf (a triangle), or a branch
 // with two or more children.
+//
+// For a more generic BVH that supports any object rather
+// than just triangles, see GeneralBVH.
 type BVH struct {
 	// Leaf, if non-nil, is the final triangle.
 	Leaf *Triangle
@@ -21,48 +82,21 @@ type BVH struct {
 	Branch []*BVH
 }
 
-// NewBVHAreaDensity creates a BVH by minimizing the
-// product of each bounding box's area with the number of
-// triangles contained in the bounding box at each branch.
-//
-// This is good for efficient ray collision detection.
-func NewBVHAreaDensity(triangles []*Triangle) *BVH {
-	return newBVH(sortTriangles(triangles), make([]float64, len(triangles)),
-		areaDensityBVHSplit)
+// NewBVHAreaDensity is like NewGeneralBVHAreaDensity but
+// for triangles.
+func NewBVHAreaDensity(tris []*Triangle) *BVH {
+	return generalBVHToBVH(NewGeneralBVHAreaDensity(trianglesToBounders(tris)))
 }
 
-func newBVH(sortedTris [3][]*flaggedTriangle, cache []float64,
-	splitter func([]*flaggedTriangle, []float64) (int, float64)) *BVH {
-	numTris := len(sortedTris[0])
-	if numTris == 0 {
-		panic("empty sorted triangles")
-	} else if numTris == 1 {
-		return &BVH{Leaf: sortedTris[0][0].T}
-	} else if numTris == 2 {
-		return &BVH{Branch: []*BVH{
-			{Leaf: sortedTris[0][0].T},
-			{Leaf: sortedTris[0][1].T},
-		}}
+func generalBVHToBVH(g *GeneralBVH) *BVH {
+	if g.Leaf != nil {
+		return &BVH{Leaf: g.Leaf.(*Triangle)}
 	}
-
-	xIndex, xScore := splitter(sortedTris[0], cache)
-	yIndex, yScore := splitter(sortedTris[1], cache)
-	zIndex, zScore := splitter(sortedTris[2], cache)
-
-	var split [2][3][]*flaggedTriangle
-	if xScore < yScore && xScore < zScore {
-		split = splitTriangles(sortedTris, 0, xIndex)
-	} else if yScore < xScore && yScore < zScore {
-		split = splitTriangles(sortedTris, 1, yIndex)
-	} else {
-		split = splitTriangles(sortedTris, 2, zIndex)
+	res := &BVH{Branch: make([]*BVH, len(g.Branch))}
+	for i, g1 := range g.Branch {
+		res.Branch[i] = generalBVHToBVH(g1)
 	}
-	return &BVH{
-		Branch: []*BVH{
-			newBVH(split[0], cache, splitter),
-			newBVH(split[1], cache, splitter),
-		},
-	}
+	return res
 }
 
 // areaDensityBVHSplit chooses a split index that
@@ -73,7 +107,7 @@ func newBVH(sortedTris [3][]*flaggedTriangle, cache []float64,
 // the number of triangles.
 //
 // The cache must contain at least len(tris) entries.
-func areaDensityBVHSplit(tris []*flaggedTriangle, cache []float64) (int, float64) {
+func areaDensityBVHSplit(tris []*flaggedBounder, cache []float64) (int, float64) {
 	// Fill the cache with scores going in the other
 	// direction.
 	min, max := tris[len(tris)-1].Min, tris[len(tris)-1].Max
@@ -102,11 +136,8 @@ func areaDensityBVHSplit(tris []*flaggedTriangle, cache []float64) (int, float64
 	return bestIndex, bestScore
 }
 
-// GroupTriangles sorts the triangle slice into a balanced
-// bounding volume hierarchy.
-// In particular, the sorted slice can be recursively cut
-// in half, and each half will be spatially separated as
-// well as possible along some axis.
+// GroupTriangles is like GroupBounders, but for triangles
+// in particular.
 //
 // This can be used to prepare models for being turned
 // into a collider efficiently, or for storing meshes in
@@ -115,61 +146,78 @@ func areaDensityBVHSplit(tris []*flaggedTriangle, cache []float64) (int, float64
 // The resulting hierarchy can be passed directly to
 // GroupedTrianglesToCollider().
 func GroupTriangles(tris []*Triangle) {
-	groupTriangles(sortTriangles(tris), tris)
+	bs := trianglesToBounders(tris)
+	groupBounders(sortBounders(bs), bs)
+	for i, b := range bs {
+		tris[i] = b.(*Triangle)
+	}
 }
 
-func groupTriangles(sortedTris [3][]*flaggedTriangle, output []*Triangle) {
-	numTris := len(sortedTris[0])
+// GroupBounders sorts a slice of objects into a balanced
+// bounding volume hierarchy.
+//
+// The sorted slice can be recursively cut in half, and
+// each half will be spatially separated as well as
+// possible along some axis.
+// To cut a slice in half, divide the length by two, round
+// down, and use the result as the start index for the
+// second half.
+func GroupBounders(objects []Bounder) {
+	groupBounders(sortBounders(objects), objects)
+}
+
+func groupBounders(sortedBounders [3][]*flaggedBounder, output []Bounder) {
+	numTris := len(sortedBounders[0])
 	if numTris == 2 {
 		// The area-based splitting criterion doesn't
 		// distinguish between axes, now.
-		output[0] = sortedTris[0][0].T
-		output[1] = sortedTris[0][1].T
+		output[0] = sortedBounders[0][0].B
+		output[1] = sortedBounders[0][1].B
 		return
 	} else if numTris == 1 {
-		output[0] = sortedTris[0][0].T
+		output[0] = sortedBounders[0][0].B
 		return
 	} else if numTris == 0 {
 		return
 	}
 
 	midIdx := numTris / 2
-	axis := bestSplitAxis(sortedTris)
+	axis := bestSplitAxis(sortedBounders)
 
-	separated := splitTriangles(sortedTris, axis, midIdx)
-	groupTriangles(separated[0], output[:midIdx])
-	groupTriangles(separated[1], output[midIdx:])
+	separated := splitBounders(sortedBounders, axis, midIdx)
+	groupBounders(separated[0], output[:midIdx])
+	groupBounders(separated[1], output[midIdx:])
 }
 
-func splitTriangles(sortedTris [3][]*flaggedTriangle, axis, midIdx int) [2][3][]*flaggedTriangle {
-	for i, t := range sortedTris[axis] {
-		t.Flag = i < midIdx
+func splitBounders(sortedBounders [3][]*flaggedBounder, axis, midIdx int) [2][3][]*flaggedBounder {
+	for i, b := range sortedBounders[axis] {
+		b.Flag = i < midIdx
 	}
 
-	separated := [3][]*flaggedTriangle{}
-	separated[axis] = sortedTris[axis]
+	separated := [3][]*flaggedBounder{}
+	separated[axis] = sortedBounders[axis]
 
-	numTris := len(sortedTris[0])
+	numTris := len(sortedBounders[0])
 	for newAxis := 0; newAxis < 3; newAxis++ {
 		if newAxis == axis {
 			continue
 		}
-		sep := make([]*flaggedTriangle, numTris)
+		sep := make([]*flaggedBounder, numTris)
 		idx0 := 0
 		idx1 := midIdx
-		for _, t := range sortedTris[newAxis] {
-			if t.Flag {
-				sep[idx0] = t
+		for _, b := range sortedBounders[newAxis] {
+			if b.Flag {
+				sep[idx0] = b
 				idx0++
 			} else {
-				sep[idx1] = t
+				sep[idx1] = b
 				idx1++
 			}
 		}
 		separated[newAxis] = sep
 	}
 
-	return [2][3][]*flaggedTriangle{
+	return [2][3][]*flaggedBounder{
 		{
 			separated[0][:midIdx],
 			separated[1][:midIdx],
@@ -183,12 +231,12 @@ func splitTriangles(sortedTris [3][]*flaggedTriangle, axis, midIdx int) [2][3][]
 	}
 }
 
-func bestSplitAxis(sortedTris [3][]*flaggedTriangle) int {
-	midIdx := len(sortedTris[0]) / 2
+func bestSplitAxis(sortedBounders [3][]*flaggedBounder) int {
+	midIdx := len(sortedBounders[0]) / 2
 
 	areaForAxis := func(axis int) float64 {
-		return triangleBoundArea(sortedTris[axis][:midIdx]) +
-			triangleBoundArea(sortedTris[axis][midIdx:])
+		return multipleBoundsArea(sortedBounders[axis][:midIdx]) +
+			multipleBoundsArea(sortedBounders[axis][midIdx:])
 	}
 
 	axis := 0
@@ -203,53 +251,53 @@ func bestSplitAxis(sortedTris [3][]*flaggedTriangle) int {
 	return axis
 }
 
-func sortTriangles(tris []*Triangle) [3][]*flaggedTriangle {
-	// Allocate all of the flaggedTriangles at once all
+func sortBounders(bs []Bounder) [3][]*flaggedBounder {
+	// Allocate all of the flaggedBounders at once all
 	// next to each other in memory.
-	ts := make([]flaggedTriangle, len(tris))
-	for i, t := range tris {
-		min, max := t.Min(), t.Max()
-		ts[i] = flaggedTriangle{
-			T:   t,
+	flagged := make([]flaggedBounder, len(bs))
+	for i, b := range bs {
+		min, max := b.Min(), b.Max()
+		flagged[i] = flaggedBounder{
+			B:   b,
 			Min: min,
 			Max: max,
 			Mid: min.Mid(max),
 		}
 	}
 
-	var result [3][]*flaggedTriangle
+	var result [3][]*flaggedBounder
 	for axis := range result {
-		tsCopy := make([]*flaggedTriangle, len(ts))
-		for i := range ts {
-			tsCopy[i] = &ts[i]
+		bsCopy := make([]*flaggedBounder, len(flagged))
+		for i := range flagged {
+			bsCopy[i] = &flagged[i]
 		}
 		if axis == 0 {
-			sort.Slice(tsCopy, func(i, j int) bool {
-				return tsCopy[i].Mid.X < tsCopy[j].Mid.X
+			sort.Slice(bsCopy, func(i, j int) bool {
+				return bsCopy[i].Mid.X < bsCopy[j].Mid.X
 			})
 		} else if axis == 1 {
-			sort.Slice(tsCopy, func(i, j int) bool {
-				return tsCopy[i].Mid.Y < tsCopy[j].Mid.Y
+			sort.Slice(bsCopy, func(i, j int) bool {
+				return bsCopy[i].Mid.Y < bsCopy[j].Mid.Y
 			})
 		} else {
-			sort.Slice(tsCopy, func(i, j int) bool {
-				return tsCopy[i].Mid.Z < tsCopy[j].Mid.Z
+			sort.Slice(bsCopy, func(i, j int) bool {
+				return bsCopy[i].Mid.Z < bsCopy[j].Mid.Z
 			})
 		}
-		result[axis] = tsCopy
+		result[axis] = bsCopy
 	}
 	return result
 }
 
-func triangleBoundArea(tris []*flaggedTriangle) float64 {
-	min, max := tris[0].Min, tris[0].Max
-	for i := 1; i < len(tris); i++ {
-		t := tris[i]
+func multipleBoundsArea(bs []*flaggedBounder) float64 {
+	min, max := bs[0].Min, bs[0].Max
+	for i := 1; i < len(bs); i++ {
+		b := bs[i]
 
 		// This is very expanded (unwrapped) vs. using
 		// Min() and Max(), but it is faster and this is
 		// surprisingly a large bottleneck.
-		min1 := t.Min
+		min1 := b.Min
 		if min1.X < min.X {
 			min.X = min1.X
 		}
@@ -259,7 +307,7 @@ func triangleBoundArea(tris []*flaggedTriangle) float64 {
 		if min1.Z < min.Z {
 			min.Z = min1.Z
 		}
-		max1 := t.Max
+		max1 := b.Max
 		if max1.X > max.X {
 			max.X = max1.X
 		}
@@ -278,8 +326,8 @@ func boundsArea(min, max Coord3D) float64 {
 	return 2 * (diff.X*(diff.Y+diff.Z) + diff.Y*diff.Z)
 }
 
-type flaggedTriangle struct {
-	T    *Triangle
+type flaggedBounder struct {
+	B    Bounder
 	Min  Coord3D
 	Max  Coord3D
 	Mid  Coord3D
@@ -335,4 +383,12 @@ func rayCollisionWithBounds(r *Ray, min, max Coord3D) (minFrac, maxFrac float64)
 		}
 	}
 	return
+}
+
+func trianglesToBounders(tris []*Triangle) []Bounder {
+	bs := make([]Bounder, len(tris))
+	for i, t := range tris {
+		bs[i] = t
+	}
+	return bs
 }
