@@ -64,7 +64,7 @@ func (r *RectSet) Solid() model3d.Solid {
 func (r *RectSet) Mesh() *model3d.Mesh {
 	m := r.ExactMesh()
 
-	epsilon := r.Max().Dist(r.Min()) * 1e-8
+	epsilon := r.Max().Dist(r.Min()) * 1e-5
 	for _, splits := range r.splits {
 		for i := 1; i < len(splits); i++ {
 			epsilon = math.Min(epsilon, 0.1*(splits[i]-splits[i-1]))
