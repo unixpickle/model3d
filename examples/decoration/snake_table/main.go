@@ -10,9 +10,9 @@ const (
 	Thickness = 0.1
 	Spacing   = 0.15
 
-	Depth  = 2.0
-	Width  = 1.0
-	Height = 0.8
+	Depth  = 2.25
+	Width  = 1.25
+	Height = 1.05
 )
 
 func main() {
@@ -31,24 +31,29 @@ func CreatePath() []model3d.Coord3D {
 		path = append(path, current)
 	}
 
-	addOffset(0, Depth-Spacing, 0)
-	addOffset(-Width, 0, 0)
-	addOffset(0, -Depth, 0)
-	addOffset(Width-Spacing, 0, 0)
-	addOffset(0, 0, Height-Spacing)
-	addOffset(-Width, 0, 0)
-	addOffset(0, 0, -(Height - Spacing*2))
-	addOffset(0, Depth, 0)
-	addOffset(0, 0, Height-Spacing)
-	addOffset(0, -(Depth - Spacing), 0)
-	addOffset(Width, 0, 0)
-	addOffset(0, Depth, 0)
-	addOffset(-(Width - Spacing), 0, 0)
-	addOffset(0, 0, -(Height - Spacing))
-	addOffset(Width, 0, 0)
-	addOffset(0, 0, Height-Spacing*2)
-	addOffset(0, -(Depth), 0)
-	addOffset(0, 0, -(Height - Spacing))
+	const d = Depth - (Spacing + Thickness)
+	const w = Width - (Spacing + Thickness)
+	const h = Height - (Spacing + Thickness)
+	const s = Spacing
+
+	addOffset(0, d-s, 0)
+	addOffset(-w, 0, 0)
+	addOffset(0, -d, 0)
+	addOffset(w-s, 0, 0)
+	addOffset(0, 0, h)
+	addOffset(-w, 0, 0)
+	addOffset(0, 0, -(h - s))
+	addOffset(0, d, 0)
+	addOffset(0, 0, h)
+	addOffset(0, -(d - s), 0)
+	addOffset(w, 0, 0)
+	addOffset(0, d, 0)
+	addOffset(-(w - s), 0, 0)
+	addOffset(0, 0, -h)
+	addOffset(w, 0, 0)
+	addOffset(0, 0, h-s)
+	addOffset(0, -d, 0)
+	addOffset(0, 0, -h)
 	return path
 }
 
