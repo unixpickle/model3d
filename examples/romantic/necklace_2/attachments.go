@@ -43,7 +43,6 @@ func heartAttachment() model3d.Solid {
 		})
 	}
 	mesh = mesh.Scale(0.4 / 7.0)
-	model2d.Rasterize("/home/alex/Desktop/heart.png", mesh, 400)
 	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
 	sdf2d := model2d.MeshToSDF(mesh)
 	spheres := toolbox3d.NewHeightMap(solid2d.Min(), solid2d.Max(), 1024)
