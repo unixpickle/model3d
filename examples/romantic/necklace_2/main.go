@@ -14,6 +14,8 @@ func main() {
 	var holderDiameter float64
 	var holderBarLength float64
 	var holderBarThickness float64
+	var attachmentName string
+
 	var spiralRadius float64
 	var resolution float64
 
@@ -23,6 +25,7 @@ func main() {
 	flag.Float64Var(&holderDiameter, "holder-diameter", 0.4, "diameter of the holder link")
 	flag.Float64Var(&holderBarLength, "holder-bar-length", 0.9, "length of holder bar")
 	flag.Float64Var(&holderBarThickness, "holder-bar-thickness", 0.04, "diameter of holder bar")
+	flag.StringVar(&attachmentName, "attachment", "heart", "name of attachment to use")
 
 	flag.Float64Var(&spiralRadius, "spiral-radius", 1.0, "radius of spiral for model layout")
 	flag.Float64Var(&resolution, "resolution", 0.005, "resolution for marching cubes")
@@ -37,17 +40,31 @@ func main() {
 	holderDirection := spiral[0].Sub(spiral[1]).Normalize()
 	spiral = append([]model3d.Coord3D{spiral[0].Add(holderDirection.Scale(holderSpace))}, spiral...)
 
+	centerLink := len(spiral) / 2
+	if centerLink%2 == 1 {
+		centerLink++
+	}
+
 	links := make(model3d.JoinedSolid, len(spiral))
 	for i, center := range spiral {
 		axis := model3d.Z(1)
 		if i%2 == 1 {
-			axis = center
-			axis.Z = 0
-			axis = axis.Normalize()
+			axis = center.Mul(model3d.XY(1, 1)).Normalize()
 		}
 		radius := linkLength / 2
 		if i == 0 {
 			radius = holderDiameter / 2
+		}
+		if i == centerLink {
+			centerDir := center.Mul(model3d.XY(1, 1)).Normalize()
+			axis1 := model3d.XY(center.Y, -center.X).Normalize()
+			attachmentLink := &model3d.Torus{
+				Center:      center.Add(centerDir.Scale(linkLength/2 + linkLength/3)),
+				Axis:        axis1,
+				InnerRadius: linkThickness / 2,
+				OuterRadius: radius + linkThickness/2,
+			}
+			links = append(links, attachmentLink, createAttachment(attachmentLink, attachmentName))
 		}
 		links[i] = &model3d.Torus{
 			Center:      center,
@@ -97,4 +114,22 @@ func createSpiralCenters(numLinks int, linkLength, spiralRadius float64) []model
 		points[i] = model3d.XYZ(math.Cos(theta), math.Sin(theta), height).Scale(spiralRadius)
 	}
 	return points
+}
+
+func createAttachment(link *model3d.Torus, name string) model3d.Solid {
+	rawAttachment := Attachment(name)
+	xOffset := 0.0
+	for rawAttachment.Contains(model3d.X(-xOffset)) {
+		xOffset += 0.001
+	}
+	tipOffset := link.OuterRadius - link.InnerRadius
+	tipDirection := model3d.XY(link.Center.X, link.Center.Y).Normalize()
+	linkTip := link.Center.Add(tipDirection.Scale(tipOffset))
+	angle := math.Atan2(link.Center.Y, link.Center.X)
+
+	return model3d.TransformSolid(model3d.JoinedTransform{
+		&model3d.Translate{Offset: model3d.X(xOffset)},
+		&model3d.Matrix3Transform{Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), angle)},
+		&model3d.Translate{Offset: linkTip},
+	}, rawAttachment)
 }

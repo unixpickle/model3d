@@ -97,6 +97,45 @@ func (h *HeightMap) AddSphere(center model2d.Coord, radius float64) bool {
 	return covered
 }
 
+// AddSphereFill fills a circle with spheres of a bounded
+// radius.
+//
+// The sphereRadius argument determines the maximum radius
+// for a sphere.
+// The radius argument determines the radius of the circle
+// to fill with spheres.
+//
+// Returns true if the spheres changed the height map in
+// any way, or false if the spheres were covered.
+func (h *HeightMap) AddSphereFill(center model2d.Coord, radius, sphereRadius float64) bool {
+	if sphereRadius > radius {
+		return h.AddSphere(center, radius)
+	}
+	minRow, minCol := h.coordToIndex(center.Sub(model2d.XY(radius, radius)))
+	maxRow, maxCol := h.coordToIndex(center.Add(model2d.XY(radius, radius)))
+	covered := false
+	for row := minRow; row <= maxRow+1; row++ {
+		for col := minCol; col <= maxCol+1; col++ {
+			c := h.indexToCoord(row, col)
+			dist := c.Dist(center)
+			if radius-dist >= sphereRadius {
+				if h.updateAt(row, col, sphereRadius*sphereRadius) {
+					covered = true
+				}
+			} else {
+				outset := dist - (radius - sphereRadius)
+				if outset < sphereRadius {
+					remaining := sphereRadius*sphereRadius - outset*outset
+					if h.updateAt(row, col, remaining) {
+						covered = true
+					}
+				}
+			}
+		}
+	}
+	return covered
+}
+
 func (h *HeightMap) updateAt(row, col int, height float64) bool {
 	if row < 0 || col < 0 || row >= h.Rows || col >= h.Cols {
 		return false
