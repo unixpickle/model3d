@@ -33,10 +33,10 @@ func main() {
 	flag.Parse()
 
 	numLinks := int(math.Ceil(totalLength / linkLength))
-	spiral := createSpiralCenters(numLinks, linkLength, spiralRadius)
+	spiral := createSpiralCenters(numLinks, linkLength, linkThickness, spiralRadius)
 
 	// Create the larger link for the holder.
-	holderSpace := holderDiameter/2 + linkLength/2 - linkLength/3
+	holderSpace := holderDiameter/2 + linkThickness/2 - linkLength/3
 	holderDirection := spiral[0].Sub(spiral[1]).Normalize()
 	spiral = append([]model3d.Coord3D{spiral[0].Add(holderDirection.Scale(holderSpace))}, spiral...)
 
@@ -57,9 +57,12 @@ func main() {
 		}
 		if i == centerLink {
 			centerDir := center.Mul(model3d.XY(1, 1)).Normalize()
+			// Extra offset (linkThickness/2 => linkThickness) to prevent
+			// collisions between this link and the others.
+			centerOffset := (2.0/3.0)*linkLength + linkThickness
 			axis1 := model3d.XY(center.Y, -center.X).Normalize()
 			attachmentLink := &model3d.Torus{
-				Center:      center.Add(centerDir.Scale(linkLength/2 + linkLength/3)),
+				Center:      center.Add(centerDir.Scale(centerOffset)),
 				Axis:        axis1,
 				InnerRadius: linkThickness / 2,
 				OuterRadius: radius + linkThickness/2,
@@ -84,6 +87,13 @@ func main() {
 		Radius: holderBarThickness / 2,
 	}
 	links = append(links, holderBar)
+	// Rounded tips for holder bar.
+	for _, p := range []model3d.Coord3D{holderBar.P1, holderBar.P2} {
+		links = append(links, &model3d.Sphere{
+			Center: p,
+			Radius: holderBar.Radius,
+		})
+	}
 
 	fastLinks := links.Optimize()
 
@@ -91,11 +101,12 @@ func main() {
 	mesh.SaveGroupedSTL("necklace.stl")
 }
 
-func createSpiralCenters(numLinks int, linkLength, spiralRadius float64) []model3d.Coord3D {
+func createSpiralCenters(numLinks int, linkLength, linkThickness,
+	spiralRadius float64) []model3d.Coord3D {
 	// Each cycle around creates 2x the link length of space
 	// between links, which should be more than enough.
 	heightPerRadian := (linkLength * 2) / (2 * math.Pi)
-	distPerLink := (2.0 / 3.0) * linkLength
+	distPerLink := (2.0/3.0)*linkLength + linkThickness/2
 
 	var thetaStep float64
 	for ts := 0.0; true; ts += 0.00001 {
@@ -118,9 +129,9 @@ func createSpiralCenters(numLinks int, linkLength, spiralRadius float64) []model
 
 func createAttachment(link *model3d.Torus, name string) model3d.Solid {
 	rawAttachment := Attachment(name)
-	xOffset := 0.0
-	for rawAttachment.Contains(model3d.X(-xOffset)) {
-		xOffset += 0.001
+	xOffset := -rawAttachment.Min().X
+	for !rawAttachment.Contains(model3d.X(-xOffset)) {
+		xOffset -= 0.001
 	}
 	tipOffset := link.OuterRadius - link.InnerRadius
 	tipDirection := model3d.XY(link.Center.X, link.Center.Y).Normalize()
