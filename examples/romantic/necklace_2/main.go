@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"log"
 	"math"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/render3d"
 
 	"github.com/unixpickle/model3d/model3d"
@@ -34,11 +36,14 @@ func main() {
 
 	flag.Parse()
 
+	log.Println("Calculating spiral...")
 	numLinks := int(math.Ceil(totalLength / linkLength))
 	spiral := createSpiralCenters(numLinks, linkLength, linkThickness, spiralRadius)
 
+	log.Println("Creating solids...")
+
 	// Create the larger link for the holder.
-	holderSpace := holderDiameter/2 + linkThickness/2 - linkLength/3
+	holderSpace := holderDiameter/2 - linkThickness/2 + linkLength/3
 	holderDirection := spiral[0].Sub(spiral[1]).Normalize()
 	spiral = append([]model3d.Coord3D{spiral[0].Add(holderDirection.Scale(holderSpace))}, spiral...)
 
@@ -47,7 +52,10 @@ func main() {
 		centerLink++
 	}
 
-	links := make(model3d.JoinedSolid, len(spiral))
+	// A collection of non-intersecting solids.
+	// These solids may interlink, but not collide, so
+	// that each one can be meshed separately.
+	solids := make([]model3d.Solid, len(spiral))
 	for i, center := range spiral {
 		axis := model3d.Z(1)
 		if i%2 == 1 {
@@ -69,9 +77,13 @@ func main() {
 				InnerRadius: linkThickness / 2,
 				OuterRadius: radius + linkThickness/2,
 			}
-			links = append(links, attachmentLink, createAttachment(attachmentLink, attachmentName))
+			// Fuse attachment to attachment link
+			solids = append(solids, model3d.JoinedSolid{
+				attachmentLink,
+				createAttachment(attachmentLink, attachmentName),
+			})
 		}
-		links[i] = &model3d.Torus{
+		solids[i] = &model3d.Torus{
 			Center:      center,
 			Axis:        axis,
 			InnerRadius: linkThickness / 2,
@@ -79,29 +91,17 @@ func main() {
 		}
 	}
 
-	// Create the holder bar.
-	holderBarAxis := spiral[len(spiral)-1].Mul(model3d.XY(1, 1)).Normalize()
-	holderBarDir := spiral[len(spiral)-1].Sub(spiral[len(spiral)-2]).Normalize()
-	holderBarCenter := spiral[len(spiral)-1].Add(holderBarDir.Scale(linkLength/2 + holderBarThickness/2))
-	holderBar := &model3d.Cylinder{
-		P1:     holderBarCenter.Sub(holderBarAxis.Scale(holderBarLength / 2)),
-		P2:     holderBarCenter.Add(holderBarAxis.Scale(holderBarLength / 2)),
-		Radius: holderBarThickness / 2,
-	}
-	links = append(links, holderBar)
-	// Rounded tips for holder bar.
-	for _, p := range []model3d.Coord3D{holderBar.P1, holderBar.P2} {
-		links = append(links, &model3d.Sphere{
-			Center: p,
-			Radius: holderBar.Radius,
-		})
-	}
+	// Fuse holder bar to last link.
+	holderBar := createHolderBar(spiral, linkLength, holderBarLength, holderBarThickness)
+	solids[len(spiral)-1] = append(holderBar, solids[len(spiral)-1])
 
-	fastLinks := links.Optimize()
+	log.Println("Creating mesh...")
+	mesh := combinedSolidMeshes(solids, resolution)
 
-	mesh := model3d.MarchingCubesSearch(fastLinks, resolution, 8)
+	log.Println("Saving mesh...")
 	mesh.SaveGroupedSTL("necklace.stl")
 
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
@@ -147,4 +147,73 @@ func createAttachment(link *model3d.Torus, name string) model3d.Solid {
 		&model3d.Matrix3Transform{Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), angle)},
 		&model3d.Translate{Offset: linkTip},
 	}, rawAttachment)
+}
+
+func createHolderBar(spiral []model3d.Coord3D, linkLength, length,
+	thickness float64) model3d.JoinedSolid {
+	holderBarAxis := spiral[len(spiral)-1].Mul(model3d.XY(1, 1)).Normalize()
+	holderBarDir := spiral[len(spiral)-1].Sub(spiral[len(spiral)-2]).Normalize()
+	holderBarCenter := spiral[len(spiral)-1].Add(holderBarDir.Scale(linkLength/2 + thickness/2))
+	holderBarCylinder := &model3d.Cylinder{
+		P1:     holderBarCenter.Sub(holderBarAxis.Scale(length / 2)),
+		P2:     holderBarCenter.Add(holderBarAxis.Scale(length / 2)),
+		Radius: thickness / 2,
+	}
+	holderBar := model3d.JoinedSolid{holderBarCylinder}
+
+	// Rounded tips.
+	for _, p := range []model3d.Coord3D{holderBarCylinder.P1, holderBarCylinder.P2} {
+		holderBar = append(holderBar, &model3d.Sphere{
+			Center: p,
+			Radius: holderBarCylinder.Radius,
+		})
+	}
+
+	return holderBar
+}
+
+func combinedSolidMeshes(solids []model3d.Solid, resolution float64) *model3d.Mesh {
+	mesh := model3d.NewMesh()
+	for _, solid := range solids {
+		if torus, ok := solid.(*model3d.Torus); ok {
+			mesh.AddMesh(torusToMesh(torus, resolution))
+		} else {
+			mesh.AddMesh(model3d.MarchingCubesSearch(solid, resolution, 8))
+		}
+	}
+	return mesh
+}
+
+func torusToMesh(torus *model3d.Torus, resolution float64) *model3d.Mesh {
+	outmostRadius := torus.InnerRadius + torus.OuterRadius
+	outmostCircum := 2 * math.Pi * outmostRadius
+	outerSteps := essentials.MaxInt(5, int(math.Ceil(outmostCircum/resolution)))
+	innerCircum := 2 * math.Pi * torus.InnerRadius
+	innerSteps := essentials.MaxInt(5, int(math.Ceil(innerCircum/resolution)))
+
+	innerTheta := func(i int) float64 {
+		return float64(i%innerSteps) * 2 * math.Pi / float64(innerSteps)
+	}
+	outerTheta := func(i int) float64 {
+		return float64(i%outerSteps) * 2 * math.Pi / float64(outerSteps)
+	}
+
+	axis := torus.Axis.Normalize()
+	basis1, basis2 := axis.Normalize().OrthoBasis()
+	coord := func(outer, inner int) model3d.Coord3D {
+		outerAngle := outerTheta(outer)
+		outerVec := basis1.Scale(math.Cos(outerAngle)).Add(basis2.Scale(math.Sin(outerAngle)))
+		innerAngle := innerTheta(inner)
+		innerVec := outerVec.Scale(math.Cos(innerAngle)).Add(axis.Scale(math.Sin(innerAngle)))
+		innerCenter := torus.Center.Add(outerVec.Scale(torus.OuterRadius))
+		return innerCenter.Add(innerVec.Scale(torus.InnerRadius))
+	}
+
+	mesh := model3d.NewMesh()
+	for i := 0; i < outerSteps; i++ {
+		for j := 0; j < innerSteps; j++ {
+			mesh.AddQuad(coord(i, j), coord(i, j+1), coord(i+1, j+1), coord(i+1, j))
+		}
+	}
+	return mesh
 }
