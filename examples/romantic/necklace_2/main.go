@@ -4,6 +4,8 @@ import (
 	"flag"
 	"math"
 
+	"github.com/unixpickle/model3d/render3d"
+
 	"github.com/unixpickle/model3d/model3d"
 )
 
@@ -99,6 +101,8 @@ func main() {
 
 	mesh := model3d.MarchingCubesSearch(fastLinks, resolution, 8)
 	mesh.SaveGroupedSTL("necklace.stl")
+
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
 func createSpiralCenters(numLinks int, linkLength, linkThickness,
