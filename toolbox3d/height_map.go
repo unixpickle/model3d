@@ -164,7 +164,7 @@ func (h *HeightMap) AddSpheresSDF(p model2d.PointSDF, numSpheres int, eps, maxRa
 		return func(_ int) {
 			c := model2d.XY(rng.Float64(), rng.Float64())
 			c = min.Add(c.Mul(max.Sub(min)))
-			proj := model2d.ProjectMedialAxis(p, c, 32, eps)
+			proj := model2d.ProjectMedialAxis(p, c, 0, eps)
 			radius := p.SDF(proj)
 			if maxRadius != 0 {
 				h.AddSphereFill(proj, radius, maxRadius)
