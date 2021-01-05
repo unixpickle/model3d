@@ -2,6 +2,10 @@ package toolbox3d
 
 import (
 	"math"
+	"math/rand"
+	"runtime"
+
+	"github.com/unixpickle/essentials"
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
@@ -134,6 +138,41 @@ func (h *HeightMap) AddSphereFill(center model2d.Coord, radius, sphereRadius flo
 		}
 	}
 	return covered
+}
+
+// AddSpheresSDF fills a 2D signed distance function with
+// spheres that touch the edges of the SDF. This creates a
+// smooth, 3D version of the 2D model.
+//
+// The numSpheres argument specifies the number of spheres
+// to sample inside the shape.
+//
+// The eps argument is a small value used to determine the
+// medial axis.
+// Smaller values are more sensitive to jagged edges of
+// the collider.
+// See model2d.ProjectMedialAxis().
+//
+// The maxRadius argument, if non-zero, is used to limit
+// the height of the resulting object.
+// See HeightMap.AddSphereFill().
+func (h *HeightMap) AddSpheresSDF(p model2d.PointSDF, numSpheres int, eps, maxRadius float64) {
+	essentials.StatefulConcurrentMap(runtime.GOMAXPROCS(0), numSpheres, func() func(int) {
+		rng := rand.New(rand.NewSource(rand.Int63()))
+		min := p.Min()
+		max := p.Max()
+		return func(_ int) {
+			c := model2d.XY(rng.Float64(), rng.Float64())
+			c = min.Add(c.Mul(max.Sub(min)))
+			proj := model2d.ProjectMedialAxis(p, c, 32, eps)
+			radius := p.SDF(proj)
+			if maxRadius != 0 {
+				h.AddSphereFill(proj, radius, maxRadius)
+			} else {
+				h.AddSphere(proj, radius)
+			}
+		}
+	})
 }
 
 func (h *HeightMap) updateAt(row, col int, height float64) bool {

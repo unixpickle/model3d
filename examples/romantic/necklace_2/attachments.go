@@ -112,14 +112,6 @@ func heartAttachment() model3d.Solid {
 	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
 	sdf2d := model2d.MeshToSDF(mesh)
 	spheres := toolbox3d.NewHeightMap(solid2d.Min(), solid2d.Max(), 1024)
-	for i := 0; i < 2000; i++ {
-		center := model2d.NewCoordRandBounds(solid2d.Min(), solid2d.Max())
-		if !solid2d.Contains(center) {
-			continue
-		}
-		center = model2d.ProjectMedialAxis(sdf2d, center, 32, 1e-5)
-		fullRadius := sdf2d.SDF(center)
-		spheres.AddSphereFill(center, fullRadius, 0.08)
-	}
+	spheres.AddSpheresSDF(sdf2d, 2000, 1e-5, 0.08)
 	return toolbox3d.HeightMapToSolidBidir(spheres)
 }
