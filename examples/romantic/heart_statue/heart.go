@@ -1,8 +1,6 @@
 package main
 
 import (
-	"math"
-
 	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/model3d/model2d"
@@ -43,17 +41,7 @@ func createRoughHeart() model3d.Solid {
 	sdf2d := model2d.MeshToSDF(mesh2d)
 
 	hm := toolbox3d.NewHeightMap(sdf2d.Min(), sdf2d.Max(), 1000)
-	var sphereCount int
-	for sphereCount < HeartSamples {
-		c := model2d.NewCoordRandUniform()
-		if sdf2d.SDF(c) < 0 {
-			continue
-		}
-		sphereCount++
-		proj := model2d.ProjectMedialAxis(sdf2d, c, 0, 0)
-		radius := sdf2d.SDF(proj)
-		hm.AddSphere(proj, math.Min(radius, HeartMaxRadius))
-	}
+	hm.AddSpheresSDF(sdf2d, HeartSamples, 0, HeartMaxRadius)
 
 	return model3d.TransformSolid(&model3d.Matrix3Transform{
 		Matrix: &model3d.Matrix3{1, 0, 0, 0, 0, HeartDepthScale, 0, 1, 0},
