@@ -22,6 +22,10 @@ type Flags struct {
 	Thickness      float64
 	EngravingDepth float64
 
+	HookThickness float64
+	HookWidth     float64
+	HookLength    float64
+
 	Delta float64
 }
 
@@ -34,11 +38,18 @@ func main() {
 	flag.Float64Var(&flags.Rounding, "rounding", 0.01, "amount of rounding to apply")
 	flag.Float64Var(&flags.Thickness, "thickness", 0.05, "thickness of pendant")
 	flag.Float64Var(&flags.EngravingDepth, "engraving-depth", 0.01, "depth of engraving")
+	flag.Float64Var(&flags.HookThickness, "hook-thickness", 0.02, "thickness of hook")
+	flag.Float64Var(&flags.HookWidth, "hook-width", 0.075, "width of hook")
+	flag.Float64Var(&flags.HookLength, "hook-length", 0.15, "length of hook")
 	flag.Float64Var(&flags.Delta, "delta", 0.0025, "marching cubes delta")
 	flag.Parse()
 
 	log.Println("Processing design...")
-	solid := RawPendantSolid(&flags)
+	pendant := RawPendantSolid(&flags)
+	solid := model3d.JoinedSolid{
+		pendant,
+		CreateHook(&flags, pendant),
+	}
 
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, flags.Delta, 16)
@@ -48,6 +59,52 @@ func main() {
 
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
+}
+
+func CreateHook(f *Flags, pendant model3d.Solid) model3d.Solid {
+	r := f.HookThickness / 2
+	yMax := HookYLocation(pendant)
+	yMid := pendant.Min().Y - r
+	yMin := yMid - f.HookLength - f.HookThickness
+	zMax := f.HookWidth/2 + r
+	return model3d.JoinedSolid{
+		// Stem
+		RoundedCylinder(model3d.Y(yMid), model3d.Y(yMax), f.HookThickness/2),
+		// Loop
+		RoundedCylinder(model3d.YZ(yMid, -zMax), model3d.YZ(yMid, zMax), r),
+		RoundedCylinder(model3d.YZ(yMin, -zMax), model3d.YZ(yMin, zMax), r),
+		RoundedCylinder(model3d.YZ(yMid, zMax), model3d.YZ(yMin, zMax), r),
+		RoundedCylinder(model3d.YZ(yMid, -zMax), model3d.YZ(yMin, -zMax), r),
+	}
+}
+
+func HookYLocation(pendant model3d.Solid) float64 {
+	min := pendant.Min()
+	max := pendant.Max()
+	for y := min.Y; y < max.Y; y += (max.X - min.X) / 2000.0 {
+		if pendant.Contains(model3d.Y(y)) {
+			return y
+		}
+	}
+	panic("no place to connect pendant to hook")
+}
+
+func RoundedCylinder(p1, p2 model3d.Coord3D, radius float64) model3d.Solid {
+	return model3d.JoinedSolid{
+		&model3d.Cylinder{
+			P1:     p1,
+			P2:     p2,
+			Radius: radius,
+		},
+		&model3d.Sphere{
+			Center: p1,
+			Radius: radius,
+		},
+		&model3d.Sphere{
+			Center: p2,
+			Radius: radius,
+		},
+	}
 }
 
 func RawPendantSolid(f *Flags) model3d.Solid {
