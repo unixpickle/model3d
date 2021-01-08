@@ -25,6 +25,7 @@ type Flags struct {
 	HookThickness float64
 	HookWidth     float64
 	HookLength    float64
+	HookCenter    bool
 
 	Delta float64
 }
@@ -41,6 +42,8 @@ func main() {
 	flag.Float64Var(&flags.HookThickness, "hook-thickness", 0.02, "thickness of hook")
 	flag.Float64Var(&flags.HookWidth, "hook-width", 0.075, "width of hook")
 	flag.Float64Var(&flags.HookLength, "hook-length", 0.15, "length of hook")
+	flag.BoolVar(&flags.HookCenter, "hook-center", false,
+		"center the hook rather than using center of mass")
 	flag.Float64Var(&flags.Delta, "delta", 0.0025, "marching cubes delta")
 	flag.Parse()
 
@@ -63,26 +66,47 @@ func main() {
 
 func CreateHook(f *Flags, pendant model3d.Solid) model3d.Solid {
 	r := f.HookThickness / 2
-	yMax := HookYLocation(pendant)
+	x := HookXLocation(f, pendant)
+	yMax := HookYLocation(pendant, x)
 	yMid := pendant.Min().Y - r
 	yMin := yMid - f.HookLength - f.HookThickness
 	zMax := f.HookWidth/2 + r
 	return model3d.JoinedSolid{
 		// Stem
-		RoundedCylinder(model3d.Y(yMid), model3d.Y(yMax), f.HookThickness/2),
+		RoundedCylinder(model3d.XY(x, yMid), model3d.XY(x, yMax), f.HookThickness/2),
 		// Loop
-		RoundedCylinder(model3d.YZ(yMid, -zMax), model3d.YZ(yMid, zMax), r),
-		RoundedCylinder(model3d.YZ(yMin, -zMax), model3d.YZ(yMin, zMax), r),
-		RoundedCylinder(model3d.YZ(yMid, zMax), model3d.YZ(yMin, zMax), r),
-		RoundedCylinder(model3d.YZ(yMid, -zMax), model3d.YZ(yMin, -zMax), r),
+		RoundedCylinder(model3d.XYZ(x, yMid, -zMax), model3d.XYZ(x, yMid, zMax), r),
+		RoundedCylinder(model3d.XYZ(x, yMin, -zMax), model3d.XYZ(x, yMin, zMax), r),
+		RoundedCylinder(model3d.XYZ(x, yMid, zMax), model3d.XYZ(x, yMin, zMax), r),
+		RoundedCylinder(model3d.XYZ(x, yMid, -zMax), model3d.XYZ(x, yMin, -zMax), r),
 	}
 }
 
-func HookYLocation(pendant model3d.Solid) float64 {
+func HookXLocation(f *Flags, pendant model3d.Solid) float64 {
+	if f.HookCenter {
+		return 0
+	}
+	min, max := pendant.Min(), pendant.Max()
+	var sum float64
+	var numPoints int
+	for numPoints < 2000 {
+		p1 := model3d.NewCoord3DRandBounds(min, max)
+		p2 := p1.Mul(model3d.XYZ(-1, 1, 1))
+		for _, p := range []model3d.Coord3D{p1, p2} {
+			if pendant.Contains(p) {
+				sum += p.X
+				numPoints++
+			}
+		}
+	}
+	return sum / float64(numPoints)
+}
+
+func HookYLocation(pendant model3d.Solid, x float64) float64 {
 	min := pendant.Min()
 	max := pendant.Max()
 	for y := min.Y; y < max.Y; y += (max.X - min.X) / 2000.0 {
-		if pendant.Contains(model3d.Y(y)) {
+		if pendant.Contains(model3d.XY(x, y)) {
 			return y
 		}
 	}
@@ -111,10 +135,10 @@ func RawPendantSolid(f *Flags) model3d.Solid {
 	if f.Image == "" {
 		essentials.Die("must provide -image flag (see -help)")
 	}
-	image := model2d.MustReadBitmap(f.Image, nil).FlipY().Mesh().SmoothSq(f.SmoothIters)
+	image := model2d.MustReadBitmap(f.Image, nil).FlipX().Mesh().SmoothSq(f.SmoothIters)
 	engraving := model2d.NewMesh()
 	if f.Engraving != "" {
-		engraving = model2d.MustReadBitmap(f.Engraving, nil).FlipY().Mesh().SmoothSq(f.SmoothIters)
+		engraving = model2d.MustReadBitmap(f.Engraving, nil).FlipX().Mesh().SmoothSq(f.SmoothIters)
 	}
 
 	min, max := image.Min(), image.Max()
