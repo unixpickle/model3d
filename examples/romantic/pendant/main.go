@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
@@ -71,15 +72,14 @@ func CreateHook(f *Flags, pendant model3d.Solid) model3d.Solid {
 	yMid := pendant.Min().Y - r
 	yMin := yMid - f.HookLength - f.HookThickness
 	zMax := f.HookWidth/2 + r
-	return model3d.JoinedSolid{
-		// Stem
-		RoundedCylinder(model3d.XY(x, yMid), model3d.XY(x, yMax), f.HookThickness/2),
-		// Loop
-		RoundedCylinder(model3d.XYZ(x, yMid, -zMax), model3d.XYZ(x, yMid, zMax), r),
-		RoundedCylinder(model3d.XYZ(x, yMin, -zMax), model3d.XYZ(x, yMin, zMax), r),
-		RoundedCylinder(model3d.XYZ(x, yMid, zMax), model3d.XYZ(x, yMin, zMax), r),
-		RoundedCylinder(model3d.XYZ(x, yMid, -zMax), model3d.XYZ(x, yMin, -zMax), r),
-	}
+	return toolbox3d.LineJoin(
+		r,
+		model3d.NewSegment(model3d.XY(x, yMid), model3d.XY(x, yMax)),
+		model3d.NewSegment(model3d.XYZ(x, yMid, -zMax), model3d.XYZ(x, yMid, zMax)),
+		model3d.NewSegment(model3d.XYZ(x, yMin, -zMax), model3d.XYZ(x, yMin, zMax)),
+		model3d.NewSegment(model3d.XYZ(x, yMid, zMax), model3d.XYZ(x, yMin, zMax)),
+		model3d.NewSegment(model3d.XYZ(x, yMid, -zMax), model3d.XYZ(x, yMin, -zMax)),
+	)
 }
 
 func HookXLocation(f *Flags, pendant model3d.Solid) float64 {
