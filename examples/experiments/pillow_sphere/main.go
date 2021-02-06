@@ -20,7 +20,7 @@ func main() {
 	flag.IntVar(&smoothIters, "smooth-iters", 50, "number of smoothing iterations")
 	flag.Float64Var(&zScale, "z-scale", 0.4, "scale for z-axis of final mesh")
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: heart_sphere [flags] <input.png> <output.stl>")
+		fmt.Fprintln(os.Stderr, "Usage: pillow_sphere [flags] <input.png> <output.stl>")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Flags:")
 		fmt.Fprintln(os.Stderr)
@@ -40,7 +40,7 @@ func main() {
 	bmp := model2d.MustReadBitmap(inPath, nil).FlipY()
 	mesh2d := bmp.Mesh().SmoothSq(smoothIters)
 
-	log.Println("Converting 2D mesh into into...")
+	log.Println("Converting 2D mesh into solid...")
 	mesh2d = mesh2d.Scale(2 / math.Max(float64(bmp.Width), float64(bmp.Height)))
 	mesh2d = mesh2d.MapCoords(mesh2d.Min().Mid(mesh2d.Max()).Scale(-1).Add)
 	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(mesh2d))
