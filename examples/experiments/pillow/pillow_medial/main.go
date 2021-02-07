@@ -34,7 +34,7 @@ func main() {
 	flag.Float64Var(&maxRadius, "max-radius", -1, "if specified, the maximum sphere radius")
 	flag.BoolVar(&useMedialAxis, "medial-axis", false, "use centers along the medial axis")
 	flag.Usage = func() {
-		fmt.Fprintln(os.Stderr, "Usage: pillow_2d_shape [flags] <input.png> <output.stl>")
+		fmt.Fprintln(os.Stderr, "Usage: pillow_medial [flags] <input.png> <output.stl>")
 		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Flags:")
 		fmt.Fprintln(os.Stderr)
