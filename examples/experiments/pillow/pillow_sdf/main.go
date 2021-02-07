@@ -7,6 +7,8 @@ import (
 	"math"
 	"os"
 
+	"github.com/unixpickle/model3d/toolbox3d"
+
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -67,26 +69,12 @@ func main() {
 }
 
 func FindSDFMax(sdf model2d.SDF, gridSize, rounds int) model2d.Coord {
-	boundsMin, boundsMax := sdf.Min(), sdf.Max()
-	bestPoint := model2d.Coord{}
-	bestSDF := math.Inf(-1)
-	for i := 0; i < rounds; i++ {
-		for x := 0; x < gridSize; x++ {
-			for y := 0; y < gridSize; y++ {
-				xy := model2d.XY(float64(x)/float64(gridSize-1), float64(y)/float64(gridSize-1))
-				point := boundsMin.Add(boundsMax.Sub(boundsMin).Mul(xy))
-				value := sdf.SDF(point)
-				if value > bestSDF {
-					bestSDF = value
-					bestPoint = point
-				}
-			}
-		}
-		size := boundsMax.Sub(boundsMin).Scale(1 / float64(gridSize-1))
-		boundsMin = bestPoint.Sub(size)
-		boundsMax = bestPoint.Add(size)
-	}
-	return bestPoint
+	search := &toolbox3d.GridSearch2D{
+		XStops:     gridSize,
+		YStops:     gridSize,
+		Recursions: rounds - 1}
+	c, _ := search.MaxSDF(sdf)
+	return c
 }
 
 type PillowedSolid struct {
