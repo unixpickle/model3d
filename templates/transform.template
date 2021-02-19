@@ -1,16 +1,18 @@
-// Generated from templates/transform.template
-
+{{if .model2d}}
 package model2d
+{{else}}
+package model3d
+{{end}}
 
 // Transform is an invertible coordinate transformation.
 type Transform interface {
 	// Apply applies the transformation to c.
-	Apply(c Coord) Coord
+	Apply(c {{.coordType}}) {{.coordType}}
 
 	// ApplyBounds gets a new bounding rectangle that is
 	// guaranteed to bound the old bounding rectangle when
 	// it is transformed.
-	ApplyBounds(min, max Coord) (Coord, Coord)
+	ApplyBounds(min, max {{.coordType}}) ({{.coordType}}, {{.coordType}})
 
 	// Inverse gets an inverse transformation.
 	//
@@ -33,35 +35,35 @@ func TransformSolid(t Transform, s Solid) Solid {
 }
 
 type transformedSolid struct {
-	min Coord
-	max Coord
+	min {{.coordType}}
+	max {{.coordType}}
 	s   Solid
 	inv Transform
 }
 
-func (t *transformedSolid) Min() Coord {
+func (t *transformedSolid) Min() {{.coordType}} {
 	return t.min
 }
 
-func (t *transformedSolid) Max() Coord {
+func (t *transformedSolid) Max() {{.coordType}} {
 	return t.max
 }
 
-func (t *transformedSolid) Contains(c Coord) bool {
+func (t *transformedSolid) Contains(c {{.coordType}}) bool {
 	return InBounds(t, c) && t.s.Contains(t.inv.Apply(c))
 }
 
 // Translate is a Transform that adds an offset to
 // coordinates.
 type Translate struct {
-	Offset Coord
+	Offset {{.coordType}}
 }
 
-func (t *Translate) Apply(c Coord) Coord {
+func (t *Translate) Apply(c {{.coordType}}) {{.coordType}} {
 	return c.Add(t.Offset)
 }
 
-func (t *Translate) ApplyBounds(min, max Coord) (Coord, Coord) {
+func (t *Translate) ApplyBounds(min, max {{.coordType}}) ({{.coordType}}, {{.coordType}}) {
 	return min.Add(t.Offset), max.Add(t.Offset)
 }
 
@@ -69,48 +71,55 @@ func (t *Translate) Inverse() Transform {
 	return &Translate{Offset: t.Offset.Scale(-1)}
 }
 
-// Matrix2Transform is a Transform that applies a matrix
+// {{.matrixType}}Transform is a Transform that applies a matrix
 // to coordinates.
-type Matrix2Transform struct {
-	Matrix *Matrix2
+type {{.matrixType}}Transform struct {
+	Matrix *{{.matrixType}}
 }
 
-func (m *Matrix2Transform) Apply(c Coord) Coord {
+func (m *{{.matrixType}}Transform) Apply(c {{.coordType}}) {{.coordType}} {
 	return m.Matrix.MulColumn(c)
 }
 
-func (m *Matrix2Transform) ApplyBounds(min, max Coord) (Coord, Coord) {
-	var newMin, newMax Coord
+func (m *{{.matrixType}}Transform) ApplyBounds(min, max {{.coordType}}) ({{.coordType}}, {{.coordType}}) {
+	var newMin, newMax {{.coordType}}
 	for i, x := range []float64{min.X, max.X} {
 		for j, y := range []float64{min.Y, max.Y} {
+			{{if .model2d -}}
 			c := m.Matrix.MulColumn(XY(x, y))
 			if i == 0 && j == 0 {
+			{{else -}}
+			for k, z := range []float64{min.Z, max.Z} {
+			c := m.Matrix.MulColumn(XYZ(x, y, z))
+			if i == 0 && j == 0 && k == 0 {
+			{{end -}}
 				newMin, newMax = c, c
 			} else {
 				newMin = newMin.Min(c)
 				newMax = newMax.Max(c)
 			}
+			{{if not .model2d}} } {{end -}}
 		}
 	}
 	return newMin, newMax
 }
 
-func (m *Matrix2Transform) Inverse() Transform {
-	return &Matrix2Transform{Matrix: m.Matrix.Inverse()}
+func (m *{{.matrixType}}Transform) Inverse() Transform {
+	return &{{.matrixType}}Transform{Matrix: m.Matrix.Inverse()}
 }
 
 // A JoinedTransform composes transformations from left to
 // right.
 type JoinedTransform []Transform
 
-func (j JoinedTransform) Apply(c Coord) Coord {
+func (j JoinedTransform) Apply(c {{.coordType}}) {{.coordType}} {
 	for _, t := range j {
 		c = t.Apply(c)
 	}
 	return c
 }
 
-func (j JoinedTransform) ApplyBounds(min Coord, max Coord) (Coord, Coord) {
+func (j JoinedTransform) ApplyBounds(min {{.coordType}}, max {{.coordType}}) ({{.coordType}}, {{.coordType}}) {
 	for _, t := range j {
 		min, max = t.ApplyBounds(min, max)
 	}

@@ -1,4 +1,4 @@
-// Generated from model2d/transform.go
+// Generated from templates/transform.template
 
 package model3d
 

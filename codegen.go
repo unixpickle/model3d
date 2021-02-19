@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"go/format"
 	"io/ioutil"
 	"log"
 	"path/filepath"
-	"regexp"
-	"strings"
+	"text/template"
 
 	"github.com/unixpickle/essentials"
 )
@@ -18,41 +19,37 @@ func main() {
 }
 
 func GenerateTransforms() {
-	inPath := filepath.Join("model2d", "transform.go")
-	outPath := filepath.Join("model3d", "transform.go")
-	log.Println("Creating", outPath, "from", inPath, "...")
-	inData, err := ioutil.ReadFile(inPath)
+	inPath := filepath.Join("templates", "transform.template")
+	template, err := template.ParseFiles(inPath)
 	essentials.Must(err)
-	outStr := string(inData)
-	outStr = strings.Replace(outStr, "model2d", "model3d", -1)
-	outStr = strings.Replace(outStr, "Coord", "Coord3D", -1)
-	outStr = strings.Replace(outStr, "Matrix2", "Matrix3", -1)
-	outStr = InjectGeneratedComment(outStr, inPath)
-	outStr = ApplyAddsAndReplaces(outStr)
-	outStr = ReformatCode(outStr)
-	essentials.Must(ioutil.WriteFile(outPath, []byte(outStr), 644))
+	for _, pkg := range []string{"model2d", "model3d"} {
+		outPath := filepath.Join(pkg, "transform.go")
+		log.Println("Creating", outPath, "...")
+		coordType := "Coord"
+		matrixType := "Matrix2"
+		if pkg == "model3d" {
+			coordType = "Coord3D"
+			matrixType = "Matrix3"
+		}
+		data := RenderTemplate(template, map[string]interface{}{
+			"model2d":    pkg == "model2d",
+			"coordType":  coordType,
+			"matrixType": matrixType,
+		})
+		if pkg == "model3d" {
+			fmt.Println(data)
+		}
+		data = ReformatCode(data)
+		data = InjectGeneratedComment(data, inPath)
+		essentials.Must(ioutil.WriteFile(outPath, []byte(data), 644))
+	}
+
 }
 
-func ApplyAddsAndReplaces(data string) string {
-	addExpr := regexp.MustCompilePOSIX("[\t ]*// add-codegen: (.*)")
-	replaceExpr := regexp.MustCompilePOSIX("[\t ]*// replace-codegen: (.*)")
-
-	lines := strings.Split(data, "\n")
-	newLines := []string{}
-	for _, line := range lines {
-		match := addExpr.FindStringSubmatch(line)
-		if match != nil {
-			newLines = append(newLines, match[len(match)-1])
-			continue
-		}
-		match = replaceExpr.FindStringSubmatch(line)
-		if match != nil {
-			newLines[len(newLines)-1] = match[len(match)-1]
-			continue
-		}
-		newLines = append(newLines, line)
-	}
-	return strings.Join(newLines, "\n")
+func RenderTemplate(template *template.Template, data interface{}) string {
+	w := bytes.NewBuffer(nil)
+	essentials.Must(template.Execute(w, data))
+	return string(w.Bytes())
 }
 
 func ReformatCode(code string) string {
