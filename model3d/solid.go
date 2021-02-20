@@ -1,15 +1,16 @@
+// Generated from templates/solid.template
+
 package model3d
 
 import (
-	"math"
 	"sort"
 
 	"github.com/unixpickle/model3d/model2d"
 )
 
-// A Solid is a boolean function in 3D where a value of
-// true indicates that a point is part of the solid, and
-// false indicates that it is not.
+// A Solid is a boolean function where a value of true
+// indicates that a point is part of the solid, and false
+// indicates that it is not.
 //
 // All methods of a Solid are safe for concurrency.
 type Solid interface {
@@ -32,10 +33,7 @@ type JoinedSolid []Solid
 func (j JoinedSolid) Min() Coord3D {
 	min := j[0].Min()
 	for _, s := range j[1:] {
-		min1 := s.Min()
-		min.X = math.Min(min.X, min1.X)
-		min.Y = math.Min(min.Y, min1.Y)
-		min.Z = math.Min(min.Z, min1.Z)
+		min = min.Min(s.Min())
 	}
 	return min
 }
@@ -43,10 +41,7 @@ func (j JoinedSolid) Min() Coord3D {
 func (j JoinedSolid) Max() Coord3D {
 	max := j[0].Max()
 	for _, s := range j[1:] {
-		max1 := s.Max()
-		max.X = math.Max(max.X, max1.X)
-		max.Y = math.Max(max.Y, max1.Y)
-		max.Z = math.Max(max.Z, max1.Z)
+		max = max.Max(s.Max())
 	}
 	return max
 }
@@ -202,57 +197,58 @@ func (s StackedSolid) Contains(c Coord3D) bool {
 // The second modality is equivalent to creating a thick
 // but hollow solid.
 type ColliderSolid struct {
-	min       Coord3D
-	max       Coord3D
-	collider  Collider
-	direction Coord3D
-
-	hollowRadius float64
+	collider Collider
+	min      Coord3D
+	max      Coord3D
+	inset    float64
+	radius   float64
 }
 
-// NewColliderSolid creates a ColliderSolid.
-func NewColliderSolid(collider Collider) *ColliderSolid {
-	return &ColliderSolid{
-		min:      collider.Min(),
-		max:      collider.Max(),
-		collider: collider,
-
-		// Random direction; any direction should work, but we
-		// want to avoid edge cases and rounding errors.
-		direction: Coord3D{0.5224892708603626, 0.10494477243214506, 0.43558938446126527},
-	}
+// NewColliderSolid creates a basic ColliderSolid.
+func NewColliderSolid(c Collider) *ColliderSolid {
+	return &ColliderSolid{collider: c, min: c.Min(), max: c.Max()}
 }
 
-// NewColliderSolidHollow creates a ColliderSolid which
-// includes all points within r distance from the surface
-// of the Collider.
+// NewColliderSolidInset creates a ColliderSolid that only
+// reports containment at some distance from the surface.
 //
-// The radius r must be greater than zero.
-func NewColliderSolidHollow(collider Collider, r float64) *ColliderSolid {
-	res := NewColliderSolid(collider)
-	p := Coord3D{r, r, r}
-	res.min = res.min.Sub(p)
-	res.max = res.max.Add(p)
-	res.hollowRadius = r
-	return res
+// If inset is negative, then the solid is outset from the
+// collider.
+func NewColliderSolidInset(c Collider, inset float64) *ColliderSolid {
+	insetVec := XYZ(inset, inset, inset)
+	min := c.Min().Add(insetVec)
+	max := min.Max(c.Max().Sub(insetVec))
+	return &ColliderSolid{collider: c, min: min, max: max, inset: inset}
 }
 
+// NewColliderSolidHollow creates a ColliderSolid that
+// only reports containment around the edges.
+func NewColliderSolidHollow(c Collider, r float64) *ColliderSolid {
+	insetVec := XYZ(r, r, r)
+	min := c.Min().Sub(insetVec)
+	max := c.Max().Add(insetVec)
+	return &ColliderSolid{collider: c, min: min, max: max, radius: r}
+}
+
+// Min gets the minimum of the bounding box.
 func (c *ColliderSolid) Min() Coord3D {
 	return c.min
 }
 
+// Max gets the maximum of the bounding box.
 func (c *ColliderSolid) Max() Coord3D {
 	return c.max
 }
 
-func (c *ColliderSolid) Contains(p Coord3D) bool {
-	if c.hollowRadius > 0 {
-		return c.collider.SphereCollision(p, c.hollowRadius)
+// Contains checks if coord is in the solid.
+func (c *ColliderSolid) Contains(coord Coord3D) bool {
+	if !InBounds(c, coord) {
+		return false
 	}
-	return c.collider.RayCollisions(&Ray{
-		Origin:    p,
-		Direction: c.direction,
-	}, nil)%2 == 1
+	if c.radius != 0 {
+		return c.collider.SphereCollision(coord, c.radius)
+	}
+	return ColliderContains(c.collider, coord, c.inset)
 }
 
 type boundCacheSolid struct {
@@ -345,33 +341,28 @@ func (s *smoothJoin) Contains(c Coord3D) bool {
 	return d1*d1+d2*d2 > s.radius*s.radius
 }
 
-type profileSolid struct {
-	Solid2D model2d.Solid
-	MinVal  Coord3D
-	MaxVal  Coord3D
+type scaledSolid struct {
+	Solid Solid
+	Scale float64
 }
 
-// ProfileSolid turns a 2D solid into a 3D solid by
-// elongating the 2D solid along the Z axis.
-func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {
-	min, max := solid2d.Min(), solid2d.Max()
-	return &profileSolid{
-		Solid2D: solid2d,
-		MinVal:  XYZ(min.X, min.Y, minZ),
-		MaxVal:  XYZ(max.X, max.Y, maxZ),
-	}
+// ScaleSolid creates a new Solid that scales incoming
+// coordinates c by 1/s.
+// Thus, the new solid is s times larger.
+func ScaleSolid(solid Solid, s float64) Solid {
+	return &scaledSolid{Solid: solid, Scale: 1 / s}
 }
 
-func (p *profileSolid) Min() Coord3D {
-	return p.MinVal
+func (s *scaledSolid) Min() Coord3D {
+	return s.Solid.Min().Scale(1 / s.Scale)
 }
 
-func (p *profileSolid) Max() Coord3D {
-	return p.MaxVal
+func (s *scaledSolid) Max() Coord3D {
+	return s.Solid.Max().Scale(1 / s.Scale)
 }
 
-func (p *profileSolid) Contains(c Coord3D) bool {
-	return InBounds(p, c) && p.Solid2D.Contains(c.XY())
+func (s *scaledSolid) Contains(c Coord3D) bool {
+	return s.Solid.Contains(c.Scale(s.Scale))
 }
 
 type forcedBoundsSolid struct {
@@ -402,4 +393,33 @@ func (f *forcedBoundsSolid) Min() Coord3D {
 
 func (f *forcedBoundsSolid) Max() Coord3D {
 	return f.MaxVal
+}
+
+type profileSolid struct {
+	Solid2D model2d.Solid
+	MinVal  Coord3D
+	MaxVal  Coord3D
+}
+
+// ProfileSolid turns a 2D solid into a 3D solid by
+// elongating the 2D solid along the Z axis.
+func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {
+	min, max := solid2d.Min(), solid2d.Max()
+	return &profileSolid{
+		Solid2D: solid2d,
+		MinVal:  XYZ(min.X, min.Y, minZ),
+		MaxVal:  XYZ(max.X, max.Y, maxZ),
+	}
+}
+
+func (p *profileSolid) Min() Coord3D {
+	return p.MinVal
+}
+
+func (p *profileSolid) Max() Coord3D {
+	return p.MaxVal
+}
+
+func (p *profileSolid) Contains(c Coord3D) bool {
+	return InBounds(p, c) && p.Solid2D.Contains(c.XY())
 }

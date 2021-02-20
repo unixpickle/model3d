@@ -111,6 +111,28 @@ type MultiCollider interface {
 	RectCollider
 }
 
+// ColliderContains checks if a point is within a Collider
+// and at least margin away from the border.
+//
+// If the margin is negative, points are also conatined if
+// the point is less than -margin away from the surface.
+func ColliderContains(c Collider, coord Coord3D, margin float64) bool {
+	r := &Ray{
+		Origin: coord,
+		// Random direction; any direction should work, but we
+		// want to avoid edge cases and rounding errors.
+		Direction: Coord3D{0.5224892708603626, 0.10494477243214506, 0.43558938446126527},
+	}
+	collisions := c.RayCollisions(r, nil)
+	if collisions%2 == 0 {
+		if margin < 0 {
+			return c.SphereCollision(coord, -margin)
+		}
+		return false
+	}
+	return margin <= 0 || !c.SphereCollision(coord, margin)
+}
+
 // MeshToCollider creates an efficient MultiCollider out
 // of a mesh.
 func MeshToCollider(m *Mesh) MultiCollider {

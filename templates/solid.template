@@ -1,9 +1,11 @@
-// Generated from templates/solid.template
-
-package model2d
+package {{.package}}
 
 import (
 	"sort"
+    {{- if not .model2d}}
+
+	"github.com/unixpickle/model3d/model2d"
+    {{- end}}
 )
 
 // A Solid is a boolean function where a value of true
@@ -16,29 +18,37 @@ type Solid interface {
 	// boundaries of the solid.
 	Bounder
 
-	Contains(p Coord) bool
+	Contains(p {{.coordType}}) bool
 }
 
+{{if not .model2d -}}
+// Backwards compatibility type aliases.
+type RectSolid = Rect
+type SphereSolid = Sphere
+type CylinderSolid = Cylinder
+type TorusSolid = Torus
+
+{{end -}}
 // A JoinedSolid is a Solid composed of other solids.
 type JoinedSolid []Solid
 
-func (j JoinedSolid) Min() Coord {
+func (j JoinedSolid) Min() {{.coordType}} {
 	min := j[0].Min()
 	for _, s := range j[1:] {
-		min = min.Min(s.Min())
+        min = min.Min(s.Min())
 	}
 	return min
 }
 
-func (j JoinedSolid) Max() Coord {
+func (j JoinedSolid) Max() {{.coordType}} {
 	max := j[0].Max()
 	for _, s := range j[1:] {
-		max = max.Max(s.Max())
+        max = max.Max(s.Max())
 	}
 	return max
 }
 
-func (j JoinedSolid) Contains(c Coord) bool {
+func (j JoinedSolid) Contains(c {{.coordType}}) bool {
 	for _, s := range j {
 		if s.Contains(c) {
 			return true
@@ -47,6 +57,31 @@ func (j JoinedSolid) Contains(c Coord) bool {
 	return false
 }
 
+{{if not .model2d -}}
+// Optimize creates a version of the solid that is faster
+// when joining a large number of smaller solids.
+func (j JoinedSolid) Optimize() Solid {
+	bounders := make([]Bounder, len(j))
+	for i, s := range j {
+		bounders[i] = s
+	}
+	GroupBounders(bounders)
+	return groupedBoundersToSolid(bounders)
+}
+
+func groupedBoundersToSolid(bs []Bounder) Solid {
+	if len(bs) == 1 {
+		return CacheSolidBounds(bs[0].(Solid))
+	}
+	firstHalf := bs[:len(bs)/2]
+	secondHalf := bs[len(bs)/2:]
+	return CacheSolidBounds(JoinedSolid{
+		groupedBoundersToSolid(firstHalf),
+		groupedBoundersToSolid(secondHalf),
+	})
+}
+{{- end}}
+
 // SubtractedSolid is a Solid consisting of all the points
 // in Positive which are not in Negative.
 type SubtractedSolid struct {
@@ -54,15 +89,15 @@ type SubtractedSolid struct {
 	Negative Solid
 }
 
-func (s *SubtractedSolid) Min() Coord {
+func (s *SubtractedSolid) Min() {{.coordType}} {
 	return s.Positive.Min()
 }
 
-func (s *SubtractedSolid) Max() Coord {
+func (s *SubtractedSolid) Max() {{.coordType}} {
 	return s.Positive.Max()
 }
 
-func (s *SubtractedSolid) Contains(c Coord) bool {
+func (s *SubtractedSolid) Contains(c {{.coordType}}) bool {
 	return s.Positive.Contains(c) && !s.Negative.Contains(c)
 }
 
@@ -70,7 +105,7 @@ func (s *SubtractedSolid) Contains(c Coord) bool {
 // of one or more Solids.
 type IntersectedSolid []Solid
 
-func (i IntersectedSolid) Min() Coord {
+func (i IntersectedSolid) Min() {{.coordType}} {
 	bound := i[0].Min()
 	for _, s := range i[1:] {
 		bound = bound.Max(s.Min())
@@ -78,7 +113,7 @@ func (i IntersectedSolid) Min() Coord {
 	return bound
 }
 
-func (i IntersectedSolid) Max() Coord {
+func (i IntersectedSolid) Max() {{.coordType}} {
 	bound := i[0].Max()
 	for _, s := range i[1:] {
 		bound = bound.Min(s.Max())
@@ -87,7 +122,7 @@ func (i IntersectedSolid) Max() Coord {
 	return bound.Max(i.Min())
 }
 
-func (i IntersectedSolid) Contains(c Coord) bool {
+func (i IntersectedSolid) Contains(c {{.coordType}}) bool {
 	for _, s := range i {
 		if !s.Contains(c) {
 			return false
@@ -95,6 +130,66 @@ func (i IntersectedSolid) Contains(c Coord) bool {
 	}
 	return true
 }
+
+{{if not .model2d -}}
+// StackSolids joins solids together and moves each solid
+// after the first so that the lowest Z value of its
+// bounding box collides with the highest Z value of the
+// previous solid's bounding box.
+// In other words, the solids are stacked on top of each
+// other along the Z axis.
+func StackSolids(s ...Solid) Solid {
+	result := make(JoinedSolid, len(s))
+	result[0] = s[0]
+	lastMax := s[0].Max().Z
+	for i := 1; i < len(s); i++ {
+		delta := lastMax - s[i].Min().Z
+		result[i] = TransformSolid(&Translate{Offset: Z(delta)}, s[i])
+		lastMax = result[i].Max().Z
+	}
+	return result
+}
+
+// A StackedSolid is like a JoinedSolid, but the solids
+// after the first are moved so that the lowest Z value of
+// their bounding box collides with the highest Z value of
+// the previous solid.
+// In other words, the solids are stacked on top of each
+// other along the Z axis.
+//
+// This API is deprecated in favor of the StackSolids()
+// function.
+type StackedSolid []Solid
+
+func (s StackedSolid) Min() {{.coordType}} {
+	return JoinedSolid(s).Min()
+}
+
+func (s StackedSolid) Max() {{.coordType}} {
+	lastMax := s[0].Max()
+	for i := 1; i < len(s); i++ {
+		newMax := s[i].Max()
+		newMax.Z += lastMax.Z - s[i].Min().Z
+		lastMax = lastMax.Max(newMax)
+	}
+	return lastMax
+}
+
+func (s StackedSolid) Contains(c {{.coordType}}) bool {
+	if !InBounds(s, c) {
+		return false
+	}
+	currentZ := s[0].Min().Z
+	for _, solid := range s {
+		delta := currentZ - solid.Min().Z
+		if solid.Contains(c.Sub(Z(delta))) {
+			return true
+		}
+		currentZ = solid.Max().Z + delta
+	}
+	return false
+}
+{{- end}}
 
 // A ColliderSolid is a Solid that uses a Collider to
 // check if points are in the solid.
@@ -109,8 +204,8 @@ func (i IntersectedSolid) Contains(c Coord) bool {
 // but hollow solid.
 type ColliderSolid struct {
 	collider Collider
-	min      Coord
-	max      Coord
+	min      {{.coordType}}
+	max      {{.coordType}}
 	inset    float64
 	radius   float64
 }
@@ -126,7 +221,11 @@ func NewColliderSolid(c Collider) *ColliderSolid {
 // If inset is negative, then the solid is outset from the
 // collider.
 func NewColliderSolidInset(c Collider, inset float64) *ColliderSolid {
+	{{if .model2d -}}
 	insetVec := XY(inset, inset)
+	{{- else -}}
+	insetVec := XYZ(inset, inset, inset)
+	{{- end}}
 	min := c.Min().Add(insetVec)
 	max := min.Max(c.Max().Sub(insetVec))
 	return &ColliderSolid{collider: c, min: min, max: max, inset: inset}
@@ -135,36 +234,44 @@ func NewColliderSolidInset(c Collider, inset float64) *ColliderSolid {
 // NewColliderSolidHollow creates a ColliderSolid that
 // only reports containment around the edges.
 func NewColliderSolidHollow(c Collider, r float64) *ColliderSolid {
+	{{if .model2d -}}
 	insetVec := XY(r, r)
+	{{- else -}}
+	insetVec := XYZ(r, r, r)
+	{{- end}}
 	min := c.Min().Sub(insetVec)
 	max := c.Max().Add(insetVec)
 	return &ColliderSolid{collider: c, min: min, max: max, radius: r}
 }
 
 // Min gets the minimum of the bounding box.
-func (c *ColliderSolid) Min() Coord {
+func (c *ColliderSolid) Min() {{.coordType}} {
 	return c.min
 }
 
 // Max gets the maximum of the bounding box.
-func (c *ColliderSolid) Max() Coord {
+func (c *ColliderSolid) Max() {{.coordType}} {
 	return c.max
 }
 
 // Contains checks if coord is in the solid.
-func (c *ColliderSolid) Contains(coord Coord) bool {
+func (c *ColliderSolid) Contains(coord {{.coordType}}) bool {
 	if !InBounds(c, coord) {
 		return false
 	}
 	if c.radius != 0 {
+		{{if .model2d -}}
 		return c.collider.CircleCollision(coord, c.radius)
+		{{- else -}}
+		return c.collider.SphereCollision(coord, c.radius)
+		{{- end}}
 	}
 	return ColliderContains(c.collider, coord, c.inset)
 }
 
 type boundCacheSolid struct {
-	min Coord
-	max Coord
+	min {{.coordType}}
+	max {{.coordType}}
 	s   Solid
 }
 
@@ -181,21 +288,21 @@ func CacheSolidBounds(s Solid) Solid {
 	}
 }
 
-func (b boundCacheSolid) Min() Coord {
+func (b boundCacheSolid) Min() {{.coordType}} {
 	return b.min
 }
 
-func (b boundCacheSolid) Max() Coord {
+func (b boundCacheSolid) Max() {{.coordType}} {
 	return b.max
 }
 
-func (b boundCacheSolid) Contains(c Coord) bool {
+func (b boundCacheSolid) Contains(c {{.coordType}}) bool {
 	return InBounds(b, c) && b.s.Contains(c)
 }
 
 type smoothJoin struct {
-	min    Coord
-	max    Coord
+	min    {{.coordType}}
+	max    {{.coordType}}
 	sdfs   []SDF
 	radius float64
 }
@@ -221,15 +328,15 @@ func SmoothJoin(radius float64, sdfs ...SDF) Solid {
 	}
 }
 
-func (s *smoothJoin) Min() Coord {
+func (s *smoothJoin) Min() {{.coordType}} {
 	return s.min
 }
 
-func (s *smoothJoin) Max() Coord {
+func (s *smoothJoin) Max() {{.coordType}} {
 	return s.max
 }
 
-func (s *smoothJoin) Contains(c Coord) bool {
+func (s *smoothJoin) Contains(c {{.coordType}}) bool {
 	if !InBounds(s, c) {
 		return false
 	}
@@ -264,22 +371,22 @@ func ScaleSolid(solid Solid, s float64) Solid {
 	return &scaledSolid{Solid: solid, Scale: 1 / s}
 }
 
-func (s *scaledSolid) Min() Coord {
+func (s *scaledSolid) Min() {{.coordType}} {
 	return s.Solid.Min().Scale(1 / s.Scale)
 }
 
-func (s *scaledSolid) Max() Coord {
+func (s *scaledSolid) Max() {{.coordType}} {
 	return s.Solid.Max().Scale(1 / s.Scale)
 }
 
-func (s *scaledSolid) Contains(c Coord) bool {
+func (s *scaledSolid) Contains(c {{.coordType}}) bool {
 	return s.Solid.Contains(c.Scale(s.Scale))
 }
 
 type forcedBoundsSolid struct {
 	Solid  Solid
-	MinVal Coord
-	MaxVal Coord
+	MinVal {{.coordType}}
+	MaxVal {{.coordType}}
 }
 
 // ForceSolidBounds creates a new solid that reports the
@@ -287,25 +394,57 @@ type forcedBoundsSolid struct {
 //
 // Points outside of these bounds will be removed from s,
 // but otherwise s is preserved.
-func ForceSolidBounds(s Solid, min, max Coord) Solid {
+func ForceSolidBounds(s Solid, min, max {{.coordType}}) Solid {
 	return &forcedBoundsSolid{Solid: s, MinVal: min, MaxVal: max}
 }
 
-func (f *forcedBoundsSolid) Contains(c Coord) bool {
+func (f *forcedBoundsSolid) Contains(c {{.coordType}}) bool {
 	if !InBounds(f, c) {
 		return false
 	}
 	return f.Solid.Contains(c)
 }
 
-func (f *forcedBoundsSolid) Min() Coord {
+func (f *forcedBoundsSolid) Min() {{.coordType}} {
 	return f.MinVal
 }
 
-func (f *forcedBoundsSolid) Max() Coord {
+func (f *forcedBoundsSolid) Max() {{.coordType}} {
 	return f.MaxVal
 }
 
+{{if not .model2d -}}
+type profileSolid struct {
+	Solid2D model2d.Solid
+	MinVal  {{.coordType}}
+	MaxVal  {{.coordType}}
+}
+
+// ProfileSolid turns a 2D solid into a 3D solid by
+// elongating the 2D solid along the Z axis.
+func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {
+	min, max := solid2d.Min(), solid2d.Max()
+	return &profileSolid{
+		Solid2D: solid2d,
+		MinVal:  XYZ(min.X, min.Y, minZ),
+		MaxVal:  XYZ(max.X, max.Y, maxZ),
+	}
+}
+
+func (p *profileSolid) Min() {{.coordType}} {
+	return p.MinVal
+}
+
+func (p *profileSolid) Max() {{.coordType}} {
+	return p.MaxVal
+}
+
+func (p *profileSolid) Contains(c {{.coordType}}) bool {
+	return InBounds(p, c) && p.Solid2D.Contains(c.XY())
+}
+{{- end}}
+
+{{if .model2d -}}
 type bitmapSolid struct {
 	B *Bitmap
 }
@@ -330,3 +469,4 @@ func (b *bitmapSolid) Contains(c Coord) bool {
 	}
 	return b.B.Get(int(c.X), int(c.Y))
 }
+{{- end}}
