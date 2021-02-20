@@ -1,20 +1,22 @@
+// Generated from templates/bounder.template
+
 package model3d
 
 import "math"
 
-// A Bounder is a shape contained within a rectangular
-// volume of space.
+// A Bounder is an object contained in an axis-aligned
+// bounding box.
 type Bounder interface {
-	// Get the corners of a bounding rectangular volume.
+	// Get the corners of a bounding box.
 	//
-	// A point p satisfies: p >= Min and p <= Max if it is
+	// A point p satisfies p >= Min and p <= Max if it is
 	// within the bounds.
 	Min() Coord3D
 	Max() Coord3D
 }
 
 // InBounds returns true if c is contained within the
-// bounding rectangular volume of b.
+// bounding box of b.
 func InBounds(b Bounder, c Coord3D) bool {
 	min := b.Min()
 	max := b.Max()

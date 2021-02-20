@@ -1,8 +1,4 @@
-{{if .model2d}}
-package model2d
-{{else}}
-package model3d
-{{end}}
+package {{.package}}
 
 // Transform is an invertible coordinate transformation.
 type Transform interface {

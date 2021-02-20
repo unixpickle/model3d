@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"go/format"
 	"io/ioutil"
 	"log"
@@ -15,35 +14,37 @@ import (
 //go:generate go run codegen.go
 
 func main() {
-	GenerateTransforms()
+	Generate2d3dTemplate("transform")
+	Generate2d3dTemplate("bounder")
 }
 
-func GenerateTransforms() {
-	inPath := filepath.Join("templates", "transform.template")
+func Generate2d3dTemplate(name string) {
+	inPath := filepath.Join("templates", name+".template")
 	template, err := template.ParseFiles(inPath)
 	essentials.Must(err)
 	for _, pkg := range []string{"model2d", "model3d"} {
-		outPath := filepath.Join(pkg, "transform.go")
+		outPath := filepath.Join(pkg, name+".go")
 		log.Println("Creating", outPath, "...")
-		coordType := "Coord"
-		matrixType := "Matrix2"
-		if pkg == "model3d" {
-			coordType = "Coord3D"
-			matrixType = "Matrix3"
-		}
-		data := RenderTemplate(template, map[string]interface{}{
-			"model2d":    pkg == "model2d",
-			"coordType":  coordType,
-			"matrixType": matrixType,
-		})
-		if pkg == "model3d" {
-			fmt.Println(data)
-		}
+		data := RenderTemplate(template, TemplateEnvironment(pkg))
 		data = ReformatCode(data)
 		data = InjectGeneratedComment(data, inPath)
 		essentials.Must(ioutil.WriteFile(outPath, []byte(data), 644))
 	}
+}
 
+func TemplateEnvironment(pkg string) map[string]interface{} {
+	coordType := "Coord"
+	matrixType := "Matrix2"
+	if pkg == "model3d" {
+		coordType = "Coord3D"
+		matrixType = "Matrix3"
+	}
+	return map[string]interface{}{
+		"package":    pkg,
+		"model2d":    pkg == "model2d",
+		"coordType":  coordType,
+		"matrixType": matrixType,
+	}
 }
 
 func RenderTemplate(template *template.Template, data interface{}) string {

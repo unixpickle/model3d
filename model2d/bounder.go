@@ -1,10 +1,13 @@
+// Generated from templates/bounder.template
+
 package model2d
 
 import "math"
 
-// A Bounder is an object contained in a rectangle.
+// A Bounder is an object contained in an axis-aligned
+// bounding box.
 type Bounder interface {
-	// Get the corners of a bounding rectangle.
+	// Get the corners of a bounding box.
 	//
 	// A point p satisfies p >= Min and p <= Max if it is
 	// within the bounds.
@@ -13,7 +16,7 @@ type Bounder interface {
 }
 
 // InBounds returns true if c is contained within the
-// bounding rectangle of b.
+// bounding box of b.
 func InBounds(b Bounder, c Coord) bool {
 	min := b.Min()
 	max := b.Max()
