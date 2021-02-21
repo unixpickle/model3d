@@ -17,6 +17,7 @@ func main() {
 	Generate2d3dTemplate("transform")
 	Generate2d3dTemplate("bounder")
 	Generate2d3dTemplate("solid")
+	Generate2d3dTemplate("mesh")
 }
 
 func Generate2d3dTemplate(name string) {

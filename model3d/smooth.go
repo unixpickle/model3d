@@ -157,14 +157,14 @@ type indexMesh struct {
 }
 
 func newIndexMesh(m *Mesh) *indexMesh {
-	capacity := len(m.triangles) * 3
-	if v2t := m.getVertexToTriangleOrNil(); v2t != nil {
+	capacity := len(m.faces) * 3
+	if v2t := m.getVertexToFaceOrNil(); v2t != nil {
 		capacity = len(v2t)
 	}
 
 	res := &indexMesh{
 		Coords:    make([]Coord3D, 0, capacity),
-		Triangles: make([][3]int, 0, len(m.triangles)),
+		Triangles: make([][3]int, 0, len(m.faces)),
 	}
 	coordToIdx := make(map[Coord3D]int, capacity)
 

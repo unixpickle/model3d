@@ -1,3 +1,5 @@
+// Generated from templates/mesh.template
+
 package model3d
 
 import (
@@ -29,26 +31,26 @@ import (
 // but modifications must not be performed concurrently
 // with any mesh operations.
 type Mesh struct {
-	triangles map[*Triangle]bool
+	faces map[*Triangle]bool
 
 	// Stores a map[Coord3D][]*Triangle
-	vertexToTriangle atomic.Value
-	v2tCreateLock    sync.Mutex
+	vertexToFace  atomic.Value
+	v2fCreateLock sync.Mutex
 }
 
 // NewMesh creates an empty mesh.
 func NewMesh() *Mesh {
 	return &Mesh{
-		triangles: map[*Triangle]bool{},
+		faces: map[*Triangle]bool{},
 	}
 }
 
 // NewMeshTriangles creates a mesh with the given
-// collection of triangles.
-func NewMeshTriangles(ts []*Triangle) *Mesh {
+// collection of faces.
+func NewMeshTriangles(faces []*Triangle) *Mesh {
 	m := NewMesh()
-	for _, t := range ts {
-		m.Add(t)
+	for _, f := range faces {
+		m.Add(f)
 	}
 	return m
 }
@@ -187,20 +189,20 @@ func ProfileMesh(m2d *model2d.Mesh, minZ, maxZ float64) *Mesh {
 	return m
 }
 
-// Add adds the triangle t to the mesh.
-func (m *Mesh) Add(t *Triangle) {
-	v2t := m.getVertexToTriangleOrNil()
-	if v2t == nil {
-		m.triangles[t] = true
+// Add adds the face f to the mesh.
+func (m *Mesh) Add(f *Triangle) {
+	v2f := m.getVertexToFaceOrNil()
+	if v2f == nil {
+		m.faces[f] = true
 		return
-	} else if m.triangles[t] {
+	} else if m.faces[f] {
 		return
 	}
 
-	for _, p := range t {
-		v2t[p] = append(v2t[p], t)
+	for _, p := range f {
+		v2f[p] = append(v2f[p], f)
 	}
-	m.triangles[t] = true
+	m.faces[f] = true
 }
 
 // AddQuad adds a quadrilateral to the mesh.
@@ -217,70 +219,69 @@ func (m *Mesh) AddQuad(p1, p2, p3, p4 Coord3D) [2]*Triangle {
 	return res
 }
 
-// AddMesh adds all the triangles from m1 to m.
+// AddMesh adds all the faces from m1 to m.
 func (m *Mesh) AddMesh(m1 *Mesh) {
 	m1.Iterate(m.Add)
 }
 
-// Remove removes the triangle t from the mesh.
+// Remove removes the face f from the mesh.
 //
-// It looks at t as a pointer, so the pointer must be
-// exactly the same as a triangle passed to Add.
-func (m *Mesh) Remove(t *Triangle) {
-	if !m.triangles[t] {
+// It looks at f as a pointer, so the pointer must be
+// exactly the same as a face passed to Add.
+func (m *Mesh) Remove(f *Triangle) {
+	if !m.faces[f] {
 		return
 	}
-	delete(m.triangles, t)
-	v2t := m.getVertexToTriangleOrNil()
-	if v2t != nil {
-		for _, p := range t {
-			m.removeTriangleFromVertex(v2t, t, p)
+	delete(m.faces, f)
+	v2f := m.getVertexToFaceOrNil()
+	if v2f != nil {
+		for _, p := range f {
+			m.removeFaceFromVertex(v2f, f, p)
 		}
 	}
 }
 
-func (m *Mesh) removeTriangleFromVertex(v2t map[Coord3D][]*Triangle, t *Triangle, p Coord3D) {
-	s := v2t[p]
-	for i, t1 := range s {
-		if t1 == t {
+func (m *Mesh) removeFaceFromVertex(v2f map[Coord3D][]*Triangle, f *Triangle, p Coord3D) {
+	s := v2f[p]
+	for i, f1 := range s {
+		if f1 == f {
 			essentials.UnorderedDelete(&s, i)
 			break
 		}
 	}
 	if len(s) == 0 {
-		delete(v2t, p)
+		delete(v2f, p)
 	} else {
-		v2t[p] = s
+		v2f[p] = s
 	}
 }
 
-// Contains checks if t has been added to the mesh.
-func (m *Mesh) Contains(t *Triangle) bool {
-	_, ok := m.triangles[t]
+// Contains checks if f has been added to the mesh.
+func (m *Mesh) Contains(f *Triangle) bool {
+	_, ok := m.faces[f]
 	return ok
 }
 
-// Iterate calls f for every triangle in m in an arbitrary
+// Iterate calls f for every face in m in an arbitrary
 // order.
 //
-// If f adds or removes triangles, they will not be
-// visited.
-func (m *Mesh) Iterate(f func(t *Triangle)) {
+// If f adds or removes faces, they will not be visited.
+func (m *Mesh) Iterate(f func(*Triangle)) {
 	m.IterateSorted(f, nil)
 }
 
 // IterateSorted is like Iterate, but it first sorts all
-// the triangles according to a less than function, cmp.
-func (m *Mesh) IterateSorted(f func(t *Triangle), cmp func(t1, t2 *Triangle) bool) {
+// the faces according to a less than function, cmp.
+func (m *Mesh) IterateSorted(f func(*Triangle), cmp func(f1, f2 *Triangle) bool) {
 	all := m.TriangleSlice()
 	if cmp != nil {
 		sort.Slice(all, func(i, j int) bool {
 			return cmp(all[i], all[j])
 		})
 	}
-	for _, t := range all {
-		if m.triangles[t] {
-			f(t)
+	for _, face := range all {
+		if m.faces[face] {
+			f(face)
 		}
 	}
 }
@@ -291,24 +292,24 @@ func (m *Mesh) IterateSorted(f func(t *Triangle), cmp func(t1, t2 *Triangle) boo
 // If f adds or removes vertices, they will not be
 // visited.
 func (m *Mesh) IterateVertices(f func(c Coord3D)) {
-	v2t := m.getVertexToTriangle()
+	v2f := m.getVertexToFace()
 	for _, c := range m.VertexSlice() {
-		if _, ok := v2t[c]; ok {
+		if _, ok := v2f[c]; ok {
 			f(c)
 		}
 	}
 }
 
-// Neighbors gets all the triangles with a side touching a
-// given triangle t.
+// Neighbors gets all the faces with a side touching a
+// given face f.
 //
-// The triangle t itself is not included in the results.
+// The face f itself is not included in the results.
 //
-// The triangle t needn't be in the mesh. However, if it
-// is not in the mesh, but an equivalent triangle is, then
-// said equivalent triangle will be in the results.
-func (m *Mesh) Neighbors(t *Triangle) []*Triangle {
-	counts := m.neighborsWithCounts(t)
+// The face f needn't be in the mesh. However, if it is
+// not in the mesh, but an equivalent face is, then said
+// equivalent face will be in the results.
+func (m *Mesh) Neighbors(f *Triangle) []*Triangle {
+	counts := m.neighborsWithCounts(f)
 	res := make([]*Triangle, 0, len(counts))
 	for t1, count := range counts {
 		if count > 1 {
@@ -321,7 +322,7 @@ func (m *Mesh) Neighbors(t *Triangle) []*Triangle {
 func (m *Mesh) neighborsWithCounts(t *Triangle) map[*Triangle]int {
 	counts := map[*Triangle]int{}
 	for _, p := range t {
-		for _, t1 := range m.getVertexToTriangle()[p] {
+		for _, t1 := range m.getVertexToFace()[p] {
 			if t1 != t {
 				counts[t1]++
 			}
@@ -330,24 +331,24 @@ func (m *Mesh) neighborsWithCounts(t *Triangle) map[*Triangle]int {
 	return counts
 }
 
-// Find gets all the triangles that contain all of the
-// passed points.
+// Find gets all the faces that contain all of the passed
+// points.
 //
-// For example, to find all triangles containing a line
+// For example, to find all faces containing a line from
 // from p1 to p2, you could do m.Find(p1, p2).
 func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 	if len(ps) == 1 {
-		return append([]*Triangle{}, m.getVertexToTriangle()[ps[0]]...)
+		return append([]*Triangle{}, m.getVertexToFace()[ps[0]]...)
 	}
 
-	tris := m.getVertexToTriangle()[ps[0]]
-	res := make([]*Triangle, 0, len(tris))
+	faces := m.getVertexToFace()[ps[0]]
+	res := make([]*Triangle, 0, len(faces))
 
-TriLoop:
-	for _, t := range tris {
+FaceLoop:
+	for _, t := range faces {
 		for _, p := range ps[1:] {
 			if p != t[0] && p != t[1] && p != t[2] {
-				continue TriLoop
+				continue FaceLoop
 			}
 		}
 		res = append(res, t)
@@ -366,12 +367,12 @@ func (m *Mesh) Scale(s float64) *Mesh {
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
 	mapping := map[Coord3D]Coord3D{}
-	if v2t := m.getVertexToTriangleOrNil(); v2t != nil {
-		for c := range v2t {
+	if v2f := m.getVertexToFaceOrNil(); v2f != nil {
+		for c := range v2f {
 			mapping[c] = f(c)
 		}
 	} else {
-		for t := range m.triangles {
+		for t := range m.faces {
 			for _, c := range t {
 				if _, ok := mapping[c]; !ok {
 					mapping[c] = f(c)
@@ -438,8 +439,8 @@ func (m *Mesh) SaveGroupedSTL(path string) error {
 // currently in the mesh. The resulting slice is a copy,
 // and will not change as the mesh is updated.
 func (m *Mesh) TriangleSlice() []*Triangle {
-	ts := make([]*Triangle, 0, len(m.triangles))
-	for t := range m.triangles {
+	ts := make([]*Triangle, 0, len(m.faces))
+	for t := range m.faces {
 		ts = append(ts, t)
 	}
 	return ts
@@ -451,9 +452,9 @@ func (m *Mesh) TriangleSlice() []*Triangle {
 // The result is a copy and is in no way connected to the
 // mesh in memory.
 func (m *Mesh) VertexSlice() []Coord3D {
-	v2t := m.getVertexToTriangle()
-	vertices := make([]Coord3D, 0, len(v2t))
-	for v := range v2t {
+	v2f := m.getVertexToFace()
+	vertices := make([]Coord3D, 0, len(v2f))
+	for v := range v2f {
 		vertices = append(vertices, v)
 	}
 	return vertices
@@ -462,12 +463,12 @@ func (m *Mesh) VertexSlice() []Coord3D {
 // Min gets the component-wise minimum across all the
 // vertices in the mesh.
 func (m *Mesh) Min() Coord3D {
-	if len(m.triangles) == 0 {
+	if len(m.faces) == 0 {
 		return Coord3D{}
 	}
 	var result Coord3D
 	var firstFlag bool
-	for t := range m.triangles {
+	for t := range m.faces {
 		for _, c := range t {
 			if !firstFlag {
 				result = c
@@ -483,12 +484,12 @@ func (m *Mesh) Min() Coord3D {
 // Max gets the component-wise maximum across all the
 // vertices in the mesh.
 func (m *Mesh) Max() Coord3D {
-	if len(m.triangles) == 0 {
+	if len(m.faces) == 0 {
 		return Coord3D{}
 	}
 	var result Coord3D
 	var firstFlag bool
-	for t := range m.triangles {
+	for t := range m.faces {
 		for _, c := range t {
 			if !firstFlag {
 				result = c
@@ -501,37 +502,37 @@ func (m *Mesh) Max() Coord3D {
 	return result
 }
 
-func (m *Mesh) getVertexToTriangle() map[Coord3D][]*Triangle {
-	v2t := m.getVertexToTriangleOrNil()
-	if v2t != nil {
-		return v2t
+func (m *Mesh) getVertexToFace() map[Coord3D][]*Triangle {
+	v2f := m.getVertexToFaceOrNil()
+	if v2f != nil {
+		return v2f
 	}
 
 	// Use a lock to ensure two different maps aren't
 	// created and returned on different Goroutines.
-	m.v2tCreateLock.Lock()
-	defer m.v2tCreateLock.Unlock()
+	m.v2fCreateLock.Lock()
+	defer m.v2fCreateLock.Unlock()
 
 	// Another goroutine could have created a map while we
 	// waited on the lock.
-	v2t = m.getVertexToTriangleOrNil()
-	if v2t != nil {
-		return v2t
+	v2f = m.getVertexToFaceOrNil()
+	if v2f != nil {
+		return v2f
 	}
 
-	v2t = map[Coord3D][]*Triangle{}
-	for t := range m.triangles {
+	v2f = map[Coord3D][]*Triangle{}
+	for t := range m.faces {
 		for _, p := range t {
-			v2t[p] = append(v2t[p], t)
+			v2f[p] = append(v2f[p], t)
 		}
 	}
-	m.vertexToTriangle.Store(v2t)
+	m.vertexToFace.Store(v2f)
 
-	return v2t
+	return v2f
 }
 
-func (m *Mesh) getVertexToTriangleOrNil() map[Coord3D][]*Triangle {
-	res := m.vertexToTriangle.Load()
+func (m *Mesh) getVertexToFaceOrNil() map[Coord3D][]*Triangle {
+	res := m.vertexToFace.Load()
 	if res == nil {
 		return nil
 	}

@@ -29,8 +29,8 @@ func (m *Mesh) Blur(rates ...float64) *Mesh {
 //
 // If f is nil, then this is equivalent to Blur().
 func (m *Mesh) BlurFiltered(f func(c1, c2 Coord3D) bool, rates ...float64) *Mesh {
-	capacity := len(m.triangles) * 3
-	if v2t := m.getVertexToTriangleOrNil(); v2t != nil {
+	capacity := len(m.faces) * 3
+	if v2t := m.getVertexToFaceOrNil(); v2t != nil {
 		capacity = len(v2t)
 	}
 	coordToIdx := make(map[Coord3D]int, capacity)
@@ -178,7 +178,7 @@ func (m *Mesh) FlattenBase(maxAngle float64) *Mesh {
 	flattenCoord := func(c Coord3D) {
 		newC := c
 		newC.Z = minZ
-		v2t := result.getVertexToTriangle()
+		v2t := result.getVertexToFace()
 		for _, t2 := range v2t[c] {
 			for i, c1 := range t2 {
 				if c1 == c {
@@ -223,7 +223,7 @@ func (m *Mesh) FlattenBase(maxAngle float64) *Mesh {
 func (m *Mesh) Repair(epsilon float64) *Mesh {
 	hashToClass := map[Coord3D]*equivalenceClass{}
 	allClasses := map[*equivalenceClass]bool{}
-	for c := range m.getVertexToTriangle() {
+	for c := range m.getVertexToFace() {
 		hashes := make([]Coord3D, 0, 8)
 		classes := make(map[*equivalenceClass]bool, 8)
 		for i := 0.0; i <= 1.0; i += 1.0 {
@@ -303,7 +303,7 @@ type equivalenceClass struct {
 // NeedsRepair checks if every edge touches exactly two
 // triangles. If not, NeedsRepair returns true.
 func (m *Mesh) NeedsRepair() bool {
-	for t := range m.triangles {
+	for t := range m.faces {
 		for i := 0; i < 3; i++ {
 			p1 := t[i]
 			p2 := t[(i+1)%3]
@@ -321,7 +321,7 @@ func (m *Mesh) NeedsRepair() bool {
 // by a single point.
 func (m *Mesh) SingularVertices() []Coord3D {
 	var res []Coord3D
-	for vertex, tris := range m.getVertexToTriangle() {
+	for vertex, tris := range m.getVertexToFace() {
 		if len(tris) == 0 {
 			continue
 		}
@@ -520,7 +520,7 @@ func canEliminateSegment(m *Mesh, seg Segment) bool {
 		return false
 	}
 
-	v2t := m.getVertexToTriangle()
+	v2t := m.getVertexToFace()
 	neighbors1 := v2t[seg[0]]
 	neighbors2 := v2t[seg[1]]
 	otherSegs := make([]Segment, 0, len(neighbors1)+len(neighbors2))
@@ -560,7 +560,7 @@ func canEliminateSegment(m *Mesh, seg Segment) bool {
 
 func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool) {
 	mp := segment.Mid()
-	v2t := m.getVertexToTriangle()
+	v2t := m.getVertexToFace()
 	newNeighbors := []*Triangle{}
 	for i, segmentPoint := range segment {
 		for _, neighbor := range v2t[segmentPoint] {
@@ -577,10 +577,10 @@ func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool) {
 				if i == 0 {
 					// This triangle contains the segment,
 					// so it must be fully removed.
-					delete(m.triangles, neighbor)
+					delete(m.faces, neighbor)
 					for _, p := range neighbor {
 						if p != segment[0] && p != segment[1] {
-							m.removeTriangleFromVertex(v2t, neighbor, p)
+							m.removeFaceFromVertex(v2t, neighbor, p)
 							break
 						}
 					}

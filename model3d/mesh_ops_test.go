@@ -127,7 +127,7 @@ func TestMeshEliminateCoplanar(t *testing.T) {
 	}
 	m1 := MarchingCubesSearch(cyl, 0.025, 32)
 	m2 := m1.EliminateCoplanar(1e-8)
-	if len(m2.triangles) >= len(m1.triangles) {
+	if len(m2.faces) >= len(m1.faces) {
 		t.Fatal("reduction failed")
 	}
 	if _, n := m2.RepairNormals(1e-8); n != 0 {

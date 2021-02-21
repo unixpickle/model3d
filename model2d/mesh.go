@@ -1,3 +1,5 @@
+// Generated from templates/mesh.template
+
 package model2d
 
 import (
@@ -27,18 +29,28 @@ import (
 // but modifications must not be performed concurrently
 // with any mesh operations.
 type Mesh struct {
-	segments map[*Segment]bool
+	faces map[*Segment]bool
 
 	// Stores a map[Coord][]*Segment
-	vertexToSegment atomic.Value
-	v2sCreateLock   sync.Mutex
+	vertexToFace  atomic.Value
+	v2fCreateLock sync.Mutex
 }
 
 // NewMesh creates an empty mesh.
 func NewMesh() *Mesh {
 	return &Mesh{
-		segments: map[*Segment]bool{},
+		faces: map[*Segment]bool{},
 	}
+}
+
+// NewMeshSegments creates a mesh with the given
+// collection of faces.
+func NewMeshSegments(faces []*Segment) *Mesh {
+	m := NewMesh()
+	for _, f := range faces {
+		m.Add(f)
+	}
+	return m
 }
 
 // NewMeshPolar creates a closed polar mesh.
@@ -69,95 +81,85 @@ func NewMeshPolar(radius func(theta float64) float64, stops int) *Mesh {
 	return res
 }
 
-// NewMeshSegments creates a mesh with the given
-// collection of Segments.
-func NewMeshSegments(segs []*Segment) *Mesh {
-	m := NewMesh()
-	for _, s := range segs {
-		m.Add(s)
-	}
-	return m
-}
-
-// Add adds the Segment s to the mesh.
-func (m *Mesh) Add(s *Segment) {
-	v2s := m.getVertexToSegmentOrNil()
-	if v2s == nil {
-		m.segments[s] = true
+// Add adds the face f to the mesh.
+func (m *Mesh) Add(f *Segment) {
+	v2f := m.getVertexToFaceOrNil()
+	if v2f == nil {
+		m.faces[f] = true
 		return
-	} else if m.segments[s] {
+	} else if m.faces[f] {
 		return
 	}
-	for _, p := range s {
-		v2s[p] = append(v2s[p], s)
+
+	for _, p := range f {
+		v2f[p] = append(v2f[p], f)
 	}
-	m.segments[s] = true
+	m.faces[f] = true
 }
 
-// AddMesh adds all the Segments from m1 to m.
+// AddMesh adds all the faces from m1 to m.
 func (m *Mesh) AddMesh(m1 *Mesh) {
 	m1.Iterate(m.Add)
 }
 
-// Remove removes the Segment t from the mesh.
+// Remove removes the face f from the mesh.
 //
-// It looks at t as a pointer, so the pointer must be
-// exactly the same as a Segment passed to Add.
-func (m *Mesh) Remove(s *Segment) {
-	if !m.segments[s] {
+// It looks at f as a pointer, so the pointer must be
+// exactly the same as a face passed to Add.
+func (m *Mesh) Remove(f *Segment) {
+	if !m.faces[f] {
 		return
 	}
-	delete(m.segments, s)
-	v2s := m.getVertexToSegmentOrNil()
-	if v2s != nil {
-		for _, p := range s {
-			m.removeSegmentFromVertex(v2s, s, p)
+	delete(m.faces, f)
+	v2f := m.getVertexToFaceOrNil()
+	if v2f != nil {
+		for _, p := range f {
+			m.removeFaceFromVertex(v2f, f, p)
 		}
 	}
 }
 
-func (m *Mesh) removeSegmentFromVertex(v2s map[Coord][]*Segment, s *Segment, p Coord) {
-	segs := v2s[p]
-	for i, s1 := range segs {
-		if s1 == s {
-			essentials.UnorderedDelete(&segs, i)
+func (m *Mesh) removeFaceFromVertex(v2f map[Coord][]*Segment, f *Segment, p Coord) {
+	s := v2f[p]
+	for i, f1 := range s {
+		if f1 == f {
+			essentials.UnorderedDelete(&s, i)
 			break
 		}
 	}
-	if len(segs) == 0 {
-		delete(v2s, p)
+	if len(s) == 0 {
+		delete(v2f, p)
 	} else {
-		v2s[p] = segs
+		v2f[p] = s
 	}
 }
 
-// Contains checks if s has been added to the mesh.
-func (m *Mesh) Contains(s *Segment) bool {
-	_, ok := m.segments[s]
+// Contains checks if f has been added to the mesh.
+func (m *Mesh) Contains(f *Segment) bool {
+	_, ok := m.faces[f]
 	return ok
 }
 
-// Iterate calls f for every Segment in m in an arbitrary
+// Iterate calls f for every face in m in an arbitrary
 // order.
 //
-// If f adds or removes Segments, they will not be
-// visited.
-func (m *Mesh) Iterate(f func(s *Segment)) {
+// If f adds or removes faces, they will not be visited.
+func (m *Mesh) Iterate(f func(*Segment)) {
 	m.IterateSorted(f, nil)
 }
 
 // IterateSorted is like Iterate, but it first sorts all
-// the Segments according to a less than function, cmp.
-func (m *Mesh) IterateSorted(f func(s *Segment), cmp func(s1, s2 *Segment) bool) {
-	all := m.SegmentsSlice()
+// the faces according to a less than function, cmp.
+func (m *Mesh) IterateSorted(f func(*Segment), cmp func(f1, f2 *Segment) bool) {
+	all := m.SegmentSlice()
 	if cmp != nil {
 		sort.Slice(all, func(i, j int) bool {
 			return cmp(all[i], all[j])
 		})
 	}
-	for _, s := range all {
-		if m.segments[s] {
-			f(s)
+	for _, face := range all {
+		if m.faces[face] {
+			f(face)
 		}
 	}
 }
@@ -168,27 +170,27 @@ func (m *Mesh) IterateSorted(f func(s *Segment), cmp func(s1, s2 *Segment) bool)
 // If f adds or removes vertices, they will not be
 // visited.
 func (m *Mesh) IterateVertices(f func(c Coord)) {
-	v2s := m.getVertexToSegment()
+	v2f := m.getVertexToFace()
 	for _, c := range m.VertexSlice() {
-		if _, ok := v2s[c]; ok {
+		if _, ok := v2f[c]; ok {
 			f(c)
 		}
 	}
 }
 
-// Neighbors gets all the Segments with a vertex touching
-// a given Segment s.
+// Neighbors gets all the faces with a side touching a
+// given face f.
 //
-// The Segment s itself is not included in the results.
+// The face f itself is not included in the results.
 //
-// The Segment s needn't be in the mesh. However, if it
-// is not in the mesh, but an equivalent Segment is, then
-// said equivalent Segment will be in the results.
-func (m *Mesh) Neighbors(s *Segment) []*Segment {
+// The face f needn't be in the mesh. However, if it is
+// not in the mesh, but an equivalent face is, then said
+// equivalent face will be in the results.
+func (m *Mesh) Neighbors(f *Segment) []*Segment {
 	neighbors := map[*Segment]bool{}
-	for _, p := range s {
+	for _, p := range f {
 		for _, n := range m.Find(p) {
-			if n != s {
+			if n != f {
 				neighbors[n] = true
 			}
 		}
@@ -200,26 +202,39 @@ func (m *Mesh) Neighbors(s *Segment) []*Segment {
 	return res
 }
 
-// Find gets all the Segments that contain all of the
-// passed points.
-//
-// This is only useful with one or two coordinates.
-func (m *Mesh) Find(ps ...Coord) []*Segment {
-	if len(ps) == 1 {
-		return append([]*Segment{}, m.getVertexToSegment()[ps[0]]...)
-	}
-
-	segs := m.getVertexToSegment()[ps[0]]
-	res := make([]*Segment, 0, len(segs))
-
-SegLoop:
-	for _, s := range segs {
-		for _, p := range ps[1:] {
-			if p != s[0] && p != s[1] {
-				continue SegLoop
+func (m *Mesh) neighborsWithCounts(t *Segment) map[*Segment]int {
+	counts := map[*Segment]int{}
+	for _, p := range t {
+		for _, t1 := range m.getVertexToFace()[p] {
+			if t1 != t {
+				counts[t1]++
 			}
 		}
-		res = append(res, s)
+	}
+	return counts
+}
+
+// Find gets all the faces that contain all of the passed
+// points.
+//
+// For example, to find all faces containing a line from
+// from p1 to p2, you could do m.Find(p1, p2).
+func (m *Mesh) Find(ps ...Coord) []*Segment {
+	if len(ps) == 1 {
+		return append([]*Segment{}, m.getVertexToFace()[ps[0]]...)
+	}
+
+	faces := m.getVertexToFace()[ps[0]]
+	res := make([]*Segment, 0, len(faces))
+
+FaceLoop:
+	for _, t := range faces {
+		for _, p := range ps[1:] {
+			if p != t[0] && p != t[1] {
+				continue FaceLoop
+			}
+		}
+		res = append(res, t)
 	}
 
 	return res
@@ -228,19 +243,19 @@ SegLoop:
 // Scale creates a new mesh by scaling the coordinates by
 // a factor s.
 func (m *Mesh) Scale(s float64) *Mesh {
-	return m.MapCoords(Coord{X: s, Y: s}.Mul)
+	return m.MapCoords(XY(s, s).Mul)
 }
 
 // MapCoords creates a new mesh by transforming all of the
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord) Coord) *Mesh {
 	mapping := map[Coord]Coord{}
-	if v2s := m.getVertexToSegmentOrNil(); v2s != nil {
-		for c := range v2s {
+	if v2f := m.getVertexToFaceOrNil(); v2f != nil {
+		for c := range v2f {
 			mapping[c] = f(c)
 		}
 	} else {
-		for t := range m.segments {
+		for t := range m.faces {
 			for _, c := range t {
 				if _, ok := mapping[c]; !ok {
 					mapping[c] = f(c)
@@ -249,12 +264,12 @@ func (m *Mesh) MapCoords(f func(Coord) Coord) *Mesh {
 		}
 	}
 	m1 := NewMesh()
-	m.Iterate(func(s *Segment) {
-		s1 := *s
-		for i, p := range s {
-			s1[i] = mapping[p]
+	m.Iterate(func(t *Segment) {
+		t1 := *t
+		for i, p := range t {
+			t1[i] = mapping[p]
 		}
-		m1.Add(&s1)
+		m1.Add(&t1)
 	})
 	return m1
 }
@@ -264,15 +279,35 @@ func (m *Mesh) Transform(t Transform) *Mesh {
 	return m.MapCoords(t.Apply)
 }
 
-// SegmentsSlice gets a snapshot of all the Segments
+// SaveSVG encodes the mesh to an SVG file.
+func (m *Mesh) SaveSVG(path string) error {
+	data := EncodeSVG(m)
+	w, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save SVG")
+	}
+	defer w.Close()
+	if _, err := w.Write(data); err != nil {
+		return errors.Wrap(err, "save SVG")
+	}
+	return nil
+}
+
+// SegmentSlice gets a snapshot of all the triangles
 // currently in the mesh. The resulting slice is a copy,
 // and will not change as the mesh is updated.
-func (m *Mesh) SegmentsSlice() []*Segment {
-	segs := make([]*Segment, 0, len(m.segments))
-	for s := range m.segments {
-		segs = append(segs, s)
+func (m *Mesh) SegmentSlice() []*Segment {
+	ts := make([]*Segment, 0, len(m.faces))
+	for t := range m.faces {
+		ts = append(ts, t)
 	}
-	return segs
+	return ts
+}
+
+// SegmentsSlice is exactly like SegmentSlice(), and is
+// only implemented for backwards-compatibility.
+func (m *Mesh) SegmentsSlice() []*Segment {
+	return m.SegmentSlice()
 }
 
 // VertexSlice gets a snapshot of all the vertices
@@ -281,9 +316,9 @@ func (m *Mesh) SegmentsSlice() []*Segment {
 // The result is a copy and is in no way connected to the
 // mesh in memory.
 func (m *Mesh) VertexSlice() []Coord {
-	v2s := m.getVertexToSegment()
-	vertices := make([]Coord, 0, len(v2s))
-	for v := range v2s {
+	v2f := m.getVertexToFace()
+	vertices := make([]Coord, 0, len(v2f))
+	for v := range v2f {
 		vertices = append(vertices, v)
 	}
 	return vertices
@@ -292,13 +327,13 @@ func (m *Mesh) VertexSlice() []Coord {
 // Min gets the component-wise minimum across all the
 // vertices in the mesh.
 func (m *Mesh) Min() Coord {
-	if len(m.segments) == 0 {
+	if len(m.faces) == 0 {
 		return Coord{}
 	}
 	var result Coord
 	var firstFlag bool
-	for s := range m.segments {
-		for _, c := range s {
+	for t := range m.faces {
+		for _, c := range t {
 			if !firstFlag {
 				result = c
 				firstFlag = true
@@ -313,13 +348,13 @@ func (m *Mesh) Min() Coord {
 // Max gets the component-wise maximum across all the
 // vertices in the mesh.
 func (m *Mesh) Max() Coord {
-	if len(m.segments) == 0 {
+	if len(m.faces) == 0 {
 		return Coord{}
 	}
 	var result Coord
 	var firstFlag bool
-	for s := range m.segments {
-		for _, c := range s {
+	for t := range m.faces {
+		for _, c := range t {
 			if !firstFlag {
 				result = c
 				firstFlag = true
@@ -331,50 +366,37 @@ func (m *Mesh) Max() Coord {
 	return result
 }
 
-func (m *Mesh) SaveSVG(path string) error {
-	data := EncodeSVG(m)
-	w, err := os.Create(path)
-	if err != nil {
-		return errors.Wrap(err, "save SVG")
-	}
-	defer w.Close()
-	if _, err := w.Write(data); err != nil {
-		return errors.Wrap(err, "save SVG")
-	}
-	return nil
-}
-
-func (m *Mesh) getVertexToSegment() map[Coord][]*Segment {
-	v2s := m.getVertexToSegmentOrNil()
-	if v2s != nil {
-		return v2s
+func (m *Mesh) getVertexToFace() map[Coord][]*Segment {
+	v2f := m.getVertexToFaceOrNil()
+	if v2f != nil {
+		return v2f
 	}
 
 	// Use a lock to ensure two different maps aren't
 	// created and returned on different Goroutines.
-	m.v2sCreateLock.Lock()
-	defer m.v2sCreateLock.Unlock()
+	m.v2fCreateLock.Lock()
+	defer m.v2fCreateLock.Unlock()
 
 	// Another goroutine could have created a map while we
 	// waited on the lock.
-	v2s = m.getVertexToSegmentOrNil()
-	if v2s != nil {
-		return v2s
+	v2f = m.getVertexToFaceOrNil()
+	if v2f != nil {
+		return v2f
 	}
 
-	v2s = map[Coord][]*Segment{}
-	for s := range m.segments {
-		for _, p := range s {
-			v2s[p] = append(v2s[p], s)
+	v2f = map[Coord][]*Segment{}
+	for t := range m.faces {
+		for _, p := range t {
+			v2f[p] = append(v2f[p], t)
 		}
 	}
-	m.vertexToSegment.Store(v2s)
+	m.vertexToFace.Store(v2f)
 
-	return v2s
+	return v2f
 }
 
-func (m *Mesh) getVertexToSegmentOrNil() map[Coord][]*Segment {
-	res := m.vertexToSegment.Load()
+func (m *Mesh) getVertexToFaceOrNil() map[Coord][]*Segment {
+	res := m.vertexToFace.Load()
 	if res == nil {
 		return nil
 	}

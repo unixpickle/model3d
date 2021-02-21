@@ -67,7 +67,7 @@ func BenchmarkMeshFind(b *testing.B) {
 	})
 
 	// Make sure we don't do this lazily.
-	mesh.getVertexToTriangle()
+	mesh.getVertexToFace()
 
 	// Pre-compute the random indices to prevent
 	// random number generation from taking most

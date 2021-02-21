@@ -32,7 +32,7 @@ func loopSubdivision(m *Mesh) *Mesh {
 	})
 
 	cornerPoints := map[Coord3D]Coord3D{}
-	for corner, tris := range m.getVertexToTriangle() {
+	for corner, tris := range m.getVertexToFace() {
 		neighbors := map[Coord3D]bool{}
 		for _, t := range tris {
 			for _, c := range t {

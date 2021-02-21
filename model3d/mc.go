@@ -59,7 +59,7 @@ func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 		outVertices[i] = mcSearchPoint(s, delta, iters, mesh, min, inVertices[i])
 	})
 
-	v2t := mesh.getVertexToTriangle()
+	v2t := mesh.getVertexToFace()
 	for i, original := range inVertices {
 		out := outVertices[i]
 		for _, t := range v2t[original] {
@@ -74,7 +74,7 @@ func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 
 	// We just invalidated the entire v2t cache by
 	// replacing the vertices in the triangles.
-	mesh.vertexToTriangle = atomic.Value{}
+	mesh.vertexToFace = atomic.Value{}
 
 	return mesh
 }

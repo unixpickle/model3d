@@ -78,14 +78,14 @@ func EncodeCustomSVG(meshes []*Mesh, colors []string, thicknesses []float64, bou
 func findPolylines(m *Mesh, f func(points []Coord)) {
 	m1 := NewMesh()
 	m1.AddMesh(m)
-	for len(m1.segments) > 0 {
+	for len(m1.faces) > 0 {
 		f(findNextPolyline(m1))
 	}
 }
 
 func findNextPolyline(m *Mesh) []Coord {
 	var seg *Segment
-	for s := range m.segments {
+	for s := range m.faces {
 		seg = s
 		break
 	}

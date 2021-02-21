@@ -47,7 +47,7 @@ func TestDecimateMinimal(t *testing.T) {
 	}
 	for _, d := range decimators {
 		elim := d.Decimate(m)
-		if len(elim.triangles) != len(m.triangles) {
+		if len(elim.faces) != len(m.faces) {
 			t.Error("invalid reduction")
 		}
 	}

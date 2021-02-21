@@ -96,7 +96,7 @@ func (m *Mesh) Subdivide(iters int) *Mesh {
 // Manifold checks if the mesh is manifold, i.e. if every
 // vertex has two segments.
 func (m *Mesh) Manifold() bool {
-	for _, s := range m.getVertexToSegment() {
+	for _, s := range m.getVertexToFace() {
 		if len(s) != 2 {
 			return false
 		}
@@ -144,7 +144,7 @@ func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
 func (m *Mesh) Repair(epsilon float64) *Mesh {
 	hashToClass := map[Coord]*equivalenceClass{}
 	allClasses := map[*equivalenceClass]bool{}
-	for c := range m.getVertexToSegment() {
+	for c := range m.getVertexToFace() {
 		hashes := make([]Coord, 0, 4)
 		classes := make(map[*equivalenceClass]bool, 8)
 		for i := 0.0; i <= 1.0; i += 1.0 {
