@@ -36,15 +36,18 @@ func Generate2d3dTemplate(name string) {
 func TemplateEnvironment(pkg string) map[string]interface{} {
 	coordType := "Coord"
 	matrixType := "Matrix2"
+	faceType := "Segment"
 	if pkg == "model3d" {
 		coordType = "Coord3D"
 		matrixType = "Matrix3"
+		faceType = "Triangle"
 	}
 	return map[string]interface{}{
 		"package":    pkg,
 		"model2d":    pkg == "model2d",
 		"coordType":  coordType,
 		"matrixType": matrixType,
+		"faceType":   faceType,
 	}
 }
 
