@@ -1,6 +1,4 @@
-// Generated from templates/bvh.template
-
-package model3d
+package {{.package}}
 
 import (
 	"math"
@@ -21,7 +19,7 @@ type GeneralBVH struct {
 }
 
 // NewGeneralBVHAreaDensity creates a GeneralBVH by
-// minimizing the product of each bounding box's area with
+// minimizing the product of each bounding box's {{if .model2d}}perimeter{{else}}area{{end}} with
 // the number of objects contained in the bounding box at
 // each branch.
 //
@@ -31,7 +29,7 @@ func NewGeneralBVHAreaDensity(objects []Bounder) *GeneralBVH {
 		areaDensityBVHSplit)
 }
 
-func newGeneralBVH(sortedBounders [3][]*flaggedBounder, cache []float64,
+func newGeneralBVH(sortedBounders [{{.numDims}}][]*flaggedBounder, cache []float64,
 	splitter func([]*flaggedBounder, []float64) (int, float64)) *GeneralBVH {
 	numObjs := len(sortedBounders[0])
 	if numObjs == 0 {
@@ -47,9 +45,18 @@ func newGeneralBVH(sortedBounders [3][]*flaggedBounder, cache []float64,
 
 	xIndex, xScore := splitter(sortedBounders[0], cache)
 	yIndex, yScore := splitter(sortedBounders[1], cache)
+	{{- if not .model2d}}
 	zIndex, zScore := splitter(sortedBounders[2], cache)
+	{{- end}}
 
-	var split [2][3][]*flaggedBounder
+	var split [2][{{.numDims}}][]*flaggedBounder
+	{{if .model2d -}}
+	if xScore < yScore {
+		split = splitBounders(sortedBounders, 0, xIndex)
+	} else {
+		split = splitBounders(sortedBounders, 1, yIndex)
+	}
+	{{- else -}}
 	if xScore < yScore && xScore < zScore {
 		split = splitBounders(sortedBounders, 0, xIndex)
 	} else if yScore < xScore && yScore < zScore {
@@ -57,6 +64,7 @@ func newGeneralBVH(sortedBounders [3][]*flaggedBounder, cache []float64,
 	} else {
 		split = splitBounders(sortedBounders, 2, zIndex)
 	}
+	{{- end}}
 	return &GeneralBVH{
 		Branch: []*GeneralBVH{
 			newGeneralBVH(split[0], cache, splitter),
@@ -66,33 +74,33 @@ func newGeneralBVH(sortedBounders [3][]*flaggedBounder, cache []float64,
 }
 
 // BVH represents a (possibly unbalanced) axis-aligned
-// bounding box hierarchy of triangles.
+// bounding box hierarchy of {{.faceName}}s.
 //
 // A BVH can be used to accelerate collision detection.
 // See BVHToCollider() for more details.
 //
-// A BVH node is either a leaf (a single triangle), or a branch
+// A BVH node is either a leaf (a single {{.faceName}}), or a branch
 // with two or more children.
 //
 // For a more generic BVH that supports any object rather
-// than just triangles, see GeneralBVH.
+// than just {{.faceName}}s, see GeneralBVH.
 type BVH struct {
 	// Leaf, if non-nil, is the sole object in this node.
-	Leaf *Triangle
+	Leaf *{{.faceType}}
 
 	// Branch, if Leaf is nil, points to two children.
 	Branch []*BVH
 }
 
 // NewBVHAreaDensity is like NewGeneralBVHAreaDensity but
-// for triangles.
-func NewBVHAreaDensity(objs []*Triangle) *BVH {
+// for {{.faceName}}s.
+func NewBVHAreaDensity(objs []*{{.faceType}}) *BVH {
 	return generalBVHToBVH(NewGeneralBVHAreaDensity(facesToBounders(objs)))
 }
 
 func generalBVHToBVH(g *GeneralBVH) *BVH {
 	if g.Leaf != nil {
-		return &BVH{Leaf: g.Leaf.(*Triangle)}
+		return &BVH{Leaf: g.Leaf.(*{{.faceType}})}
 	}
 	res := &BVH{Branch: make([]*BVH, len(g.Branch))}
 	for i, g1 := range g.Branch {
@@ -106,7 +114,7 @@ func generalBVHToBVH(g *GeneralBVH) *BVH {
 // score.
 //
 // The score of a bbox is equal to the surface area times
-// the number of triangles.
+// the number of {{.faceName}}s.
 //
 // The cache must contain at least len(faces) entries.
 func areaDensityBVHSplit(faces []*flaggedBounder, cache []float64) (int, float64) {
@@ -138,7 +146,7 @@ func areaDensityBVHSplit(faces []*flaggedBounder, cache []float64) (int, float64
 	return bestIndex, bestScore
 }
 
-// GroupTriangles is like GroupBounders, but for triangles
+// Group{{.faceType}}s is like GroupBounders, but for {{.faceName}}s
 // in particular.
 //
 // This can be used to prepare models for being turned
@@ -146,12 +154,12 @@ func areaDensityBVHSplit(faces []*flaggedBounder, cache []float64) (int, float64
 // an order well-suited for file compression.
 //
 // The resulting hierarchy can be passed directly to
-// GroupedTrianglesToCollider().
-func GroupTriangles(faces []*Triangle) {
+// Grouped{{.faceType}}sToCollider().
+func Group{{.faceType}}s(faces []*{{.faceType}}) {
 	bs := facesToBounders(faces)
 	groupBounders(sortBounders(bs), bs)
 	for i, b := range bs {
-		faces[i] = b.(*Triangle)
+		faces[i] = b.(*{{.faceType}})
 	}
 }
 
@@ -168,7 +176,7 @@ func GroupBounders(objects []Bounder) {
 	groupBounders(sortBounders(objects), objects)
 }
 
-func groupBounders(sortedBounders [3][]*flaggedBounder, output []Bounder) {
+func groupBounders(sortedBounders [{{.numDims}}][]*flaggedBounder, output []Bounder) {
 	numObjs := len(sortedBounders[0])
 	if numObjs == 2 {
 		// The area-based splitting criterion doesn't
@@ -191,16 +199,16 @@ func groupBounders(sortedBounders [3][]*flaggedBounder, output []Bounder) {
 	groupBounders(separated[1], output[midIdx:])
 }
 
-func splitBounders(sortedBounders [3][]*flaggedBounder, axis, midIdx int) [2][3][]*flaggedBounder {
+func splitBounders(sortedBounders [{{.numDims}}][]*flaggedBounder, axis, midIdx int) [2][{{.numDims}}][]*flaggedBounder {
 	for i, b := range sortedBounders[axis] {
 		b.Flag = i < midIdx
 	}
 
-	separated := [3][]*flaggedBounder{}
+	separated := [{{.numDims}}][]*flaggedBounder{}
 	separated[axis] = sortedBounders[axis]
 
 	numObjs := len(sortedBounders[0])
-	for newAxis := 0; newAxis < 3; newAxis++ {
+	for newAxis := 0; newAxis < {{.numDims}}; newAxis++ {
 		if newAxis == axis {
 			continue
 		}
@@ -219,19 +227,25 @@ func splitBounders(sortedBounders [3][]*flaggedBounder, axis, midIdx int) [2][3]
 		separated[newAxis] = sep
 	}
 
-	return [2][3][]*flaggedBounder{
+	return [2][{{.numDims}}][]*flaggedBounder{
 		{
 			separated[0][:midIdx],
-			separated[1][:midIdx], separated[2][:midIdx],
+			separated[1][:midIdx],
+			{{- if not .model2d -}}
+			separated[2][:midIdx],
+			{{- end}}
 		},
 		{
 			separated[0][midIdx:],
-			separated[1][midIdx:], separated[2][midIdx:],
+			separated[1][midIdx:],
+			{{- if not .model2d -}}
+			separated[2][midIdx:],
+			{{- end}}
 		},
 	}
 }
 
-func bestSplitAxis(sortedBounders [3][]*flaggedBounder) int {
+func bestSplitAxis(sortedBounders [{{.numDims}}][]*flaggedBounder) int {
 	midIdx := len(sortedBounders[0]) / 2
 
 	areaForAxis := func(axis int) float64 {
@@ -241,7 +255,7 @@ func bestSplitAxis(sortedBounders [3][]*flaggedBounder) int {
 
 	axis := 0
 	minArea := areaForAxis(0)
-	for i := 1; i < 3; i++ {
+	for i := 1; i < {{.numDims}}; i++ {
 		if a := areaForAxis(i); a < minArea {
 			minArea = a
 			axis = i
@@ -251,7 +265,7 @@ func bestSplitAxis(sortedBounders [3][]*flaggedBounder) int {
 	return axis
 }
 
-func sortBounders(bs []Bounder) [3][]*flaggedBounder {
+func sortBounders(bs []Bounder) [{{.numDims}}][]*flaggedBounder {
 	// Allocate all of the flaggedBounders at once all
 	// next to each other in memory.
 	flagged := make([]flaggedBounder, len(bs))
@@ -265,7 +279,7 @@ func sortBounders(bs []Bounder) [3][]*flaggedBounder {
 		}
 	}
 
-	var result [3][]*flaggedBounder
+	var result [{{.numDims}}][]*flaggedBounder
 	for axis := range result {
 		bsCopy := make([]*flaggedBounder, len(flagged))
 		for i := range flagged {
@@ -279,10 +293,12 @@ func sortBounders(bs []Bounder) [3][]*flaggedBounder {
 			sort.Slice(bsCopy, func(i, j int) bool {
 				return bsCopy[i].Mid.Y < bsCopy[j].Mid.Y
 			})
+		{{if not .model2d -}}
 		} else {
 			sort.Slice(bsCopy, func(i, j int) bool {
 				return bsCopy[i].Mid.Z < bsCopy[j].Mid.Z
 			})
+		{{- end}}
 		}
 		result[axis] = bsCopy
 	}
@@ -304,9 +320,11 @@ func multipleBoundsArea(bs []*flaggedBounder) float64 {
 		if min1.Y < min.Y {
 			min.Y = min1.Y
 		}
+		{{if not .model2d -}}
 		if min1.Z < min.Z {
 			min.Z = min1.Z
 		}
+		{{end -}}
 		max1 := b.Max
 		if max1.X > max.X {
 			max.X = max1.X
@@ -314,34 +332,46 @@ func multipleBoundsArea(bs []*flaggedBounder) float64 {
 		if max1.Y > max.Y {
 			max.Y = max1.Y
 		}
+		{{if not .model2d -}}
 		if max1.Z > max.Z {
 			max.Z = max1.Z
 		}
+		{{end -}}
 	}
 	return boundsArea(min, max)
 }
 
-func boundsArea(min, max Coord3D) float64 {
+func boundsArea(min, max {{.coordType}}) float64 {
 	diff := max.Sub(min)
-	return 2 * (diff.X*(diff.Y+diff.Z) + diff.Y*diff.Z)
+	return {{if .model2d -}}
+	2*(diff.X+diff.Y)
+	{{- else -}}
+	2 * (diff.X*(diff.Y+diff.Z) + diff.Y*diff.Z)
+	{{- end}}
 }
 
 type flaggedBounder struct {
 	B    Bounder
-	Min  Coord3D
-	Max  Coord3D
-	Mid  Coord3D
+	Min  {{.coordType}}
+	Max  {{.coordType}}
+	Mid  {{.coordType}}
 	Flag bool
 }
 
-func sphereTouchesBounds(center Coord3D, r float64, min, max Coord3D) bool {
+{{if .model2d -}}
+func circleTouchesBounds(center {{.coordType}}, r float64, min, max {{.coordType}}) bool {
 	return pointToBoundsDistSquared(center, min, max) <= r*r
 }
+{{- else -}}
+func sphereTouchesBounds(center {{.coordType}}, r float64, min, max {{.coordType}}) bool {
+	return pointToBoundsDistSquared(center, min, max) <= r*r
+}
+{{- end}}
 
-func pointToBoundsDistSquared(center Coord3D, min, max Coord3D) float64 {
+func pointToBoundsDistSquared(center {{.coordType}}, min, max {{.coordType}}) float64 {
 	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
 	distSquared := 0.0
-	for axis := 0; axis < 3; axis++ {
+	for axis := 0; axis < {{.numDims}}; axis++ {
 		min := min.Array()[axis]
 		max := max.Array()[axis]
 		value := center.Array()[axis]
@@ -354,10 +384,10 @@ func pointToBoundsDistSquared(center Coord3D, min, max Coord3D) float64 {
 	return distSquared
 }
 
-func rayCollisionWithBounds(r *Ray, min, max Coord3D) (minFrac, maxFrac float64) {
+func rayCollisionWithBounds(r *Ray, min, max {{.coordType}}) (minFrac, maxFrac float64) {
 	minFrac = math.Inf(-1)
 	maxFrac = math.Inf(1)
-	for axis := 0; axis < 3; axis++ {
+	for axis := 0; axis < {{.numDims}}; axis++ {
 		origin := r.Origin.Array()[axis]
 		rate := r.Direction.Array()[axis]
 		if rate == 0 {
@@ -385,7 +415,7 @@ func rayCollisionWithBounds(r *Ray, min, max Coord3D) (minFrac, maxFrac float64)
 	return
 }
 
-func facesToBounders(faces []*Triangle) []Bounder {
+func facesToBounders(faces []*{{.faceType}}) []Bounder {
 	bs := make([]Bounder, len(faces))
 	for i, t := range faces {
 		bs[i] = t

@@ -1,10 +1,5 @@
 package model2d
 
-import (
-	"math"
-	"sort"
-)
-
 // A Ray is a line originating at a point and extending
 // infinitely in some (positive) direction.
 type Ray struct {
@@ -104,28 +99,6 @@ func MeshToCollider(m *Mesh) MultiCollider {
 	segs := m.SegmentsSlice()
 	GroupSegments(segs)
 	return GroupedSegmentsToCollider(segs)
-}
-
-// GroupSegments sorts the segments recursively by their x
-// and y values.
-// This can be used to prepare segments for
-// GroupedSegmentsToCollider.
-func GroupSegments(segs []*Segment) {
-	groupSegmentsAxis(segs, 0)
-}
-
-func groupSegmentsAxis(segs []*Segment, axis int) {
-	if len(segs) <= 1 {
-		return
-	}
-	sort.Slice(segs, func(i, j int) bool {
-		a1 := segs[i][0].Array()
-		a2 := segs[j][0].Array()
-		return a1[axis] < a2[axis]
-	})
-	mid := len(segs) / 2
-	groupSegmentsAxis(segs[:mid], (axis+1)%2)
-	groupSegmentsAxis(segs[mid:], (axis+1)%2)
 }
 
 // GroupedSegmentsToCollider converts pre-grouped segments
@@ -270,59 +243,4 @@ func (j joinedMultiCollider) RectCollision(r *Rect) bool {
 		}
 	}
 	return false
-}
-
-func rayCollisionWithBounds(r *Ray, min, max Coord) (minFrac, maxFrac float64) {
-	minFrac = math.Inf(-1)
-	maxFrac = math.Inf(1)
-	for axis := 0; axis < 2; axis++ {
-		origin := r.Origin.Array()[axis]
-		rate := r.Direction.Array()[axis]
-		if rate == 0 {
-			if origin < min.Array()[axis] || origin > max.Array()[axis] {
-				return 0, -1
-			}
-			continue
-		}
-		invRate := 1 / rate
-		t1 := (min.Array()[axis] - origin) * invRate
-		t2 := (max.Array()[axis] - origin) * invRate
-		if t1 > t2 {
-			t1, t2 = t2, t1
-		}
-		if t2 < 0 {
-			// No collision is possible, so we can short-circuit
-			// everything else.
-			return 0, -1
-		}
-		if t1 > minFrac {
-			minFrac = t1
-		}
-		if t2 < maxFrac {
-			maxFrac = t2
-		}
-	}
-	return
-}
-
-func circleTouchesBounds(center Coord, r float64, min, max Coord) bool {
-	return pointToBoundsDistSquared(center, min, max) <= r*r
-}
-
-func pointToBoundsDistSquared(center Coord, min, max Coord) float64 {
-	// https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test
-	distSquared := 0.0
-	for axis := 0; axis < 2; axis++ {
-		min := min.Array()[axis]
-		max := max.Array()[axis]
-		value := center.Array()[axis]
-		d := 0.0
-		if value < min {
-			d = min - value
-		} else if value > max {
-			d = max - value
-		}
-		distSquared += d * d
-	}
-	return distSquared
 }
