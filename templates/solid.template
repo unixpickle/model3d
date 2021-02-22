@@ -57,7 +57,6 @@ func (j JoinedSolid) Contains(c {{.coordType}}) bool {
 	return false
 }
 
-{{if not .model2d -}}
 // Optimize creates a version of the solid that is faster
 // when joining a large number of smaller solids.
 func (j JoinedSolid) Optimize() Solid {
@@ -80,7 +79,6 @@ func groupedBoundersToSolid(bs []Bounder) Solid {
 		groupedBoundersToSolid(secondHalf),
 	})
 }
-{{- end}}
 
 // SubtractedSolid is a Solid consisting of all the points
 // in Positive which are not in Negative.
