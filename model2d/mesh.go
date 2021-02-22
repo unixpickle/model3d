@@ -44,7 +44,7 @@ func NewMesh() *Mesh {
 }
 
 // NewMeshSegments creates a mesh with the given
-// collection of faces.
+// collection of segments.
 func NewMeshSegments(faces []*Segment) *Mesh {
 	m := NewMesh()
 	for _, f := range faces {
@@ -81,7 +81,7 @@ func NewMeshPolar(radius func(theta float64) float64, stops int) *Mesh {
 	return res
 }
 
-// Add adds the face f to the mesh.
+// Add adds the segment f to the mesh.
 func (m *Mesh) Add(f *Segment) {
 	v2f := m.getVertexToFaceOrNil()
 	if v2f == nil {
@@ -97,15 +97,15 @@ func (m *Mesh) Add(f *Segment) {
 	m.faces[f] = true
 }
 
-// AddMesh adds all the faces from m1 to m.
+// AddMesh adds all the segments from m1 to m.
 func (m *Mesh) AddMesh(m1 *Mesh) {
 	m1.Iterate(m.Add)
 }
 
-// Remove removes the face f from the mesh.
+// Remove removes the segment f from the mesh.
 //
 // It looks at f as a pointer, so the pointer must be
-// exactly the same as a face passed to Add.
+// exactly the same as one passed to Add.
 func (m *Mesh) Remove(f *Segment) {
 	if !m.faces[f] {
 		return
@@ -140,16 +140,16 @@ func (m *Mesh) Contains(f *Segment) bool {
 	return ok
 }
 
-// Iterate calls f for every face in m in an arbitrary
+// Iterate calls f for every segment in m in an arbitrary
 // order.
 //
-// If f adds or removes faces, they will not be visited.
+// If f adds or removes segments, they will not be visited.
 func (m *Mesh) Iterate(f func(*Segment)) {
 	m.IterateSorted(f, nil)
 }
 
 // IterateSorted is like Iterate, but it first sorts all
-// the faces according to a less than function, cmp.
+// the segments according to a less than function, cmp.
 func (m *Mesh) IterateSorted(f func(*Segment), cmp func(f1, f2 *Segment) bool) {
 	all := m.SegmentSlice()
 	if cmp != nil {
@@ -178,14 +178,14 @@ func (m *Mesh) IterateVertices(f func(c Coord)) {
 	}
 }
 
-// Neighbors gets all the faces with a side touching a
-// given face f.
+// Neighbors gets all the segments with a side touching a
+// given segment f.
 //
-// The face f itself is not included in the results.
+// The segment f itself is not included in the results.
 //
-// The face f needn't be in the mesh. However, if it is
-// not in the mesh, but an equivalent face is, then said
-// equivalent face will be in the results.
+// The segment f needn't be in the mesh. However, if it is
+// not in the mesh, but an equivalent segment is, then said
+// equivalent segment will be in the results.
 func (m *Mesh) Neighbors(f *Segment) []*Segment {
 	neighbors := map[*Segment]bool{}
 	for _, p := range f {
@@ -214,10 +214,10 @@ func (m *Mesh) neighborsWithCounts(t *Segment) map[*Segment]int {
 	return counts
 }
 
-// Find gets all the faces that contain all of the passed
+// Find gets all the segments that contain all of the passed
 // points.
 //
-// For example, to find all faces containing a line from
+// For example, to find all segments containing a line from
 // from p1 to p2, you could do m.Find(p1, p2).
 func (m *Mesh) Find(ps ...Coord) []*Segment {
 	if len(ps) == 1 {
@@ -293,7 +293,7 @@ func (m *Mesh) SaveSVG(path string) error {
 	return nil
 }
 
-// SegmentSlice gets a snapshot of all the triangles
+// SegmentSlice gets a snapshot of all the segments
 // currently in the mesh. The resulting slice is a copy,
 // and will not change as the mesh is updated.
 func (m *Mesh) SegmentSlice() []*Segment {

@@ -46,7 +46,7 @@ func NewMesh() *Mesh {
 }
 
 // NewMeshTriangles creates a mesh with the given
-// collection of faces.
+// collection of triangles.
 func NewMeshTriangles(faces []*Triangle) *Mesh {
 	m := NewMesh()
 	for _, f := range faces {
@@ -189,7 +189,7 @@ func ProfileMesh(m2d *model2d.Mesh, minZ, maxZ float64) *Mesh {
 	return m
 }
 
-// Add adds the face f to the mesh.
+// Add adds the triangle f to the mesh.
 func (m *Mesh) Add(f *Triangle) {
 	v2f := m.getVertexToFaceOrNil()
 	if v2f == nil {
@@ -219,15 +219,15 @@ func (m *Mesh) AddQuad(p1, p2, p3, p4 Coord3D) [2]*Triangle {
 	return res
 }
 
-// AddMesh adds all the faces from m1 to m.
+// AddMesh adds all the triangles from m1 to m.
 func (m *Mesh) AddMesh(m1 *Mesh) {
 	m1.Iterate(m.Add)
 }
 
-// Remove removes the face f from the mesh.
+// Remove removes the triangle f from the mesh.
 //
 // It looks at f as a pointer, so the pointer must be
-// exactly the same as a face passed to Add.
+// exactly the same as one passed to Add.
 func (m *Mesh) Remove(f *Triangle) {
 	if !m.faces[f] {
 		return
@@ -262,16 +262,16 @@ func (m *Mesh) Contains(f *Triangle) bool {
 	return ok
 }
 
-// Iterate calls f for every face in m in an arbitrary
+// Iterate calls f for every triangle in m in an arbitrary
 // order.
 //
-// If f adds or removes faces, they will not be visited.
+// If f adds or removes triangles, they will not be visited.
 func (m *Mesh) Iterate(f func(*Triangle)) {
 	m.IterateSorted(f, nil)
 }
 
 // IterateSorted is like Iterate, but it first sorts all
-// the faces according to a less than function, cmp.
+// the triangles according to a less than function, cmp.
 func (m *Mesh) IterateSorted(f func(*Triangle), cmp func(f1, f2 *Triangle) bool) {
 	all := m.TriangleSlice()
 	if cmp != nil {
@@ -300,14 +300,14 @@ func (m *Mesh) IterateVertices(f func(c Coord3D)) {
 	}
 }
 
-// Neighbors gets all the faces with a side touching a
-// given face f.
+// Neighbors gets all the triangles with a side touching a
+// given triangle f.
 //
-// The face f itself is not included in the results.
+// The triangle f itself is not included in the results.
 //
-// The face f needn't be in the mesh. However, if it is
-// not in the mesh, but an equivalent face is, then said
-// equivalent face will be in the results.
+// The triangle f needn't be in the mesh. However, if it is
+// not in the mesh, but an equivalent triangle is, then said
+// equivalent triangle will be in the results.
 func (m *Mesh) Neighbors(f *Triangle) []*Triangle {
 	counts := m.neighborsWithCounts(f)
 	res := make([]*Triangle, 0, len(counts))
@@ -331,10 +331,10 @@ func (m *Mesh) neighborsWithCounts(t *Triangle) map[*Triangle]int {
 	return counts
 }
 
-// Find gets all the faces that contain all of the passed
+// Find gets all the triangles that contain all of the passed
 // points.
 //
-// For example, to find all faces containing a line from
+// For example, to find all triangles containing a line from
 // from p1 to p2, you could do m.Find(p1, p2).
 func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 	if len(ps) == 1 {

@@ -38,10 +38,14 @@ func TemplateEnvironment(pkg string) map[string]interface{} {
 	coordType := "Coord"
 	matrixType := "Matrix2"
 	faceType := "Segment"
+	faceName := "segment"
+	numDims := 2
 	if pkg == "model3d" {
 		coordType = "Coord3D"
 		matrixType = "Matrix3"
 		faceType = "Triangle"
+		faceName = "triangle"
+		numDims = 3
 	}
 	return map[string]interface{}{
 		"package":    pkg,
@@ -49,6 +53,8 @@ func TemplateEnvironment(pkg string) map[string]interface{} {
 		"coordType":  coordType,
 		"matrixType": matrixType,
 		"faceType":   faceType,
+		"faceName":   faceName,
+		"numDims":    numDims,
 	}
 }
 
