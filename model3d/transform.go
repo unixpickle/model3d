@@ -126,3 +126,27 @@ func (j JoinedTransform) Inverse() Transform {
 	}
 	return res
 }
+
+// Scale is a transform that scales an object.
+type Scale struct {
+	Scale float64
+}
+
+// ScaleSolid creates a new Solid that scales incoming
+// coordinates c by 1/s.
+// Thus, the new solid is s times larger.
+func ScaleSolid(solid Solid, s float64) Solid {
+	return TransformSolid(&Scale{Scale: s}, solid)
+}
+
+func (s *Scale) Apply(c Coord3D) Coord3D {
+	return c.Scale(s.Scale)
+}
+
+func (s *Scale) ApplyBounds(min Coord3D, max Coord3D) (Coord3D, Coord3D) {
+	return min.Scale(s.Scale), max.Scale(s.Scale)
+}
+
+func (s *Scale) Inverse() Transform {
+	return &Scale{Scale: 1 / s.Scale}
+}

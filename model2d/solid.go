@@ -275,30 +275,6 @@ func (s *smoothJoin) Contains(c Coord) bool {
 	return d1*d1+d2*d2 > s.radius*s.radius
 }
 
-type scaledSolid struct {
-	Solid Solid
-	Scale float64
-}
-
-// ScaleSolid creates a new Solid that scales incoming
-// coordinates c by 1/s.
-// Thus, the new solid is s times larger.
-func ScaleSolid(solid Solid, s float64) Solid {
-	return &scaledSolid{Solid: solid, Scale: 1 / s}
-}
-
-func (s *scaledSolid) Min() Coord {
-	return s.Solid.Min().Scale(1 / s.Scale)
-}
-
-func (s *scaledSolid) Max() Coord {
-	return s.Solid.Max().Scale(1 / s.Scale)
-}
-
-func (s *scaledSolid) Contains(c Coord) bool {
-	return s.Solid.Contains(c.Scale(s.Scale))
-}
-
 type forcedBoundsSolid struct {
 	Solid  Solid
 	MinVal Coord
