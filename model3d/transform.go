@@ -20,35 +20,19 @@ type Transform interface {
 	Inverse() Transform
 }
 
-// TransformSolid applies t to the solid s to produce a
-// new, transformed solid.
-func TransformSolid(t Transform, s Solid) Solid {
-	min, max := t.ApplyBounds(s.Min(), s.Max())
-	return &transformedSolid{
-		min: min,
-		max: max,
-		s:   s,
-		inv: t.Inverse(),
-	}
-}
+// DistTransform is a Transform that changes Euclidean
+// distances in a coordinate-independent fashion.
+//
+// The inverse of a DistTransform should also be a
+// DistTransform.
+type DistTransform interface {
+	Transform
 
-type transformedSolid struct {
-	min Coord3D
-	max Coord3D
-	s   Solid
-	inv Transform
-}
-
-func (t *transformedSolid) Min() Coord3D {
-	return t.min
-}
-
-func (t *transformedSolid) Max() Coord3D {
-	return t.max
-}
-
-func (t *transformedSolid) Contains(c Coord3D) bool {
-	return InBounds(t, c) && t.s.Contains(t.inv.Apply(c))
+	// ApplyDistance computes the distance between
+	// t.Apply(c1) and t.Apply(c2) given the distance
+	// between c1 and c2, where c1 and c2 are arbitrary
+	// points.
+	ApplyDistance(d float64) float64
 }
 
 // Translate is a Transform that adds an offset to
@@ -67,6 +51,10 @@ func (t *Translate) ApplyBounds(min, max Coord3D) (Coord3D, Coord3D) {
 
 func (t *Translate) Inverse() Transform {
 	return &Translate{Offset: t.Offset.Scale(-1)}
+}
+
+func (t *Translate) ApplyDistance(d float64) float64 {
+	return d
 }
 
 // Matrix3Transform is a Transform that applies a matrix
@@ -127,16 +115,20 @@ func (j JoinedTransform) Inverse() Transform {
 	return res
 }
 
+// ApplyDistance transforms a distance.
+//
+// It panic()s if any transforms don't implement
+// DistTransform.
+func (j JoinedTransform) ApplyDistance(d float64) float64 {
+	for _, t := range j {
+		d = t.(DistTransform).ApplyDistance(d)
+	}
+	return d
+}
+
 // Scale is a transform that scales an object.
 type Scale struct {
 	Scale float64
-}
-
-// ScaleSolid creates a new Solid that scales incoming
-// coordinates c by 1/s.
-// Thus, the new solid is s times larger.
-func ScaleSolid(solid Solid, s float64) Solid {
-	return TransformSolid(&Scale{Scale: s}, solid)
 }
 
 func (s *Scale) Apply(c Coord3D) Coord3D {
@@ -149,4 +141,79 @@ func (s *Scale) ApplyBounds(min Coord3D, max Coord3D) (Coord3D, Coord3D) {
 
 func (s *Scale) Inverse() Transform {
 	return &Scale{Scale: 1 / s.Scale}
+}
+
+func (s *Scale) ApplyDistance(d float64) float64 {
+	return d * s.Scale
+}
+
+// ScaleSolid creates a new Solid that scales incoming
+// coordinates c by 1/s.
+// Thus, the new solid is s times larger.
+func ScaleSolid(solid Solid, s float64) Solid {
+	return TransformSolid(&Scale{Scale: s}, solid)
+}
+
+// TransformSolid applies t to the solid s to produce a
+// new, transformed solid.
+func TransformSolid(t Transform, s Solid) Solid {
+	min, max := t.ApplyBounds(s.Min(), s.Max())
+	return &transformedSolid{
+		min: min,
+		max: max,
+		s:   s,
+		inv: t.Inverse(),
+	}
+}
+
+// TransformSDF applies t to the SDF s to produce a new,
+// transformed SDF.
+func TransformSDF(t DistTransform, s SDF) SDF {
+	min, max := t.ApplyBounds(s.Min(), s.Max())
+	return &transformedSDF{
+		min: min,
+		max: max,
+		s:   s,
+		t:   t,
+		inv: t.Inverse().(DistTransform),
+	}
+}
+
+type transformedSolid struct {
+	min Coord3D
+	max Coord3D
+	s   Solid
+	inv Transform
+}
+
+func (t *transformedSolid) Min() Coord3D {
+	return t.min
+}
+
+func (t *transformedSolid) Max() Coord3D {
+	return t.max
+}
+
+func (t *transformedSolid) Contains(c Coord3D) bool {
+	return InBounds(t, c) && t.s.Contains(t.inv.Apply(c))
+}
+
+type transformedSDF struct {
+	min Coord3D
+	max Coord3D
+	s   SDF
+	t   DistTransform
+	inv DistTransform
+}
+
+func (t *transformedSDF) Min() Coord3D {
+	return t.min
+}
+
+func (t *transformedSDF) Max() Coord3D {
+	return t.max
+}
+
+func (t *transformedSDF) SDF(c Coord3D) float64 {
+	return t.t.ApplyDistance(t.s.SDF(t.inv.Apply(c)))
 }
