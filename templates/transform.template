@@ -92,6 +92,38 @@ func (m *{{.matrixType}}Transform) Inverse() Transform {
 	return &{{.matrixType}}Transform{Matrix: m.Matrix.Inverse()}
 }
 
+// ortho{{.matrixType}}Transform is a {{.matrixType}}Transform
+// for distance-preserving matrices.
+type ortho{{.matrixType}}Transform struct {
+	{{.matrixType}}Transform
+}
+
+{{if .model2d -}}
+// Rotation creates a rotation transformation using an
+// angle in radians.
+func Rotation(theta float64) DistTransform {
+	return &orthoMatrix2Transform{
+		Matrix2Transform{
+			Matrix: NewMatrix2Rotation(theta),
+		},
+	}
+}
+{{- else -}}
+// Rotation creates a rotation transformation using an
+// angle in radians around a unit vector direction.
+func Rotation(axis Coord3D, theta float64) DistTransform {
+	return &orthoMatrix3Transform{
+		Matrix3Transform{
+			Matrix: NewMatrix3Rotation(axis, theta),
+		},
+	}
+}
+{{- end}}
+
+func (m *ortho{{.matrixType}}Transform) ApplyDistance(c float64) float64 {
+	return c
+}
+
 // A JoinedTransform composes transformations from left to
 // right.
 type JoinedTransform []Transform

@@ -87,6 +87,26 @@ func (m *Matrix2Transform) Inverse() Transform {
 	return &Matrix2Transform{Matrix: m.Matrix.Inverse()}
 }
 
+// orthoMatrix2Transform is a Matrix2Transform
+// for distance-preserving matrices.
+type orthoMatrix2Transform struct {
+	Matrix2Transform
+}
+
+// Rotation creates a rotation transformation using an
+// angle in radians.
+func Rotation(theta float64) DistTransform {
+	return &orthoMatrix2Transform{
+		Matrix2Transform{
+			Matrix: NewMatrix2Rotation(theta),
+		},
+	}
+}
+
+func (m *orthoMatrix2Transform) ApplyDistance(c float64) float64 {
+	return c
+}
+
 // A JoinedTransform composes transformations from left to
 // right.
 type JoinedTransform []Transform

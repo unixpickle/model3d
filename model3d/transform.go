@@ -89,6 +89,26 @@ func (m *Matrix3Transform) Inverse() Transform {
 	return &Matrix3Transform{Matrix: m.Matrix.Inverse()}
 }
 
+// orthoMatrix3Transform is a Matrix3Transform
+// for distance-preserving matrices.
+type orthoMatrix3Transform struct {
+	Matrix3Transform
+}
+
+// Rotation creates a rotation transformation using an
+// angle in radians around a unit vector direction.
+func Rotation(axis Coord3D, theta float64) DistTransform {
+	return &orthoMatrix3Transform{
+		Matrix3Transform{
+			Matrix: NewMatrix3Rotation(axis, theta),
+		},
+	}
+}
+
+func (m *orthoMatrix3Transform) ApplyDistance(c float64) float64 {
+	return c
+}
+
 // A JoinedTransform composes transformations from left to
 // right.
 type JoinedTransform []Transform
