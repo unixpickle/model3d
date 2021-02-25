@@ -31,7 +31,7 @@ func Generate2d3dTemplate(name string) {
 		data := RenderTemplate(template, TemplateEnvironment(pkg))
 		data = ReformatCode(data)
 		data = InjectGeneratedComment(data, inPath)
-		essentials.Must(ioutil.WriteFile(outPath, []byte(data), 644))
+		essentials.Must(ioutil.WriteFile(outPath, []byte(data), 0644))
 	}
 }
 
