@@ -1,6 +1,6 @@
 // Generated from templates/polytope.template
 
-package model3d
+package model2d
 
 import (
 	"math"
@@ -11,12 +11,12 @@ import (
 // A LinearConstraint defines a half-space of all points c
 // such that c.Dot(Normal) <= Max.
 type LinearConstraint struct {
-	Normal Coord3D
+	Normal Coord
 	Max    float64
 }
 
 // Contains checks if the half-space contains c.
-func (l *LinearConstraint) Contains(c Coord3D) bool {
+func (l *LinearConstraint) Contains(c Coord) bool {
 	return c.Dot(l.Normal) <= l.Max
 }
 
@@ -26,7 +26,7 @@ type ConvexPolytope []*LinearConstraint
 
 // NewConvexPolytopeRect creates a rectangular convex
 // polytope.
-func NewConvexPolytopeRect(min, max Coord3D) ConvexPolytope {
+func NewConvexPolytopeRect(min, max Coord) ConvexPolytope {
 	return ConvexPolytope{
 		&LinearConstraint{
 			Normal: X(1),
@@ -44,19 +44,11 @@ func NewConvexPolytopeRect(min, max Coord3D) ConvexPolytope {
 			Normal: Y(-1),
 			Max:    -min.Y,
 		},
-		&LinearConstraint{
-			Normal: Z(1),
-			Max:    max.Z,
-		},
-		&LinearConstraint{
-			Normal: Z(-1),
-			Max:    -min.Z,
-		},
 	}
 }
 
 // Contains checks that c satisfies the constraints.
-func (c ConvexPolytope) Contains(coord Coord3D) bool {
+func (c ConvexPolytope) Contains(coord Coord) bool {
 	for _, l := range c {
 		if !l.Contains(coord) {
 			return false
@@ -69,27 +61,22 @@ func (c ConvexPolytope) Contains(coord Coord3D) bool {
 // of the polytope.
 //
 // For complicated polytopes, this may take a long time to
-// run, since it is O(n^3) in the constraints.
+// run, since it is O(n^2) in the constraints.
 func (c ConvexPolytope) Mesh() *Mesh {
 	m := NewMesh()
 	epsilon := c.spatialEpsilon()
 	for i1 := 0; i1 < len(c); i1++ {
-		vertices := []Coord3D{}
-		for i2 := 0; i2 < len(c)-1; i2++ {
+		vertices := []Coord{}
+		for i2 := 0; i2 < len(c); i2++ {
 			if i2 == i1 {
 				continue
 			}
-			for i3 := i2 + 1; i3 < len(c); i3++ {
-				if i3 == i1 {
-					continue
-				}
-				vertex, found := c.vertex(i1, i2, i3, epsilon)
-				if found {
-					vertices = append(vertices, vertex)
-				}
+			vertex, found := c.vertex(i1, i2, epsilon)
+			if found {
+				vertices = append(vertices, vertex)
 			}
 		}
-		if len(vertices) > 2 {
+		if len(vertices) > 1 {
 			addConvexFace(m, vertices, c[i1].Normal)
 		}
 	}
@@ -99,10 +86,10 @@ func (c ConvexPolytope) Mesh() *Mesh {
 	// created.
 	m = m.Repair(epsilon)
 
-	// Remove zero-area triangles.
-	m.Iterate(func(t *Triangle) {
-		if t[0] == t[1] || t[1] == t[2] || t[0] == t[2] {
-			m.Remove(t)
+	// Remove zero-length segments.
+	m.Iterate(func(s *Segment) {
+		if s[0] == s[1] {
+			m.Remove(s)
 		}
 	})
 
@@ -111,7 +98,7 @@ func (c ConvexPolytope) Mesh() *Mesh {
 
 // Solid creates a solid out of the polytope.
 //
-// This runs in O(n^3) in the constraints, so it may be
+// This runs in O(n^2) in the constraints, so it may be
 // unacceptable for large polytopes.
 func (c ConvexPolytope) Solid() Solid {
 	m := c.Mesh()
@@ -122,31 +109,27 @@ func (c ConvexPolytope) Solid() Solid {
 	}
 }
 
-func (c ConvexPolytope) vertex(i1, i2, i3 int, epsilon float64) (Coord3D, bool) {
+func (c ConvexPolytope) vertex(i1, i2 int, epsilon float64) (Coord, bool) {
 	// Make sure the indices are sorted so that we yield
 	// deterministic results for different first faces.
 	if i2 < i1 {
-		return c.vertex(i2, i1, i3, epsilon)
-	} else if i3 < i1 {
-		return c.vertex(i3, i2, i1, epsilon)
-	} else if i3 < i2 {
-		return c.vertex(i1, i3, i2, epsilon)
+		return c.vertex(i2, i1, epsilon)
 	}
 
-	l1, l2, l3 := c[i1], c[i2], c[i3]
-	matrix := NewMatrix3Columns(l1.Normal, l2.Normal, l3.Normal).Transpose()
+	l1, l2 := c[i1], c[i2]
+	matrix := NewMatrix2Columns(l1.Normal, l2.Normal).Transpose()
 
 	// Check for singular (or poorly conditioned) matrix.
-	rawArea := l1.Normal.Norm() * l2.Normal.Norm() * l3.Normal.Norm()
+	rawArea := l1.Normal.Norm() * l2.Normal.Norm()
 	if math.Abs(matrix.Det()) < rawArea*1e-8 {
-		return Coord3D{}, false
+		return Coord{}, false
 	}
 
-	maxes := Coord3D{l1.Max, l2.Max, l3.Max}
+	maxes := Coord{l1.Max, l2.Max}
 	solution := matrix.Inverse().MulColumn(maxes)
 
 	for i, l := range c {
-		if i == i1 || i == i2 || i == i3 {
+		if i == i1 || i == i2 {
 			continue
 		}
 		if l.Normal.Dot(solution) > l.Max+epsilon*l.Normal.Norm() {
@@ -169,50 +152,38 @@ func (c ConvexPolytope) spatialEpsilon() float64 {
 	return maxMagnitude * 1e-8
 }
 
-func addConvexFace(m *Mesh, vertices []Coord3D, normal Coord3D) {
-	center := Coord3D{}
-	for _, v := range vertices {
-		center = center.Add(v)
+func addConvexFace(m *Mesh, vertices []Coord, normal Coord) {
+	direction := XY(-normal.Y, normal.X)
+	dots := make([]float64, len(vertices))
+	for i, x := range vertices {
+		dots[i] = x.Dot(direction)
 	}
-	center = center.Scale(1 / float64(len(vertices)))
-
-	basis1, basis2 := normal.OrthoBasis()
-	angles := make([]float64, len(vertices))
-	for i, v := range vertices {
-		diff := v.Sub(center)
-		x := basis1.Dot(diff)
-		y := basis2.Dot(diff)
-		a := math.Atan2(y, x)
-		angles[i] = a
-	}
-
-	essentials.VoodooSort(angles, func(i, j int) bool {
-		return angles[i] < angles[j]
+	essentials.VoodooSort(dots, func(i, j int) bool {
+		return dots[i] < dots[j]
 	}, vertices)
-
-	for i := 2; i < len(vertices); i++ {
-		t := &Triangle{vertices[0], vertices[i-1], vertices[i]}
-		if t.Normal().Dot(normal) < 0 {
-			t[0], t[1] = t[1], t[0]
+	for i := 1; i < len(vertices); i++ {
+		seg := &Segment{vertices[i-1], vertices[i]}
+		if seg.Normal().Dot(normal) < 0 {
+			seg[0], seg[1] = seg[1], seg[0]
 		}
-		m.Add(t)
+		m.Add(seg)
 	}
 }
 
 type polytopeSolid struct {
 	P      ConvexPolytope
-	MinVal Coord3D
-	MaxVal Coord3D
+	MinVal Coord
+	MaxVal Coord
 }
 
-func (p *polytopeSolid) Min() Coord3D {
+func (p *polytopeSolid) Min() Coord {
 	return p.MinVal
 }
 
-func (p *polytopeSolid) Max() Coord3D {
+func (p *polytopeSolid) Max() Coord {
 	return p.MaxVal
 }
 
-func (p *polytopeSolid) Contains(c Coord3D) bool {
+func (p *polytopeSolid) Contains(c Coord) bool {
 	return InBounds(p, c) && p.P.Contains(c)
 }
