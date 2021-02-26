@@ -19,6 +19,10 @@ type RayCollision struct {
 	// The normal pointing outward from the outline at the
 	// point of collision.
 	Normal Coord
+
+	// Extra contains additional, implementation-specific
+	// information about the collision.
+	Extra interface{}
 }
 
 // A Collider is the outline of a 2-dimensional shape.

@@ -197,6 +197,19 @@ func TransformSDF(t DistTransform, s SDF) SDF {
 	}
 }
 
+// TransformCollider applies t to the Collider c to
+// produce a new, transformed Collider.
+func TransformCollider(t DistTransform, c Collider) Collider {
+	min, max := t.ApplyBounds(c.Min(), c.Max())
+	return &transformedCollider{
+		min: min,
+		max: max,
+		c:   c,
+		t:   t,
+		inv: t.Inverse().(DistTransform),
+	}
+}
+
 type transformedSolid struct {
 	min Coord
 	max Coord
@@ -234,4 +247,50 @@ func (t *transformedSDF) Max() Coord {
 
 func (t *transformedSDF) SDF(c Coord) float64 {
 	return t.t.ApplyDistance(t.s.SDF(t.inv.Apply(c)))
+}
+
+type transformedCollider struct {
+	min Coord
+	max Coord
+	c   Collider
+	t   DistTransform
+	inv DistTransform
+}
+
+func (t *transformedCollider) Min() Coord {
+	return t.min
+}
+
+func (t *transformedCollider) Max() Coord {
+	return t.max
+}
+
+func (t *transformedCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
+	return t.c.RayCollisions(t.innerRay(r), func(rc RayCollision) {
+		f(t.outerCollision(rc))
+	})
+}
+
+func (t *transformedCollider) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	rc, collides := t.c.FirstRayCollision(t.innerRay(r))
+	return t.outerCollision(rc), collides
+}
+
+func (t *transformedCollider) CircleCollision(c Coord, r float64) bool {
+	return t.c.CircleCollision(t.inv.Apply(c), t.inv.ApplyDistance(r))
+}
+
+func (t *transformedCollider) innerRay(r *Ray) *Ray {
+	return &Ray{
+		Origin:    t.inv.Apply(r.Origin),
+		Direction: t.inv.Apply(r.Direction),
+	}
+}
+
+func (t *transformedCollider) outerCollision(rc RayCollision) RayCollision {
+	return RayCollision{
+		Scale:  t.t.ApplyDistance(rc.Scale),
+		Normal: t.t.Apply(rc.Normal),
+		Extra:  rc.Extra,
+	}
 }
