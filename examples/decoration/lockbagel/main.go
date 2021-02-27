@@ -41,44 +41,40 @@ func main() {
 }
 
 func CreateLock() *model3d.Mesh {
-	return model3d.MarchingCubesSearch(LockSolid{}, 0.006, 8)
+	return model3d.MarchingCubesSearch(LockSolid(), 0.006, 8)
 }
 
-type LockSolid struct{}
+func LockSolid() model3d.Solid {
+	return model3d.CheckedFuncSolid(
+		model3d.XYZ(-1, -1, -1),
+		model3d.XYZ(1, 1, 1),
+		func(c model3d.Coord3D) bool {
+			// Check the sides of the lock's hook.
+			if c.Y < 0 && c.Y > -0.4 {
+				d1 := c.Dist(model3d.XY(-0.45, c.Y))
+				d2 := c.Dist(model3d.XY(0.45, c.Y))
+				return math.Min(d1, d2) < 0.1
+			}
 
-func (l LockSolid) Min() model3d.Coord3D {
-	return model3d.XYZ(-1, -1, -1)
-}
+			// Check the body of the lock.
+			if c.Y > 0 && c.Y < 1.0 {
+				inset := 0.0
+				if c.Y > 0.1 && c.Y < 0.8 && int(math.Round(c.Y*100))%10 < 5 {
+					inset = 0.025
+				}
+				return c.X > -0.7 && c.X < 0.7 && c.Z > -0.3+inset && c.Z < 0.3-inset
+			}
 
-func (l LockSolid) Max() model3d.Coord3D {
-	return model3d.XYZ(1, 1, 1)
-}
+			// Check the top of the lock's hook.
+			if c.Y < -0.4 && c.Y > -0.95 {
+				theta := math.Atan2(c.Y+0.4, c.X)
+				p := model3d.XY(math.Cos(theta)*0.45, math.Sin(theta)*0.45-0.4)
+				return p.Dist(c) < 0.1
+			}
 
-func (l LockSolid) Contains(c model3d.Coord3D) bool {
-	// Check the sides of the lock's hook.
-	if c.Y < 0 && c.Y > -0.4 {
-		d1 := c.Dist(model3d.XY(-0.45, c.Y))
-		d2 := c.Dist(model3d.XY(0.45, c.Y))
-		return math.Min(d1, d2) < 0.1
-	}
-
-	// Check the body of the lock.
-	if c.Y > 0 && c.Y < 1.0 {
-		inset := 0.0
-		if c.Y > 0.1 && c.Y < 0.8 && int(math.Round(c.Y*100))%10 < 5 {
-			inset = 0.025
-		}
-		return c.X > -0.7 && c.X < 0.7 && c.Z > -0.3+inset && c.Z < 0.3-inset
-	}
-
-	// Check the top of the lock's hook.
-	if c.Y < -0.4 && c.Y > -0.95 {
-		theta := math.Atan2(c.Y+0.4, c.X)
-		p := model3d.XY(math.Cos(theta)*0.45, math.Sin(theta)*0.45-0.4)
-		return p.Dist(c) < 0.1
-	}
-
-	return false
+			return false
+		},
+	)
 }
 
 func CreateBagel() *model3d.Mesh {

@@ -140,7 +140,7 @@ func StandSolid() model3d.Solid {
 
 func ConeStandSolid() model3d.Solid {
 	return model3d.JoinedSolid{
-		ConeSolid{},
+		ConeSolid(),
 		&toolbox3d.ScrewSolid{
 			P1:         model3d.Z(StandRadius),
 			P2:         model3d.Coord3D{Z: StandRadius + ScrewLength},
@@ -150,28 +150,21 @@ func ConeStandSolid() model3d.Solid {
 	}
 }
 
-type ConeSolid struct{}
-
-func (c ConeSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -StandRadius, Y: -StandRadius}
-}
-
-func (c ConeSolid) Max() model3d.Coord3D {
-	return model3d.XYZ(StandRadius, StandRadius, StandRadius)
-}
-
-func (c ConeSolid) Contains(coord model3d.Coord3D) bool {
-	if !model3d.InBounds(c, coord) {
-		return false
-	}
-	radiusAtZ := StandRadius - coord.Z
-	radiusAtZInner := radiusAtZ - ConeThickness
-	rad := coord.XY().Norm()
-	if rad <= radiusAtZ && rad >= radiusAtZInner {
-		return true
-	}
-	// Top cylinder for mounting the screw.
-	return rad < FootRadius && rad > radiusAtZ
+func ConeSolid() model3d.Solid {
+	return model3d.CheckedFuncSolid(
+		model3d.XY(-StandRadius, -StandRadius),
+		model3d.XYZ(StandRadius, StandRadius, StandRadius),
+		func(c model3d.Coord3D) bool {
+			radiusAtZ := StandRadius - c.Z
+			radiusAtZInner := radiusAtZ - ConeThickness
+			rad := c.XY().Norm()
+			if rad <= radiusAtZ && rad >= radiusAtZInner {
+				return true
+			}
+			// Top cylinder for mounting the screw.
+			return rad < FootRadius && rad > radiusAtZ
+		},
+	)
 }
 
 func LegSolid() model3d.Solid {

@@ -32,7 +32,7 @@ func main() {
 		Ratio: 0.5,
 	}
 
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, VaseSolid{}), 0.015, 8)
+	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, VaseSolid()), 0.015, 8)
 	mesh = mesh.MapCoords(ax.Inverse().Apply)
 
 	log.Println("Flattening base...")
@@ -45,33 +45,26 @@ func main() {
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
-type VaseSolid struct{}
+func VaseSolid() model3d.Solid {
+	return model3d.CheckedFuncSolid(
+		model3d.XY(-MaxRadius, -MaxRadius),
+		model3d.XYZ(MaxRadius, MaxRadius, Height),
+		func(c model3d.Coord3D) bool {
+			maxRadius := RadiusFunc(c.Z)
 
-func (v VaseSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -MaxRadius, Y: -MaxRadius}
-}
+			c2d := c.XY()
+			theta := math.Atan2(c2d.Y, c2d.X) + c.Z*RidgeSpinRate
 
-func (v VaseSolid) Max() model3d.Coord3D {
-	return model3d.XYZ(MaxRadius, MaxRadius, Height)
-}
+			ridgeInset := RidgeDepth * math.Pow(math.Sin(RidgeFrequency*theta), 2)
+			radius := maxRadius - ridgeInset
 
-func (v VaseSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InBounds(v, c) {
-		return false
-	}
-	maxRadius := RadiusFunc(c.Z)
+			if c.Z < BaseThickness {
+				return c2d.Norm() < radius
+			}
 
-	c2d := c.XY()
-	theta := math.Atan2(c2d.Y, c2d.X) + c.Z*RidgeSpinRate
-
-	ridgeInset := RidgeDepth * math.Pow(math.Sin(RidgeFrequency*theta), 2)
-	radius := maxRadius - ridgeInset
-
-	if c.Z < BaseThickness {
-		return c2d.Norm() < radius
-	}
-
-	return c2d.Norm() < radius && c2d.Norm() > maxRadius-RidgeDepth-MinThickness
+			return c2d.Norm() < radius && c2d.Norm() > maxRadius-RidgeDepth-MinThickness
+		},
+	)
 }
 
 func RadiusFunc(x float64) float64 {

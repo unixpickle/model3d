@@ -29,7 +29,7 @@ const (
 
 func main() {
 	solid := model3d.JoinedSolid{
-		RingSolid{},
+		RingSolid(),
 		NewHeartSolid(),
 	}
 	log.Println("Creating mesh...")
@@ -42,30 +42,19 @@ func main() {
 	render3d.SaveRandomGrid("rendering.png", m, 3, 3, 300, nil)
 }
 
-type RingSolid struct{}
-
-func (r RingSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -(RingRadius + RingThickness), Y: -(RingRadius + RingThickness),
-		Z: -RingLength / 2}
-}
-
-func (r RingSolid) Max() model3d.Coord3D {
-	return r.Min().Scale(-1)
-}
-
-func (r RingSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InBounds(r, c) {
-		return false
-	}
-	rad := c.XY().Norm()
-	if rad < RingRadius || rad > RingRadius+RingThickness {
-		return false
-	}
-	thicknessDelta := RingCurveRadius * (1 - math.Sqrt(1-math.Pow(c.Z/RingCurveRadius, 2)))
-	if rad < RingRadius+thicknessDelta || rad > RingRadius+RingThickness-thicknessDelta {
-		return false
-	}
-	return true
+func RingSolid() model3d.Solid {
+	min := model3d.XYZ(-(RingRadius + RingThickness), -(RingRadius + RingThickness), -RingLength/2)
+	return model3d.CheckedFuncSolid(min, min.Scale(-1), func(c model3d.Coord3D) bool {
+		rad := c.XY().Norm()
+		if rad < RingRadius || rad > RingRadius+RingThickness {
+			return false
+		}
+		thicknessDelta := RingCurveRadius * (1 - math.Sqrt(1-math.Pow(c.Z/RingCurveRadius, 2)))
+		if rad < RingRadius+thicknessDelta || rad > RingRadius+RingThickness-thicknessDelta {
+			return false
+		}
+		return true
+	})
 }
 
 type HeartSolid struct {

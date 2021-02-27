@@ -10,20 +10,16 @@ import (
 
 const (
 	Scale     = 0.003
-	Width     = 682 * Scale
-	Height    = 573 * Scale
 	Depth     = 0.06
 	TextDepth = 0.1
 )
 
 func main() {
-	solid := &Solid{
-		Body: model2d.MeshToCollider(
-			model2d.MustReadBitmap("body.png", nil).FlipY().Mesh().Blur(0.25).Blur(0.25),
-		),
-		Text: model2d.MeshToCollider(
-			model2d.MustReadBitmap("text.png", nil).FlipY().Mesh().Blur(0.25).Blur(0.25),
-		),
+	body := Load2d("body.png")
+	text := Load2d("text.png")
+	solid := model3d.JoinedSolid{
+		model3d.ProfileSolid(body, 0, Depth),
+		model3d.ProfileSolid(text, 0, TextDepth),
 	}
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
@@ -38,26 +34,9 @@ func main() {
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
-type Solid struct {
-	Body model2d.Collider
-	Text model2d.Collider
-}
-
-func (s *Solid) Min() model3d.Coord3D {
-	return model3d.Coord3D{}
-}
-
-func (s *Solid) Max() model3d.Coord3D {
-	return model3d.XYZ(Width, Height, TextDepth)
-}
-
-func (s *Solid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InBounds(s, c) {
-		return false
-	}
-	c2d := c.XY().Scale(1 / Scale)
-	if c.Z < Depth && model2d.ColliderContains(s.Body, c2d, 0) {
-		return true
-	}
-	return c.Z < TextDepth && model2d.ColliderContains(s.Text, c2d, 0)
+func Load2d(name string) model2d.Solid {
+	collider := model2d.MeshToCollider(
+		model2d.MustReadBitmap(name, nil).FlipY().Mesh().Blur(0.25).Blur(0.25),
+	)
+	return model2d.ScaleSolid(model2d.NewColliderSolid(collider), Scale)
 }

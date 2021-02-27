@@ -29,7 +29,7 @@ func main() {
 	log.Println("Creating solid...")
 	solid := model3d.JoinedSolid{
 		NewFlowerShape(),
-		BaseSolid{},
+		BaseSolid(),
 	}
 
 	log.Println("Creating mesh...")
@@ -119,21 +119,14 @@ func (f *FlowerShape) project(c model3d.Coord3D) model3d.Coord3D {
 	return geo.Coord3D().Scale(Radius)
 }
 
-type BaseSolid struct{}
-
-func (b BaseSolid) Min() model3d.Coord3D {
-	return model3d.XYZ(-BaseRadius, -BaseRadius, -BaseThickness)
-}
-
-func (b BaseSolid) Max() model3d.Coord3D {
-	return model3d.XYZ(BaseRadius, BaseRadius, Radius)
-}
-
-func (b BaseSolid) Contains(c model3d.Coord3D) bool {
-	if !model3d.InBounds(b, c) {
-		return false
-	}
-	cylinderDist := c.XY().Norm()
-	sphereDist := c.Dist(model3d.Z(Radius))
-	return cylinderDist < BaseRadius && sphereDist >= Radius
+func BaseSolid() model3d.Solid {
+	return model3d.CheckedFuncSolid(
+		model3d.XYZ(-BaseRadius, -BaseRadius, -BaseThickness),
+		model3d.XYZ(BaseRadius, BaseRadius, Radius),
+		func(c model3d.Coord3D) bool {
+			cylinderDist := c.XY().Norm()
+			sphereDist := c.Dist(model3d.Z(Radius))
+			return cylinderDist < BaseRadius && sphereDist >= Radius
+		},
+	)
 }

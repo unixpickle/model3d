@@ -22,30 +22,19 @@ func GenerateFlag() model3d.Solid {
 			P2:     model3d.Z(FlagHeight),
 			Radius: FlagPoleRadius,
 		},
-		FlagFabric{},
+		FlagFabric(),
 	}
 }
 
-type FlagFabric struct{}
-
-func (f FlagFabric) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: 0, Y: -FlagThickness/2 - FlagRippleDepth*2,
-		Z: FlagHeight - FlagWidth}
-}
-
-func (f FlagFabric) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: FlagWidth, Y: FlagThickness/2 + FlagRippleDepth*2,
-		Z: FlagHeight}
-}
-
-func (f FlagFabric) Contains(c model3d.Coord3D) bool {
-	if !model3d.InBounds(f, c) {
-		return false
-	}
-
-	if math.Abs(c.Y-FlagRippleDepth*math.Sin(c.X*FlagRippleRate)) > FlagThickness {
-		return false
-	}
-
-	return c.X < c.Z-(FlagHeight-FlagWidth)
+func FlagFabric() model3d.Solid {
+	return model3d.CheckedFuncSolid(
+		model3d.XYZ(0, -FlagThickness/2-FlagRippleDepth*2, FlagHeight-FlagWidth),
+		model3d.XYZ(FlagWidth, FlagThickness/2+FlagRippleDepth*2, FlagHeight),
+		func(c model3d.Coord3D) bool {
+			if math.Abs(c.Y-FlagRippleDepth*math.Sin(c.X*FlagRippleRate)) > FlagThickness {
+				return false
+			}
+			return c.X < c.Z-(FlagHeight-FlagWidth)
+		},
+	)
 }

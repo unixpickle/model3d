@@ -4,8 +4,6 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/unixpickle/essentials"
-
 	"github.com/unixpickle/model3d/model3d"
 )
 
@@ -25,7 +23,7 @@ func GenerateBase() model3d.Solid {
 				Z: BaseHeight + BaseChunkSize}.Add(extra),
 		},
 		model3d.JoinedSolid{
-			BaseSmoothSolid{},
+			BaseSmoothSolid(),
 			GenerateChunkyFinish(),
 		},
 	}
@@ -46,22 +44,7 @@ func GenerateChunkyFinish() model3d.Solid {
 			Center: center,
 		})
 	}
-
-	// Chunk parts of the base together to avoid
-	// redundant computations.
-	essentials.VoodooSort(chunks, func(i, j int) bool {
-		return chunks[i].Min().X < chunks[j].Min().X
-	})
-	var aggChunks model3d.JoinedSolid
-	aggSize := len(chunks) / 20
-	for i := 0; i < len(chunks); i += aggSize {
-		subset := chunks[i:]
-		if len(subset) > aggSize {
-			subset = subset[:aggSize]
-		}
-		aggChunks = append(aggChunks, model3d.CacheSolidBounds(subset))
-	}
-	return aggChunks
+	return chunks.Optimize()
 }
 
 func SampleBasePoint() model3d.Coord3D {
@@ -79,18 +62,15 @@ func SampleBasePoint() model3d.Coord3D {
 	return model3d.XYZ(x, y, z)
 }
 
-type BaseSmoothSolid struct{}
-
-func (b BaseSmoothSolid) Min() model3d.Coord3D {
-	return model3d.Coord3D{X: -BaseLength / 2, Y: -BaseWidth / 2}
-}
-func (b BaseSmoothSolid) Max() model3d.Coord3D {
-	return model3d.XYZ(BaseLength/2, BaseWidth/2, BaseHeight)
-}
-
-func (b BaseSmoothSolid) Contains(c model3d.Coord3D) bool {
-	cScale := model3d.XYZ(2/BaseLength, 2/BaseWidth, 1/BaseHeight)
-	return model3d.InBounds(b, c) && c.Mul(cScale).Norm() < 1
+func BaseSmoothSolid() model3d.Solid {
+	return model3d.CheckedFuncSolid(
+		model3d.XY(-BaseLength/2, -BaseWidth/2),
+		model3d.XYZ(BaseLength/2, BaseWidth/2, BaseHeight),
+		func(c model3d.Coord3D) bool {
+			cScale := model3d.XYZ(2/BaseLength, 2/BaseWidth, 1/BaseHeight)
+			return c.Mul(cScale).Norm() < 1
+		},
+	)
 }
 
 type BaseChunk struct {
