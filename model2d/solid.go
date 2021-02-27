@@ -26,12 +26,27 @@ type funcSolid struct {
 }
 
 // FuncSolid creates a Solid from a function.
+//
+// If the bounds are invalid, FuncSolid() will panic().
+// In particular, max must be no less than min, and all
+// floating-point values must be finite numbers.
 func FuncSolid(min, max Coord, f func(Coord) bool) Solid {
+	if !BoundsValid(&Rect{MinVal: min, MaxVal: max}) {
+		panic("invalid bounds")
+	}
 	return &funcSolid{
 		min: min,
 		max: max,
 		f:   f,
 	}
+}
+
+// CheckedFuncSolid is like FuncSolid, but it does an
+// automatic bounds check before calling f.
+func CheckedFuncSolid(min, max Coord, f func(Coord) bool) Solid {
+	return FuncSolid(min, max, func(c Coord) bool {
+		return c.Min(min) == min && c.Max(max) == max && f(c)
+	})
 }
 
 func (f *funcSolid) Min() Coord {
@@ -218,10 +233,7 @@ func (c *ColliderSolid) Contains(coord Coord) bool {
 // Points outside of these bounds will be removed from s,
 // but otherwise s is preserved.
 func ForceSolidBounds(s Solid, min, max Coord) Solid {
-	bounder := &Rect{MinVal: min, MaxVal: max}
-	return FuncSolid(min, max, func(c Coord) bool {
-		return InBounds(bounder, c) && s.Contains(c)
-	})
+	return CheckedFuncSolid(min, max, s.Contains)
 }
 
 // CacheSolidBounds creates a Solid that has a cached
@@ -292,27 +304,8 @@ func (s *smoothJoin) Contains(c Coord) bool {
 	return d1*d1+d2*d2 > s.radius*s.radius
 }
 
-type bitmapSolid struct {
-	B *Bitmap
-}
-
-// BitmapToSolid creates a Solid which is true at pixels
-// where the bitmap is true, and false elsewhere.
 func BitmapToSolid(b *Bitmap) Solid {
-	return &bitmapSolid{B: b}
-}
-
-func (b *bitmapSolid) Min() Coord {
-	return Coord{}
-}
-
-func (b *bitmapSolid) Max() Coord {
-	return Coord{X: float64(b.B.Width), Y: float64(b.B.Height)}
-}
-
-func (b *bitmapSolid) Contains(c Coord) bool {
-	if !InBounds(b, c) {
-		return false
-	}
-	return b.B.Get(int(c.X), int(c.Y))
+	return CheckedFuncSolid(Coord{}, XY(float64(b.Width), float64(b.Height)), func(c Coord) bool {
+		return b.Get(int(c.X), int(c.Y))
+	})
 }

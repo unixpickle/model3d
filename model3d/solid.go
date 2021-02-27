@@ -28,12 +28,27 @@ type funcSolid struct {
 }
 
 // FuncSolid creates a Solid from a function.
+//
+// If the bounds are invalid, FuncSolid() will panic().
+// In particular, max must be no less than min, and all
+// floating-point values must be finite numbers.
 func FuncSolid(min, max Coord3D, f func(Coord3D) bool) Solid {
+	if !BoundsValid(&Rect{MinVal: min, MaxVal: max}) {
+		panic("invalid bounds")
+	}
 	return &funcSolid{
 		min: min,
 		max: max,
 		f:   f,
 	}
+}
+
+// CheckedFuncSolid is like FuncSolid, but it does an
+// automatic bounds check before calling f.
+func CheckedFuncSolid(min, max Coord3D, f func(Coord3D) bool) Solid {
+	return FuncSolid(min, max, func(c Coord3D) bool {
+		return c.Min(min) == min && c.Max(max) == max && f(c)
+	})
 }
 
 func (f *funcSolid) Min() Coord3D {
@@ -284,10 +299,7 @@ func (c *ColliderSolid) Contains(coord Coord3D) bool {
 // Points outside of these bounds will be removed from s,
 // but otherwise s is preserved.
 func ForceSolidBounds(s Solid, min, max Coord3D) Solid {
-	bounder := &Rect{MinVal: min, MaxVal: max}
-	return FuncSolid(min, max, func(c Coord3D) bool {
-		return InBounds(bounder, c) && s.Contains(c)
-	})
+	return CheckedFuncSolid(min, max, s.Contains)
 }
 
 // CacheSolidBounds creates a Solid that has a cached
@@ -358,31 +370,13 @@ func (s *smoothJoin) Contains(c Coord3D) bool {
 	return d1*d1+d2*d2 > s.radius*s.radius
 }
 
-type profileSolid struct {
-	Solid2D model2d.Solid
-	MinVal  Coord3D
-	MaxVal  Coord3D
-}
-
 // ProfileSolid turns a 2D solid into a 3D solid by
 // elongating the 2D solid along the Z axis.
 func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {
 	min, max := solid2d.Min(), solid2d.Max()
-	return &profileSolid{
-		Solid2D: solid2d,
-		MinVal:  XYZ(min.X, min.Y, minZ),
-		MaxVal:  XYZ(max.X, max.Y, maxZ),
-	}
-}
-
-func (p *profileSolid) Min() Coord3D {
-	return p.MinVal
-}
-
-func (p *profileSolid) Max() Coord3D {
-	return p.MaxVal
-}
-
-func (p *profileSolid) Contains(c Coord3D) bool {
-	return InBounds(p, c) && p.Solid2D.Contains(c.XY())
+	min3d := XYZ(min.X, min.Y, minZ)
+	max3d := XYZ(max.X, max.Y, maxZ)
+	return CheckedFuncSolid(min3d, max3d, func(c Coord3D) bool {
+		return solid2d.Contains(c.XY())
+	})
 }
