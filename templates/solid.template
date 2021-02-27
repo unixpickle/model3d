@@ -21,6 +21,33 @@ type Solid interface {
 	Contains(p {{.coordType}}) bool
 }
 
+type funcSolid struct {
+	min {{.coordType}}
+	max {{.coordType}}
+	f func(c {{.coordType}}) bool
+}
+
+// FuncSolid creates a Solid from a function.
+func FuncSolid(min, max {{.coordType}}, f func({{.coordType}}) bool) Solid {
+	return &funcSolid{
+		min: min,
+		max: max,
+		f:   f,
+	}
+}
+
+func (f *funcSolid) Min() {{.coordType}} {
+	return f.min
+}
+
+func (f *funcSolid) Max() {{.coordType}} {
+	return f.max
+}
+
+func (f *funcSolid) Contains(c {{.coordType}}) bool {
+	return f.f(c)
+}
+
 {{if not .model2d -}}
 // Backwards compatibility type aliases.
 type RectSolid = Rect

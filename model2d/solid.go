@@ -19,6 +19,33 @@ type Solid interface {
 	Contains(p Coord) bool
 }
 
+type funcSolid struct {
+	min Coord
+	max Coord
+	f   func(c Coord) bool
+}
+
+// FuncSolid creates a Solid from a function.
+func FuncSolid(min, max Coord, f func(Coord) bool) Solid {
+	return &funcSolid{
+		min: min,
+		max: max,
+		f:   f,
+	}
+}
+
+func (f *funcSolid) Min() Coord {
+	return f.min
+}
+
+func (f *funcSolid) Max() Coord {
+	return f.max
+}
+
+func (f *funcSolid) Contains(c Coord) bool {
+	return f.f(c)
+}
+
 // A JoinedSolid is a Solid composed of other solids.
 type JoinedSolid []Solid
 

@@ -21,6 +21,33 @@ type Solid interface {
 	Contains(p Coord3D) bool
 }
 
+type funcSolid struct {
+	min Coord3D
+	max Coord3D
+	f   func(c Coord3D) bool
+}
+
+// FuncSolid creates a Solid from a function.
+func FuncSolid(min, max Coord3D, f func(Coord3D) bool) Solid {
+	return &funcSolid{
+		min: min,
+		max: max,
+		f:   f,
+	}
+}
+
+func (f *funcSolid) Min() Coord3D {
+	return f.min
+}
+
+func (f *funcSolid) Max() Coord3D {
+	return f.max
+}
+
+func (f *funcSolid) Contains(c Coord3D) bool {
+	return f.f(c)
+}
+
 // Backwards compatibility type aliases.
 type RectSolid = Rect
 type SphereSolid = Sphere
