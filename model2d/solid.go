@@ -212,10 +212,16 @@ func (c *ColliderSolid) Contains(coord Coord) bool {
 	return ColliderContains(c.collider, coord, c.inset)
 }
 
-type boundCacheSolid struct {
-	min Coord
-	max Coord
-	s   Solid
+// ForceSolidBounds creates a new solid that reports the
+// exact bounds given by min and max.
+//
+// Points outside of these bounds will be removed from s,
+// but otherwise s is preserved.
+func ForceSolidBounds(s Solid, min, max Coord) Solid {
+	bounder := &Rect{MinVal: min, MaxVal: max}
+	return FuncSolid(min, max, func(c Coord) bool {
+		return InBounds(bounder, c) && s.Contains(c)
+	})
 }
 
 // CacheSolidBounds creates a Solid that has a cached
@@ -224,23 +230,7 @@ type boundCacheSolid struct {
 // The solid also explicitly checks that points are inside
 // the boundary before passing them off to s.
 func CacheSolidBounds(s Solid) Solid {
-	return boundCacheSolid{
-		min: s.Min(),
-		max: s.Max(),
-		s:   s,
-	}
-}
-
-func (b boundCacheSolid) Min() Coord {
-	return b.min
-}
-
-func (b boundCacheSolid) Max() Coord {
-	return b.max
-}
-
-func (b boundCacheSolid) Contains(c Coord) bool {
-	return InBounds(b, c) && b.s.Contains(c)
+	return ForceSolidBounds(s, s.Min(), s.Max())
 }
 
 type smoothJoin struct {
@@ -300,36 +290,6 @@ func (s *smoothJoin) Contains(c Coord) bool {
 	d1 := s.radius - distances[0]
 	d2 := s.radius - distances[1]
 	return d1*d1+d2*d2 > s.radius*s.radius
-}
-
-type forcedBoundsSolid struct {
-	Solid  Solid
-	MinVal Coord
-	MaxVal Coord
-}
-
-// ForceSolidBounds creates a new solid that reports the
-// exact bounds given by min and max.
-//
-// Points outside of these bounds will be removed from s,
-// but otherwise s is preserved.
-func ForceSolidBounds(s Solid, min, max Coord) Solid {
-	return &forcedBoundsSolid{Solid: s, MinVal: min, MaxVal: max}
-}
-
-func (f *forcedBoundsSolid) Contains(c Coord) bool {
-	if !InBounds(f, c) {
-		return false
-	}
-	return f.Solid.Contains(c)
-}
-
-func (f *forcedBoundsSolid) Min() Coord {
-	return f.MinVal
-}
-
-func (f *forcedBoundsSolid) Max() Coord {
-	return f.MaxVal
 }
 
 type bitmapSolid struct {

@@ -278,10 +278,16 @@ func (c *ColliderSolid) Contains(coord Coord3D) bool {
 	return ColliderContains(c.collider, coord, c.inset)
 }
 
-type boundCacheSolid struct {
-	min Coord3D
-	max Coord3D
-	s   Solid
+// ForceSolidBounds creates a new solid that reports the
+// exact bounds given by min and max.
+//
+// Points outside of these bounds will be removed from s,
+// but otherwise s is preserved.
+func ForceSolidBounds(s Solid, min, max Coord3D) Solid {
+	bounder := &Rect{MinVal: min, MaxVal: max}
+	return FuncSolid(min, max, func(c Coord3D) bool {
+		return InBounds(bounder, c) && s.Contains(c)
+	})
 }
 
 // CacheSolidBounds creates a Solid that has a cached
@@ -290,23 +296,7 @@ type boundCacheSolid struct {
 // The solid also explicitly checks that points are inside
 // the boundary before passing them off to s.
 func CacheSolidBounds(s Solid) Solid {
-	return boundCacheSolid{
-		min: s.Min(),
-		max: s.Max(),
-		s:   s,
-	}
-}
-
-func (b boundCacheSolid) Min() Coord3D {
-	return b.min
-}
-
-func (b boundCacheSolid) Max() Coord3D {
-	return b.max
-}
-
-func (b boundCacheSolid) Contains(c Coord3D) bool {
-	return InBounds(b, c) && b.s.Contains(c)
+	return ForceSolidBounds(s, s.Min(), s.Max())
 }
 
 type smoothJoin struct {
@@ -366,36 +356,6 @@ func (s *smoothJoin) Contains(c Coord3D) bool {
 	d1 := s.radius - distances[0]
 	d2 := s.radius - distances[1]
 	return d1*d1+d2*d2 > s.radius*s.radius
-}
-
-type forcedBoundsSolid struct {
-	Solid  Solid
-	MinVal Coord3D
-	MaxVal Coord3D
-}
-
-// ForceSolidBounds creates a new solid that reports the
-// exact bounds given by min and max.
-//
-// Points outside of these bounds will be removed from s,
-// but otherwise s is preserved.
-func ForceSolidBounds(s Solid, min, max Coord3D) Solid {
-	return &forcedBoundsSolid{Solid: s, MinVal: min, MaxVal: max}
-}
-
-func (f *forcedBoundsSolid) Contains(c Coord3D) bool {
-	if !InBounds(f, c) {
-		return false
-	}
-	return f.Solid.Contains(c)
-}
-
-func (f *forcedBoundsSolid) Min() Coord3D {
-	return f.MinVal
-}
-
-func (f *forcedBoundsSolid) Max() Coord3D {
-	return f.MaxVal
 }
 
 type profileSolid struct {
