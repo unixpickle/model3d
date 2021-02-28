@@ -50,9 +50,9 @@ func (g *GridSearch2D) maximize(min, max model2d.Coord,
 	solution := model2d.Coord{}
 	value := math.Inf(-1)
 	for xi := 0; xi < g.XStops; xi++ {
-		x := float64(xi)*xStep + xStep/2
+		x := float64(xi)*xStep + xStep/2 + min.X
 		for yi := 0; yi < g.YStops; yi++ {
-			y := float64(yi)*yStep + yStep/2
+			y := float64(yi)*yStep + yStep/2 + min.Y
 			c := model2d.XY(x, y)
 			v := f(c)
 			if v > value {
