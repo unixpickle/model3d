@@ -42,12 +42,7 @@ func TestMeshSubdivide(t *testing.T) {
 	mesh := MarchingSquaresSearch(&Circle{Radius: 0.9}, 0.01, 8)
 	mesh1 := mesh.Subdivide(2)
 
-	if !mesh1.Manifold() {
-		t.Fatal("non-manifold subdivided mesh")
-	}
-	if _, n := mesh1.RepairNormals(1e-8); n != 0 {
-		t.Error("incorrect number of normals")
-	}
+	MustValidateMesh(t, mesh1)
 
 	sdf := MeshToSDF(mesh)
 	sdf1 := MeshToSDF(mesh1)
@@ -108,11 +103,7 @@ func TestMeshDecimate(t *testing.T) {
 			t.Errorf("mesh had unexpected vertex count: %d", n)
 		}
 
-		if !mesh.Manifold() {
-			t.Error("mesh is non-manifold")
-		} else if _, n := mesh.RepairNormals(1e-5); n != 0 {
-			t.Errorf("mesh had %d bad normals", n)
-		}
+		MustValidateMesh(t, mesh)
 	})
 	t.Run("Correct", func(t *testing.T) {
 		mesh := NewMesh()

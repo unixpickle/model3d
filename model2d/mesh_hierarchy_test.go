@@ -12,9 +12,7 @@ func TestMeshHierarchy(t *testing.T) {
 		return r == 0 && g == 0 && b == 0
 	})
 	mesh := bitmap.Mesh().SmoothSq(30)
-	if !mesh.Manifold() {
-		t.Fatal("non-manifold mesh")
-	}
+	MustValidateMesh(t, mesh)
 
 	hierarchy := MeshToHierarchy(mesh)
 
@@ -91,9 +89,7 @@ func BenchmarkMeshHierarchy(b *testing.B) {
 		return r == 0 && g == 0 && b == 0
 	})
 	mesh := bitmap.Mesh().SmoothSq(30)
-	if !mesh.Manifold() {
-		b.Fatal("non-manifold mesh")
-	}
+	MustValidateMesh(b, mesh)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

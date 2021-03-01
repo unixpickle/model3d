@@ -9,9 +9,7 @@ func TestMarchingSquares(t *testing.T) {
 	solid := BitmapToSolid(testingBitmap())
 
 	testMesh := func(mesh *Mesh) {
-		if !mesh.Manifold() {
-			t.Error("mesh is non-manifold")
-		}
+		MustValidateMesh(t, mesh)
 
 		meshSolid := NewColliderSolid(MeshToCollider(mesh))
 
@@ -23,10 +21,6 @@ func TestMarchingSquares(t *testing.T) {
 			if solid.Contains(point) != meshSolid.Contains(point) {
 				t.Error("containment mismatch at:", point)
 			}
-		}
-
-		if _, n := mesh.RepairNormals(0.001); n != 0 {
-			t.Error("invalid normals")
 		}
 	}
 

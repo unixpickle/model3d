@@ -1,3 +1,5 @@
+// Generated from templates/util_test.template
+
 package model3d
 
 import (
