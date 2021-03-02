@@ -20,6 +20,7 @@ func main() {
 	Generate2d3dTemplate("mesh")
 	Generate2d3dTemplate("bvh")
 	Generate2d3dTemplate("polytope")
+	Generate2d3dTemplate("polytope_test")
 	Generate2d3dTemplate("util_test")
 }
 

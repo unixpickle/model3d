@@ -1,6 +1,4 @@
-// Generated from templates/polytope_test.template
-
-package model2d
+package {{.package}}
 
 import (
 	"math"
@@ -26,6 +24,16 @@ func TestPolytopeMesh(t *testing.T) {
 				Normal: Y(-1),
 				Max:    0.12,
 			},
+            {{if not .model2d -}}
+			&LinearConstraint{
+				Normal: Z(1),
+				Max:    0.5,
+			},
+			&LinearConstraint{
+				Normal: Z(-1),
+				Max:    0.5,
+			},
+            {{end -}}
 		})
 	})
 
@@ -47,6 +55,16 @@ func TestPolytopeMesh(t *testing.T) {
 				Normal: Y(-1),
 				Max:    0.12,
 			},
+            {{if not .model2d -}}
+			&LinearConstraint{
+				Normal: Z(1),
+				Max:    0.5,
+			},
+			&LinearConstraint{
+				Normal: Z(-1e50),
+				Max:    0.5 * 1e50,
+			},
+            {{end -}}
 		})
 	})
 }
@@ -54,7 +72,7 @@ func TestPolytopeMesh(t *testing.T) {
 func testPolytopeMesh(t *testing.T, c ConvexPolytope) {
 	mesh := c.Mesh()
 
-	MustValidateMesh(t, mesh)
+	MustValidateMesh(t, mesh{{if not .model2d}}, true{{end}})
 
 	solid := NewColliderSolid(MeshToCollider(mesh))
 	sdf := MeshToSDF(mesh)
@@ -63,7 +81,7 @@ func testPolytopeMesh(t *testing.T, c ConvexPolytope) {
 	sampleMin := min.Sub(max.Sub(min).Scale(0.1))
 	sampleMax := max.Add(max.Sub(min).Scale(0.1))
 	for i := 0; i < 1000; i++ {
-		coord := NewCoordRandBounds(sampleMin, sampleMax)
+		coord := New{{.coordType}}RandBounds(sampleMin, sampleMax)
 		if math.Abs(sdf.SDF(coord)) < 1e-5 {
 			// Avoid checks close to the boundary,
 			// where rounding errors might cause a
