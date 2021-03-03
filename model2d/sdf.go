@@ -1,18 +1,17 @@
+// Generated from templates/sdf.template
+
 package model2d
 
-import "math"
-
-/*********************************
- * Based on model3d/sdf.go as of *
- * May 29, 2019.                 *
- * *******************************/
+import (
+	"math"
+)
 
 // An SDF is a signed distance function.
 //
-// An SDF returns 0 on the boundary of some shape,
-// positive values inside the shape, and negative values
-// outside the shape.
-// The magnitude is the distance to the shape.
+// An SDF returns 0 on the boundary of some surface,
+// positive values inside the surface, and negative values
+// outside the surface.
+// The magnitude is the distance to the surface.
 //
 // All methods of an SDF are safe for concurrency.
 type SDF interface {
@@ -22,12 +21,12 @@ type SDF interface {
 }
 
 // A PointSDF is an SDF that can additionally get the
-// nearest point on a shape.
+// nearest point on a surface.
 type PointSDF interface {
 	SDF
 
 	// PointSDF gets the SDF at c and also returns the
-	// nearest point to c on the shape.
+	// nearest point to c on the surface.
 	PointSDF(c Coord) (Coord, float64)
 }
 
@@ -99,22 +98,22 @@ type meshSDF struct {
 
 // MeshToSDF turns a mesh into a PointSDF.
 func MeshToSDF(m *Mesh) PointSDF {
-	segs := m.SegmentsSlice()
-	GroupSegments(segs)
-	return GroupedSegmentsToSDF(segs)
+	faces := m.SegmentSlice()
+	GroupSegments(faces)
+	return GroupedSegmentsToSDF(faces)
 }
 
 // GroupedSegmentsToSDF creates a PointSDF from a slice
 // of segments.
 // If the segments are not grouped by GroupSegments(),
 // the resulting PointSDF is inefficient.
-func GroupedSegmentsToSDF(segs []*Segment) PointSDF {
-	if len(segs) == 0 {
+func GroupedSegmentsToSDF(faces []*Segment) PointSDF {
+	if len(faces) == 0 {
 		panic("cannot create empty SDF")
 	}
 	return &meshSDF{
-		Solid: NewColliderSolid(GroupedSegmentsToCollider(segs)),
-		MDF:   newMeshDistFunc(segs),
+		Solid: NewColliderSolid(GroupedSegmentsToCollider(faces)),
+		MDF:   newMeshDistFunc(faces),
 	}
 }
 
@@ -145,14 +144,14 @@ type meshDistFunc struct {
 	children [2]*meshDistFunc
 }
 
-func newMeshDistFunc(segs []*Segment) *meshDistFunc {
-	if len(segs) == 1 {
-		return &meshDistFunc{root: segs[0], min: segs[0].Min(), max: segs[0].Max()}
+func newMeshDistFunc(faces []*Segment) *meshDistFunc {
+	if len(faces) == 1 {
+		return &meshDistFunc{root: faces[0], min: faces[0].Min(), max: faces[0].Max()}
 	}
 
-	midIdx := len(segs) / 2
-	t1 := newMeshDistFunc(segs[:midIdx])
-	t2 := newMeshDistFunc(segs[midIdx:])
+	midIdx := len(faces) / 2
+	t1 := newMeshDistFunc(faces[:midIdx])
+	t2 := newMeshDistFunc(faces[midIdx:])
 	return &meshDistFunc{
 		min:      t1.Min().Min(t2.Min()),
 		max:      t1.Max().Max(t2.Max()),

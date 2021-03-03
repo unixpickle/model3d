@@ -1,11 +1,11 @@
-// Generated from templates/sdf.template
-
-package model3d
+package {{.package}}
 
 import (
 	"math"
+    {{- if not .model2d}}
 
 	"github.com/unixpickle/model3d/model2d"
+    {{- end}}
 )
 
 // An SDF is a signed distance function.
@@ -19,7 +19,7 @@ import (
 type SDF interface {
 	Bounder
 
-	SDF(c Coord3D) float64
+	SDF(c {{.coordType}}) float64
 }
 
 // A PointSDF is an SDF that can additionally get the
@@ -29,7 +29,7 @@ type PointSDF interface {
 
 	// PointSDF gets the SDF at c and also returns the
 	// nearest point to c on the surface.
-	PointSDF(c Coord3D) (Coord3D, float64)
+	PointSDF(c {{.coordType}}) ({{.coordType}}, float64)
 }
 
 type colliderSDF struct {
@@ -54,11 +54,11 @@ func ColliderToSDF(c Collider, iterations int) SDF {
 	}
 }
 
-func (c *colliderSDF) SDF(coord Coord3D) float64 {
+func (c *colliderSDF) SDF(coord {{.coordType}}) float64 {
 	min, max := c.boundDistance(coord)
 	for i := 0; i < c.Iterations; i++ {
 		mid := (min + max) / 2
-		if c.Collider.SphereCollision(coord, mid) {
+		if c.Collider.{{if .model2d}}Circle{{else}}Sphere{{end}}Collision(coord, mid) {
 			max = mid
 		} else {
 			min = mid
@@ -71,10 +71,10 @@ func (c *colliderSDF) SDF(coord Coord3D) float64 {
 	return res
 }
 
-func (c *colliderSDF) boundDistance(coord Coord3D) (min, max float64) {
+func (c *colliderSDF) boundDistance(coord {{.coordType}}) (min, max float64) {
 	lastDist := 1.0
 	newDist := 1.0
-	initial := c.Collider.SphereCollision(coord, lastDist)
+	initial := c.Collider.{{if .model2d}}Circle{{else}}Sphere{{end}}Collision(coord, lastDist)
 	for i := 0; i < c.Iterations; i++ {
 		lastDist = newDist
 		if initial {
@@ -82,7 +82,7 @@ func (c *colliderSDF) boundDistance(coord Coord3D) (min, max float64) {
 		} else {
 			newDist = lastDist * 2.0
 		}
-		if c.Collider.SphereCollision(coord, newDist) != initial {
+		if c.Collider.{{if .model2d}}Circle{{else}}Sphere{{end}}Collision(coord, newDist) != initial {
 			break
 		}
 	}
@@ -100,26 +100,26 @@ type meshSDF struct {
 
 // MeshToSDF turns a mesh into a PointSDF.
 func MeshToSDF(m *Mesh) PointSDF {
-	faces := m.TriangleSlice()
-	GroupTriangles(faces)
-	return GroupedTrianglesToSDF(faces)
+	faces := m.{{.faceType}}Slice()
+	Group{{.faceType}}s(faces)
+	return Grouped{{.faceType}}sToSDF(faces)
 }
 
-// GroupedTrianglesToSDF creates a PointSDF from a slice
-// of triangles.
-// If the triangles are not grouped by GroupTriangles(),
+// Grouped{{.faceType}}sToSDF creates a PointSDF from a slice
+// of {{.faceName}}s.
+// If the {{.faceName}}s are not grouped by Group{{.faceType}}s(),
 // the resulting PointSDF is inefficient.
-func GroupedTrianglesToSDF(faces []*Triangle) PointSDF {
+func Grouped{{.faceType}}sToSDF(faces []*{{.faceType}}) PointSDF {
 	if len(faces) == 0 {
 		panic("cannot create empty SDF")
 	}
 	return &meshSDF{
-		Solid: NewColliderSolid(GroupedTrianglesToCollider(faces)),
+		Solid: NewColliderSolid(Grouped{{.faceType}}sToCollider(faces)),
 		MDF:   newMeshDistFunc(faces),
 	}
 }
 
-func (m *meshSDF) SDF(c Coord3D) float64 {
+func (m *meshSDF) SDF(c {{.coordType}}) float64 {
 	dist := m.MDF.Dist(c, math.Inf(1))
 	if m.Solid.Contains(c) {
 		return dist
@@ -128,8 +128,8 @@ func (m *meshSDF) SDF(c Coord3D) float64 {
 	}
 }
 
-func (m *meshSDF) PointSDF(c Coord3D) (Coord3D, float64) {
-	point := Coord3D{}
+func (m *meshSDF) PointSDF(c {{.coordType}}) ({{.coordType}}, float64) {
+	point := {{.coordType}}{}
 	dist := math.Inf(1)
 	m.MDF.PointDist(c, &point, &dist)
 	if !m.Solid.Contains(c) {
@@ -139,14 +139,14 @@ func (m *meshSDF) PointSDF(c Coord3D) (Coord3D, float64) {
 }
 
 type meshDistFunc struct {
-	min Coord3D
-	max Coord3D
+	min {{.coordType}}
+	max {{.coordType}}
 
-	root     *Triangle
+	root     *{{.faceType}}
 	children [2]*meshDistFunc
 }
 
-func newMeshDistFunc(faces []*Triangle) *meshDistFunc {
+func newMeshDistFunc(faces []*{{.faceType}}) *meshDistFunc {
 	if len(faces) == 1 {
 		return &meshDistFunc{root: faces[0], min: faces[0].Min(), max: faces[0].Max()}
 	}
@@ -162,15 +162,15 @@ func newMeshDistFunc(faces []*Triangle) *meshDistFunc {
 
 }
 
-func (m *meshDistFunc) Min() Coord3D {
+func (m *meshDistFunc) Min() {{.coordType}} {
 	return m.min
 }
 
-func (m *meshDistFunc) Max() Coord3D {
+func (m *meshDistFunc) Max() {{.coordType}} {
 	return m.max
 }
 
-func (m *meshDistFunc) Dist(c Coord3D, curMin float64) float64 {
+func (m *meshDistFunc) Dist(c {{.coordType}}, curMin float64) float64 {
 	if m.root != nil {
 		return math.Min(curMin, m.root.Dist(c))
 	}
@@ -193,7 +193,7 @@ func (m *meshDistFunc) Dist(c Coord3D, curMin float64) float64 {
 	return curMin
 }
 
-func (m *meshDistFunc) PointDist(c Coord3D, curPoint *Coord3D, curDist *float64) {
+func (m *meshDistFunc) PointDist(c {{.coordType}}, curPoint *{{.coordType}}, curDist *float64) {
 	if m.root != nil {
 		cp := m.root.Closest(c)
 		dist := cp.Dist(c)
@@ -221,10 +221,11 @@ func (m *meshDistFunc) PointDist(c Coord3D, curPoint *Coord3D, curDist *float64)
 	}
 }
 
+{{if not .model2d}}
 type profileSDF struct {
 	SDF2D  model2d.SDF
-	MinVal Coord3D
-	MaxVal Coord3D
+	MinVal {{.coordType}}
+	MaxVal {{.coordType}}
 }
 
 // ProfileSDF turns a 2D SDF into a 3D SDF by elongating
@@ -238,15 +239,15 @@ func ProfileSDF(sdf2d model2d.SDF, minZ, maxZ float64) SDF {
 	}
 }
 
-func (p *profileSDF) Min() Coord3D {
+func (p *profileSDF) Min() {{.coordType}} {
 	return p.MinVal
 }
 
-func (p *profileSDF) Max() Coord3D {
+func (p *profileSDF) Max() {{.coordType}} {
 	return p.MaxVal
 }
 
-func (p *profileSDF) SDF(c Coord3D) float64 {
+func (p *profileSDF) SDF(c {{.coordType}}) float64 {
 	sdf2d := p.SDF2D.SDF(c.XY())
 	zDist := math.Min(math.Abs(c.Z-p.MinVal.Z), math.Abs(c.Z-p.MaxVal.Z))
 	insideZ := c.Z >= p.MinVal.Z && c.Z <= p.MaxVal.Z
@@ -289,7 +290,7 @@ func ProfilePointSDF(sdf2d model2d.PointSDF, minZ, maxZ float64) PointSDF {
 	}
 }
 
-func (p *profilePointSDF) PointSDF(c Coord3D) (Coord3D, float64) {
+func (p *profilePointSDF) PointSDF(c {{.coordType}}) ({{.coordType}}, float64) {
 	point2d, sdf2d := p.PointSDF2D.PointSDF(c.XY())
 
 	minDist := math.Abs(c.Z - p.MinVal.Z)
@@ -325,3 +326,4 @@ func (p *profilePointSDF) PointSDF(c Coord3D) (Coord3D, float64) {
 		return XYZ(point2d.X, point2d.Y, c.Z), sdf2d
 	}
 }
+{{end}}

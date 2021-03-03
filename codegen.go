@@ -22,6 +22,7 @@ func main() {
 	Generate2d3dTemplate("polytope")
 	Generate2d3dTemplate("polytope_test")
 	Generate2d3dTemplate("util_test")
+	Generate2d3dTemplate("sdf")
 }
 
 func Generate2d3dTemplate(name string) {
