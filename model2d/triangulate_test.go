@@ -80,9 +80,7 @@ func TestTriangulateMeshComplex(t *testing.T) {
 		return r == 0 && g == 0 && b == 0
 	})
 	mesh := bitmap.Mesh().SmoothSq(30)
-	if !mesh.Manifold() {
-		t.Fatal("non-manifold mesh")
-	}
+	MustValidateMesh(t, mesh)
 
 	tris := TriangulateMesh(mesh)
 	if len(tris) == 0 {

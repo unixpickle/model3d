@@ -64,13 +64,11 @@ func TestMeshRepair(t *testing.T) {
 			t2 = 0
 		}
 		original.Add(&Segment{
-			XY(math.Cos(i), math.Sin(i)),
 			XY(math.Cos(t2), math.Sin(t2)),
+			XY(math.Cos(i), math.Sin(i)),
 		})
 	}
-	if !original.Manifold() {
-		t.Fatal("initial mesh must be manifold")
-	}
+	MustValidateMesh(t, original)
 	repaired := original.Repair(1e-5)
 	if !meshesEqual(original, repaired) {
 		t.Fatal("repairing a manifold mesh did not work")
@@ -86,9 +84,7 @@ func TestMeshRepair(t *testing.T) {
 		t.Fatal("random perturbations should break the mesh")
 	}
 	repaired = damaged.Repair(1e-5)
-	if !repaired.Manifold() {
-		t.Error("mesh is not manifold after repair")
-	}
+	MustValidateMesh(t, repaired)
 	if len(repaired.SegmentsSlice()) != len(original.SegmentsSlice()) {
 		t.Error("invalid number of segments after repair")
 	}

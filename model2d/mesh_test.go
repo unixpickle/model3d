@@ -25,10 +25,5 @@ func TestNewMeshPolar(t *testing.T) {
 	mesh := NewMeshPolar(func(theta float64) float64 {
 		return math.Cos(theta) + 2
 	}, 100)
-	if !mesh.Manifold() {
-		t.Fatal("mesh is non-manifold")
-	}
-	if _, n := mesh.RepairNormals(1e-5); n != 0 {
-		t.Fatal("mesh has incorrect normals")
-	}
+	MustValidateMesh(t, mesh)
 }
