@@ -177,26 +177,21 @@ func ScaleSolid(solid Solid, s float64) Solid {
 // TransformSolid applies t to the solid s to produce a
 // new, transformed solid.
 func TransformSolid(t Transform, s Solid) Solid {
+	inv := t.Inverse()
 	min, max := t.ApplyBounds(s.Min(), s.Max())
-	return &transformedSolid{
-		min: min,
-		max: max,
-		s:   s,
-		inv: t.Inverse(),
-	}
+	return CheckedFuncSolid(min, max, func(c Coord3D) bool {
+		return s.Contains(inv.Apply(c))
+	})
 }
 
 // TransformSDF applies t to the SDF s to produce a new,
 // transformed SDF.
 func TransformSDF(t DistTransform, s SDF) SDF {
+	inv := t.Inverse()
 	min, max := t.ApplyBounds(s.Min(), s.Max())
-	return &transformedSDF{
-		min: min,
-		max: max,
-		s:   s,
-		t:   t,
-		inv: t.Inverse().(DistTransform),
-	}
+	return FuncSDF(min, max, func(c Coord3D) float64 {
+		return t.ApplyDistance(s.SDF(inv.Apply(c)))
+	})
 }
 
 // TransformCollider applies t to the Collider c to
@@ -210,45 +205,6 @@ func TransformCollider(t DistTransform, c Collider) Collider {
 		t:   t,
 		inv: t.Inverse().(DistTransform),
 	}
-}
-
-type transformedSolid struct {
-	min Coord3D
-	max Coord3D
-	s   Solid
-	inv Transform
-}
-
-func (t *transformedSolid) Min() Coord3D {
-	return t.min
-}
-
-func (t *transformedSolid) Max() Coord3D {
-	return t.max
-}
-
-func (t *transformedSolid) Contains(c Coord3D) bool {
-	return InBounds(t, c) && t.s.Contains(t.inv.Apply(c))
-}
-
-type transformedSDF struct {
-	min Coord3D
-	max Coord3D
-	s   SDF
-	t   DistTransform
-	inv DistTransform
-}
-
-func (t *transformedSDF) Min() Coord3D {
-	return t.min
-}
-
-func (t *transformedSDF) Max() Coord3D {
-	return t.max
-}
-
-func (t *transformedSDF) SDF(c Coord3D) float64 {
-	return t.t.ApplyDistance(t.s.SDF(t.inv.Apply(c)))
 }
 
 type transformedCollider struct {
