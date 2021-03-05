@@ -32,6 +32,79 @@ type PointSDF interface {
 	PointSDF(c Coord3D) (Coord3D, float64)
 }
 
+type funcSDF struct {
+	min Coord3D
+	max Coord3D
+	f   func(c Coord3D) float64
+}
+
+// FuncSDF creates an SDF from a function.
+//
+// If the bounds are invalid, FuncSDF() will panic().
+// In particular, max must be no less than min, and all
+// floating-point values must be finite numbers.
+func FuncSDF(min, max Coord3D, f func(Coord3D) float64) SDF {
+	if !BoundsValid(&Rect{MinVal: min, MaxVal: max}) {
+		panic("invalid bounds")
+	}
+	return &funcSDF{
+		min: min,
+		max: max,
+		f:   f,
+	}
+}
+
+func (f *funcSDF) Min() Coord3D {
+	return f.min
+}
+
+func (f *funcSDF) Max() Coord3D {
+	return f.max
+}
+
+func (f *funcSDF) SDF(c Coord3D) float64 {
+	return f.f(c)
+}
+
+type funcPointSDF struct {
+	min Coord3D
+	max Coord3D
+	f   func(c Coord3D) (Coord3D, float64)
+}
+
+// FuncPointSDF creates a PointSDF from a function.
+//
+// If the bounds are invalid, FuncPointSDF() will panic().
+// In particular, max must be no less than min, and all
+// floating-point values must be finite numbers.
+func FuncPointSDF(min, max Coord3D, f func(Coord3D) (Coord3D, float64)) PointSDF {
+	if !BoundsValid(&Rect{MinVal: min, MaxVal: max}) {
+		panic("invalid bounds")
+	}
+	return &funcPointSDF{
+		min: min,
+		max: max,
+		f:   f,
+	}
+}
+
+func (f *funcPointSDF) Min() Coord3D {
+	return f.min
+}
+
+func (f *funcPointSDF) Max() Coord3D {
+	return f.max
+}
+
+func (f *funcPointSDF) SDF(c Coord3D) float64 {
+	_, d := f.f(c)
+	return d
+}
+
+func (f *funcPointSDF) PointSDF(c Coord3D) (Coord3D, float64) {
+	return f.f(c)
+}
+
 type colliderSDF struct {
 	Collider
 	Solid      Solid
