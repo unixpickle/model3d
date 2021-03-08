@@ -70,6 +70,27 @@ func SaveImage(path string, img image.Image) error {
 	return nil
 }
 
+// Colorize turns a grayscale image into a color image
+// with an alpha channel.
+func Colorize(g *image.Gray, c color.RGBA) *image.RGBA {
+	red, green, blue, alpha := float64(c.R), float64(c.G), float64(c.B), float64(c.A)
+	img := image.NewRGBA(g.Bounds())
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			gray := g.GrayAt(x, y)
+			frac := float64(gray.Y) / 0xff
+			img.SetRGBA(x, y, color.RGBA{
+				R: uint8(red * frac),
+				G: uint8(green * frac),
+				B: uint8(blue * frac),
+				A: uint8(alpha * frac),
+			})
+		}
+	}
+	return img
+}
+
 // A Rasterizer converts 2D models into raster images.
 type Rasterizer struct {
 	// Scale determines how many pixels comprise a unit
