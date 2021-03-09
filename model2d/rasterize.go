@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"math"
@@ -33,6 +34,29 @@ const (
 func Rasterize(path string, obj interface{}, scale float64) error {
 	rast := Rasterizer{Scale: scale}
 	img := rast.Rasterize(obj)
+	if err := SaveImage(path, img); err != nil {
+		return errors.Wrap(err, "rasterize image")
+	}
+	return nil
+}
+
+// RasterizeColor is like Rasterize, but it renders
+// multiple objects in different colors.
+func RasterizeColor(path string, objs []interface{}, colors []color.Color, scale float64) error {
+	b0 := objs[0].(Bounder)
+	min, max := b0.Min(), b0.Max()
+	for _, obj := range objs {
+		b := obj.(Bounder)
+		min = min.Min(b.Min())
+		max = max.Max(b.Max())
+	}
+
+	rast := Rasterizer{Scale: scale, Bounds: &Rect{MinVal: min, MaxVal: max}}
+	imgs := make([]*image.Gray, len(objs))
+	for i, obj := range objs {
+		imgs[i] = rast.Rasterize(obj)
+	}
+	img := ColorizeOverlay(imgs, colors)
 	if err := SaveImage(path, img); err != nil {
 		return errors.Wrap(err, "rasterize image")
 	}
@@ -72,8 +96,9 @@ func SaveImage(path string, img image.Image) error {
 
 // Colorize turns a grayscale image into a color image
 // with an alpha channel.
-func Colorize(g *image.Gray, c color.RGBA) *image.RGBA {
-	red, green, blue, alpha := float64(c.R), float64(c.G), float64(c.B), float64(c.A)
+func Colorize(g *image.Gray, co color.Color) *image.RGBA {
+	intr, intg, intb, inta := color.RGBAModel.Convert(co).RGBA()
+	red, green, blue, alpha := float64(intr), float64(intg), float64(intb), float64(inta)
 	img := image.NewRGBA(g.Bounds())
 	bounds := img.Bounds()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
@@ -89,6 +114,26 @@ func Colorize(g *image.Gray, c color.RGBA) *image.RGBA {
 		}
 	}
 	return img
+}
+
+// ColorizeOverlay turns a series of grayscale images into corresponding
+// colors and then overlays them, each on top of the last.
+//
+// All images must have the same bounds.
+func ColorizeOverlay(gs []*image.Gray, cs []color.Color) *image.RGBA {
+	if len(gs) != len(cs) {
+		panic("images and colors must have same length")
+	}
+	for i := 1; i < len(gs); i++ {
+		if gs[i].Bounds() != gs[0].Bounds() {
+			panic("all input images must have the same bounds")
+		}
+	}
+	res := image.NewRGBA(gs[0].Bounds())
+	for i, g := range gs {
+		draw.Draw(res, g.Bounds(), Colorize(g, cs[i]), image.Point{}, draw.Over)
+	}
+	return res
 }
 
 // A Rasterizer converts 2D models into raster images.
