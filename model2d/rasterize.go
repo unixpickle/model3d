@@ -96,6 +96,9 @@ func SaveImage(path string, img image.Image) error {
 
 // Colorize turns a grayscale image into a color image
 // with an alpha channel.
+//
+// It is assumed that black (0) is "positive" while white
+// (0xff) is negative.
 func Colorize(g *image.Gray, co color.Color) *image.RGBA {
 	intr, intg, intb, inta := color.RGBAModel.Convert(co).RGBA()
 	red, green, blue, alpha := float64(intr), float64(intg), float64(intb), float64(inta)
@@ -104,7 +107,7 @@ func Colorize(g *image.Gray, co color.Color) *image.RGBA {
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			gray := g.GrayAt(x, y)
-			frac := float64(gray.Y) / 0xff
+			frac := float64(0xff-gray.Y) / 0xff
 			img.SetRGBA(x, y, color.RGBA{
 				R: uint8(red * frac),
 				G: uint8(green * frac),
