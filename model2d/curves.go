@@ -2,6 +2,7 @@ package model2d
 
 import (
 	"math"
+	"sync"
 )
 
 var binomialCoeffs = [][]float64{
@@ -161,6 +162,12 @@ func (b BezierCurve) EvalX(x float64) float64 {
 	return CurveEvalX(b, x)
 }
 
+// CachedEvalX returns a function like EvalX that is
+// cached between calls in a concurrency-safe manner.
+func (b BezierCurve) CachedEvalX(x float64) func(float64) float64 {
+	return CacheScalarFunc(b.EvalX)
+}
+
 // InverseX gets the t value between 0 and 1 where the x
 // value is equal to some x, assuming the curve is
 // monotonic in x.
@@ -178,6 +185,23 @@ func (b BezierCurve) Transpose() BezierCurve {
 		res = append(res, Coord{X: c.Y, Y: c.X})
 	}
 	return res
+}
+
+// CacheScalarFunc creates a scalar function that is
+// equivalent to a deterministic function f, but caches
+// results across calls in a concurrency-safe manner.
+func CacheScalarFunc(f func(float64) float64) func(float64) float64 {
+	cache := sync.Map{}
+	return func(x float64) float64 {
+		value, ok := cache.Load(x)
+		if ok {
+			return value.(float64)
+		} else {
+			y := f(x)
+			cache.Store(x, y)
+			return y
+		}
+	}
 }
 
 func bisectionSearch(x float64, f func(float64) float64) float64 {
