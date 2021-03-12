@@ -381,7 +381,12 @@ func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {
 	})
 }
 
-// CrossSectionSolid creates a 2D cross-section of a 3D solid.
+// CrossSectionSolid creates a 2D cross-section of a 3D
+// solid as a 2D solid.
+//
+// The axis is 0, 1, or 2 for X, Y, or Z respectively.
+// The axisValue is the value for the axis at which a
+// plane is constructed.
 func CrossSectionSolid(solid Solid, axis int, axisValue float64) model2d.Solid {
 	var to2D func(Coord3D) Coord2D
 	var to3D func(Coord2D) Coord3D
