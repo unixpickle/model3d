@@ -380,3 +380,38 @@ func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {
 		return solid2d.Contains(c.XY())
 	})
 }
+
+// CrossSectionSolid creates a 2D cross-section of a 3D solid.
+func CrossSectionSolid(solid Solid, axis int, axisValue float64) model2d.Solid {
+	var to2D func(Coord3D) Coord2D
+	var to3D func(Coord2D) Coord3D
+	if axis == 0 {
+		to2D = func(c Coord3D) Coord2D {
+			return c.YZ()
+		}
+		to3D = func(c Coord2D) Coord3D {
+			return XYZ(axisValue, c.X, c.Y)
+		}
+	} else if axis == 1 {
+		to2D = func(c Coord3D) Coord2D {
+			return c.XZ()
+		}
+		to3D = func(c Coord2D) Coord3D {
+			return XYZ(c.X, axisValue, c.Y)
+		}
+	} else {
+		to2D = func(c Coord3D) Coord2D {
+			return c.XY()
+		}
+		to3D = func(c Coord2D) Coord3D {
+			return XYZ(c.X, c.Y, axisValue)
+		}
+	}
+	return model2d.CheckedFuncSolid(
+		to2D(solid.Min()),
+		to2D(solid.Max()),
+		func(c Coord2D) bool {
+			return solid.Contains(to3D(c))
+		},
+	)
+}
