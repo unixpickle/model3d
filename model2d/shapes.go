@@ -180,6 +180,16 @@ type Rect struct {
 	MaxVal Coord
 }
 
+// NewRect creates a Rect with a min and a max value.
+func NewRect(min, max Coord) *Rect {
+	return &Rect{MinVal: min, MaxVal: max}
+}
+
+// BoundsRect creates a Rect from a Bounder's bounds.
+func BoundsRect(b Bounder) *Rect {
+	return NewRect(b.Min(), b.Max())
+}
+
 func (r *Rect) Min() Coord {
 	return r.MinVal
 }

@@ -11,6 +11,16 @@ type Rect struct {
 	MaxVal Coord3D
 }
 
+// NewRect creates a Rect with a min and a max value.
+func NewRect(min, max Coord3D) *Rect {
+	return &Rect{MinVal: min, MaxVal: max}
+}
+
+// BoundsRect creates a Rect from a Bounder's bounds.
+func BoundsRect(b Bounder) *Rect {
+	return NewRect(b.Min(), b.Max())
+}
+
 // Min yields r.MinVal.
 func (r *Rect) Min() Coord3D {
 	return r.MinVal
