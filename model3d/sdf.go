@@ -44,7 +44,7 @@ type funcSDF struct {
 // In particular, max must be no less than min, and all
 // floating-point values must be finite numbers.
 func FuncSDF(min, max Coord3D, f func(Coord3D) float64) SDF {
-	if !BoundsValid(&Rect{MinVal: min, MaxVal: max}) {
+	if !BoundsValid(NewRect(min, max)) {
 		panic("invalid bounds")
 	}
 	return &funcSDF{
@@ -78,7 +78,7 @@ type funcPointSDF struct {
 // In particular, max must be no less than min, and all
 // floating-point values must be finite numbers.
 func FuncPointSDF(min, max Coord3D, f func(Coord3D) (Coord3D, float64)) PointSDF {
-	if !BoundsValid(&Rect{MinVal: min, MaxVal: max}) {
+	if !BoundsValid(NewRect(min, max)) {
 		panic("invalid bounds")
 	}
 	return &funcPointSDF{

@@ -46,7 +46,7 @@ func TestMeshCollider(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			min := NewCoordRandNorm()
 			max := min.Add(NewCoordRandUniform().AddScalar(0.01))
-			rect := &Rect{MinVal: min, MaxVal: max}
+			rect := NewRect(min, max)
 			actual := collider.RectCollision(rect)
 			expected := false
 			mesh.Iterate(func(s *Segment) {

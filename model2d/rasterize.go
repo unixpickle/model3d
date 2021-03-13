@@ -51,7 +51,7 @@ func RasterizeColor(path string, objs []interface{}, colors []color.Color, scale
 		max = max.Max(b.Max())
 	}
 
-	rast := Rasterizer{Scale: scale, Bounds: &Rect{MinVal: min, MaxVal: max}}
+	rast := Rasterizer{Scale: scale, Bounds: NewRect(min, max)}
 	imgs := make([]*image.Gray, len(objs))
 	for i, obj := range objs {
 		imgs[i] = rast.Rasterize(obj)

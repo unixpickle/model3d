@@ -31,7 +31,7 @@ type funcSolid struct {
 // In particular, max must be no less than min, and all
 // floating-point values must be finite numbers.
 func FuncSolid(min, max Coord, f func(Coord) bool) Solid {
-	if !BoundsValid(&Rect{MinVal: min, MaxVal: max}) {
+	if !BoundsValid(NewRect(min, max)) {
 		panic("invalid bounds")
 	}
 	return &funcSolid{
