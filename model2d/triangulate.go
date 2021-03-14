@@ -25,7 +25,7 @@ import (
 // minimal, correctly-oriented mesh.
 func TriangulateMesh(m *Mesh) [][3]Coord {
 	m, inv := misalignMesh(m)
-	hierarchies := misalignedMeshToHierarchy(m)
+	hierarchies := uncheckedMeshToHierarchy(m)
 	tris := [][3]Coord{}
 	for _, h := range hierarchies {
 		tris = append(tris, triangulateHierarchy(h)...)
@@ -661,4 +661,26 @@ func firstOfExactlyOne(coords []*ptrCoord) *ptrCoord {
 		panic("mesh is non-manifold")
 	}
 	return coords[0]
+}
+
+// misalignMesh rotates the mesh by a random angle to
+// prevent vertices from directly aligning on the x or
+// y axes.
+func misalignMesh(m *Mesh) (misaligned *Mesh, inv func(Coord) Coord) {
+	invMapping := map[Coord]Coord{}
+	xAxis := NewCoordPolar(0.5037616150469717, 1.0)
+	yAxis := XY(-xAxis.Y, xAxis.X)
+	misaligned = m.MapCoords(func(c Coord) Coord {
+		c1 := XY(xAxis.Dot(c), yAxis.Dot(c))
+		invMapping[c1] = c
+		return c1
+	})
+	inv = func(c Coord) Coord {
+		if res, ok := invMapping[c]; ok {
+			return res
+		} else {
+			panic("coordinate was not in the misaligned output")
+		}
+	}
+	return misaligned, inv
 }

@@ -2,6 +2,8 @@
 
 package model3d
 
+var arbitraryAxis Coord3D = Coord3D{X: 0.95177695, Y: 0.26858931, Z: -0.14825794}
+
 // A MeshHierarchy is a tree structure where each node is
 // a closed, simple surface, and children are contained
 // inside their parents.
@@ -28,16 +30,10 @@ func MeshToHierarchy(m *Mesh) []*MeshHierarchy {
 	if m.NeedsRepair() {
 		panic("mesh needs repair")
 	}
-
-	m, inv := misalignMesh(m)
-	hierarchy := misalignedMeshToHierarchy(m)
-	for i, tree := range hierarchy {
-		hierarchy[i] = tree.MapCoords(inv)
-	}
-	return hierarchy
+	return uncheckedMeshToHierarchy(m)
 }
 
-func misalignedMeshToHierarchy(m *Mesh) []*MeshHierarchy {
+func uncheckedMeshToHierarchy(m *Mesh) []*MeshHierarchy {
 	pm := newPtrMeshMesh(m)
 
 	var result []*MeshHierarchy
@@ -46,7 +42,7 @@ ClosedMeshLoop:
 	for pm.Peek() != nil {
 		minVertex := pm.Peek()
 		pm.IterateCoords(func(c *ptrCoord) {
-			if c.X < minVertex.X {
+			if arbitraryAxis.Dot(c.Coord3D) < arbitraryAxis.Dot(minVertex.Coord3D) {
 				minVertex = c
 			}
 		})
@@ -58,7 +54,8 @@ ClosedMeshLoop:
 			if x.MeshSolid.Contains(minVertex.Coord3D) {
 				// We know the mesh is a leaf, because if it contained
 				// any other mesh, that mesh would have to have a higher
-				// minVertex x value, and would not have been added yet.
+				// minVertex along an arbitrary axis, and would not have
+				// been added yet.
 				x.insertLeaf(strippedMesh, solid, minVertex.Coord3D)
 				continue ClosedMeshLoop
 			}
@@ -136,27 +133,6 @@ func (m *MeshHierarchy) Contains(c Coord3D) bool {
 		}
 	}
 	return true
-}
-
-// misalignMesh rotates the mesh by a random angle to
-// prevent vertices from directly aligning on the x or
-// y axes.
-func misalignMesh(m *Mesh) (misaligned *Mesh, inv func(Coord3D) Coord3D) {
-	invMapping := map[Coord3D]Coord3D{}
-	rot := Rotation(XYZ(0.95177695, 0.26858931, -0.14825794), 0.5037616150469717)
-	misaligned = m.MapCoords(func(c Coord3D) Coord3D {
-		c1 := rot.Apply(c)
-		invMapping[c1] = c
-		return c1
-	})
-	inv = func(c Coord3D) Coord3D {
-		if res, ok := invMapping[c]; ok {
-			return res
-		} else {
-			panic("coordinate was not in the misaligned output")
-		}
-	}
-	return misaligned, inv
 }
 
 // removeAllConnected strips all segments connected to c
