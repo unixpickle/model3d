@@ -163,11 +163,9 @@ func misalignMesh(m *Mesh) (misaligned *Mesh, inv func(Coord3D) Coord3D) {
 // out of m and returns them as segments.
 func removeAllConnected(m *ptrMesh, c *ptrCoord) []*Triangle {
 	var result []*Triangle
-	resultMap := map[*ptrTriangle]bool{}
 	queue := []*ptrTriangle{}
 	for _, t := range c.Triangles {
 		m.Remove(t)
-		resultMap[t] = true
 		queue = append(queue, t)
 		result = append(result, t.Triangle())
 	}
@@ -177,9 +175,8 @@ func removeAllConnected(m *ptrMesh, c *ptrCoord) []*Triangle {
 		idx++
 		for _, c := range t.Coords {
 			for _, t1 := range c.Triangles {
-				if !resultMap[t1] {
+				if t1.Prev != nil || m.First == t1 {
 					m.Remove(t1)
-					resultMap[t1] = true
 					queue = append(queue, t1)
 					result = append(result, t1.Triangle())
 				}
