@@ -3,6 +3,7 @@
 package model3d
 
 import (
+	"compress/gzip"
 	"os"
 	"testing"
 )
@@ -88,33 +89,37 @@ func BenchmarkMeshHierarchy(b *testing.B) {
 func hierarchyTestingMesh(f Failer) (mesh *Mesh, numHier int, depth int) {
 	// This code created the original mesh:
 	//
-	createShell := func(center Coord3D, rad float64) Solid {
-		return &SubtractedSolid{
-			Positive: &Sphere{Center: center, Radius: rad},
-			Negative: &Sphere{Center: center, Radius: rad - 0.05},
-		}
-	}
-	solid := JoinedSolid{
-		// First hierarchy, depth 5
-		createShell(XYZ(0, 0, 0), 1.0),
-		createShell(XYZ(0, 0, 0), 0.5),
-		&Sphere{Radius: 0.1},
+	// createShell := func(center Coord3D, rad float64) Solid {
+	// 	return &SubtractedSolid{
+	// 		Positive: &Sphere{Center: center, Radius: rad},
+	// 		Negative: &Sphere{Center: center, Radius: rad-0.05},
+	// 	}
+	// }
+	// solid := JoinedSolid{
+	// 	// First hierarchy, depth 5
+	// 	createShell(XYZ(0, 0, 0), 1.0),
+	// 	createShell(XYZ(0, 0, 0), 0.5),
+	// 	&Sphere{Radius: 0.1},
 
-		// Second hierarchy, depth 2
-		createShell(XYZ(3, 0, 0), 1.0),
+	// 	// Second hierarchy, depth 2
+	// 	createShell(XYZ(3, 0, 0), 1.0),
 
-		// Third hierarchy, depth 1
-		&Sphere{Center: Y(3.0), Radius: 1.0},
-	}
-	mesh = MarchingCubesSearch(solid, 0.03, 2)
-	mesh.SaveGroupedSTL("test_data/hierarchy_test.stl")
+	// 	// Third hierarchy, depth 1
+	// 	&Sphere{Center: Y(3.0), Radius: 1.0},
+	// }
+	// mesh = MarchingCubesSearch(solid, 0.03, 2)
+	// mesh.SaveGroupedSTL("test_data/hierarchy_test.stl")
 
-	r, err := os.Open("test_data/hierarchy_test.stl")
+	r, err := os.Open("test_data/hierarchy_test.stl.gz")
 	if err != nil {
 		f.Fatal(err)
 	}
 	defer r.Close()
-	tris, err := ReadSTL(r)
+	rz, err := gzip.NewReader(r)
+	if err != nil {
+		f.Fatal(err)
+	}
+	tris, err := ReadSTL(rz)
 	if err != nil {
 		f.Fatal(err)
 	}

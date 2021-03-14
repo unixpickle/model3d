@@ -4,6 +4,7 @@ import (
 	{{if .model2d -}}
 	"image/color"
 	{{else -}}
+	"compress/gzip"
 	"os"
 	{{end -}}
 	"testing"
@@ -125,12 +126,16 @@ func hierarchyTestingMesh(f Failer) (mesh *Mesh, numHier int, depth int) {
 	// mesh = MarchingCubesSearch(solid, 0.03, 2)
 	// mesh.SaveGroupedSTL("test_data/hierarchy_test.stl")
 
-	r, err := os.Open("test_data/hierarchy_test.stl")
+	r, err := os.Open("test_data/hierarchy_test.stl.gz")
 	if err != nil {
 		f.Fatal(err)
 	}
 	defer r.Close()
-	tris, err := ReadSTL(r)
+	rz, err := gzip.NewReader(r)
+	if err != nil {
+		f.Fatal(err)
+	}
+	tris, err := ReadSTL(rz)
 	if err != nil {
 		f.Fatal(err)
 	}
