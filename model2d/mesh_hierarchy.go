@@ -1,3 +1,5 @@
+// Generated from templates/mesh_hierarchy.template
+
 package model2d
 
 // A MeshHierarchy is a tree structure where each node is
@@ -44,7 +46,7 @@ ClosedMeshLoop:
 	for pm.Peek() != nil {
 		minVertex := pm.Peek()
 		pm.Iterate(func(c *ptrCoord) {
-			if c.Coord.X < minVertex.Coord.X {
+			if c.X < minVertex.X {
 				minVertex = c
 			}
 		})
@@ -90,7 +92,7 @@ func (m *MeshHierarchy) insertLeaf(mesh *Mesh, solid Solid, c Coord) {
 // FullMesh re-combines the root mesh with all of its
 // children.
 func (m *MeshHierarchy) FullMesh() *Mesh {
-	res := NewMeshSegments(m.Mesh.SegmentsSlice())
+	res := NewMeshSegments(m.Mesh.SegmentSlice())
 	for _, child := range m.Children {
 		res.AddMesh(child.FullMesh())
 	}
@@ -140,10 +142,9 @@ func (m *MeshHierarchy) Contains(c Coord) bool {
 // prevent vertices from directly aligning on the x or
 // y axes.
 func misalignMesh(m *Mesh) (misaligned *Mesh, inv func(Coord) Coord) {
+	invMapping := map[Coord]Coord{}
 	xAxis := NewCoordPolar(0.5037616150469717, 1.0)
 	yAxis := XY(-xAxis.Y, xAxis.X)
-
-	invMapping := map[Coord]Coord{}
 	misaligned = m.MapCoords(func(c Coord) Coord {
 		c1 := XY(xAxis.Dot(c), yAxis.Dot(c))
 		invMapping[c1] = c
@@ -162,8 +163,8 @@ func misalignMesh(m *Mesh) (misaligned *Mesh, inv func(Coord) Coord) {
 // removeAllConnected strips all segments connected to c
 // out of m and returns them as segments.
 func removeAllConnected(m *ptrMesh, c *ptrCoord) []*Segment {
-	first := c
 	var result []*Segment
+	first := c
 	for c != nil {
 		if len(m.Outgoing(c)) != 1 || len(m.Incoming(c)) != 1 {
 			panic("mesh is non-manifold")

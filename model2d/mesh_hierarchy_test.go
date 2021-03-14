@@ -1,3 +1,5 @@
+// Generated from templates/mesh_hierarchy_test.template
+
 package model2d
 
 import (
@@ -6,22 +8,15 @@ import (
 )
 
 func TestMeshHierarchy(t *testing.T) {
-	// Create a testing mesh with a complex hierarchy.
-	bitmap := MustReadBitmap("test_data/test_bitmap.png", func(c color.Color) bool {
-		r, g, b, _ := c.RGBA()
-		return r == 0 && g == 0 && b == 0
-	})
-	mesh := bitmap.Mesh().SmoothSq(30)
-	MustValidateMesh(t, mesh)
-
+	mesh, numHier, knownDepth := hierarchyTestingMesh(t)
 	hierarchy := MeshToHierarchy(mesh)
 
 	// Specific tests for this hierarchy.
-	if len(hierarchy) != 3 {
-		t.Errorf("expected 3 separate roots but found %d", len(hierarchy))
+	if len(hierarchy) != numHier {
+		t.Errorf("expected %d separate roots but found %d", numHier, len(hierarchy))
 	}
-	if depth := measureHierarchyDepth(hierarchy); depth != 5 {
-		t.Errorf("expected 5 nested meshes but found %d", depth)
+	if depth := measureHierarchyDepth(hierarchy); depth != knownDepth {
+		t.Errorf("expected %d nested meshes but found %d", knownDepth, depth)
 	}
 
 	// Make sure all vertices are preserved.
@@ -83,16 +78,22 @@ func validateHierarchyContainment(t *testing.T, h *MeshHierarchy) {
 }
 
 func BenchmarkMeshHierarchy(b *testing.B) {
+	mesh, _, _ := hierarchyTestingMesh(b)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		MeshToHierarchy(mesh)
+	}
+}
+
+func hierarchyTestingMesh(f Failer) (mesh *Mesh, numHier int, depth int) {
 	// Create a testing mesh with a complex hierarchy.
 	bitmap := MustReadBitmap("test_data/test_bitmap.png", func(c color.Color) bool {
 		r, g, b, _ := c.RGBA()
 		return r == 0 && g == 0 && b == 0
 	})
-	mesh := bitmap.Mesh().SmoothSq(30)
-	MustValidateMesh(b, mesh)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		MeshToHierarchy(mesh)
-	}
+	mesh = bitmap.Mesh().SmoothSq(30)
+	MustValidateMesh(f, mesh)
+	numHier = 3
+	depth = 5
+	return
 }
