@@ -182,7 +182,7 @@ func (p *ptrMesh) Add(p1, p2 *ptrCoord) {
 }
 
 type ptrCoord struct {
-	Coord Coord
+	Coord
 
 	prevCoords []*ptrCoord
 	nextCoords []*ptrCoord

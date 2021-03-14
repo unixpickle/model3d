@@ -69,6 +69,29 @@ func (p *ptrMesh) Mesh() *Mesh {
 	return m
 }
 
+// Peek quickly returns an arbitrary coordinate in the
+// mesh, or nil if the mesh is empty.
+func (p *ptrMesh) Peek() *ptrCoord {
+	if p.First == nil {
+		return nil
+	}
+	return p.First.Coords[0]
+}
+
+// IterateCoords iterates over the coordinates in the
+// mesh. During iteration, the mesh is immutable.
+func (p *ptrMesh) IterateCoords(f func(c *ptrCoord)) {
+	visited := map[*ptrCoord]bool{}
+	p.Iterate(func(t *ptrTriangle) {
+		for _, c := range t.Coords {
+			if !visited[c] {
+				f(c)
+				visited[c] = true
+			}
+		}
+	})
+}
+
 // A ptrCoordMap stores pointers for Coord3D points.
 // It can be used to convert points from a regular mesh
 // into pointers for a ptrMesh.
