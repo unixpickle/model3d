@@ -3,6 +3,7 @@
 package model3d
 
 import (
+	"math"
 	"sort"
 
 	"github.com/unixpickle/model3d/model2d"
@@ -417,6 +418,35 @@ func CrossSectionSolid(solid Solid, axis int, axisValue float64) model2d.Solid {
 		to2D(solid.Max()),
 		func(c Coord2D) bool {
 			return solid.Contains(to3D(c))
+		},
+	)
+}
+
+// RevolveSolid rotates a 2D solid around an axis to
+// create a 3D solid.
+// The y-axis of the 2D solid is extended along the axis
+// of revolution, while the x-axis is used as a radius.
+//
+// The 2D solid should either be symmetrical around the
+// axis, or be empty on one side of the axis.
+// Either way, the union of both reflections of the 2D
+// solid is used.
+func RevolveSolid(solid model2d.Solid, axis Coord3D) Solid {
+	axis = axis.Normalize()
+	min, max := solid.Min(), solid.Max()
+	maxRadius := math.Max(math.Abs(min.X), math.Abs(max.X))
+	cylinder := &Cylinder{
+		P1:     axis.Scale(min.Y),
+		P2:     axis.Scale(max.Y),
+		Radius: maxRadius,
+	}
+	return CheckedFuncSolid(
+		cylinder.Min(),
+		cylinder.Max(),
+		func(c Coord3D) bool {
+			x := c.ProjectOut(axis).Norm()
+			y := axis.Dot(c)
+			return solid.Contains(model2d.XY(x, y))
 		},
 	)
 }

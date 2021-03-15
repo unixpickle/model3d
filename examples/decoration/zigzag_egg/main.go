@@ -87,7 +87,7 @@ func CreateInnerEgg() model3d.Solid {
 	outerMesh := model2d.MarchingSquaresSearch(egg2d, 0.005, 8)
 	outerCollider := model2d.MeshToCollider(outerMesh)
 	solid := model2d.NewColliderSolidInset(outerCollider, ZigZagInset)
-	return RevolveSolid(solid)
+	return model3d.RevolveSolid(solid, model3d.Z(1))
 }
 
 func CreateZigZag() model3d.Solid {
@@ -166,7 +166,7 @@ func CreateZigZag() model3d.Solid {
 		model2d.MeshToCollider(zigZagMesh),
 		ZigZagThickness/2,
 	)
-	return RevolveSolid(solid)
+	return model3d.RevolveSolid(solid, model3d.Z(1))
 }
 
 func CreateRadialPlanes() model3d.Solid {
@@ -191,17 +191,6 @@ func CreateRadialPlanes() model3d.Solid {
 		))
 	}
 	return res
-}
-
-func RevolveSolid(s model2d.Solid) model3d.Solid {
-	min, max := s.Min(), s.Max()
-	return model3d.CheckedFuncSolid(
-		model3d.XYZ(min.X, min.X, min.Y),
-		model3d.XYZ(max.X, max.X, max.Y),
-		func(c model3d.Coord3D) bool {
-			return s.Contains(model2d.XY(c.XY().Norm(), c.Z))
-		},
-	)
 }
 
 func TakeOutsideMesh(m *model3d.Mesh) *model3d.Mesh {
