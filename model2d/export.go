@@ -5,6 +5,16 @@ import (
 	"strings"
 )
 
+// EncodeCSV encodes the mesh as a CSV file.
+func EncodeCSV(m *Mesh) []byte {
+	var lines []string
+	m.Iterate(func(s *Segment) {
+		lines = append(lines, fmt.Sprintf("%f,%f,%f,%f", s[0].X, s[0].Y, s[1].X, s[1].Y))
+	})
+	return []byte(strings.Join(lines, "\n"))
+}
+
+// EncodeSVG encodes the mesh as an SVG file.
 func EncodeSVG(m *Mesh) []byte {
 	return EncodeCustomSVG([]*Mesh{m}, []string{"black"}, []float64{1.0}, nil)
 }
