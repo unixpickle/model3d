@@ -85,6 +85,22 @@ func BenchmarkMeshHierarchy(b *testing.B) {
 	}
 }
 
+func BenchmarkMeshHierarchyUnconnected(b *testing.B) {
+	blob := NewMeshPolar(func(r float64) float64 {
+		return 0.3
+	}, 10)
+
+	mesh := NewMesh()
+	for i := 0.0; i < 1000.0; i++ {
+		mesh.AddMesh(blob.MapCoords(X(i).Add))
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		MeshToHierarchy(mesh)
+	}
+}
+
 func hierarchyTestingMesh(f Failer) (mesh *Mesh, numHier int, depth int) {
 	// Create a testing mesh with a complex hierarchy.
 	bitmap := MustReadBitmap("test_data/test_bitmap.png", func(c color.Color) bool {

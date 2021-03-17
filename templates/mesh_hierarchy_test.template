@@ -88,6 +88,28 @@ func BenchmarkMeshHierarchy(b *testing.B) {
 	}
 }
 
+func BenchmarkMeshHierarchyUnconnected(b *testing.B) {
+	{{if .model2d -}}
+	blob := NewMeshPolar(func(r float64) float64 {
+		return 0.3
+	}, 10)
+	{{- else -}}
+	blob := NewMeshPolar(func(g GeoCoord) float64 {
+		return 0.3
+	}, 10)
+	{{- end}}
+
+	mesh := NewMesh()
+	for i := 0.0; i < {{if .model2d}}1000.0{{else}}200.0{{end}}; i++ {
+		mesh.AddMesh(blob.MapCoords(X(i).Add))
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		MeshToHierarchy(mesh)
+	}
+}
+
 {{if .model2d -}}
 func hierarchyTestingMesh(f Failer) (mesh *Mesh, numHier int, depth int) {
 	// Create a testing mesh with a complex hierarchy.
