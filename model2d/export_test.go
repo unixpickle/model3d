@@ -42,3 +42,24 @@ func TestFindPolyline(t *testing.T) {
 		}
 	}
 }
+
+func TestEncodeCSV(t *testing.T) {
+	mesh := NewMeshPolar(func(theta float64) float64 {
+		return theta * theta
+	}, 30)
+	encoded := EncodeCSV(mesh)
+	decoded, err := DecodeCSV(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded) != len(mesh.SegmentSlice()) {
+		t.Fatal("invalid number of segments")
+	}
+	for _, seg := range decoded {
+		result := mesh.Find(seg[0], seg[1])
+		if len(result) != 1 {
+			t.Errorf("segment not found: %v, %v", seg[0], seg[1])
+		}
+		mesh.Remove(result[0])
+	}
+}

@@ -2,6 +2,7 @@ package model2d
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -9,7 +10,14 @@ import (
 func EncodeCSV(m *Mesh) []byte {
 	var lines []string
 	m.Iterate(func(s *Segment) {
-		lines = append(lines, fmt.Sprintf("%f,%f,%f,%f", s[0].X, s[0].Y, s[1].X, s[1].Y))
+		line := ""
+		for i, x := range []float64{s[0].X, s[0].Y, s[1].X, s[1].Y} {
+			if i > 0 {
+				line += ","
+			}
+			line += strconv.FormatFloat(x, 'G', -1, 64)
+		}
+		lines = append(lines, line)
 	})
 	return []byte(strings.Join(lines, "\n"))
 }
