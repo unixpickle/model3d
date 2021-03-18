@@ -2,6 +2,8 @@
 
 package model3d
 
+import "sort"
+
 var arbitraryAxis Coord3D = Coord3D{X: 0.95177695, Y: 0.26858931, Z: -0.14825794}
 
 // A MeshHierarchy is a tree structure where each node is
@@ -35,17 +37,16 @@ func MeshToHierarchy(m *Mesh) []*MeshHierarchy {
 
 func uncheckedMeshToHierarchy(m *Mesh) []*MeshHierarchy {
 	pm := newPtrMeshMesh(m)
+	sorted := newSortedCoords(pm)
 
 	var result []*MeshHierarchy
 
 ClosedMeshLoop:
-	for pm.Peek() != nil {
-		minVertex := pm.Peek()
-		pm.IterateCoords(func(c *ptrCoord) {
-			if arbitraryAxis.Dot(c.Coord3D) < arbitraryAxis.Dot(minVertex.Coord3D) {
-				minVertex = c
-			}
-		})
+	for {
+		minVertex := sorted.Next()
+		if minVertex == nil {
+			break
+		}
 		stripped := removeAllConnected(pm, minVertex)
 		GroupTriangles(stripped)
 		solid := NewColliderSolid(GroupedTrianglesToCollider(stripped))
@@ -160,4 +161,61 @@ func removeAllConnected(m *ptrMesh, c *ptrCoord) []*Triangle {
 		}
 	}
 	return result
+}
+
+// coordInMesh checks if a ptrCoord is in a ptrMesh.
+// This assumes that a coordinate will be removed from the
+// mesh if any of its corresponding faces are removed,
+// which will always happen if the mesh is manifold.
+func coordInMesh(m *ptrMesh, c *ptrCoord) bool {
+	t := c.Triangles[0]
+	return t.Prev != nil || m.First == t
+}
+
+type sortedCoords struct {
+	dots   []float64
+	coords []*ptrCoord
+
+	mesh   *ptrMesh
+	curIdx int
+}
+
+func newSortedCoords(m *ptrMesh) *sortedCoords {
+	var coords []*ptrCoord
+	var dots []float64
+	m.IterateCoords(func(c *ptrCoord) {
+		coords = append(coords, c)
+		dots = append(dots, c.Dot(arbitraryAxis))
+	})
+	res := &sortedCoords{
+		dots:   dots,
+		coords: coords,
+		mesh:   m,
+	}
+	sort.Sort(res)
+	return res
+}
+
+func (s *sortedCoords) Next() *ptrCoord {
+	for s.curIdx < s.Len() {
+		c := s.coords[s.curIdx]
+		s.curIdx++
+		if coordInMesh(s.mesh, c) {
+			return c
+		}
+	}
+	return nil
+}
+
+func (s *sortedCoords) Len() int {
+	return len(s.dots)
+}
+
+func (s *sortedCoords) Less(i, j int) bool {
+	return s.dots[i] < s.dots[j]
+}
+
+func (s *sortedCoords) Swap(i, j int) {
+	s.dots[i], s.dots[j] = s.dots[j], s.dots[i]
+	s.coords[i], s.coords[j] = s.coords[j], s.coords[i]
 }
