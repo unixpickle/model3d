@@ -235,11 +235,11 @@ func BenchmarkTriangleRectCollision(b *testing.B) {
 		XYZ(0.1, 1.0, 0.2),
 	}
 	rects := []*Rect{
-		&Rect{
+		{
 			MinVal: XYZ(0.09, 0.09, -1),
 			MaxVal: XYZ(1.1, 1.1, 0.3),
 		},
-		&Rect{
+		{
 			MinVal: XYZ(2.0, 0.09, -1),
 			MaxVal: XYZ(2.1, 1.1, 0.3),
 		},

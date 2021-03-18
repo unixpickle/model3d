@@ -21,7 +21,7 @@ func Triangulate(polygon []Coord2D) [][3]Coord2D {
 // approximated.
 func TriangulateFace(polygon []Coord3D) []*Triangle {
 	if len(polygon) == 3 {
-		return []*Triangle{&Triangle{polygon[0], polygon[1], polygon[2]}}
+		return []*Triangle{{polygon[0], polygon[1], polygon[2]}}
 	} else if len(polygon) < 3 {
 		panic("polygon needs at least three points")
 	}

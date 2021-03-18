@@ -32,14 +32,14 @@ func TestDecimateMinimal(t *testing.T) {
 
 	decimators := []*Decimator{
 		// Extremely aggressive decimator.
-		&Decimator{
+		{
 			FeatureAngle:     0.0001,
 			PlaneDistance:    2,
 			BoundaryDistance: 2,
 			EliminateCorners: true,
 		},
 		// A more normal setup.
-		&Decimator{
+		{
 			FeatureAngle:     0.1,
 			PlaneDistance:    0.1,
 			BoundaryDistance: 0.1,
@@ -56,14 +56,14 @@ func TestDecimateMinimal(t *testing.T) {
 func TestDecimateSphere(t *testing.T) {
 	decimators := []*Decimator{
 		// Extremely aggressive decimator.
-		&Decimator{
+		{
 			FeatureAngle:     0.0001,
 			PlaneDistance:    2,
 			BoundaryDistance: 2,
 			EliminateCorners: true,
 		},
 		// A more normal setup.
-		&Decimator{
+		{
 			FeatureAngle:     0.1,
 			PlaneDistance:    0.05,
 			BoundaryDistance: 0.05,

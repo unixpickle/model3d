@@ -288,31 +288,31 @@ func TestProfileCollider(t *testing.T) {
 
 	t.Run("Normals", func(t *testing.T) {
 		rays := []*Ray{
-			&Ray{
+			{
 				Origin:    XY(2.5, 2.5),
 				Direction: XY(-1, -1),
 			},
-			&Ray{
+			{
 				Origin:    XY(2.5, 2.5),
 				Direction: XYZ(-1, -1, 0.001),
 			},
-			&Ray{
+			{
 				Origin:    XYZ(1.5, 1.5, 1.5),
 				Direction: Z(-1),
 			},
-			&Ray{
+			{
 				Origin:    XYZ(1.5, 1.5, 1.5),
 				Direction: XYZ(0.1, 0.1, -1),
 			},
-			&Ray{
+			{
 				Origin:    XYZ(1.5, 1.5, -1.5),
 				Direction: XYZ(0.1, 0.1, 1),
 			},
-			&Ray{
+			{
 				Origin:    XYZ(1.5, 1.5, 0.1),
 				Direction: XYZ(0.1, 0.1, 1),
 			},
-			&Ray{
+			{
 				Origin:    XYZ(1.5, 1.5, 0.1),
 				Direction: XYZ(0.1, 0.1, -1),
 			},

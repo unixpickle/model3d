@@ -107,7 +107,7 @@ func SaveRendering(path string, obj interface{}, origin model3d.Coord3D, width, 
 	caster := RayCaster{
 		Camera: NewCameraAt(origin, center, helperFieldOfView),
 		Lights: []*PointLight{
-			&PointLight{
+			{
 				Origin: center.Add(origin.Sub(center).Scale(1000)),
 				Color:  NewColor(1.0),
 			},
@@ -139,7 +139,7 @@ func SaveRandomGrid(path string, obj interface{}, rows, cols, imgSize int,
 			caster := &RayCaster{
 				Camera: directionalCamera(object, direction),
 				Lights: []*PointLight{
-					&PointLight{
+					{
 						Origin: center.Add(direction.Scale(1000)),
 						Color:  NewColor(1.0),
 					},

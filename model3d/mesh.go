@@ -85,10 +85,10 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 			longitudeNext := lonFunc(lonIdx + 1)
 			latitudeNext := latFunc(latIdx + 1)
 			g := []GeoCoord{
-				GeoCoord{Lat: latitude, Lon: longitude},
-				GeoCoord{Lat: latitude, Lon: longitudeNext},
-				GeoCoord{Lat: latitudeNext, Lon: longitudeNext},
-				GeoCoord{Lat: latitudeNext, Lon: longitude},
+				{Lat: latitude, Lon: longitude},
+				{Lat: latitude, Lon: longitudeNext},
+				{Lat: latitudeNext, Lon: longitudeNext},
+				{Lat: latitudeNext, Lon: longitude},
 			}
 			p := make([]Coord3D, 4)
 			for i, x := range g {
@@ -211,8 +211,8 @@ func (m *Mesh) Add(f *Triangle) {
 // clockwise order as seen from the outside of the mesh.
 func (m *Mesh) AddQuad(p1, p2, p3, p4 Coord3D) [2]*Triangle {
 	res := [2]*Triangle{
-		&Triangle{p1, p2, p4},
-		&Triangle{p2, p3, p4},
+		{p1, p2, p4},
+		{p2, p3, p4},
 	}
 	m.Add(res[0])
 	m.Add(res[1])

@@ -56,7 +56,7 @@ func Triangulate(polygon []Coord) [][3]Coord {
 	polygon = removeColinearPoints(polygon)
 
 	if len(polygon) == 3 {
-		return [][3]Coord{[3]Coord{polygon[0], polygon[1], polygon[2]}}
+		return [][3]Coord{{polygon[0], polygon[1], polygon[2]}}
 	} else if len(polygon) < 3 {
 		panic("polygon does not span a 2-D space")
 	}

@@ -331,59 +331,59 @@ func mcLookupTable() [256][]mcTriangle {
 // https://cg.informatik.uni-freiburg.de/intern/seminar/surfaceReconstruction_survey%20of%20marching%20cubes.pdf
 var baseTriangleTable = map[mcIntersections][]mcTriangle{
 	// Case 0-5
-	newMcIntersections(): []mcTriangle{},
-	newMcIntersections(0): []mcTriangle{
+	newMcIntersections(): {},
+	newMcIntersections(0): {
 		{0, 1, 0, 2, 0, 4},
 	},
-	newMcIntersections(0, 1): []mcTriangle{
+	newMcIntersections(0, 1): {
 		{0, 4, 1, 5, 0, 2},
 		{1, 5, 1, 3, 0, 2},
 	},
-	newMcIntersections(0, 5): []mcTriangle{
+	newMcIntersections(0, 5): {
 		{0, 1, 0, 2, 0, 4},
 		{5, 7, 1, 5, 4, 5},
 	},
-	newMcIntersections(0, 7): []mcTriangle{
+	newMcIntersections(0, 7): {
 		{0, 1, 0, 2, 0, 4},
 		{6, 7, 3, 7, 5, 7},
 	},
-	newMcIntersections(1, 2, 3): []mcTriangle{
+	newMcIntersections(1, 2, 3): {
 		{0, 1, 1, 5, 0, 2},
 		{0, 2, 1, 5, 2, 6},
 		{2, 6, 1, 5, 3, 7},
 	},
 
 	// Case 6-11
-	newMcIntersections(0, 1, 7): []mcTriangle{
+	newMcIntersections(0, 1, 7): {
 		// Case 2.
 		{0, 4, 1, 5, 0, 2},
 		{1, 5, 1, 3, 0, 2},
 		// End of case 4
 		{6, 7, 3, 7, 5, 7},
 	},
-	newMcIntersections(1, 4, 7): []mcTriangle{
+	newMcIntersections(1, 4, 7): {
 		{4, 6, 4, 5, 0, 4},
 		{1, 5, 1, 3, 0, 1},
 		// End of case 4.
 		{6, 7, 3, 7, 5, 7},
 	},
-	newMcIntersections(0, 1, 2, 3): []mcTriangle{
+	newMcIntersections(0, 1, 2, 3): {
 		{0, 4, 1, 5, 3, 7},
 		{0, 4, 3, 7, 2, 6},
 	},
-	newMcIntersections(0, 2, 3, 6): []mcTriangle{
+	newMcIntersections(0, 2, 3, 6): {
 		{0, 1, 4, 6, 0, 4},
 		{0, 1, 6, 7, 4, 6},
 		{0, 1, 1, 3, 6, 7},
 		{1, 3, 3, 7, 6, 7},
 	},
-	newMcIntersections(1, 2, 5, 6): []mcTriangle{
+	newMcIntersections(1, 2, 5, 6): {
 		{0, 2, 2, 3, 6, 7},
 		{0, 2, 6, 7, 4, 6},
 		{0, 1, 4, 5, 5, 7},
 		{5, 7, 1, 3, 0, 1},
 	},
-	newMcIntersections(0, 2, 3, 7): []mcTriangle{
+	newMcIntersections(0, 2, 3, 7): {
 		{0, 4, 0, 1, 2, 6},
 		{0, 1, 5, 7, 2, 6},
 		{2, 6, 5, 7, 6, 7},
@@ -391,25 +391,25 @@ var baseTriangleTable = map[mcIntersections][]mcTriangle{
 	},
 
 	// Case 12-17
-	newMcIntersections(1, 2, 3, 4): []mcTriangle{
+	newMcIntersections(1, 2, 3, 4): {
 		{0, 1, 1, 5, 0, 2},
 		{0, 2, 1, 5, 2, 6},
 		{2, 6, 1, 5, 3, 7},
 		{4, 5, 0, 4, 4, 6},
 	},
-	newMcIntersections(1, 2, 4, 7): []mcTriangle{
+	newMcIntersections(1, 2, 4, 7): {
 		{0, 1, 1, 5, 1, 3},
 		{0, 2, 2, 3, 2, 6},
 		{4, 5, 0, 4, 4, 6},
 		{5, 7, 6, 7, 3, 7},
 	},
-	newMcIntersections(1, 2, 3, 6): []mcTriangle{
+	newMcIntersections(1, 2, 3, 6): {
 		{0, 2, 0, 1, 4, 6},
 		{0, 1, 3, 7, 4, 6},
 		{0, 1, 1, 5, 3, 7},
 		{4, 6, 3, 7, 6, 7},
 	},
-	newMcIntersections(0, 2, 3, 5, 6): []mcTriangle{
+	newMcIntersections(0, 2, 3, 5, 6): {
 		// Case 9
 		{0, 1, 4, 6, 0, 4},
 		{0, 1, 6, 7, 4, 6},
@@ -418,41 +418,41 @@ var baseTriangleTable = map[mcIntersections][]mcTriangle{
 		// End of case 3
 		{5, 7, 1, 5, 4, 5},
 	},
-	newMcIntersections(2, 3, 4, 5, 6): []mcTriangle{
+	newMcIntersections(2, 3, 4, 5, 6): {
 		{5, 7, 1, 5, 0, 4},
 		{0, 4, 6, 7, 5, 7},
 		{0, 2, 6, 7, 0, 4},
 		{0, 2, 3, 7, 6, 7},
 		{0, 2, 1, 3, 3, 7},
 	},
-	newMcIntersections(0, 4, 5, 6, 7): []mcTriangle{
+	newMcIntersections(0, 4, 5, 6, 7): {
 		{1, 5, 0, 1, 0, 2},
 		{0, 2, 2, 6, 1, 5},
 		{1, 5, 2, 6, 3, 7},
 	},
 
 	// Case 18-22
-	newMcIntersections(1, 2, 3, 4, 5, 6): []mcTriangle{
+	newMcIntersections(1, 2, 3, 4, 5, 6): {
 		// Inverse of case 4.
 		{0, 2, 0, 1, 0, 4},
 		{3, 7, 6, 7, 5, 7},
 	},
-	newMcIntersections(1, 2, 3, 4, 6, 7): []mcTriangle{
+	newMcIntersections(1, 2, 3, 4, 6, 7): {
 		{0, 2, 4, 5, 0, 4},
 		{0, 2, 5, 7, 4, 5},
 		{0, 2, 1, 5, 5, 7},
 		{0, 1, 1, 5, 0, 2},
 	},
-	newMcIntersections(2, 3, 4, 5, 6, 7): []mcTriangle{
+	newMcIntersections(2, 3, 4, 5, 6, 7): {
 		// Inverse of case 2.
 		{1, 5, 0, 4, 0, 2},
 		{1, 3, 1, 5, 0, 2},
 	},
-	newMcIntersections(1, 2, 3, 4, 5, 6, 7): []mcTriangle{
+	newMcIntersections(1, 2, 3, 4, 5, 6, 7): {
 		// Inverse of case 1.
 		{0, 2, 0, 1, 0, 4},
 	},
-	newMcIntersections(0, 1, 2, 3, 4, 5, 6, 7): []mcTriangle{},
+	newMcIntersections(0, 1, 2, 3, 4, 5, 6, 7): {},
 }
 
 type squareSpacer struct {

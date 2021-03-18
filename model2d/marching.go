@@ -206,17 +206,17 @@ func (m msSegment) Segment(corners [4]Coord) *Segment {
 // squares algorithm.
 func msLookupTable() [16][]msSegment {
 	mapping := map[msIntersections][]msSegment{
-		newMsIntersections():     []msSegment{},
-		newMsIntersections(0):    []msSegment{{0, 2, 0, 1}},
-		newMsIntersections(1):    []msSegment{{0, 1, 1, 3}},
-		newMsIntersections(2):    []msSegment{{2, 3, 0, 2}},
-		newMsIntersections(3):    []msSegment{{1, 3, 2, 3}},
-		newMsIntersections(0, 1): []msSegment{{0, 2, 1, 3}},
-		newMsIntersections(0, 2): []msSegment{{2, 3, 0, 1}},
+		newMsIntersections():     {},
+		newMsIntersections(0):    {{0, 2, 0, 1}},
+		newMsIntersections(1):    {{0, 1, 1, 3}},
+		newMsIntersections(2):    {{2, 3, 0, 2}},
+		newMsIntersections(3):    {{1, 3, 2, 3}},
+		newMsIntersections(0, 1): {{0, 2, 1, 3}},
+		newMsIntersections(0, 2): {{2, 3, 0, 1}},
 		// Resolve ambiguities and don't create holes
 		// by covering both cases explicitly.
-		newMsIntersections(0, 3): []msSegment{{0, 2, 0, 1}, {1, 3, 2, 3}},
-		newMsIntersections(1, 2): []msSegment{{0, 1, 1, 3}, {2, 3, 0, 2}},
+		newMsIntersections(0, 3): {{0, 2, 0, 1}, {1, 3, 2, 3}},
+		newMsIntersections(1, 2): {{0, 1, 1, 3}, {2, 3, 0, 2}},
 	}
 
 	// Add inverses to complete the table.

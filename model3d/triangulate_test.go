@@ -19,8 +19,8 @@ func TestTriangulateFace(t *testing.T) {
 		t.Fatalf("unexpected triangle count: %d", len(triangles))
 	}
 	expected := []*Triangle{
-		&Triangle{rect[1], rect[2], rect[3]},
-		&Triangle{rect[3], rect[0], rect[1]},
+		{rect[1], rect[2], rect[3]},
+		{rect[3], rect[0], rect[1]},
 	}
 	for i, act := range triangles {
 		exp := expected[i]
