@@ -14,6 +14,11 @@ const (
 	AxisZ = 2
 )
 
+const (
+	DefaultSqueezeRatio = 0.1
+	DefaultPinchPower   = 0.25
+)
+
 // AxisSqueeze is a coordinate transformation which
 // squeezes some section of space into a much smaller
 // amount of space along some axis.
@@ -162,6 +167,26 @@ type SmartSqueeze struct {
 	// to flatten plateaus.
 	// Typically pinches will be added via AddPinch().
 	Pinches []float64
+}
+
+// NewSmartSqueeze creates a SmartSqueeze with the given
+// parameters, using defaults when necessary.
+//
+// If squeezeRatio is 0, DefaultSqueezeRatio is used.
+// If pinchPower is 0, DefaultPinchPower is used.
+func NewSmartSqueeze(axis Axis, squeezeRatio, pinchRange, pinchPower float64) *SmartSqueeze {
+	if squeezeRatio == 0 {
+		squeezeRatio = DefaultSqueezeRatio
+	}
+	if pinchPower == 0 {
+		pinchPower = DefaultPinchPower
+	}
+	return &SmartSqueeze{
+		Axis:         axis,
+		SqueezeRatio: squeezeRatio,
+		PinchRange:   pinchRange,
+		PinchPower:   pinchPower,
+	}
 }
 
 // AddUnsqueezable adds a range of axis values in which no
