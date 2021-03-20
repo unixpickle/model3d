@@ -371,3 +371,12 @@ func (c Coord3D) Reflect(c1 Coord3D) Coord3D {
 func (c Coord3D) Array() [3]float64 {
 	return [3]float64{c.X, c.Y, c.Z}
 }
+
+// fastHash generates a hash of the coordinate using a
+// dot product with a random vector.
+func (c Coord3D) fastHash() uint32 {
+	// Coefficients are random (keyboard mashed).
+	x := 0.783783847*c.X + 0.129387293*c.Y + 0.98439472938*c.Z
+	y := math.Float64bits(x)
+	return uint32(y&0xffffffff) ^ uint32(y>>32)
+}

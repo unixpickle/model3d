@@ -2,7 +2,6 @@ package model3d
 
 import (
 	"math"
-	"math/rand"
 	"testing"
 )
 
@@ -26,8 +25,15 @@ func TestCoord3DOrthoBasis(t *testing.T) {
 }
 
 func BenchmarkCoord3DOrthoBasis(b *testing.B) {
-	c := Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()}
+	c := NewCoord3DRandNorm()
 	for i := 0; i < b.N; i++ {
 		c.OrthoBasis()
+	}
+}
+
+func BenchmarkCoord3DFastHash(b *testing.B) {
+	c := NewCoord3DRandNorm()
+	for i := 0; i < b.N; i++ {
+		c.fastHash()
 	}
 }
