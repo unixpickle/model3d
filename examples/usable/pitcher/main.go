@@ -1,6 +1,8 @@
 package main
 
 import (
+	"math"
+
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
@@ -30,13 +32,15 @@ func PitcherExteriorSolid() model3d.Solid {
 	}
 	mesh := model3d.MarchingCubesConj(model, 0.02, 16, squeeze)
 	mesh = mesh.EliminateCoplanar(1e-5)
+
+	// Fix rough edges around the rim
+	mesh = FlattenTop(mesh)
+
 	mesh.Iterate(func(t *model3d.Triangle) {
 		if t.Normal().Z > 0.95 {
 			mesh.Remove(t)
 		}
 	})
-	// TODO: figure out how to smooth out the top.
-	// It is currently "rough" and jagged.
 	return model3d.NewColliderSolidHollow(model3d.MeshToCollider(mesh), Thickness/2)
 }
 
@@ -68,4 +72,12 @@ func Parabaloid() model3d.Solid {
 			return c.Z > c.X*c.X+c.Y*c.Y
 		},
 	)
+}
+
+func FlattenTop(m *model3d.Mesh) *model3d.Mesh {
+	rotation := model3d.Rotation(model3d.X(1), math.Pi)
+	m = m.MapCoords(rotation.Apply)
+	m = m.FlattenBase(0.99 * math.Pi / 2)
+	m = m.MapCoords(rotation.Inverse().Apply)
+	return m
 }
