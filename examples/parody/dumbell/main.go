@@ -35,12 +35,7 @@ func main() {
 		},
 	}
 	log.Println("Creating meshes...")
-	squeeze := &toolbox3d.SmartSqueeze{
-		Axis:         toolbox3d.AxisZ,
-		SqueezeRatio: 0.1,
-		PinchRange:   0.03,
-		PinchPower:   0.25,
-	}
+	squeeze := toolbox3d.NewSmartSqueeze(toolbox3d.AxisZ, 0, 0.03, 0)
 	squeeze.AddUnsqueezable(0, SideEdgeCut+0.02)
 	squeeze.AddUnsqueezable(SideHeight-SideEdgeCut-0.02, SideHeight)
 	squeeze.AddPinch(SideHeight / 2)

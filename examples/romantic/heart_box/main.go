@@ -62,12 +62,7 @@ func main() {
 }
 
 func CreateBoxSqueeze() *toolbox3d.SmartSqueeze {
-	squeeze := &toolbox3d.SmartSqueeze{
-		Axis:         toolbox3d.AxisZ,
-		PinchRange:   0.05,
-		SqueezeRatio: 0.1,
-		PinchPower:   0.25,
-	}
+	squeeze := toolbox3d.NewSmartSqueeze(toolbox3d.AxisZ, 0, 0.05, 0)
 	squeeze.AddPinch(0)
 	squeeze.AddPinch(BottomThickness)
 	squeeze.AddPinch(SectionHeight)
@@ -76,12 +71,7 @@ func CreateBoxSqueeze() *toolbox3d.SmartSqueeze {
 }
 
 func CreateLidSqueeze() *toolbox3d.SmartSqueeze {
-	squeeze := &toolbox3d.SmartSqueeze{
-		Axis:         toolbox3d.AxisZ,
-		PinchRange:   0.05,
-		SqueezeRatio: 0.1,
-		PinchPower:   0.25,
-	}
+	squeeze := toolbox3d.NewSmartSqueeze(toolbox3d.AxisZ, 0, 0.05, 0)
 	squeeze.AddPinch(0)
 	squeeze.AddPinch(LidThickness)
 	squeeze.AddPinch(LidHeight)

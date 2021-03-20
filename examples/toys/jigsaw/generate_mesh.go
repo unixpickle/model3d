@@ -61,12 +61,7 @@ func HolderSolid() model3d.Solid {
 }
 
 func HolderSqueeze() *toolbox3d.SmartSqueeze {
-	holderSqueeze := &toolbox3d.SmartSqueeze{
-		Axis:         toolbox3d.AxisZ,
-		SqueezeRatio: 0.1,
-		PinchRange:   0.02,
-		PinchPower:   0.25,
-	}
+	holderSqueeze := toolbox3d.NewSmartSqueeze(toolbox3d.AxisZ, 0, 0.02, 0)
 	holderSqueeze.AddPinch(-(HolderDepth - HolderInset))
 	holderSqueeze.AddPinch(0)
 	holderSqueeze.AddPinch(HolderInset)
@@ -74,12 +69,7 @@ func HolderSqueeze() *toolbox3d.SmartSqueeze {
 }
 
 func PiecesSqueeze() *toolbox3d.SmartSqueeze {
-	pieceSqueeze := &toolbox3d.SmartSqueeze{
-		Axis:         toolbox3d.AxisZ,
-		SqueezeRatio: 0.1,
-		PinchRange:   0.02,
-		PinchPower:   0.25,
-	}
+	pieceSqueeze := toolbox3d.NewSmartSqueeze(toolbox3d.AxisZ, 0, 0.02, 0)
 	pieceSqueeze.AddPinch(0)
 	pieceSqueeze.AddPinch(PieceDepth)
 	return pieceSqueeze

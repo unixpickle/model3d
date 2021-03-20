@@ -121,12 +121,7 @@ func LoadHeart() model2d.Solid {
 }
 
 func GraphSqueeze(heights []float64) *toolbox3d.SmartSqueeze {
-	squeeze := &toolbox3d.SmartSqueeze{
-		Axis:         toolbox3d.AxisZ,
-		PinchRange:   0.02,
-		PinchPower:   0.25,
-		SqueezeRatio: 0.1,
-	}
+	squeeze := toolbox3d.NewSmartSqueeze(toolbox3d.AxisZ, 0, 0.02, 0)
 	squeeze.AddPinch(0)
 	squeeze.AddPinch(BaseThickness)
 	squeeze.AddPinch(BaseThickness + TextThickness)

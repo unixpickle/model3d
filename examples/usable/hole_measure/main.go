@@ -59,12 +59,7 @@ func main() {
 				Radius: holeSize / 2,
 			},
 		}
-		sq := &toolbox3d.SmartSqueeze{
-			Axis:         toolbox3d.AxisZ,
-			SqueezeRatio: 0.05,
-			PinchRange:   0.04,
-			PinchPower:   0.1,
-		}
+		sq := toolbox3d.NewSmartSqueeze(toolbox3d.AxisZ, 0.05, 0.04, 0.1)
 		sq.AddUnsqueezable(a.BaseLength-a.TickThickness-0.02, a.BaseLength+0.02)
 		sq.AddPinch(0)
 		sq.AddPinch(a.BaseLength + a.PoleLength)

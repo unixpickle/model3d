@@ -84,12 +84,7 @@ func main() {
 			GrooveSize: KnobScrewGrooveSize,
 		},
 	)
-	squeeze := &toolbox3d.SmartSqueeze{
-		Axis:         toolbox3d.AxisZ,
-		SqueezeRatio: 0.1,
-		PinchPower:   0.25,
-		PinchRange:   0.02,
-	}
+	squeeze := toolbox3d.NewSmartSqueeze(toolbox3d.AxisZ, 0, 0.02, 0)
 	squeeze.AddUnsqueezable(KnobThickness+KnobLength-0.02, knobSolid.Max().Z)
 	squeeze.AddPinch(0)
 	squeeze.AddPinch(KnobThickness)
