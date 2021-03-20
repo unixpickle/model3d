@@ -6,6 +6,51 @@ import (
 	"testing"
 )
 
+func TestMeshNeedsRepair(t *testing.T) {
+	t.Run("Missing", func(t *testing.T) {
+		mesh := NewMeshPolar(func(g GeoCoord) float64 {
+			return g.Lat*2 + g.Lon/2 + 5.0
+		}, 5)
+		for _, tri := range mesh.TriangleSlice() {
+			if mesh.NeedsRepair() {
+				t.Fatal("should not need repair")
+			}
+			mesh.Remove(tri)
+			if !mesh.NeedsRepair() {
+				t.Fatal("should need repair")
+			}
+			mesh.Add(tri)
+		}
+	})
+	t.Run("Duplicate", func(t *testing.T) {
+		mesh := NewMeshPolar(func(g GeoCoord) float64 {
+			return g.Lat*2 + g.Lon/2 + 5.0
+		}, 5)
+		for _, tri := range mesh.TriangleSlice() {
+			if mesh.NeedsRepair() {
+				t.Fatal("should not need repair")
+			}
+			t1 := *tri
+			mesh.Add(&t1)
+			if !mesh.NeedsRepair() {
+				t.Fatal("should need repair")
+			}
+			mesh.Remove(&t1)
+		}
+	})
+	t.Run("SharedEdge", func(t *testing.T) {
+		r1 := NewMeshRect(XYZ(0, 0, 0), XYZ(1, 1, 1))
+		r2 := NewMeshRect(XYZ(1, 0, 0), XYZ(2, 1, 1))
+		if r1.NeedsRepair() || r2.NeedsRepair() {
+			t.Fatal("neither mesh should need repair")
+		}
+		r1.AddMesh(r2)
+		if !r1.NeedsRepair() {
+			t.Fatal("mesh should need repair")
+		}
+	})
+}
+
 func TestMeshRepair(t *testing.T) {
 	t.Run("EdgeCase", func(t *testing.T) {
 		m := NewMesh()
@@ -265,6 +310,28 @@ func BenchmarkMeshSmoothAreas(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		m.SmoothAreas(0.1, 7)
 	}
+}
+
+func BenchmarkMeshNeedsRepair(b *testing.B) {
+	b.Run("Manifold", func(b *testing.B) {
+		m := NewMeshPolar(func(g GeoCoord) float64 {
+			return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
+		}, 100)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			m.NeedsRepair()
+		}
+	})
+	b.Run("NonManifold", func(b *testing.B) {
+		m := NewMeshPolar(func(g GeoCoord) float64 {
+			return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
+		}, 100)
+		m.Remove(m.TriangleSlice()[0])
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			m.NeedsRepair()
+		}
+	})
 }
 
 func BenchmarkMeshRepair(b *testing.B) {
