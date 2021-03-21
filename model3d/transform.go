@@ -174,6 +174,12 @@ func ScaleSolid(solid Solid, s float64) Solid {
 	return TransformSolid(&Scale{Scale: s}, solid)
 }
 
+// TranslateSolid creates a new Solid by translating it by
+// a given offset.
+func TranslateSolid(solid Solid, offset Coord3D) Solid {
+	return TransformSolid(&Translate{Offset: offset}, solid)
+}
+
 // TransformSolid applies t to the solid s to produce a
 // new, transformed solid.
 func TransformSolid(t Transform, s Solid) Solid {
