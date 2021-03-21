@@ -83,9 +83,10 @@ func LoadLetter(filename string, x float64) model3d.Solid {
 	profile = model3d.TransformSolid(&model3d.Matrix3Transform{
 		Matrix: &model3d.Matrix3{1.0, 0, 0, 0, 0.0, 1.0, 0, 1.0, 0.0},
 	}, profile)
-	profile = model3d.TransformSolid(&model3d.Translate{
-		Offset: model3d.XYZ(x-profile.Max().X/2, -LetterThickness/2, LetterZ),
-	}, profile)
+	profile = model3d.TranslateSolid(
+		profile,
+		model3d.XYZ(x-profile.Max().X/2, -LetterThickness/2, LetterZ),
+	)
 
 	return profile
 }
