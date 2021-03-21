@@ -318,6 +318,9 @@ func (c Coord3D) Normalize() Coord3D {
 
 // OrthoBasis creates two unit vectors which are
 // orthogonal to c and to each other.
+//
+// If c is axis-aligned, the other vectors will be as
+// well.
 func (c Coord3D) OrthoBasis() (Coord3D, Coord3D) {
 	absX := math.Abs(c.X)
 	absY := math.Abs(c.Y)
