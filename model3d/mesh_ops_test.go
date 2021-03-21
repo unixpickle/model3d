@@ -313,25 +313,37 @@ func BenchmarkMeshSmoothAreas(b *testing.B) {
 }
 
 func BenchmarkMeshNeedsRepair(b *testing.B) {
-	b.Run("Manifold", func(b *testing.B) {
-		m := NewMeshPolar(func(g GeoCoord) float64 {
-			return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
-		}, 100)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			m.NeedsRepair()
+	for _, v2f := range []bool{false, true} {
+		suffix := ""
+		if v2f {
+			suffix = "V2F"
 		}
-	})
-	b.Run("NonManifold", func(b *testing.B) {
-		m := NewMeshPolar(func(g GeoCoord) float64 {
-			return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
-		}, 100)
-		m.Remove(m.TriangleSlice()[0])
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			m.NeedsRepair()
-		}
-	})
+		b.Run("Manifold"+suffix, func(b *testing.B) {
+			m := NewMeshPolar(func(g GeoCoord) float64 {
+				return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
+			}, 100)
+			if v2f {
+				m.Find(m.VertexSlice()[0])
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				m.NeedsRepair()
+			}
+		})
+		b.Run("NonManifold"+suffix, func(b *testing.B) {
+			m := NewMeshPolar(func(g GeoCoord) float64 {
+				return 3 + math.Cos(g.Lat)*math.Sin(g.Lon)
+			}, 100)
+			if v2f {
+				m.Find(m.VertexSlice()[0])
+			}
+			m.Remove(m.TriangleSlice()[0])
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				m.NeedsRepair()
+			}
+		})
+	}
 }
 
 func BenchmarkMeshRepair(b *testing.B) {

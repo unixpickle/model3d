@@ -303,6 +303,53 @@ type equivalenceClass struct {
 // NeedsRepair checks if every edge touches exactly two
 // triangles. If not, NeedsRepair returns true.
 func (m *Mesh) NeedsRepair() bool {
+	if m.getVertexToFaceOrNil() != nil {
+		return m.slowNeedsRepair()
+	}
+
+	// Use fast hashes if possible to avoid slow
+	// vertex-to-face mapping.
+	edges := map[uint64]segmentWithCount{}
+	for face := range m.faces {
+		for i := 0; i < 3; i++ {
+			c1 := face[i]
+			c2 := face[(i+1)%3]
+			h1, h2 := c1.fastHash(), c2.fastHash()
+			if h1 > h2 {
+				h1, h2 = h2, h1
+				c1, c2 = c2, c1
+			}
+			hash := uint64(h1) | (uint64(h2) << 32)
+			if swc, ok := edges[hash]; ok {
+				if swc.C1 != c1 || swc.C2 != c2 {
+					// Hash collision detected.
+					return m.slowNeedsRepair()
+				}
+				swc.Count++
+				if swc.Count > 2 {
+					return true
+				}
+				edges[hash] = swc
+			} else {
+				edges[hash] = segmentWithCount{C1: c1, C2: c2, Count: 1}
+			}
+		}
+	}
+	for _, swc := range edges {
+		if swc.Count != 2 {
+			return true
+		}
+	}
+	return false
+}
+
+type segmentWithCount struct {
+	C1    Coord3D
+	C2    Coord3D
+	Count int
+}
+
+func (m *Mesh) slowNeedsRepair() bool {
 	for t := range m.faces {
 		for i := 0; i < 3; i++ {
 			p1 := t[i]
