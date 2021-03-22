@@ -292,3 +292,53 @@ func vertexNeighbors(m *Mesh, c Coord) (n1, n2 Coord, ok bool) {
 	}
 	return
 }
+
+// EliminateColinear eliminates vertices that connect
+// nearly co-linear edges.
+//
+// The epsilon argument should be a small positive value
+// that is used to approximate co-linearity.
+// A good value for very precise results is 1e-8.
+func (m *Mesh) EliminateColinear(epsilon float64) *Mesh {
+	res := NewMesh()
+	res.AddMesh(m)
+
+	eligible := map[Coord]bool{}
+	for _, v := range res.VertexSlice() {
+		if vertexNormalDifference(m, v) < epsilon {
+			eligible[v] = true
+		}
+	}
+
+	for len(eligible) > 0 {
+		var next Coord
+		for c := range eligible {
+			next = c
+			break
+		}
+		n1, n2, _ := vertexNeighbors(m, next)
+		for _, seg := range res.Find(next) {
+			res.Remove(seg)
+		}
+		res.Add(&Segment{n1, n2})
+		for _, c := range []Coord{n1, n2} {
+			if vertexNormalDifference(m, c) < epsilon {
+				eligible[c] = true
+			} else if eligible[c] {
+				delete(eligible, c)
+			}
+		}
+	}
+
+	return res
+}
+
+func vertexNormalDifference(m *Mesh, c Coord) float64 {
+	segs := m.Find(c)
+	if len(segs) != 2 {
+		return math.Inf(1)
+	}
+	n1 := segs[0].Normal()
+	n2 := segs[1].Normal()
+	return 1 - math.Min(1, n1.Dot(n2))
+}
