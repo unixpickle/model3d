@@ -47,6 +47,7 @@ func HouseSolid() model3d.Solid {
 		RoofSolid(),
 
 		DoorSolid(),
+		ChimneySolid(),
 		windows,
 	}
 }
@@ -75,6 +76,10 @@ func RoofSolid() model3d.Solid {
 		},
 	}
 	return model3d.TranslateSolid(prism.Solid(), model3d.Z(1))
+}
+
+func ChimneySolid() model3d.Solid {
+	return model3d.NewRect(model3d.XY(0.5, 0.1), model3d.XYZ(0.65, 0.25, 1.6))
 }
 
 func WindowSolid() model3d.Solid {
