@@ -1,8 +1,6 @@
 package toolbox3d
 
 import (
-	"math"
-
 	"github.com/unixpickle/model3d/model3d"
 )
 
@@ -18,7 +16,6 @@ func LineJoin(r float64, lines ...model3d.Segment) model3d.Solid {
 }
 
 // L1LineJoin is like LineJoin, but uses L1 distance.
-// All of the segments must be axis aligned.
 func L1LineJoin(r float64, lines ...model3d.Segment) model3d.Solid {
 	res := model3d.JoinedSolid{}
 	for _, seg := range lines {
@@ -62,18 +59,16 @@ func TriangularPolygon(thickness float64, close bool, p ...model3d.Coord3D) mode
 }
 
 // TriangularLine creates a solid that is true within a
-// given L1 distance of an axis-aligned segment.
+// given L1 distance of a segment, with the exception that
+// it is always false past the endpoints.
 //
-// The solid is false past the endpoints of the segment.
 // To "smooth" the endpoints, use TriangularBall().
 func TriangularLine(thickness float64, p1, p2 model3d.Coord3D) model3d.Solid {
 	dir := p1.Sub(p2)
 	length := dir.Norm()
 	dir = dir.Normalize()
 
-	// Basis vectors will be axis-aligned if dir is.
-	b1, b2 := dir.OrthoBasis()
-
+	seg := model3d.NewSegment(p1, p2)
 	ball := model3d.XYZ(thickness, thickness, thickness)
 	return model3d.CheckedFuncSolid(
 		p1.Min(p2).Sub(ball),
@@ -84,8 +79,7 @@ func TriangularLine(thickness float64, p1, p2 model3d.Coord3D) model3d.Solid {
 			if dot < 0 || dot > length {
 				return false
 			}
-			dot1, dot2 := b1.Dot(subtracted), b2.Dot(subtracted)
-			return math.Abs(dot1)+math.Abs(dot2) < thickness
+			return seg.L1Dist(c) < thickness
 		},
 	)
 }
@@ -98,8 +92,7 @@ func TriangularBall(thickness float64, p model3d.Coord3D) model3d.Solid {
 		p.Sub(ball),
 		p.Add(ball),
 		func(c model3d.Coord3D) bool {
-			diff := c.Sub(p)
-			return math.Abs(diff.X)+math.Abs(diff.Y)+math.Abs(diff.Z) < thickness
+			return c.L1Dist(p) < thickness
 		},
 	)
 }
