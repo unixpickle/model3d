@@ -481,6 +481,12 @@ func (s Segment) Dist(c Coord3D) float64 {
 	return c.Dist(s.Closest(c))
 }
 
+// L1Dist gets the minimum L1 distance from c to a point
+// on the line segment.
+func (s *Segment) L1Dist(c Coord3D) float64 {
+	return c.L1Dist(s.ClosestL1(c))
+}
+
 // Closest gets the point on the segment closest to c.
 func (s Segment) Closest(c Coord3D) Coord3D {
 	v1 := s[1].Sub(s[0])
@@ -496,6 +502,42 @@ func (s Segment) Closest(c Coord3D) Coord3D {
 	}
 
 	return v.Scale(mag).Add(s[0])
+}
+
+// ClosestL1 gets the point on the segment closest to c as
+// measured in L1 distance.
+func (s *Segment) ClosestL1(c Coord3D) Coord3D {
+	p0 := s[0]
+	v := s[1].Sub(s[0])
+
+	dist := math.Inf(1)
+	closest := Coord3D{}
+	checkT := func(t float64) {
+		tPoint := p0.Add(v.Scale(t))
+		d := tPoint.L1Dist(c)
+		if d < dist {
+			dist = d
+			closest = tPoint
+		}
+	}
+
+	checkT(0.0)
+	checkT(1.0)
+
+	vArr := v.Array()
+	cArr := c.Sub(p0).Array()
+
+	for i := 0; i < 3; i++ {
+		if vArr[i] == 0 {
+			continue
+		}
+		t := cArr[i] / vArr[i]
+		if t > 0 && t < 1 {
+			checkT(t)
+		}
+	}
+
+	return closest
 }
 
 // RectCollision checks if the segment intersects a Rect.

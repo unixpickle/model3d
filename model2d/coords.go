@@ -143,6 +143,11 @@ func (c Coord) Dist(c1 Coord) float64 {
 	return math.Sqrt(math.Pow(c.X-c1.X, 2) + math.Pow(c.Y-c1.Y, 2))
 }
 
+// L1Dist computes the L1 distance to c1.
+func (c Coord) L1Dist(c1 Coord) float64 {
+	return math.Abs(c.X-c1.X) + math.Abs(c.Y-c1.Y)
+}
+
 // Min gets the element-wise minimum of c and c1.
 func (c Coord) Min(c1 Coord) Coord {
 	return Coord{math.Min(c.X, c1.X), math.Min(c.Y, c1.Y)}

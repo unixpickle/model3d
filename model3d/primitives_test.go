@@ -130,6 +130,26 @@ func TestSegmentEntersSphere(t *testing.T) {
 	}
 }
 
+func TestSegmentClosestL1(t *testing.T) {
+	for i := 0; i < 1000; i++ {
+		s := NewSegment(NewCoord3DRandNorm(), NewCoord3DRandNorm())
+		c := NewCoord3DRandNorm()
+
+		bound := math.Inf(1)
+		for t := 0.0; t < 1.0; t += 0.01 {
+			checkPoint := s[0].Add(s[1].Sub(s[0]).Scale(t))
+			bound = math.Min(bound, checkPoint.L1Dist(c))
+		}
+
+		closest := s.ClosestL1(c)
+		if s.Dist(closest) > 1e-5 {
+			t.Errorf("closest L1 returned point off the segment")
+		} else if s.L1Dist(closest) > bound+1e-5 {
+			t.Errorf("found closer point than L1 distance")
+		}
+	}
+}
+
 func TestTriangleCollisions(t *testing.T) {
 	t.Run("RandomPairs", func(t *testing.T) {
 		for i := 0; i < 1000; i++ {

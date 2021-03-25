@@ -247,6 +247,11 @@ func (c Coord3D) Dist(c1 Coord3D) float64 {
 	return math.Sqrt(d1*d1 + d2*d2 + d3*d3)
 }
 
+// L1Dist computes the L1 distance to c1.
+func (c Coord3D) L1Dist(c1 Coord3D) float64 {
+	return math.Abs(c.X-c1.X) + math.Abs(c.Y-c1.Y) + math.Abs(c.Z-c1.Z)
+}
+
 // Geo computes a normalized geo coordinate.
 func (c Coord3D) Geo() GeoCoord {
 	if c.Norm() == 0 {
