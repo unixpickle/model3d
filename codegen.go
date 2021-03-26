@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"go/format"
 	"io/ioutil"
 	"log"
@@ -14,20 +15,24 @@ import (
 //go:generate go run codegen.go
 
 func main() {
-	Generate2d3dTemplate("transform")
-	Generate2d3dTemplate("bounder")
-	Generate2d3dTemplate("solid")
-	Generate2d3dTemplate("mesh")
-	Generate2d3dTemplate("mesh_hierarchy")
-	Generate2d3dTemplate("mesh_hierarchy_test")
-	Generate2d3dTemplate("bvh")
-	Generate2d3dTemplate("polytope")
-	Generate2d3dTemplate("polytope_test")
-	Generate2d3dTemplate("util_test")
-	Generate2d3dTemplate("sdf")
+	var checkNoChange bool
+	flag.BoolVar(&checkNoChange, "check", false, "if true, assert that nothing changes")
+	flag.Parse()
+
+	Generate2d3dTemplate("transform", checkNoChange)
+	Generate2d3dTemplate("bounder", checkNoChange)
+	Generate2d3dTemplate("solid", checkNoChange)
+	Generate2d3dTemplate("mesh", checkNoChange)
+	Generate2d3dTemplate("mesh_hierarchy", checkNoChange)
+	Generate2d3dTemplate("mesh_hierarchy_test", checkNoChange)
+	Generate2d3dTemplate("bvh", checkNoChange)
+	Generate2d3dTemplate("polytope", checkNoChange)
+	Generate2d3dTemplate("polytope_test", checkNoChange)
+	Generate2d3dTemplate("util_test", checkNoChange)
+	Generate2d3dTemplate("sdf", checkNoChange)
 }
 
-func Generate2d3dTemplate(name string) {
+func Generate2d3dTemplate(name string, checkNoChange bool) {
 	inPath := filepath.Join("templates", name+".template")
 	template, err := template.ParseFiles(inPath)
 	essentials.Must(err)
@@ -37,7 +42,15 @@ func Generate2d3dTemplate(name string) {
 		data := RenderTemplate(template, TemplateEnvironment(pkg))
 		data = ReformatCode(data)
 		data = InjectGeneratedComment(data, inPath)
-		essentials.Must(ioutil.WriteFile(outPath, []byte(data), 0644))
+		if checkNoChange {
+			oldData, err := ioutil.ReadFile(outPath)
+			essentials.Must(err)
+			if !bytes.Equal(oldData, []byte(data)) {
+				essentials.Die("File changed, check failed!")
+			}
+		} else {
+			essentials.Must(ioutil.WriteFile(outPath, []byte(data), 0644))
+		}
 	}
 }
 
