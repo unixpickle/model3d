@@ -316,6 +316,7 @@ func (m *Mesh) EliminateColinear(epsilon float64) *Mesh {
 			next = c
 			break
 		}
+		delete(eligible, next)
 		n1, n2, _ := vertexNeighbors(m, next)
 		for _, seg := range res.Find(next) {
 			res.Remove(seg)

@@ -140,6 +140,23 @@ func TestMeshDecimate(t *testing.T) {
 	})
 }
 
+func TestMeshEliminateColinear(t *testing.T) {
+	mesh := NewMeshRect(XY(0, 1), XY(2, 3))
+	oldMesh := NewMeshSegments(mesh.SegmentSlice())
+	mesh.Iterate(func(s *Segment) {
+		mp := s.Mid()
+		mesh.Remove(s)
+		mesh.Add(&Segment{s[0], mp})
+		mesh.Add(&Segment{mp, s[1]})
+	})
+	if meshesEqual(oldMesh, mesh) {
+		t.Fatal("should not be equal")
+	}
+	if !meshesEqual(oldMesh, mesh.EliminateColinear(1e-5)) {
+		t.Error("eliminated mesh should go back to original")
+	}
+}
+
 func meshesEqual(m1, m2 *Mesh) bool {
 	seg1 := meshSegmentValues(m1)
 	seg2 := meshSegmentValues(m2)
