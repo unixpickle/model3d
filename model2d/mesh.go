@@ -81,6 +81,18 @@ func NewMeshPolar(radius func(theta float64) float64, stops int) *Mesh {
 	return res
 }
 
+// NewMeshRect creates a rectangle mesh.
+func NewMeshRect(min, max Coord) *Mesh {
+	m := NewMesh()
+	p1 := XY(min.X, max.Y)
+	p2 := XY(max.X, min.Y)
+	m.Add(&Segment{min, p1})
+	m.Add(&Segment{p1, max})
+	m.Add(&Segment{max, p2})
+	m.Add(&Segment{p2, min})
+	return m
+}
+
 // Add adds the segment f to the mesh.
 func (m *Mesh) Add(f *Segment) {
 	v2f := m.getVertexToFaceOrNil()

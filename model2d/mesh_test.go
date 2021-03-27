@@ -27,3 +27,8 @@ func TestNewMeshPolar(t *testing.T) {
 	}, 100)
 	MustValidateMesh(t, mesh)
 }
+
+func TestNewMeshRect(t *testing.T) {
+	mesh := NewMeshRect(XY(0.2, 0.3), XY(0.25, 0.5))
+	MustValidateMesh(t, mesh)
+}
