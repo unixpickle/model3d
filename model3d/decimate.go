@@ -59,6 +59,12 @@ type Decimator struct {
 	// If 0, a default of DefaultDecimatorMinAspectRatio
 	// is used.
 	MinimumAspectRatio float64
+
+	// FilterFunc, if specified, can be used to prevent
+	// certain vertices from being removed.
+	// If FilterFunc returns false for a coordinate, it
+	// may not be removed; otherwise it may be removed.
+	FilterFunc func(c Coord3D) bool
 }
 
 // Decimate applies the decimation algorithm to m,
@@ -76,6 +82,7 @@ func (d *Decimator) decimator() *decimator {
 			BoundaryDistance:   d.BoundaryDistance,
 			NoEdgePreservation: d.NoEdgePreservation,
 			EliminateCorners:   d.EliminateCorners,
+			FilterFunc:         d.FilterFunc,
 		},
 	}
 }
@@ -90,9 +97,13 @@ type distanceDecCriterion struct {
 	BoundaryDistance   float64
 	NoEdgePreservation bool
 	EliminateCorners   bool
+	FilterFunc         func(c Coord3D) bool
 }
 
 func (d *distanceDecCriterion) canRemoveVertex(v *decVertex) bool {
+	if d.FilterFunc != nil && !d.FilterFunc(v.Vertex.Coord3D) {
+		return false
+	}
 	if v.Simple() || (v.Edge() && d.NoEdgePreservation) || (v.Corner() && d.EliminateCorners) {
 		// Use the distance to plane metric.
 		return math.Abs(v.AvgPlane.Eval(v.Vertex.Coord3D)) < d.PlaneDistance
