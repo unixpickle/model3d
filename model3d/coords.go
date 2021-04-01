@@ -247,6 +247,14 @@ func (c Coord3D) Dist(c1 Coord3D) float64 {
 	return math.Sqrt(d1*d1 + d2*d2 + d3*d3)
 }
 
+// SquaredDist gets the squared Euclidean distance to c1.
+func (c Coord3D) SquaredDist(c1 Coord3D) float64 {
+	d1 := c.X - c1.X
+	d2 := c.Y - c1.Y
+	d3 := c.Z - c1.Z
+	return d1*d1 + d2*d2 + d3*d3
+}
+
 // L1Dist computes the L1 distance to c1.
 func (c Coord3D) L1Dist(c1 Coord3D) float64 {
 	return math.Abs(c.X-c1.X) + math.Abs(c.Y-c1.Y) + math.Abs(c.Z-c1.Z)

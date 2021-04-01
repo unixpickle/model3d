@@ -140,7 +140,16 @@ func (c Coord) Sub(c1 Coord) Coord {
 
 // Dist computes the Euclidean distance to c1.
 func (c Coord) Dist(c1 Coord) float64 {
-	return math.Sqrt(math.Pow(c.X-c1.X, 2) + math.Pow(c.Y-c1.Y, 2))
+	d1 := c.X - c1.X
+	d2 := c.Y - c1.Y
+	return math.Sqrt(d1*d1 + d2*d2)
+}
+
+// SquaredDist gets the squared Euclidean distance to c1.
+func (c Coord) SquaredDist(c1 Coord) float64 {
+	d1 := c.X - c1.X
+	d2 := c.Y - c1.Y
+	return d1*d1 + d2*d2
 }
 
 // L1Dist computes the L1 distance to c1.
