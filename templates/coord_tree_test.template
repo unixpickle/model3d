@@ -1,0 +1,43 @@
+package {{.package}}
+
+import "testing"
+
+func TestCoordTreeContains(t *testing.T) {
+	coords := make([]{{.coordType}}, 1000)
+	for i := range coords {
+		coords[i] = New{{.coordType}}RandNorm()
+	}
+	tree := NewCoordTree(coords)
+
+	for _, c := range coords {
+		if !tree.Contains(c) {
+			t.Errorf("missing coordinate: %v", c)
+		}
+	}
+	for i := 0; i < 1000; i++ {
+		if tree.Contains(New{{.coordType}}RandNorm()) {
+			t.Error("random point should not be contained (very low probability)")
+		}
+	}
+}
+
+func TestCoordTreeContainsDuplicates(t *testing.T) {
+	coords := make([]{{.coordType}}, 1000)
+	for i := range coords {
+		coords[i] = New{{.coordType}}RandNorm()
+	}
+	coords = append(coords, coords[0:100]...)
+	coords = append(coords, coords[0:100]...)
+	tree := NewCoordTree(coords)
+
+	for _, c := range coords {
+		if !tree.Contains(c) {
+			t.Errorf("missing coordinate: %v", c)
+		}
+	}
+	for i := 0; i < 1000; i++ {
+		if tree.Contains(New{{.coordType}}RandNorm()) {
+			t.Error("random point should not be contained (very low probability)")
+		}
+	}
+}
