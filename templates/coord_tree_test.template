@@ -1,6 +1,9 @@
 package {{.package}}
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestCoordTreeContains(t *testing.T) {
 	coords := make([]{{.coordType}}, 1000)
@@ -38,6 +41,42 @@ func TestCoordTreeContainsDuplicates(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		if tree.Contains(New{{.coordType}}RandNorm()) {
 			t.Error("random point should not be contained (very low probability)")
+		}
+	}
+}
+
+func TestCoordTreeNearestNeighbor(t *testing.T) {
+	coords := make([]{{.coordType}}, 1000)
+	for i := range coords {
+		coords[i] = New{{.coordType}}RandNorm()
+	}
+	coords = append(coords, coords[0:100]...)
+	coords = append(coords, coords[0:100]...)
+
+	naiveNearest := func(c {{.coordType}}) {{.coordType}} {
+		bestDist := math.Inf(1)
+		bestCoord := {{.coordType}}{}
+		for _, p := range coords {
+			dist := p.Dist(c)
+			if dist < bestDist {
+				bestDist = dist
+				bestCoord = p
+			}
+		}
+		return bestCoord
+	}
+
+	tree := NewCoordTree(coords)
+
+	for _, c := range coords {
+		if tree.NearestNeighbor(c) != c {
+			t.Errorf("bad neighbor for coordinate: %v", c)
+		}
+	}
+	for i := 0; i < 1000; i++ {
+		p := New{{.coordType}}RandNorm()
+		if tree.NearestNeighbor(p) != naiveNearest(p) {
+			t.Error("incorrect nearest neighbor for random point")
 		}
 	}
 }
