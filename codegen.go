@@ -30,6 +30,8 @@ func main() {
 	Generate2d3dTemplate("polytope_test", checkNoChange)
 	Generate2d3dTemplate("util_test", checkNoChange)
 	Generate2d3dTemplate("sdf", checkNoChange)
+	Generate2d3dTemplate("coord_tree", checkNoChange)
+	Generate2d3dTemplate("coord_tree_test", checkNoChange)
 }
 
 func Generate2d3dTemplate(name string, checkNoChange bool) {
