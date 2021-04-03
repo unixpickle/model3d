@@ -18,6 +18,7 @@ const (
 	SprinkleRadius  = 0.02
 	SprinkleEpsilon = 0.0025
 	SprinkleSpacing = 0.15
+	ColorEpsilon    = 0.01
 )
 
 func main() {
@@ -93,8 +94,13 @@ func ColorFilter(m *model3d.Mesh, cf render3d.ColorFunc) func(c model3d.Coord3D)
 			}
 		}
 	})
+	points := make([]model3d.Coord3D, 0, len(changed))
+	for p := range changed {
+		points = append(points, p)
+	}
+	tree := model3d.NewCoordTree(points)
 	return func(c model3d.Coord3D) bool {
-		return !changed[c]
+		return !tree.SphereCollision(c, ColorEpsilon)
 	}
 }
 

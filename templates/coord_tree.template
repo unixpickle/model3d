@@ -100,8 +100,41 @@ func (c *CoordTree) nearestNeighbor(p {{.coordType}}, res *{{.coordType}}, bound
 	// Attempt to eliminate out-of-bounds half spaces.
 	if planeDist > 0 && planeDist*planeDist < *bound {
 		c.GreaterEqual.nearestNeighbor(p, res, bound)
-	} else if planeDist < 0 && planeDist*planeDist < *bound {
+	} else if planeDist <= 0 && planeDist*planeDist < *bound {
 		c.LessThan.nearestNeighbor(p, res, bound)
+	}
+}
+
+// SphereCollision checks if the sphere centered at point
+// p with radius r contains any points in the tree.
+func (c *CoordTree) SphereCollision(p {{.coordType}}, r float64) bool {
+	return c.sphereCollision(p, r * r)
+}
+
+func (c *CoordTree) sphereCollision(p {{.coordType}}, rSquared float64) bool {
+	if c == nil {
+		return false
+	}
+	dist := p.SquaredDist(c.Coord)
+	if dist <= rSquared {
+		return true
+	}
+	planeDist := c.Coord.Array()[c.SplitAxis] - p.Array()[c.SplitAxis]
+	if planeDist > 0 {
+		if c.LessThan.sphereCollision(p, rSquared) {
+			return true
+		}
+	} else {
+		if c.GreaterEqual.sphereCollision(p, rSquared) {
+			return true
+		}
+	}
+	if planeDist > 0 && planeDist*planeDist <= rSquared {
+		return c.GreaterEqual.sphereCollision(p, rSquared)
+	} else if planeDist <= 0 && planeDist*planeDist <= rSquared {
+		return c.LessThan.sphereCollision(p, rSquared)
+	} else {
+		return false
 	}
 }
 

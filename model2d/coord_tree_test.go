@@ -4,6 +4,7 @@ package model2d
 
 import (
 	"math"
+	"math/rand"
 	"testing"
 )
 
@@ -80,5 +81,50 @@ func TestCoordTreeNearestNeighbor(t *testing.T) {
 		if tree.NearestNeighbor(p) != naiveNearest(p) {
 			t.Error("incorrect nearest neighbor for random point")
 		}
+	}
+	// Make sure axis-value collisions don't break
+	// the algorithm.
+	for i := 0; i < 1000; i++ {
+		p := coords[rand.Intn(len(coords))]
+		p.X = rand.NormFloat64()
+		if tree.NearestNeighbor(p) != naiveNearest(p) {
+			t.Error("incorrect nearest neighbor for axis-similar point")
+		}
+	}
+}
+
+func TestCoordTreeSphereCollision(t *testing.T) {
+	coords := make([]Coord, 1000)
+	for i := range coords {
+		coords[i] = NewCoordRandNorm()
+	}
+	coords = append(coords, coords[0:100]...)
+	coords = append(coords, coords[0:100]...)
+
+	tree := NewCoordTree(coords)
+
+	randomRadius := func(c Coord) (float64, bool) {
+		actualRadius := c.Dist(tree.NearestNeighbor(c))
+		scale := rand.Float64() * 2
+		radius := actualRadius * scale
+		return radius, scale >= 1
+	}
+	checkCollision := func(c Coord) {
+		radius, expected := randomRadius(c)
+		if tree.SphereCollision(c, radius) != expected {
+			t.Errorf("expected collision %v but got %v", expected, !expected)
+		}
+	}
+
+	for i := 0; i < 1000; i++ {
+		p := NewCoordRandNorm()
+		checkCollision(p)
+	}
+	// Make sure axis-value collisions don't break
+	// the algorithm.
+	for i := 0; i < 1000; i++ {
+		p := coords[rand.Intn(len(coords))]
+		p.X = rand.NormFloat64()
+		checkCollision(p)
 	}
 }
