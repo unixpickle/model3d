@@ -6,6 +6,53 @@ import (
 	"github.com/unixpickle/model3d/model2d"
 )
 
+// A LineSearch implements a 1D line search for minimizing
+// or maximizing 1D functions.
+type LineSearch struct {
+	// Number of points to test along the input space.
+	Stops int
+
+	// Number of times to recursively search around the
+	// best point on the line.
+	Recursions int
+}
+
+func (l *LineSearch) Minimize(min, max float64, f func(float64) float64) (x, fVal float64) {
+	x, fVal = l.Maximize(min, max, func(x float64) float64 {
+		return -f(x)
+	})
+	return x, -fVal
+}
+
+func (l *LineSearch) Maximize(min, max float64, f func(float64) float64) (x, fVal float64) {
+	return l.maximize(min, max, f, l.Recursions)
+}
+
+func (l *LineSearch) maximize(min, max float64, f func(float64) float64,
+	recursions int) (float64, float64) {
+	if recursions < 0 {
+		panic("number of recursions cannot be negative")
+	}
+	size := max - min
+	xStep := size / float64(l.Stops)
+	solution := 0.0
+	value := math.Inf(-1)
+	for xi := 0; xi < l.Stops; xi++ {
+		x := float64(xi)*xStep + xStep/2 + min
+		v := f(x)
+		if v > value {
+			value = v
+			solution = x
+		}
+	}
+	if recursions == 0 {
+		return solution, value
+	}
+	newMin := math.Max(min, solution-xStep)
+	newMax := math.Min(max, solution+xStep)
+	return l.maximize(newMin, newMax, f, recursions-1)
+}
+
 // A GridSearch2D implements 2D grid search for minimizing
 // or maximizing 2D functions.
 type GridSearch2D struct {
