@@ -53,6 +53,27 @@ func (l *LineSearch) maximize(min, max float64, f func(float64) float64,
 	return l.maximize(newMin, newMax, f, recursions-1)
 }
 
+// CurveBounds approximates the bounding box of a
+// parametric curve, such as a 2D bezier curve.
+//
+// The min and max arguments specify the minimum and
+// maximum argument to pass to f, which is typically in
+// the range [0, 1] for Bezier curves.
+func (l *LineSearch) CurveBounds(min, max float64, f func(float64) model2d.Coord) (model2d.Coord,
+	model2d.Coord) {
+	minArr := [2]float64{}
+	maxArr := [2]float64{}
+	for i := 0; i < 2; i++ {
+		_, minArr[i] = l.Minimize(min, max, func(t float64) float64 {
+			return f(t).Array()[i]
+		})
+		_, maxArr[i] = l.Maximize(min, max, func(t float64) float64 {
+			return f(t).Array()[i]
+		})
+	}
+	return model2d.NewCoordArray(minArr), model2d.NewCoordArray(maxArr)
+}
+
 // A GridSearch2D implements 2D grid search for minimizing
 // or maximizing 2D functions.
 type GridSearch2D struct {
