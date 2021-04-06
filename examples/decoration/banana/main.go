@@ -6,6 +6,7 @@ import (
 
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/model3d/model2d"
 )
@@ -131,13 +132,11 @@ func CreateSquircle() model2d.Solid {
 }
 
 func CurveMaxY(radiusCurve model2d.Curve) float64 {
-	var max float64
-	for i := 0; i <= 10000; i++ {
-		c := radiusCurve.Eval(float64(i) / 1000)
-		max = math.Max(max, c.Y)
-	}
-	// Make up for approximate results
-	return max + 0.01
+	ls := &toolbox3d.LineSearch{Stops: 100, Recursions: 4}
+	_, y := ls.Maximize(0, 1, func(t float64) float64 {
+		return radiusCurve.Eval(t).Y
+	})
+	return y
 }
 
 func SolidMinZ(s model3d.Solid) model3d.Coord3D {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
@@ -32,10 +33,9 @@ func NewForkSolid() *ForkSolid {
 		model2d.Coord{X: 3 * ForkLength / 5, Y: 0},
 		model2d.Coord{X: ForkLength, Y: 0},
 	}
-	var minZ float64
-	for t := 0.0; t <= 1.0; t += 1.0 / 1000 {
-		minZ = math.Min(minZ, c.Eval(t).Y)
-	}
+	_, minZ := (&toolbox3d.LineSearch{Stops: 1000}).Minimize(0, 1, func(t float64) float64 {
+		return c.Eval(t).Y
+	})
 
 	wc := model2d.BezierCurve{
 		model2d.Coord{X: 0, Y: ForkMaxWidth / 2},

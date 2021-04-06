@@ -59,10 +59,7 @@ func NewEggSolid() *EggSolid {
 		model2d.XY(1.0, 0.3),
 		model2d.X(1.0),
 	}
-	maxRadius := 0.0
-	for t := 0.0; t < 1.0; t += 0.001 {
-		maxRadius = math.Max(maxRadius, radius.EvalX(t))
-	}
+	_, maxRadius := (&toolbox3d.LineSearch{Stops: 100, Recursions: 2}).Maximize(0, 1, radius.EvalX)
 	maxRadius += 0.02
 	return &EggSolid{
 		RadiusFunc:     radius,
