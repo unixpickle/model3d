@@ -38,10 +38,10 @@ func CreateCorgi(theta, x, y float64) render3d.Object {
 		}
 
 		mesh := model3d.NewMeshTriangles(triangles)
-		mesh = mesh.MapCoords(model3d.XYZ(-mid.X, -mid.Y, -min.Z).Add)
+		mesh = mesh.Translate(model3d.XYZ(-mid.X, -mid.Y, -min.Z))
 		mesh = mesh.MapCoords(model3d.NewMatrix3Rotation(model3d.Z(1), theta).MulColumn)
 		mesh = mesh.Scale(0.8)
-		mesh = mesh.MapCoords(model3d.Coord3D{X: x, Y: y}.Add)
+		mesh = mesh.Translate(model3d.Coord3D{X: x, Y: y})
 
 		model = append(model, &render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(mesh),

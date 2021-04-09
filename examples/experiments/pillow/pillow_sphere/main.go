@@ -42,7 +42,7 @@ func main() {
 
 	log.Println("Converting 2D mesh into solid...")
 	mesh2d = mesh2d.Scale(2 / math.Max(float64(bmp.Width), float64(bmp.Height)))
-	mesh2d = mesh2d.MapCoords(mesh2d.Min().Mid(mesh2d.Max()).Scale(-1).Add)
+	mesh2d = mesh2d.Translate(mesh2d.Min().Mid(mesh2d.Max()).Scale(-1))
 	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(mesh2d))
 
 	log.Println("Creating 3D mesh...")

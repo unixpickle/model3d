@@ -14,9 +14,9 @@ func ReadCurvyThing() render3d.Object {
 	mesh := ReadModel("models/curvy_thing.stl.gz")
 	invMid := mesh.Min().Mid(mesh.Max()).Scale(-1)
 	invMid.Z = -mesh.Min().Z
-	mesh = mesh.MapCoords(invMid.Add)
+	mesh = mesh.Translate(invMid)
 	mesh = mesh.MapCoords(model3d.NewMatrix3Rotation(model3d.Z(1), -math.Pi/4).MulColumn)
-	mesh = mesh.MapCoords(model3d.Coord3D{X: CurvyThingX, Y: CurvyThingY}.Add)
+	mesh = mesh.Translate(model3d.Coord3D{X: CurvyThingX, Y: CurvyThingY})
 
 	return &render3d.ColliderObject{
 		Collider: model3d.MeshToCollider(mesh),
@@ -30,7 +30,7 @@ func ReadCurvyThing() render3d.Object {
 
 func ReadRose() render3d.Object {
 	mesh := ReadModel("models/rose.stl.gz")
-	mesh = mesh.MapCoords(mesh.Min().Mid(mesh.Max()).Scale(-1).Add)
+	mesh = mesh.Translate(mesh.Min().Mid(mesh.Max()).Scale(-1))
 	mesh = mesh.MapCoords(model3d.NewMatrix3Rotation(model3d.X(1), math.Pi/4).MulColumn)
 	mesh = mesh.MapCoords(model3d.Coord3D{
 		X: RoseX,
@@ -153,7 +153,7 @@ func ReadPumpkin() render3d.Object {
 func ReadWineGlass() render3d.Object {
 	mesh := ReadModel("models/wine_glass.stl.gz")
 	min, max := mesh.Min(), mesh.Max()
-	mesh = mesh.MapCoords(min.Scale(-1).Add)
+	mesh = mesh.Translate(min.Scale(-1))
 	mesh = mesh.MapCoords(model3d.Coord3D{
 		X: WineGlassX - (max.X-min.X)/2,
 		Y: WineGlassY - (max.Y-min.Y)/2,

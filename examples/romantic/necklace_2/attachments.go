@@ -62,9 +62,9 @@ func readAttachmentMeshes(files string) (mesh *model2d.Mesh, engraving *model2d.
 		engraving = engraving.MapCoords(flipXY)
 	}
 	center := mesh.Min().Mid(mesh.Max()).Scale(-1)
-	mesh = mesh.MapCoords(center.Add)
+	mesh = mesh.Translate(center)
 	if engraving != nil {
-		engraving = engraving.MapCoords(center.Add)
+		engraving = engraving.Translate(center)
 	}
 	return
 }

@@ -143,8 +143,8 @@ func RawPendantSolid(f *Flags) model3d.Solid {
 
 	min, max := image.Min(), image.Max()
 
-	image = image.MapCoords(min.Mid(max).Scale(-1).Add)
-	engraving = engraving.MapCoords(min.Mid(max).Scale(-1).Add)
+	image = image.Translate(min.Mid(max).Scale(-1))
+	engraving = engraving.Translate(min.Mid(max).Scale(-1))
 
 	size := max.Sub(min)
 	scale := f.Size / math.Max(size.X, size.Y)

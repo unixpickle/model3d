@@ -69,6 +69,6 @@ func CreateHangerHookProfile() model2d.Solid {
 	}
 
 	offset := model2d.XY(HangerMountHeight-HangerThickness, HangerArmLength-HangerThickness/2)
-	trace = trace.MapCoords(offset.Add)
+	trace = trace.Translate(offset)
 	return model2d.NewColliderSolidHollow(model2d.MeshToCollider(trace), HangerThickness/2)
 }

@@ -59,7 +59,7 @@ func NewOtterSolid() *OtterSolid {
 	img := model2d.MustReadBitmap("otter.png", nil).FlipY()
 	scale := OtterWidth / float64(img.Width)
 	mesh := img.Mesh().SmoothSq(20).Scale(scale)
-	mesh = mesh.MapCoords(mesh.Min().Scale(-1).Add)
+	mesh = mesh.Translate(mesh.Min().Scale(-1))
 	return &OtterSolid{
 		Shape: model2d.MeshToSDF(mesh),
 	}
@@ -86,17 +86,17 @@ func (o *OtterSolid) Contains(c model3d.Coord3D) bool {
 func ReadHeadlines(otterY float64) [2]model3d.Solid {
 	m1 := ReadHeadline("line_1.png")
 	m2 := ReadHeadline("line_2.png")
-	m1 = m1.MapCoords(m1.Min().Scale(-1).Add)
-	m2 = m2.MapCoords(m2.Min().Scale(-1).Add)
+	m1 = m1.Translate(m1.Min().Scale(-1))
+	m2 = m2.Translate(m2.Min().Scale(-1))
 	scale := OtterWidth / math.Max(m1.Max().X, m2.Max().X)
 	result := [2]model3d.Solid{}
 	for i, m := range []*model2d.Mesh{m1, m2} {
 		m = m.Scale(scale)
-		m = m.MapCoords(model2d.X((OtterWidth - m.Max().X) / 2).Add)
+		m = m.Translate(model2d.X((OtterWidth - m.Max().X) / 2))
 		if i == 0 {
-			m = m.MapCoords(model2d.Y(otterY + TextSpace).Add)
+			m = m.Translate(model2d.Y(otterY + TextSpace))
 		} else {
-			m = m.MapCoords(model2d.Y(-m.Max().Y - TextSpace).Add)
+			m = m.Translate(model2d.Y(-m.Max().Y - TextSpace))
 		}
 		solid := model2d.NewColliderSolid(model2d.MeshToCollider(m))
 		result[i] = model3d.ProfileSolid(solid, 0, TextHeight)

@@ -48,7 +48,7 @@ func main() {
 
 	log.Println("Converting 2D mesh into SDF...")
 	mesh2d = mesh2d.Scale(2 / math.Max(float64(bmp.Width), float64(bmp.Height)))
-	mesh2d = mesh2d.MapCoords(mesh2d.Min().Mid(mesh2d.Max()).Scale(-1).Add)
+	mesh2d = mesh2d.Translate(mesh2d.Min().Mid(mesh2d.Max()).Scale(-1))
 	sdf2d := model2d.MeshToSDF(mesh2d)
 
 	log.Println("Finding central point...")

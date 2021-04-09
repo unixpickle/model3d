@@ -92,7 +92,7 @@ func BenchmarkMeshHierarchyUnconnected(b *testing.B) {
 
 	mesh := NewMesh()
 	for i := 0.0; i < 1000.0; i++ {
-		mesh.AddMesh(blob.MapCoords(X(i).Add))
+		mesh.AddMesh(blob.Translate(X(i)))
 	}
 
 	b.ResetTimer()

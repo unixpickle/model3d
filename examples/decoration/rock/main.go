@@ -51,7 +51,7 @@ func main() {
 				rock = AddConstraint(rock)
 			}
 			min := model3d.XYZ(float64(i)*1.1, float64(j)*1.1, 0)
-			mesh.AddMesh(rock.Mesh().MapCoords(min.Add))
+			mesh.AddMesh(rock.Mesh().Translate(min))
 		}
 	}
 

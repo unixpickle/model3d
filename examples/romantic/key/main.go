@@ -25,7 +25,7 @@ const (
 
 func main() {
 	heartMesh := model2d.MustReadBitmap("outline.png", nil).Mesh().SmoothSq(50)
-	heartMesh = heartMesh.MapCoords(heartMesh.Min().Scale(-1).Add)
+	heartMesh = heartMesh.Translate(heartMesh.Min().Scale(-1))
 	heartMesh = heartMesh.MapCoords(heartMesh.Max().Recip().Mul)
 	solid := model2d.JoinedSolid{
 		model2d.NewColliderSolid(model2d.MeshToCollider(heartMesh)),
@@ -105,7 +105,7 @@ func CreateEngraving() model3d.Solid {
 
 func CreateHeartSlice() model3d.Solid {
 	heartMesh := model2d.MustReadBitmap("outline.png", nil).Mesh().SmoothSq(50)
-	heartMesh = heartMesh.MapCoords(heartMesh.Min().Scale(-1).Add)
+	heartMesh = heartMesh.Translate(heartMesh.Min().Scale(-1))
 	heartMesh = heartMesh.MapCoords(heartMesh.Max().Recip().Mul)
 	heartMesh = heartMesh.Scale(HeartCutSize)
 	heartMesh = heartMesh.MapCoords(model2d.NewMatrix2Rotation(-math.Pi / 2).MulColumn)

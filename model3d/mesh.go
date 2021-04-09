@@ -363,6 +363,12 @@ func (m *Mesh) Scale(s float64) *Mesh {
 	return m.MapCoords(XYZ(s, s, s).Mul)
 }
 
+// Translate returns a mesh with all coordinates added to
+// a given vector.
+func (m *Mesh) Translate(v Coord3D) *Mesh {
+	return m.MapCoords(v.Add)
+}
+
 // MapCoords creates a new mesh by transforming all of the
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {

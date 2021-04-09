@@ -75,7 +75,7 @@ func main() {
 
 func LoadLetter(filename string, x float64) model3d.Solid {
 	mesh2d := model2d.MustReadBitmap(filename, nil).FlipY().Mesh().SmoothSq(50)
-	mesh2d = mesh2d.MapCoords(mesh2d.Min().Scale(-1).Add)
+	mesh2d = mesh2d.Translate(mesh2d.Min().Scale(-1))
 	mesh2d = mesh2d.Scale(LetterHeight / mesh2d.Max().Y)
 	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(mesh2d))
 

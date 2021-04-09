@@ -94,7 +94,7 @@ func LoadLabels() (solidOut model2d.Solid, centers []float64) {
 		if width < HeartWidth {
 			width = HeartWidth
 		}
-		m = m.MapCoords(min.Scale(-1).Add)
+		m = m.Translate(min.Scale(-1))
 		m = m.MapCoords(model2d.XY(
 			curX+TextPadding+(width-max.X+min.X)/2,
 			(maxHeight-max.Y+min.Y)/2,
@@ -116,7 +116,7 @@ func LoadHeart() model2d.Solid {
 	mesh := bmp.FlipY().Mesh().SmoothSq(20)
 	min, max := mesh.Min(), mesh.Max()
 	mesh = mesh.Scale(HeartWidth / (max.X - min.X))
-	mesh = mesh.MapCoords(mesh.Min().Scale(-1).Add)
+	mesh = mesh.Translate(mesh.Min().Scale(-1))
 	return model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
 }
 

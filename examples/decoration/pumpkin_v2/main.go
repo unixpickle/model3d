@@ -106,7 +106,7 @@ func CreateEar(angle float64) model3d.Solid {
 	}
 	mesh.Add(&model2d.Segment{lastPoint, point(-2.8)})
 
-	mesh = mesh.MapCoords(model2d.Y(-lastPoint.Y).Add)
+	mesh = mesh.Translate(model2d.Y(-lastPoint.Y))
 	mesh = mesh.Scale(-1 / lastPoint.Y).Scale(0.9)
 	mesh = mesh.Transform(model2d.JoinedTransform{
 		&model2d.Translate{Offset: model2d.Y(1.3)},

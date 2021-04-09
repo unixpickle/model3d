@@ -51,7 +51,7 @@ func main() {
 		if i == numLinks-1 {
 			subMesh = hook
 		}
-		m.AddMesh(subMesh.MapCoords(offset.Add).MapCoords(manifold.Convert))
+		m.AddMesh(subMesh.Translate(offset).MapCoords(manifold.Convert))
 		manifold.Move(MoveRate)
 	}
 

@@ -81,7 +81,7 @@ func GetPizzaBase() model3d.Solid {
 
 func GetHeartOutline() *model2d.Mesh {
 	mesh := model2d.MustReadBitmap("heart.png", nil).FlipY().Mesh().SmoothSq(30).Scale(0.0015)
-	return mesh.MapCoords(mesh.Min().Mid(mesh.Max()).Scale(-1).Add)
+	return mesh.Translate(mesh.Min().Mid(mesh.Max()).Scale(-1))
 }
 
 func GetPepperonis(expand float64) model3d.Solid {
