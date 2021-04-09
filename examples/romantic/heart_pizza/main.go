@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	CrustRadius        = 0.2
+	CrustRadius        = 0.15
 	CheeseHeight       = 0.08
 	PepperoniRadius    = 0.25
 	PepperoniThickness = 0.03
@@ -30,6 +30,19 @@ func main() {
 
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.02, 8)
+
+	log.Println("Decimating...")
+	dec := model3d.Decimator{
+		// Only eliminate nearly-planar surfaces.
+		FeatureAngle:  0.01,
+		PlaneDistance: 1e-3,
+		// Never eliminate the top, since it needs lots of
+		// triangles for coloration.
+		FilterFunc: func(c model3d.Coord3D) bool {
+			return c.Z < 0
+		},
+	}
+	mesh = dec.Decimate(mesh)
 
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, ColorFunc())
