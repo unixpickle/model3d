@@ -63,9 +63,8 @@ func main() {
 	w, err := os.Create("color_heart_statue.zip")
 	essentials.Must(err)
 	defer w.Close()
-	essentials.Must(model3d.WriteMaterialOBJ(
-		w,
-		mesh.TriangleSlice(),
+	essentials.Must(mesh.SaveMaterialOBJ(
+		"color_heart_statue.zip",
 		model3d.VertexColorsToTriangle(colorFunc.VertexColor),
 	))
 

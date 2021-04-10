@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"math"
 
@@ -35,8 +34,9 @@ func main() {
 	colorFunc := func(t *model3d.Triangle) [3]float64 {
 		return triToColor[t]
 	}
-	ioutil.WriteFile("mesh.zip", m1.EncodeMaterialOBJ(colorFunc), 0755)
+	m1.SaveMaterialOBJ("mesh.zip", colorFunc)
 
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", m1, 3, 3, 300, render3d.TriangleColorFunc(colorFunc))
 }
 

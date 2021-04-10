@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"math"
 
@@ -42,7 +41,7 @@ func main() {
 	mesh.AddMesh(model3d.MarchingCubesSearch(lid, 0.02, 8))
 
 	log.Println("Saving mesh...")
-	ioutil.WriteFile("pumpkin.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+	mesh.SaveMaterialOBJ("pumpkin.zip", colorFunc)
 
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, render3d.TriangleColorFunc(colorFunc))

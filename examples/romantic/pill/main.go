@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"math"
 	"strconv"
 	"strings"
@@ -128,7 +127,7 @@ func main() {
 	mapColorFunc := func(t *model3d.Triangle) [3]float64 {
 		return colorMap[t]
 	}
-	ioutil.WriteFile(outFile, newMesh.EncodeMaterialOBJ(mapColorFunc), 0755)
+	newMesh.SaveMaterialOBJ(outFile, mapColorFunc)
 
 	render3d.SaveRandomGrid("rendering.png", newMesh, 3, 3, 300,
 		render3d.TriangleColorFunc(mapColorFunc))

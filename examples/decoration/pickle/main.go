@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"sync"
 
@@ -52,7 +51,7 @@ func main() {
 		} else {
 			log.Println(" - saving mesh...")
 			colorFunc := model3d.VertexColorsToTriangle(inscription.ColorAt)
-			ioutil.WriteFile("pickle.zip", mesh.EncodeMaterialOBJ(colorFunc), 0755)
+			mesh.SaveMaterialOBJ("pickle.zip", colorFunc)
 			log.Println(" - rendering...")
 			render3d.SaveRendering("rendering_color.png", mesh, renderOrigin, 500, 500,
 				render3d.TriangleColorFunc(colorFunc))

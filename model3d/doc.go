@@ -119,6 +119,6 @@
 // export triangle meshes.
 // The simplest method is Mesh.SaveGroupedSTL(), which
 // exports and STL file to a path.
-// For colored models, Mesh.EncodeMaterialOBJ() is the
+// For colored models, Mesh.SaveMaterialOBJ() is the
 // method to use.
 package model3d

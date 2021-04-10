@@ -418,6 +418,21 @@ func (m *Mesh) EncodeMaterialOBJ(colorFunc func(t *Triangle) [3]float64) []byte 
 	return EncodeMaterialOBJ(m.TriangleSlice(), colorFunc)
 }
 
+// SaveMaterialOBJ saves the mesh to a zip file with a
+// per-triangle material.
+func (m *Mesh) SaveMaterialOBJ(path string, colorFunc func(t *Triangle) [3]float64) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save material OBJ")
+	}
+	defer f.Close()
+	err = WriteMaterialOBJ(f, m.TriangleSlice(), colorFunc)
+	if err != nil {
+		return errors.Wrap(err, "save material OBJ")
+	}
+	return nil
+}
+
 // SaveGroupedSTL writes the mesh to an STL file with the
 // triangles grouped in such a way that the file can be
 // compressed efficiently.

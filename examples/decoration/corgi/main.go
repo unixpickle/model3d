@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"math"
 
@@ -82,11 +81,7 @@ func main() {
 
 	log.Println("saving...")
 	mesh.SaveGroupedSTL("corgi.stl")
-	ioutil.WriteFile(
-		"corgi.zip",
-		model3d.EncodeMaterialOBJ(mesh.TriangleSlice(), colors.TriangleColor),
-		0755,
-	)
+	mesh.SaveMaterialOBJ("corgi.zip", colors.TriangleColor)
 
 	log.Println("rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300,

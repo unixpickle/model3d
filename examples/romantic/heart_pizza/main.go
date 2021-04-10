@@ -3,9 +3,7 @@ package main
 import (
 	"log"
 	"math"
-	"os"
 
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -48,16 +46,12 @@ func main() {
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, ColorFunc())
 
 	log.Println("Saving mesh...")
-	f, err := os.Create("pizza.zip")
-	essentials.Must(err)
-	defer f.Close()
-
 	colorFunc := ColorFunc()
 	triColor := model3d.VertexColorsToTriangle(func(c model3d.Coord3D) [3]float64 {
 		r, g, b := render3d.RGB(colorFunc(c, model3d.RayCollision{}))
 		return [3]float64{r, g, b}
 	})
-	model3d.WriteMaterialOBJ(f, mesh.TriangleSlice(), triColor)
+	mesh.SaveMaterialOBJ("pizza.zip", triColor)
 }
 
 func GetHeartRim() model3d.Solid {

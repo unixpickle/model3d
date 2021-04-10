@@ -4,9 +4,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"os"
 
-	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -49,16 +47,12 @@ func main() {
 	render3d.SaveRendering("rendering.png", mesh, model3d.YZ(4, 4), 600, 600, ColorFunc(sprinkles))
 
 	log.Println("Exporting...")
-	f, err := os.Create("donut.zip")
-	essentials.Must(err)
-	defer f.Close()
-
 	colorFunc := ColorFunc(sprinkles)
 	triColor := model3d.VertexColorsToTriangle(func(c model3d.Coord3D) [3]float64 {
 		r, g, b := render3d.RGB(colorFunc(c, model3d.RayCollision{}))
 		return [3]float64{r, g, b}
 	})
-	model3d.WriteMaterialOBJ(f, mesh.TriangleSlice(), triColor)
+	mesh.SaveMaterialOBJ("donut.zip", triColor)
 }
 
 func DonutBody() *model3d.Torus {
