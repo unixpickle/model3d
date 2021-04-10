@@ -107,6 +107,40 @@ func (c *CoordTree) nearestNeighbor(p Coord, res *Coord, bound *float64) {
 	}
 }
 
+// KNN gets the closest K coordinates to p in the tree.
+// The results are sorted by ascending distance.
+//
+// If there are fewer than K coordinates in the tree, then
+// fewer than K coordinates are returned.
+func (c *CoordTree) KNN(k int, p Coord) []Coord {
+	if k == 0 {
+		return nil
+	}
+	res := &knnResults{Max: k}
+	c.knn(p, res)
+	return res.Coords
+}
+
+func (c *CoordTree) knn(p Coord, res *knnResults) {
+	if c == nil {
+		return
+	}
+	dist := p.SquaredDist(c.Coord)
+	res.Insert(c.Coord, dist)
+	planeDist := c.Coord.Array()[c.SplitAxis] - p.Array()[c.SplitAxis]
+	if planeDist > 0 {
+		c.LessThan.knn(p, res)
+	} else {
+		c.GreaterEqual.knn(p, res)
+	}
+	// Attempt to eliminate out-of-bounds half spaces.
+	if planeDist > 0 && planeDist*planeDist < res.MaxDist() {
+		c.GreaterEqual.knn(p, res)
+	} else if planeDist <= 0 && planeDist*planeDist < res.MaxDist() {
+		c.LessThan.knn(p, res)
+	}
+}
+
 // SphereCollision checks if the sphere centered at point
 // p with radius r contains any points in the tree.
 func (c *CoordTree) SphereCollision(p Coord, r float64) bool {
@@ -203,4 +237,32 @@ type flaggedCoord struct {
 	Coord Coord
 	Array [2]float64
 	Flag  bool
+}
+
+type knnResults struct {
+	Max    int
+	Coords []Coord
+	Dists  []float64
+}
+
+func (s *knnResults) MaxDist() float64 {
+	if len(s.Dists) < s.Max {
+		return math.Inf(1)
+	}
+	return s.Dists[s.Max-1]
+}
+
+func (s *knnResults) Insert(c Coord, d float64) {
+	if d >= s.MaxDist() {
+		return
+	}
+	index := sort.SearchFloat64s(s.Dists, d)
+	if len(s.Dists) < s.Max {
+		s.Dists = append(s.Dists, 0)
+		s.Coords = append(s.Coords, Coord{})
+	}
+	copy(s.Dists[index+1:], s.Dists[index:])
+	copy(s.Coords[index+1:], s.Coords[index:])
+	s.Coords[index] = c
+	s.Dists[index] = d
 }

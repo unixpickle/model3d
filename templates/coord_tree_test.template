@@ -4,6 +4,8 @@ import (
 	"math"
 	"math/rand"
 	"testing"
+
+	"github.com/unixpickle/essentials"
 )
 
 func TestCoordTreeContains(t *testing.T) {
@@ -88,6 +90,68 @@ func TestCoordTreeNearestNeighbor(t *testing.T) {
 		if tree.NearestNeighbor(p) != naiveNearest(p) {
 			t.Error("incorrect nearest neighbor for axis-similar point")
 		}
+	}
+}
+
+func TestCoordTreeKNN(t *testing.T) {
+	coords := make([]{{.coordType}}, 200)
+	for i := range coords {
+		coords[i] = New{{.coordType}}RandNorm()
+	}
+	coords = append(coords, coords[0:50]...)
+	coords = append(coords, coords[0:50]...)
+
+	naiveKNN := func(k int, c {{.coordType}}) []{{.coordType}} {
+		dists := make([]float64, len(coords))
+		for i, p := range coords {
+			dists[i] = p.Dist(c)
+		}
+		sorted := append([]{{.coordType}}{}, coords...)
+		essentials.VoodooSort(dists, func(i, j int) bool {
+			return dists[i] < dists[j]
+		}, sorted)
+		return sorted[:essentials.MinInt(k, len(sorted))]
+	}
+	pointsEqual := func(p1, p2 []{{.coordType}}) bool {
+		if len(p1) != len(p2) {
+			return false
+		}
+		for i, x := range p1 {
+			if x != p2[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	tree := NewCoordTree(coords)
+
+	for _, c := range coords {
+		if tree.KNN(1, c)[0] != c {
+			t.Errorf("bad 1-nn for coordinate: %v", c)
+		}
+	}
+	for i := 0; i < 1000; i++ {
+		p := New{{.coordType}}RandNorm()
+		k := rand.Intn(10)
+		if !pointsEqual(tree.KNN(k, p), naiveKNN(k, p)) {
+			t.Errorf("incorrect nearest neighbor for random point, k=%d", k)
+		}
+	}
+	// Make sure axis-value collisions don't break
+	// the algorithm.
+	for i := 0; i < 1000; i++ {
+		p := coords[rand.Intn(len(coords))]
+		p.X = rand.NormFloat64()
+		k := rand.Intn(10)
+		if !pointsEqual(tree.KNN(k, p), naiveKNN(k, p)) {
+			t.Errorf("incorrect nearest neighbor for axis-similar point, k=%d", k)
+		}
+	}
+	// Test case when we don't find enough points.
+	p := New{{.coordType}}RandNorm()
+	if !pointsEqual(tree.KNN(len(coords)*2, p), naiveKNN(len(coords)*2, p)) {
+		t.Error("incorrect nearest neighbor for k > len(coords)")
 	}
 }
 
