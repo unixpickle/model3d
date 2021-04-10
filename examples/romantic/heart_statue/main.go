@@ -53,10 +53,10 @@ func main() {
 
 	log.Println("Creating color func...")
 	colorFunc := NewColorFunc(map[model3d.Solid][3]float64{
-		heart:   [3]float64{1.0, 0.0, 0.0},      // red
-		base:    [3]float64{1.0, 0.84, 0.0},     // gold
-		letter1: [3]float64{0.5, 0, 0.5},        // purple
-		letter2: [3]float64{0.504, 0.843, 0.81}, // tiffany blue
+		heart:   {1.0, 0.0, 0.0},      // red
+		base:    {1.0, 0.84, 0.0},     // gold
+		letter1: {0.5, 0, 0.5},        // purple
+		letter2: {0.504, 0.843, 0.81}, // tiffany blue
 	})
 
 	log.Println("Exporting model...")
