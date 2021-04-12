@@ -4,6 +4,7 @@ package model3d
 
 import (
 	"math"
+	"math/rand"
 	"testing"
 )
 
@@ -92,4 +93,28 @@ func testPolytopeMesh(t *testing.T, c ConvexPolytope) {
 				c.Contains(coord), solid.Contains(coord))
 		}
 	}
+}
+
+func BenchmarkPolytope(b *testing.B) {
+	rand.Seed(1337)
+
+	polytope := ConvexPolytope{}
+	for i := 0; i < 100; i++ {
+		normal := NewCoord3DRandUnit()
+		polytope = append(polytope, &LinearConstraint{
+			Normal: normal,
+			Max:    rand.Float64() + 0.1,
+		})
+	}
+
+	b.Run("Mesh", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			polytope.Mesh()
+		}
+	})
+	b.Run("Solid", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			polytope.Solid()
+		}
+	})
 }
