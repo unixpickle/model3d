@@ -121,7 +121,7 @@ func (c ConvexPolytope) vertex(i1, i2 int, norms []float64, epsilon float64) (Co
 	}
 
 	l1, l2 := c[i1], c[i2]
-	matrix := NewMatrix2Columns(l1.Normal, l2.Normal).Transpose()
+	matrix := Matrix2{l1.Normal.X, l1.Normal.Y, l2.Normal.X, l2.Normal.Y}
 
 	// Check for singular (or poorly conditioned) matrix.
 	rawArea := l1.Normal.Norm() * l2.Normal.Norm()

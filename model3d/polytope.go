@@ -138,7 +138,11 @@ func (c ConvexPolytope) vertex(i1, i2, i3 int, norms []float64, epsilon float64)
 	}
 
 	l1, l2, l3 := c[i1], c[i2], c[i3]
-	matrix := NewMatrix3Columns(l1.Normal, l2.Normal, l3.Normal).Transpose()
+	matrix := Matrix3{
+		l1.Normal.X, l1.Normal.Y, l1.Normal.Z,
+		l2.Normal.X, l2.Normal.Y, l2.Normal.Z,
+		l3.Normal.X, l3.Normal.Y, l3.Normal.Z,
+	}
 
 	// Check for singular (or poorly conditioned) matrix.
 	rawArea := norms[i1] * norms[i2] * norms[i3]
