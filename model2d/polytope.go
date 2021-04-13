@@ -125,12 +125,14 @@ func (c ConvexPolytope) vertex(i1, i2 int, norms []float64, epsilon float64) (Co
 
 	// Check for singular (or poorly conditioned) matrix.
 	rawArea := l1.Normal.Norm() * l2.Normal.Norm()
-	if math.Abs(matrix.Det()) < rawArea*1e-8 {
+	det := matrix.Det()
+	if math.Abs(det) < rawArea*1e-8 {
 		return Coord{}, false
 	}
 
 	maxes := Coord{l1.Max, l2.Max}
-	solution := matrix.Inverse().MulColumn(maxes)
+	matrix.InvertInPlaceDet(det)
+	solution := matrix.MulColumn(maxes)
 
 	for i, l := range c {
 		if i == i1 || i == i2 {

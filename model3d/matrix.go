@@ -61,13 +61,18 @@ func (m *Matrix3) Inverse() *Matrix3 {
 // InvertInPlace moves the inverse of m into m without
 // causing any new allocations.
 func (m *Matrix3) InvertInPlace() {
-	coeff := 1 / m.Det()
+	m.InvertInPlaceDet(m.Det())
+}
+
+// InvertInPlaceDet is an optimization for InvertInPlace
+// when the determinant has been pre-computed.
+func (m *Matrix3) InvertInPlaceDet(det float64) {
 	*m = Matrix3{
 		m[4]*m[8] - m[5]*m[7], m[2]*m[7] - m[1]*m[8], m[1]*m[5] - m[2]*m[4],
 		m[5]*m[6] - m[3]*m[8], m[0]*m[8] - m[2]*m[6], m[2]*m[3] - m[0]*m[5],
 		m[3]*m[7] - m[4]*m[6], m[1]*m[6] - m[0]*m[7], m[0]*m[4] - m[1]*m[3],
 	}
-	m.Scale(coeff)
+	m.Scale(1 / det)
 }
 
 // Add computes m+m1 and returns the sum.
