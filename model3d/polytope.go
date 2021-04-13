@@ -73,6 +73,10 @@ func (c ConvexPolytope) Contains(coord Coord3D) bool {
 func (c ConvexPolytope) Mesh() *Mesh {
 	m := NewMesh()
 	epsilon := c.spatialEpsilon()
+	norms := make([]float64, len(c))
+	for i, l := range c {
+		norms[i] = l.Normal.Norm()
+	}
 	for i1 := 0; i1 < len(c); i1++ {
 		vertices := []Coord3D{}
 		for i2 := 0; i2 < len(c)-1; i2++ {
@@ -83,7 +87,7 @@ func (c ConvexPolytope) Mesh() *Mesh {
 				if i3 == i1 {
 					continue
 				}
-				vertex, found := c.vertex(i1, i2, i3, epsilon)
+				vertex, found := c.vertex(i1, i2, i3, norms, epsilon)
 				if found {
 					vertices = append(vertices, vertex)
 				}
@@ -122,22 +126,22 @@ func (c ConvexPolytope) Solid() Solid {
 	}
 }
 
-func (c ConvexPolytope) vertex(i1, i2, i3 int, epsilon float64) (Coord3D, bool) {
+func (c ConvexPolytope) vertex(i1, i2, i3 int, norms []float64, epsilon float64) (Coord3D, bool) {
 	// Make sure the indices are sorted so that we yield
 	// deterministic results for different first faces.
 	if i2 < i1 {
-		return c.vertex(i2, i1, i3, epsilon)
+		return c.vertex(i2, i1, i3, norms, epsilon)
 	} else if i3 < i1 {
-		return c.vertex(i3, i2, i1, epsilon)
+		return c.vertex(i3, i2, i1, norms, epsilon)
 	} else if i3 < i2 {
-		return c.vertex(i1, i3, i2, epsilon)
+		return c.vertex(i1, i3, i2, norms, epsilon)
 	}
 
 	l1, l2, l3 := c[i1], c[i2], c[i3]
 	matrix := NewMatrix3Columns(l1.Normal, l2.Normal, l3.Normal).Transpose()
 
 	// Check for singular (or poorly conditioned) matrix.
-	rawArea := l1.Normal.Norm() * l2.Normal.Norm() * l3.Normal.Norm()
+	rawArea := norms[i1] * norms[i2] * norms[i3]
 	if math.Abs(matrix.Det()) < rawArea*1e-8 {
 		return Coord3D{}, false
 	}
@@ -149,7 +153,7 @@ func (c ConvexPolytope) vertex(i1, i2, i3 int, epsilon float64) (Coord3D, bool) 
 		if i == i1 || i == i2 || i == i3 {
 			continue
 		}
-		if l.Normal.Dot(solution) > l.Max+epsilon*l.Normal.Norm() {
+		if l.Normal.Dot(solution) > l.Max+epsilon*norms[i] {
 			return solution, false
 		}
 	}

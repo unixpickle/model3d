@@ -65,13 +65,17 @@ func (c ConvexPolytope) Contains(coord Coord) bool {
 func (c ConvexPolytope) Mesh() *Mesh {
 	m := NewMesh()
 	epsilon := c.spatialEpsilon()
+	norms := make([]float64, len(c))
+	for i, l := range c {
+		norms[i] = l.Normal.Norm()
+	}
 	for i1 := 0; i1 < len(c); i1++ {
 		vertices := []Coord{}
 		for i2 := 0; i2 < len(c); i2++ {
 			if i2 == i1 {
 				continue
 			}
-			vertex, found := c.vertex(i1, i2, epsilon)
+			vertex, found := c.vertex(i1, i2, norms, epsilon)
 			if found {
 				vertices = append(vertices, vertex)
 			}
@@ -109,11 +113,11 @@ func (c ConvexPolytope) Solid() Solid {
 	}
 }
 
-func (c ConvexPolytope) vertex(i1, i2 int, epsilon float64) (Coord, bool) {
+func (c ConvexPolytope) vertex(i1, i2 int, norms []float64, epsilon float64) (Coord, bool) {
 	// Make sure the indices are sorted so that we yield
 	// deterministic results for different first faces.
 	if i2 < i1 {
-		return c.vertex(i2, i1, epsilon)
+		return c.vertex(i2, i1, norms, epsilon)
 	}
 
 	l1, l2 := c[i1], c[i2]
@@ -132,7 +136,7 @@ func (c ConvexPolytope) vertex(i1, i2 int, epsilon float64) (Coord, bool) {
 		if i == i1 || i == i2 {
 			continue
 		}
-		if l.Normal.Dot(solution) > l.Max+epsilon*l.Normal.Norm() {
+		if l.Normal.Dot(solution) > l.Max+epsilon*norms[i] {
 			return solution, false
 		}
 	}
