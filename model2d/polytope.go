@@ -131,8 +131,7 @@ func (c ConvexPolytope) vertex(i1, i2 int, norms []float64, epsilon float64) (Co
 	}
 
 	maxes := Coord{l1.Max, l2.Max}
-	matrix.InvertInPlaceDet(det)
-	solution := matrix.MulColumn(maxes)
+	solution := matrix.MulColumnInv(maxes, det)
 
 	for i, l := range c {
 		if i == i1 || i == i2 {

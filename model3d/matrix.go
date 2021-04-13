@@ -75,6 +75,17 @@ func (m *Matrix3) InvertInPlaceDet(det float64) {
 	m.Scale(1 / det)
 }
 
+// MulColumnInv multiplies the inverse of m by the column
+// c, given the determinant of m.
+func (m *Matrix3) MulColumnInv(c Coord3D, det float64) Coord3D {
+	m1 := Matrix3{
+		m[4]*m[8] - m[5]*m[7], m[2]*m[7] - m[1]*m[8], m[1]*m[5] - m[2]*m[4],
+		m[5]*m[6] - m[3]*m[8], m[0]*m[8] - m[2]*m[6], m[2]*m[3] - m[0]*m[5],
+		m[3]*m[7] - m[4]*m[6], m[1]*m[6] - m[0]*m[7], m[0]*m[4] - m[1]*m[3],
+	}
+	return m1.MulColumn(c.Scale(1 / det))
+}
+
 // Add computes m+m1 and returns the sum.
 func (m *Matrix3) Add(m1 *Matrix3) *Matrix3 {
 	var res Matrix3

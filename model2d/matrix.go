@@ -60,6 +60,16 @@ func (m *Matrix2) InvertInPlaceDet(det float64) {
 	m.Scale(1 / det)
 }
 
+// MulColumnInv multiplies the inverse of m by the column
+// c, given the determinant of m.
+func (m *Matrix2) MulColumnInv(c Coord, det float64) Coord {
+	m1 := Matrix2{
+		m[3], -m[1],
+		-m[2], m[0],
+	}
+	return m1.MulColumn(c.Scale(1 / det))
+}
+
 // Add computes m+m1 and returns the sum.
 func (m *Matrix2) Add(m1 *Matrix2) *Matrix2 {
 	var res Matrix2
