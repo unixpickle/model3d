@@ -80,6 +80,24 @@ func testSolidBounds(t *testing.T, solid Solid) {
 	}
 }
 
+func TestConeContainment(t *testing.T) {
+	cone := &Cone{Tip: Z(2), Base: Z(0), Radius: 0.5}
+	testPoints := map[Coord3D]bool{
+		Z(1):             true,
+		Z(1.999):         true,
+		XZ(0.1, 1.999):   false,
+		XZ(0.2, 1):       true,
+		XZ(0.25, 1):      true,
+		XZ(0.49, 0.0001): true,
+	}
+	for c, expected := range testPoints {
+		actual := cone.Contains(c)
+		if actual != expected {
+			t.Errorf("coord %v: expected %v but got %v", c, expected, actual)
+		}
+	}
+}
+
 func TestRectSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		c1 := NewCoord3DRandNorm()

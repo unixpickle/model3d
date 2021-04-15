@@ -480,6 +480,34 @@ func castPlane(normal Coord3D, bias float64, r *Ray) (RayCollision, bool) {
 	}, true
 }
 
+// A Cone is a 3D cone, eminating from a point towards the
+// center of a base, where the base has a given radius.
+type Cone struct {
+	Tip    Coord3D
+	Base   Coord3D
+	Radius float64
+}
+
+func (c *Cone) Min() Coord3D {
+	return (&Cylinder{P1: c.Tip, P2: c.Base, Radius: c.Radius}).Min()
+}
+
+func (c *Cone) Max() Coord3D {
+	return (&Cylinder{P1: c.Tip, P2: c.Base, Radius: c.Radius}).Max()
+}
+
+func (c *Cone) Contains(p Coord3D) bool {
+	diff := c.Tip.Sub(c.Base)
+	direction := diff.Normalize()
+	frac := p.Sub(c.Base).Dot(direction)
+	radiusFrac := 1 - frac/diff.Norm()
+	if radiusFrac < 0 || radiusFrac > 1 {
+		return false
+	}
+	projection := c.Base.Add(direction.Scale(frac))
+	return projection.Dist(p) <= c.Radius*radiusFrac
+}
+
 // A Torus is a 3D primitive that represents a torus.
 //
 // The torus is defined by revolving a sphere of radius
