@@ -489,11 +489,23 @@ type Cone struct {
 }
 
 func (c *Cone) Min() Coord3D {
-	return (&Cylinder{P1: c.Tip, P2: c.Base, Radius: c.Radius}).Min()
+	axis := c.Tip.Sub(c.Base)
+	minOffsets := (Coord3D{
+		circleAxisBound(0, axis, -1),
+		circleAxisBound(1, axis, -1),
+		circleAxisBound(2, axis, -1),
+	}).Scale(c.Radius)
+	return minOffsets.Add(c.Base).Min(c.Tip)
 }
 
 func (c *Cone) Max() Coord3D {
-	return (&Cylinder{P1: c.Tip, P2: c.Base, Radius: c.Radius}).Max()
+	axis := c.Tip.Sub(c.Base)
+	maxOffsets := (Coord3D{
+		circleAxisBound(0, axis, 1),
+		circleAxisBound(1, axis, 1),
+		circleAxisBound(2, axis, 1),
+	}).Scale(c.Radius)
+	return maxOffsets.Add(c.Base).Max(c.Tip)
 }
 
 func (c *Cone) Contains(p Coord3D) bool {
