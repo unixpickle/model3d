@@ -520,6 +520,28 @@ func (c *Cone) Contains(p Coord3D) bool {
 	return projection.Dist(p) <= c.Radius*radiusFrac
 }
 
+func (c *Cone) SDF(p Coord3D) float64 {
+	baseDist := filledCircleDist(p, c.Base, c.Tip.Sub(c.Base).Normalize(), c.Radius)
+
+	centerLine := c.Tip.Sub(c.Base)
+	centerOffset := p.Sub(c.Base)
+	proj := centerOffset.ProjectOut(centerLine)
+	if proj.Norm() == 0 {
+		// We are nearly at the centerline.
+		proj.X = 1
+	}
+	axis := proj.Normalize()
+	edgeSegment := NewSegment(c.Tip, c.Base.Add(axis.Scale(c.Radius)))
+	edgeDist := edgeSegment.Dist(p)
+
+	dist := math.Min(baseDist, edgeDist)
+	if c.Contains(p) {
+		return dist
+	} else {
+		return -dist
+	}
+}
+
 // A Torus is a 3D primitive that represents a torus.
 //
 // The torus is defined by revolving a sphere of radius
