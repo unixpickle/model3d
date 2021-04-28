@@ -140,6 +140,68 @@ func TestCylinderSDF(t *testing.T) {
 	}
 }
 
+func TestConeSDF(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		p1 := NewCoord3DRandUnit()
+		p2 := NewCoord3DRandUnit()
+		if p1.Dist(p2) < 0.1 {
+			i--
+			continue
+		}
+		cone := &Cone{
+			Base:   p1,
+			Tip:    p2,
+			Radius: math.Abs(rand.NormFloat64()) + 0.1,
+		}
+
+		epsilon := 0.04
+		approxSDF := approxConeSDF(cone, epsilon)
+
+		scale := cone.Min().Sub(cone.Max()).Scale(0.5)
+		center := cone.Min().Mid(cone.Max())
+		for i := 0; i < 1000; i++ {
+			p := NewCoord3DRandNorm().Mul(scale).Add(center)
+			actual := cone.SDF(p)
+			expected := approxSDF(p)
+			if math.Abs(actual-expected) > epsilon {
+				t.Errorf("expected %f but got %f at %v", expected, actual, p)
+			}
+		}
+	}
+}
+
+func approxConeSDF(cone *Cone, epsilon float64) func(Coord3D) float64 {
+	fudge := 3.0
+	points := []Coord3D{}
+	axis := cone.Tip.Sub(cone.Base).Normalize()
+	ortho1, ortho2 := axis.OrthoBasis()
+	length := cone.Tip.Dist(cone.Base)
+	for t := 0.0; t <= length; t += epsilon / fudge {
+		radius := (1 - t/length) * cone.Radius
+		dTheta := epsilon / (radius * fudge)
+		for theta := -math.Pi; theta < math.Pi; theta += dTheta {
+			x := ortho1.Scale(math.Cos(theta) * radius)
+			y := ortho2.Scale(math.Sin(theta) * radius)
+			point := cone.Base.Add(axis.Scale(t)).Add(x).Add(y)
+			points = append(points, point)
+		}
+	}
+	tree := NewCoordTree(points)
+	circleSDF := &Cylinder{
+		P1:     cone.Base,
+		P2:     cone.Base.Add(axis.Scale(epsilon * 1e-5)),
+		Radius: cone.Radius,
+	}
+	return func(c Coord3D) float64 {
+		dist := math.Min(tree.Dist(c), math.Abs(circleSDF.SDF(c)))
+		if cone.Contains(c) {
+			return dist
+		} else {
+			return -dist
+		}
+	}
+}
+
 func TestTorusSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		outer := math.Abs(rand.NormFloat64()) + 0.1
