@@ -132,13 +132,9 @@ func TestCylinderSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		p1 := NewCoord3DRandUnit()
 		p2 := NewCoord3DRandUnit()
-		if p1.Dist(p2) < 0.1 {
-			i--
-			continue
-		}
 		testSolidSDF(t, &Cylinder{
-			P1:     NewCoord3DRandNorm(),
-			P2:     NewCoord3DRandNorm(),
+			P1:     p1,
+			P2:     p2,
 			Radius: math.Abs(rand.NormFloat64()) + 0.1,
 		})
 	}
