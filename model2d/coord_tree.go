@@ -70,6 +70,12 @@ func (c *CoordTree) Contains(p Coord) bool {
 	}
 }
 
+// Dist gets the distance from a point p to its nearest
+// neighbor in c.
+func (c *CoordTree) Dist(p Coord) float64 {
+	return c.NearestNeighbor(p).Dist(p)
+}
+
 // NearestNeighbor gets the closest coordinate to p in the
 // tree.
 //
