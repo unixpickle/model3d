@@ -144,22 +144,6 @@ func TestCylinderSDF(t *testing.T) {
 	}
 }
 
-func TestConeSDF(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		p1 := NewCoord3DRandUnit()
-		p2 := NewCoord3DRandUnit()
-		if p1.Dist(p2) < 0.1 {
-			i--
-			continue
-		}
-		testSolidSDF(t, &Cone{
-			Base:   NewCoord3DRandNorm(),
-			Tip:    NewCoord3DRandNorm(),
-			Radius: math.Abs(rand.NormFloat64()) + 0.1,
-		})
-	}
-}
-
 func TestTorusSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		outer := math.Abs(rand.NormFloat64()) + 0.1
