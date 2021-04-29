@@ -13,6 +13,11 @@ func TestNewMeshRect(t *testing.T) {
 	MustValidateMesh(t, mesh, true)
 }
 
+func TestNewMeshCone(t *testing.T) {
+	mesh := NewMeshCone(XYZ(-0.3, -0.4, -0.2), XYZ(0.4, 0.35, 0.19), 0.7, 20)
+	MustValidateMesh(t, mesh, true)
+}
+
 func TestProfileMesh(t *testing.T) {
 	mesh2d := model2d.NewMeshPolar(func(t float64) float64 {
 		return 2 + math.Cos(t*10)
