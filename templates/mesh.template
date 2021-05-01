@@ -225,8 +225,8 @@ func NewMeshCone(tip, base Coord3D, radius float64, numStops int) *Mesh {
 	for i := 0; i < numStops; i++ {
 		p1 := ringPoint(i)
 		p2 := ringPoint(i + 1)
-		res.Add(&Triangle{p1, base, p2})
-		res.Add(&Triangle{p1, p2, tip})
+		res.Add(&Triangle{p1, p2, base})
+		res.Add(&Triangle{p2, p1, tip})
 	}
 
 	return res
