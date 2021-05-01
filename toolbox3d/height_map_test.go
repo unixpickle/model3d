@@ -64,17 +64,22 @@ func TestHeightMapAddSphere(t *testing.T) {
 
 func TestHeightMapMesh(t *testing.T) {
 	h := NewHeightMap(model2d.XY(-1, -1), model2d.XY(1, 1), 100)
-	h.AddSphere(model2d.XY(0.2, 0.2), 0.3)
-	h.AddSphere(model2d.XY(-0.2, -0.2), 0.3)
-	// h.AddSphere(model2d.XY(-0.8, -0.8), 0.1)
+	for i := 0; i < h.Rows; i++ {
+		for j := 0; j < h.Cols; j++ {
+			if rand.Intn(2) == 0 {
+				h.Data[j+i*h.Cols] = rand.Float64() * 2
+			}
+		}
+	}
 
 	mesh := h.Mesh()
+
 	if mesh.NeedsRepair() {
 		t.Error("mesh has bad edges")
 	}
-	// if n := len(mesh.SingularVertices()); n != 0 {
-	// 	t.Errorf("mesh has %d singular vertices", n)
-	// }
+	if n := len(mesh.SingularVertices()); n != 0 {
+		t.Errorf("mesh has %d singular vertices", n)
+	}
 	if _, n := mesh.RepairNormals(1e-5); n != 0 {
 		t.Errorf("mesh contains %d bad normals", n)
 	}

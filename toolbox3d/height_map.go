@@ -258,6 +258,16 @@ func (h *HeightMap) HeightSquaredAt(c model2d.Coord) float64 {
 // Mesh generates a solid mesh containing the volume under
 // the height map but above the Z axis.
 func (h *HeightMap) Mesh() *model3d.Mesh {
+	// By default, we keep all zero points slightly above
+	// z=0 to prevent singularities.
+	minZ2 := math.Pow(h.Delta*1e-5, 2)
+	for _, d := range h.Data {
+		if d != 0 && d < minZ2 {
+			minZ2 = d
+		}
+	}
+	minZ := math.Sqrt(minZ2)
+
 	mesh := model3d.NewMesh()
 	for row := -1; row < h.Rows; row++ {
 		for col := -1; col < h.Cols; col++ {
@@ -274,28 +284,64 @@ func (h *HeightMap) Mesh() *model3d.Mesh {
 				h.indexToCoord(row+1, col+1),
 			}
 			surface := [4]model3d.Coord3D{}
-			base := [4]model3d.Coord3D{}
 
-			// center := coords[0].Mid(coords[3])
-			allZero := true
 			for i, sqHeight := range sqHeights {
-				if sqHeight > 0 {
-					allZero = false
-				} else {
-					// Move singular vertices towards the center.
-					// coords[i] = coords[i].Scale(0.9).Add(center.Scale(0.1))
+				surface[i] = model3d.XYZ(
+					coords[i].X,
+					coords[i].Y,
+					math.Sqrt(sqHeight),
+				)
+			}
+			surfaceTris := [2]*model3d.Triangle{
+				{surface[0], surface[1], surface[2]},
+				{surface[2], surface[1], surface[3]},
+			}
+			for _, t := range surfaceTris {
+				if t[0].Z != 0 || t[1].Z != 0 || t[2].Z != 0 {
+					for i, c := range t {
+						if c.Z == 0 {
+							c.Z = minZ
+							t[i] = c
+						}
+					}
+					mesh.Add(t)
 				}
-				surface[i] = model3d.XYZ(coords[i].X, coords[i].Y, math.Sqrt(sqHeight))
-				base[i] = model3d.XY(coords[i].X, coords[i].Y)
 			}
-			if allZero {
-				continue
-			}
-			mesh.Add(&model3d.Triangle{surface[0], surface[1], surface[2]})
-			mesh.Add(&model3d.Triangle{surface[2], surface[1], surface[3]})
-			mesh.AddQuad(base[2], base[3], base[1], base[0])
 		}
 	}
+
+	separateSingularVertices(mesh)
+
+	// Create walls to connect top edges to base.
+	connections := model3d.NewMesh()
+	edges := map[model3d.Segment]bool{}
+	mesh.Iterate(func(t *model3d.Triangle) {
+		for i := 0; i < 3; i++ {
+			p1 := t[i]
+			p2 := t[(i+1)%3]
+			seg := model3d.NewSegment(p1, p2)
+			if !edges[seg] && len(mesh.Find(p1, p2)) == 1 {
+				edges[seg] = true
+				connections.AddQuad(
+					p2,
+					p1,
+					model3d.XY(p1.X, p1.Y),
+					model3d.XY(p2.X, p2.Y),
+				)
+			}
+		}
+	})
+
+	// Create base triangles.
+	mesh.Iterate(func(t *model3d.Triangle) {
+		mesh.Add(&model3d.Triangle{
+			model3d.XY(t[0].X, t[0].Y),
+			model3d.XY(t[2].X, t[2].Y),
+			model3d.XY(t[1].X, t[1].Y),
+		})
+	})
+	mesh.AddMesh(connections)
+
 	return mesh
 }
 
@@ -356,4 +402,28 @@ func (h *heightMapSolid) Max() model3d.Coord3D {
 
 func (h *heightMapSolid) Contains(c model3d.Coord3D) bool {
 	return model3d.InBounds(h, c) && h.heightMap.HigherAt(c.XY(), math.Abs(c.Z))
+}
+
+func separateSingularVertices(m *model3d.Mesh) {
+	sf := &singularityFixer{Mesh: m}
+	for _, v := range m.SingularVertices() {
+		for _, family := range sf.singularVertexFamilies(v) {
+			min, max := family[0].Min(), family[0].Max()
+			for _, t := range family {
+				min = min.Min(t.Min())
+				max = max.Max(t.Max())
+			}
+			center := min.Mid(max)
+			for _, t := range family {
+				m.Remove(t)
+				for i, c := range t {
+					if c == v {
+						t[i].X = (c.X * 0.99) + (center.X * 0.01)
+						t[i].Y = (c.Y * 0.99) + (center.Y * 0.01)
+					}
+				}
+				m.Add(t)
+			}
+		}
+	}
 }
