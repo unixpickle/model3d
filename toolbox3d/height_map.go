@@ -255,6 +255,50 @@ func (h *HeightMap) HeightSquaredAt(c model2d.Coord) float64 {
 		rowFrac*colFrac*h22
 }
 
+// Mesh generates a solid mesh containing the volume under
+// the height map but above the Z axis.
+func (h *HeightMap) Mesh() *model3d.Mesh {
+	mesh := model3d.NewMesh()
+	for row := -1; row < h.Rows; row++ {
+		for col := -1; col < h.Cols; col++ {
+			sqHeights := [4]float64{
+				h.getAt(row, col),
+				h.getAt(row, col+1),
+				h.getAt(row+1, col),
+				h.getAt(row+1, col+1),
+			}
+			coords := [4]model2d.Coord{
+				h.indexToCoord(row, col),
+				h.indexToCoord(row, col+1),
+				h.indexToCoord(row+1, col),
+				h.indexToCoord(row+1, col+1),
+			}
+			surface := [4]model3d.Coord3D{}
+			base := [4]model3d.Coord3D{}
+
+			// center := coords[0].Mid(coords[3])
+			allZero := true
+			for i, sqHeight := range sqHeights {
+				if sqHeight > 0 {
+					allZero = false
+				} else {
+					// Move singular vertices towards the center.
+					// coords[i] = coords[i].Scale(0.9).Add(center.Scale(0.1))
+				}
+				surface[i] = model3d.XYZ(coords[i].X, coords[i].Y, math.Sqrt(sqHeight))
+				base[i] = model3d.XY(coords[i].X, coords[i].Y)
+			}
+			if allZero {
+				continue
+			}
+			mesh.Add(&model3d.Triangle{surface[0], surface[1], surface[2]})
+			mesh.Add(&model3d.Triangle{surface[2], surface[1], surface[3]})
+			mesh.AddQuad(base[2], base[3], base[1], base[0])
+		}
+	}
+	return mesh
+}
+
 func (h *HeightMap) getAt(row, col int) float64 {
 	if row < 0 || col < 0 || row >= h.Rows || col >= h.Cols {
 		return 0
