@@ -405,9 +405,8 @@ func (h *heightMapSolid) Contains(c model3d.Coord3D) bool {
 }
 
 func separateSingularVertices(m *model3d.Mesh) {
-	sf := &singularityFixer{Mesh: m}
 	for _, v := range m.SingularVertices() {
-		for _, family := range sf.singularVertexFamilies(v) {
+		for _, family := range singularVertexFamilies(m, v) {
 			min, max := family[0].Min(), family[0].Max()
 			for _, t := range family {
 				min = min.Min(t.Min())

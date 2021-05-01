@@ -515,7 +515,7 @@ func (s *singularityFixer) fixSingularEdgeTriangle(seg model3d.Segment, mid mode
 // slightly away from each other.
 func (s *singularityFixer) FixSingularVertices() {
 	for _, v := range s.Mesh.SingularVertices() {
-		for _, family := range s.singularVertexFamilies(v) {
+		for _, family := range singularVertexFamilies(s.Mesh, v) {
 			// Move the vertex closer to the mean of all points
 			// in the triangle family. This is not guaranteed to
 			// work in general, but seems effective in this case.
@@ -542,56 +542,5 @@ func (s *singularityFixer) FixSingularVertices() {
 				s.Mesh.Add(t)
 			}
 		}
-	}
-}
-
-func (s *singularityFixer) singularVertexFamilies(v model3d.Coord3D) [][]*model3d.Triangle {
-	var families [][]*model3d.Triangle
-	tris := s.Mesh.Find(v)
-	for len(tris) > 0 {
-		var family []*model3d.Triangle
-		family, tris = s.singularVertexNextFamily(tris)
-		families = append(families, family)
-	}
-	return families
-}
-
-func (s *singularityFixer) singularVertexNextFamily(tris []*model3d.Triangle) (family,
-	leftover []*model3d.Triangle) {
-	// See mesh.SingularVertices() for an explanation of
-	// this algorithm.
-
-	queue := make([]int, len(tris))
-	queue[0] = 1
-	changed := true
-	numVisited := 1
-	for changed {
-		changed = false
-		for i, status := range queue {
-			if status != 1 {
-				continue
-			}
-			t := tris[i]
-			for j, t1 := range tris {
-				if queue[j] == 0 && t.SharesEdge(t1) {
-					queue[j] = 1
-					numVisited++
-					changed = true
-				}
-			}
-			queue[i] = 2
-		}
-	}
-	if numVisited == len(tris) {
-		return tris, nil
-	} else {
-		for i, status := range queue {
-			if status == 0 {
-				leftover = append(leftover, tris[i])
-			} else {
-				family = append(family, tris[i])
-			}
-		}
-		return
 	}
 }
