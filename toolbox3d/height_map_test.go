@@ -72,17 +72,24 @@ func TestHeightMapMesh(t *testing.T) {
 		}
 	}
 
-	mesh := h.Mesh()
+	testMesh := func(t *testing.T, mesh *model3d.Mesh) {
+		if mesh.NeedsRepair() {
+			t.Error("mesh has bad edges")
+		}
+		if n := len(mesh.SingularVertices()); n != 0 {
+			t.Errorf("mesh has %d singular vertices", n)
+		}
+		if _, n := mesh.RepairNormals(1e-5); n != 0 {
+			t.Errorf("mesh contains %d bad normals", n)
+		}
+	}
 
-	if mesh.NeedsRepair() {
-		t.Error("mesh has bad edges")
-	}
-	if n := len(mesh.SingularVertices()); n != 0 {
-		t.Errorf("mesh has %d singular vertices", n)
-	}
-	if _, n := mesh.RepairNormals(1e-5); n != 0 {
-		t.Errorf("mesh contains %d bad normals", n)
-	}
+	t.Run("Flat", func(t *testing.T) {
+		testMesh(t, h.Mesh())
+	})
+	t.Run("Bidir", func(t *testing.T) {
+		testMesh(t, h.MeshBidir())
+	})
 }
 
 func createRandomizedHeightMap() *HeightMap {

@@ -258,6 +258,81 @@ func (h *HeightMap) HeightSquaredAt(c model2d.Coord) float64 {
 // Mesh generates a solid mesh containing the volume under
 // the height map but above the Z axis.
 func (h *HeightMap) Mesh() *model3d.Mesh {
+	mesh := h.surfaceMesh()
+
+	// Create walls to connect top edges to base.
+	connections := model3d.NewMesh()
+	edges := map[model3d.Segment]bool{}
+	mesh.Iterate(func(t *model3d.Triangle) {
+		for i := 0; i < 3; i++ {
+			p1 := t[i]
+			p2 := t[(i+1)%3]
+			seg := model3d.NewSegment(p1, p2)
+			if !edges[seg] && len(mesh.Find(p1, p2)) == 1 {
+				edges[seg] = true
+				connections.AddQuad(
+					p2,
+					p1,
+					model3d.XY(p1.X, p1.Y),
+					model3d.XY(p2.X, p2.Y),
+				)
+			}
+		}
+	})
+
+	// Create base triangles.
+	mesh.Iterate(func(t *model3d.Triangle) {
+		mesh.Add(&model3d.Triangle{
+			model3d.XY(t[0].X, t[0].Y),
+			model3d.XY(t[2].X, t[2].Y),
+			model3d.XY(t[1].X, t[1].Y),
+		})
+	})
+	mesh.AddMesh(connections)
+
+	return mesh
+}
+
+// Mesh generates a mesh for the surface by reflecting it
+// across the Z axis. This is like Mesh(), but with a
+// symmetrical base rather than a flat one.
+func (h *HeightMap) MeshBidir() *model3d.Mesh {
+	mesh := h.surfaceMesh()
+
+	// Create walls to connect top edges to bottom.
+	connections := model3d.NewMesh()
+	edges := map[model3d.Segment]bool{}
+	mesh.Iterate(func(t *model3d.Triangle) {
+		for i := 0; i < 3; i++ {
+			p1 := t[i]
+			p2 := t[(i+1)%3]
+			seg := model3d.NewSegment(p1, p2)
+			if !edges[seg] && len(mesh.Find(p1, p2)) == 1 {
+				edges[seg] = true
+				connections.AddQuad(
+					p2,
+					p1,
+					p1.Mul(model3d.XYZ(1, 1, -1)),
+					p2.Mul(model3d.XYZ(1, 1, -1)),
+				)
+			}
+		}
+	})
+
+	// Create base triangles.
+	mesh.Iterate(func(t *model3d.Triangle) {
+		mesh.Add(&model3d.Triangle{
+			model3d.XYZ(t[0].X, t[0].Y, -t[0].Z),
+			model3d.XYZ(t[2].X, t[2].Y, -t[2].Z),
+			model3d.XYZ(t[1].X, t[1].Y, -t[1].Z),
+		})
+	})
+	mesh.AddMesh(connections)
+
+	return mesh
+}
+
+func (h *HeightMap) surfaceMesh() *model3d.Mesh {
 	// By default, we keep all zero points slightly above
 	// z=0 to prevent singularities.
 	minZ2 := math.Pow(h.Delta*1e-5, 2)
@@ -311,37 +386,6 @@ func (h *HeightMap) Mesh() *model3d.Mesh {
 	}
 
 	separateSingularVertices(mesh)
-
-	// Create walls to connect top edges to base.
-	connections := model3d.NewMesh()
-	edges := map[model3d.Segment]bool{}
-	mesh.Iterate(func(t *model3d.Triangle) {
-		for i := 0; i < 3; i++ {
-			p1 := t[i]
-			p2 := t[(i+1)%3]
-			seg := model3d.NewSegment(p1, p2)
-			if !edges[seg] && len(mesh.Find(p1, p2)) == 1 {
-				edges[seg] = true
-				connections.AddQuad(
-					p2,
-					p1,
-					model3d.XY(p1.X, p1.Y),
-					model3d.XY(p2.X, p2.Y),
-				)
-			}
-		}
-	})
-
-	// Create base triangles.
-	mesh.Iterate(func(t *model3d.Triangle) {
-		mesh.Add(&model3d.Triangle{
-			model3d.XY(t[0].X, t[0].Y),
-			model3d.XY(t[2].X, t[2].Y),
-			model3d.XY(t[1].X, t[1].Y),
-		})
-	})
-	mesh.AddMesh(connections)
-
 	return mesh
 }
 
