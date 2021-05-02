@@ -112,10 +112,11 @@ func TestRectSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		c1 := NewCoord3DRandNorm()
 		c2 := NewCoord3DRandNorm()
-		testSolidSDF(t, &Rect{
+		r := &Rect{
 			MinVal: c1.Min(c2),
 			MaxVal: c1.Max(c2).Add(XYZ(0.1, 0.1, 0.1)),
-		})
+		}
+		testMeshSDF(t, r, NewMeshRect(r.MinVal, r.MaxVal), 1e-5)
 	}
 }
 
@@ -153,26 +154,11 @@ func TestConeSDF(t *testing.T) {
 			Tip:    p2,
 			Radius: math.Abs(rand.NormFloat64()) + 0.1,
 		}
-
 		epsilon := 0.04
-		approxSDF := approxConeSDF(cone, epsilon)
-
-		scale := cone.Min().Sub(cone.Max()).Scale(0.5)
-		center := cone.Min().Mid(cone.Max())
-		for i := 0; i < 1000; i++ {
-			p := NewCoord3DRandNorm().Mul(scale).Add(center)
-			actual := cone.SDF(p)
-			expected := approxSDF.SDF(p)
-			if math.Abs(actual-expected) > epsilon {
-				t.Errorf("expected %f but got %f at %v", expected, actual, p)
-			}
-		}
+		numStops := int(math.Ceil(2 * math.Pi * cone.Radius / epsilon))
+		mesh := NewMeshCone(cone.Tip, cone.Base, cone.Radius, numStops)
+		testMeshSDF(t, cone, mesh, epsilon)
 	}
-}
-
-func approxConeSDF(cone *Cone, epsilon float64) SDF {
-	numStops := int(math.Ceil(2 * math.Pi * cone.Radius / epsilon))
-	return MeshToSDF(NewMeshCone(cone.Tip, cone.Base, cone.Radius, numStops))
 }
 
 func TestTorusSDF(t *testing.T) {
@@ -188,6 +174,22 @@ func TestTorusSDF(t *testing.T) {
 			OuterRadius: outer,
 			InnerRadius: inner,
 		})
+	}
+}
+
+func testMeshSDF(t *testing.T, s SDF, m *Mesh, epsilon float64) {
+	meshSDF := MeshToSDF(m)
+	for i := 0; i < 1000; i++ {
+		scale := s.Min().Sub(s.Max()).Scale(0.5)
+		center := s.Min().Mid(s.Max())
+		c := NewCoord3DRandNorm().Mul(scale).Add(center)
+
+		sdf1 := s.SDF(c)
+		sdf2 := meshSDF.SDF(c)
+		if math.Abs(sdf1-sdf2) > epsilon {
+			t.Errorf("mismatched SDF: expected %f but got %f (solid %v)", sdf1, sdf2,
+				s)
+		}
 	}
 }
 
