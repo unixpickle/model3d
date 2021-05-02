@@ -4,6 +4,7 @@ package model3d
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/pkg/errors"
 )
@@ -27,6 +28,10 @@ func ValidateMesh(m *Mesh, checkIntersections bool) error {
 		if n := m.SelfIntersections(); n != 0 {
 			return fmt.Errorf("mesh has %d self-intersections", n)
 		}
+	}
+	volume := m.Volume()
+	if math.IsNaN(volume) || math.IsInf(volume, 0) {
+		return fmt.Errorf("volume is %f", volume)
 	}
 	return nil
 }
