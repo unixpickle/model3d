@@ -133,11 +133,15 @@ func TestCylinderSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		p1 := NewCoord3DRandUnit()
 		p2 := NewCoord3DRandUnit()
-		testSolidSDF(t, &Cylinder{
+		cyl := &Cylinder{
 			P1:     p1,
 			P2:     p2,
 			Radius: math.Abs(rand.NormFloat64()) + 0.1,
-		})
+		}
+		epsilon := 0.04
+		numStops := int(math.Ceil(2 * math.Pi * cyl.Radius / epsilon))
+		mesh := NewMeshCylinder(cyl.P1, cyl.P2, cyl.Radius, numStops)
+		testMeshSDF(t, cyl, mesh, epsilon)
 	}
 }
 
@@ -184,8 +188,8 @@ func testMeshSDF(t *testing.T, s SDF, m *Mesh, epsilon float64) {
 		center := s.Min().Mid(s.Max())
 		c := NewCoord3DRandNorm().Mul(scale).Add(center)
 
-		sdf1 := s.SDF(c)
-		sdf2 := meshSDF.SDF(c)
+		sdf1 := meshSDF.SDF(c)
+		sdf2 := s.SDF(c)
 		if math.Abs(sdf1-sdf2) > epsilon {
 			t.Errorf("mismatched SDF: expected %f but got %f (solid %v)", sdf1, sdf2,
 				s)
