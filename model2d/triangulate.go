@@ -371,7 +371,7 @@ type triangulateSweepState struct {
 
 func newTriangulateSweepState(m *ptrMesh) *triangulateSweepState {
 	var vertices []*ptrCoord
-	m.Iterate(func(c *ptrCoord) {
+	m.IterateCoords(func(c *ptrCoord) {
 		vertices = append(vertices, c)
 	})
 	sort.Slice(vertices, func(i, j int) bool {

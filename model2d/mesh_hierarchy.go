@@ -175,7 +175,7 @@ type sortedCoords struct {
 func newSortedCoords(m *ptrMesh) *sortedCoords {
 	var coords []*ptrCoord
 	var dots []float64
-	m.Iterate(func(c *ptrCoord) {
+	m.IterateCoords(func(c *ptrCoord) {
 		coords = append(coords, c)
 		dots = append(dots, c.Dot(arbitraryAxis))
 	})

@@ -211,7 +211,7 @@ type sortedCoords struct {
 func newSortedCoords(m *ptrMesh) *sortedCoords {
 	var coords []*ptrCoord
 	var dots []float64
-	m.{{if .model2d}}Iterate{{else}}IterateCoords{{end}}(func(c *ptrCoord) {
+	m.IterateCoords(func(c *ptrCoord) {
 		coords = append(coords, c)
 		dots = append(dots, c.Dot(arbitraryAxis))
 	})

@@ -41,7 +41,7 @@ func newPtrMeshSegments(segs []*Segment) *ptrMesh {
 // Mesh converts this into a traditional Mesh object.
 func (p *ptrMesh) Mesh() *Mesh {
 	m := NewMesh()
-	p.Iterate(func(c *ptrCoord) {
+	p.IterateCoords(func(c *ptrCoord) {
 		for _, c1 := range p.Outgoing(c) {
 			m.Add(&Segment{c.Coord, c1.Coord})
 		}
@@ -53,7 +53,7 @@ func (p *ptrMesh) Mesh() *Mesh {
 func (p *ptrMesh) Copy() *ptrMesh {
 	res := &ptrMesh{}
 	mapping := map[*ptrCoord]*ptrCoord{}
-	p.Iterate(func(c *ptrCoord) {
+	p.IterateCoords(func(c *ptrCoord) {
 		c1 := &ptrCoord{
 			Coord:    c.Coord,
 			listNext: p.first,
@@ -64,7 +64,7 @@ func (p *ptrMesh) Copy() *ptrMesh {
 		}
 		res.first = c1
 	})
-	p.Iterate(func(c *ptrCoord) {
+	p.IterateCoords(func(c *ptrCoord) {
 		c1 := mapping[c]
 		for _, other := range c.nextCoords {
 			c1.nextCoords = append(c1.nextCoords, mapping[other])
@@ -76,10 +76,10 @@ func (p *ptrMesh) Copy() *ptrMesh {
 	return res
 }
 
-// Iterate iterates over the points in the mesh.
+// IterateCoords iterates over the points in the mesh.
 //
 // The mesh should not be modified during iteration.
-func (p *ptrMesh) Iterate(f func(*ptrCoord)) {
+func (p *ptrMesh) IterateCoords(f func(*ptrCoord)) {
 	obj := p.first
 	for obj != nil {
 		f(obj)
