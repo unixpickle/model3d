@@ -100,3 +100,13 @@ func createRandomizedHeightMap() *HeightMap {
 	}
 	return result
 }
+
+func BenchmarkHeightMapMesh(b *testing.B) {
+	h := NewHeightMap(model2d.XY(-1, -1), model2d.XY(1, 1), 100)
+	h.AddSphere(model2d.XY(0.2, 0.2), 0.3)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		h.Mesh()
+	}
+}
