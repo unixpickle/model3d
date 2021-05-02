@@ -206,6 +206,40 @@ func NewMeshRect(min, max {{.coordType}}) *Mesh {
 	return mesh
 }
 
+// NewMeshCylinder creates a 3D mesh representing a
+// cylinder.
+//
+// This is done by discretizing the side circle into
+// numStops segments and attaching triangles between them.
+func NewMeshCylinder(p1, p2 Coord3D, radius float64, numStops int) *Mesh {
+	z := p2.Sub(p1).Normalize()
+	x, y := z.OrthoBasis()
+
+	sidePoint := func(side Coord3D, i int) Coord3D {
+		i = i % numStops
+		theta := float64(i) * math.Pi * 2 / float64(numStops)
+		offset := x.Scale(math.Cos(theta)).Add(y.Scale(math.Sin(theta))).Scale(radius)
+		return side.Add(offset)
+	}
+
+	res := NewMesh()
+	for i := 0; i < numStops; i++ {
+		p11 := sidePoint(p1, i)
+		p12 := sidePoint(p1, i+1)
+		p21 := sidePoint(p2, i)
+		p22 := sidePoint(p2, i+1)
+
+		// Side faces
+		res.Add(&Triangle{p11, p12, p1})
+		res.Add(&Triangle{p21, p2, p22})
+
+		// Connection along shaft
+		res.AddQuad(p12, p11, p21, p22)
+	}
+
+	return res
+}
+
 // NewMeshCone creates a 3D mesh representing a cone.
 //
 // This is done by discretizing the base circle into

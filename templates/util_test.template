@@ -2,6 +2,9 @@ package {{.package}}
 
 import (
 	"fmt"
+	{{- if not .model2d}}
+	"math"
+	{{- end}}
 
 	"github.com/pkg/errors"
 )
@@ -32,6 +35,10 @@ func ValidateMesh(m *Mesh{{if not .model2d}}, checkIntersections bool{{end}}) er
 		if n := m.SelfIntersections(); n != 0 {
 			return fmt.Errorf("mesh has %d self-intersections", n)
 		}
+	}
+	volume := m.Volume()
+	if math.IsNaN(volume) || math.IsInf(volume, 0) {
+		return fmt.Errorf("volume is %f", volume)
 	}
     {{end -}}
 	return nil
