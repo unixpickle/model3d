@@ -258,27 +258,11 @@ func (h *HeightMap) HeightSquaredAt(c model2d.Coord) float64 {
 // Mesh generates a solid mesh containing the volume under
 // the height map but above the Z axis.
 func (h *HeightMap) Mesh() *model3d.Mesh {
-	mesh := h.surfaceMesh()
+	// Create a result mesh without a vertex-to-face cache.
+	mesh := model3d.NewMesh()
+	mesh.AddMesh(h.surfaceMesh())
 
-	// Create walls to connect top edges to base.
-	connections := model3d.NewMesh()
-	edges := map[model3d.Segment]bool{}
-	mesh.Iterate(func(t *model3d.Triangle) {
-		for i := 0; i < 3; i++ {
-			p1 := t[i]
-			p2 := t[(i+1)%3]
-			seg := model3d.NewSegment(p1, p2)
-			if !edges[seg] && len(mesh.Find(p1, p2)) == 1 {
-				edges[seg] = true
-				connections.AddQuad(
-					p2,
-					p1,
-					model3d.XY(p1.X, p1.Y),
-					model3d.XY(p2.X, p2.Y),
-				)
-			}
-		}
-	})
+	edges := findUnsharedEdges(mesh)
 
 	// Create base triangles.
 	mesh.Iterate(func(t *model3d.Triangle) {
@@ -288,7 +272,17 @@ func (h *HeightMap) Mesh() *model3d.Mesh {
 			model3d.XY(t[1].X, t[1].Y),
 		})
 	})
-	mesh.AddMesh(connections)
+
+	// Connect edges to base.
+	for edge := range edges {
+		p1, p2 := edge[0], edge[1]
+		mesh.AddQuad(
+			p2,
+			p1,
+			model3d.XY(p1.X, p1.Y),
+			model3d.XY(p2.X, p2.Y),
+		)
+	}
 
 	return mesh
 }
@@ -297,27 +291,10 @@ func (h *HeightMap) Mesh() *model3d.Mesh {
 // across the Z axis. This is like Mesh(), but with a
 // symmetrical base rather than a flat one.
 func (h *HeightMap) MeshBidir() *model3d.Mesh {
-	mesh := h.surfaceMesh()
+	mesh := model3d.NewMesh()
+	mesh.AddMesh(h.surfaceMesh())
 
-	// Create walls to connect top edges to bottom.
-	connections := model3d.NewMesh()
-	edges := map[model3d.Segment]bool{}
-	mesh.Iterate(func(t *model3d.Triangle) {
-		for i := 0; i < 3; i++ {
-			p1 := t[i]
-			p2 := t[(i+1)%3]
-			seg := model3d.NewSegment(p1, p2)
-			if !edges[seg] && len(mesh.Find(p1, p2)) == 1 {
-				edges[seg] = true
-				connections.AddQuad(
-					p2,
-					p1,
-					p1.Mul(model3d.XYZ(1, 1, -1)),
-					p2.Mul(model3d.XYZ(1, 1, -1)),
-				)
-			}
-		}
-	})
+	edges := findUnsharedEdges(mesh)
 
 	// Create base triangles.
 	mesh.Iterate(func(t *model3d.Triangle) {
@@ -327,7 +304,16 @@ func (h *HeightMap) MeshBidir() *model3d.Mesh {
 			model3d.XYZ(t[1].X, t[1].Y, -t[1].Z),
 		})
 	})
-	mesh.AddMesh(connections)
+
+	for edge := range edges {
+		p1, p2 := edge[0], edge[1]
+		mesh.AddQuad(
+			p2,
+			p1,
+			model3d.XYZ(p1.X, p1.Y, -p1.Z),
+			model3d.XYZ(p2.X, p2.Y, -p2.Z),
+		)
+	}
 
 	return mesh
 }
@@ -469,4 +455,22 @@ func separateSingularVertices(m *model3d.Mesh) {
 			}
 		}
 	}
+}
+
+func findUnsharedEdges(m *model3d.Mesh) map[[2]model3d.Coord3D]bool {
+	edges := map[[2]model3d.Coord3D]bool{}
+	m.Iterate(func(t *model3d.Triangle) {
+		for i := 0; i < 3; i++ {
+			p1 := t[i]
+			p2 := t[(i+1)%3]
+			edge := [2]model3d.Coord3D{p1, p2}
+			otherEdge := [2]model3d.Coord3D{p2, p1}
+			if edges[otherEdge] {
+				delete(edges, otherEdge)
+			} else {
+				edges[edge] = true
+			}
+		}
+	})
+	return edges
 }
