@@ -1,8 +1,7 @@
 package model2d
 
 type ptrMesh struct {
-	coordMap map[Coord]*ptrCoord
-	first    *ptrCoord
+	first *ptrCoord
 }
 
 func newPtrMesh(m *Mesh) *ptrMesh {
