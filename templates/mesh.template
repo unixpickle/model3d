@@ -240,6 +240,47 @@ func NewMeshCylinder(p1, p2 Coord3D, radius float64, numStops int) *Mesh {
 	return res
 }
 
+// NewMeshTorus creates a 3D mesh representing a torus.
+//
+// This is done by discretizing the local ring into
+// innerStops segments, and the larger ring into
+// outerStops segments.
+//
+// The innerRadius must be smaller than the outerRadius,
+// since doing otherwise would cause self-intersections.
+func NewMeshTorus(center, axis Coord3D, innerRadius, outerRadius float64, innerStops,
+	outerStops int) *Mesh {
+	if innerRadius > outerRadius {
+		panic("resulting mesh would have self-intersections, since innerRadius > outerRadius")
+	}
+
+	x, y := axis.OrthoBasis()
+
+	ringPoint := func(outerIndex, innerIndex int) Coord3D {
+		outerTheta := float64(outerIndex % outerStops) * math.Pi * 2 / float64(outerStops)
+
+		ringX := x.Scale(math.Cos(outerTheta)).Add(y.Scale(math.Sin(outerTheta)))
+		ringY := axis
+
+		theta := float64(innerIndex % innerStops) * math.Pi * 2 / float64(innerStops)
+		offset := ringX.Scale(math.Cos(theta)).Add(ringY.Scale(math.Sin(theta))).Scale(innerRadius)
+		return offset.Add(ringX.Scale(outerRadius)).Add(center)
+	}
+
+	res := NewMesh()
+	for i := 0; i < outerStops; i++ {
+		for j := 0; j < innerStops; j++ {
+			p11 := ringPoint(i, j)
+			p12 := ringPoint(i, j+1)
+			p21 := ringPoint(i+1, j+1)
+			p22 := ringPoint(i+1, j)
+			res.AddQuad(p11, p12, p21, p22)
+		}
+	}
+
+	return res
+}
+
 // NewMeshCone creates a 3D mesh representing a cone.
 //
 // This is done by discretizing the base circle into
