@@ -254,6 +254,7 @@ func NewMeshTorus(center, axis Coord3D, innerRadius, outerRadius float64, innerS
 		panic("resulting mesh would have self-intersections, since innerRadius > outerRadius")
 	}
 
+	axis = axis.Normalize()
 	x, y := axis.OrthoBasis()
 
 	ringPoint := func(outerIndex, innerIndex int) Coord3D {

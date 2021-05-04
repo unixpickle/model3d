@@ -172,12 +172,18 @@ func TestTorusSDF(t *testing.T) {
 		if inner > outer {
 			outer, inner = inner, outer
 		}
-		testSolidBounds(t, &Torus{
+		torus := &Torus{
 			Axis:        NewCoord3DRandNorm(),
 			Center:      NewCoord3DRandNorm(),
 			OuterRadius: outer,
 			InnerRadius: inner,
-		})
+		}
+		epsilon := 0.04
+		innerStops := int(math.Ceil(2 * math.Pi * torus.InnerRadius / epsilon))
+		outerStops := int(math.Ceil(2 * math.Pi * (torus.OuterRadius + torus.InnerRadius) / epsilon))
+		mesh := NewMeshTorus(torus.Center, torus.Axis, torus.InnerRadius, torus.OuterRadius,
+			innerStops, outerStops)
+		testMeshSDF(t, torus, mesh, epsilon)
 	}
 }
 
