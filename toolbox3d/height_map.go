@@ -255,6 +255,24 @@ func (h *HeightMap) HeightSquaredAt(c model2d.Coord) float64 {
 		rowFrac*colFrac*h22
 }
 
+// SetHeightSquaredAt sets the squared height at the index
+// closest to the given coordinate.
+func (h *HeightMap) SetHeightSquaredAt(c model2d.Coord, hs float64) {
+	if hs < 0 {
+		panic("squared value must be non-negative")
+	}
+	row, col := h.coordToIndex(c)
+	c1 := h.indexToCoord(row, col)
+
+	col += int(math.Round((c.X - c1.X) / h.Delta))
+	row += int(math.Round((c.Y - c1.Y) / h.Delta))
+
+	if row < 0 || col < 0 || row >= h.Rows || col >= h.Cols {
+		return
+	}
+	h.Data[row*h.Cols+col] = hs
+}
+
 // Mesh generates a solid mesh containing the volume under
 // the height map but above the Z axis.
 func (h *HeightMap) Mesh() *model3d.Mesh {
@@ -353,10 +371,7 @@ func (h *HeightMap) surfaceMesh() *model3d.Mesh {
 					math.Sqrt(sqHeight),
 				)
 			}
-			surfaceTris := [2]*model3d.Triangle{
-				{surface[0], surface[1], surface[2]},
-				{surface[2], surface[1], surface[3]},
-			}
+			surfaceTris := triangulateQuad(surface)
 			for _, t := range surfaceTris {
 				if t[0].Z != 0 || t[1].Z != 0 || t[2].Z != 0 {
 					for i, c := range t {
@@ -473,4 +488,13 @@ func findUnsharedEdges(m *model3d.Mesh) map[[2]model3d.Coord3D]bool {
 		}
 	})
 	return edges
+}
+
+func triangulateQuad(surface [4]model3d.Coord3D) [2]*model3d.Triangle {
+	// In the future, we may be able to use heuristics here to
+	// eliminate flat triangles when possible.
+	return [2]*model3d.Triangle{
+		{surface[0], surface[1], surface[2]},
+		{surface[2], surface[1], surface[3]},
+	}
 }
