@@ -491,10 +491,19 @@ func findUnsharedEdges(m *model3d.Mesh) map[[2]model3d.Coord3D]bool {
 }
 
 func triangulateQuad(surface [4]model3d.Coord3D) [2]*model3d.Triangle {
-	// In the future, we may be able to use heuristics here to
-	// eliminate flat triangles when possible.
-	return [2]*model3d.Triangle{
+	t1 := [2]*model3d.Triangle{
 		{surface[0], surface[1], surface[2]},
 		{surface[2], surface[1], surface[3]},
+	}
+	t2 := [2]*model3d.Triangle{
+		{surface[0], surface[1], surface[3]},
+		{surface[0], surface[3], surface[2]},
+	}
+	area1 := t1[0].Area() + t1[1].Area()
+	area2 := t2[0].Area() + t2[1].Area()
+	if area1 < area2 {
+		return t1
+	} else {
+		return t2
 	}
 }
