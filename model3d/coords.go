@@ -391,8 +391,14 @@ func (c Coord3D) Array() [3]float64 {
 // fastHash generates a hash of the coordinate using a
 // dot product with a random vector.
 func (c Coord3D) fastHash() uint32 {
+	x := c.fastHash64()
+	return uint32(x&0xffffffff) ^ uint32(x>>32)
+}
+
+// fastHash64 is like fastHash, but uses a 64-bit hash
+// space to help mitigate collisions.
+func (c Coord3D) fastHash64() uint64 {
 	// Coefficients are random (keyboard mashed).
-	x := 0.783783847*c.X + 0.129387293*c.Y + 0.98439472938*c.Z
-	y := math.Float64bits(x)
-	return uint32(y&0xffffffff) ^ uint32(y>>32)
+	return math.Float64bits(0.78378384728594870293*c.X + 0.12938729312040294193*c.Y +
+		0.98439472938948227499*c.Z)
 }

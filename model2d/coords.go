@@ -193,3 +193,17 @@ func (c Coord) Reflect(c1 Coord) Coord {
 func (c Coord) Array() [2]float64 {
 	return [2]float64{c.X, c.Y}
 }
+
+// fastHash generates a hash of the coordinate using a
+// dot product with a random vector.
+func (c Coord) fastHash() uint32 {
+	x := c.fastHash64()
+	return uint32(x&0xffffffff) ^ uint32(x>>32)
+}
+
+// fastHash64 is like fastHash, but uses a 64-bit hash
+// space to help mitigate collisions.
+func (c Coord) fastHash64() uint64 {
+	// Coefficients are random (keyboard mashed).
+	return math.Float64bits(0.78378384728594870293*c.X + 0.12938729312040294193*c.Y)
+}
