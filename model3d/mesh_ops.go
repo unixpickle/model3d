@@ -368,16 +368,25 @@ func (m *Mesh) slowNeedsRepair() bool {
 // by a single point.
 func (m *Mesh) SingularVertices() []Coord3D {
 	var res []Coord3D
+
+	// Queue used for a breadth-first search, which is reused
+	// for each vertex. Each triangle connected to the vertex
+	// gets one entry indicating its status on the queue.
+	// A 0 means unvisited, a 1 means visited but not expanded,
+	// and a 2 means visited and expanded.
+	var queue []int
+
 	for vertex, tris := range m.getVertexToFace() {
 		if len(tris) == 0 {
 			continue
 		}
 
-		// Queue used for a breadth-first search.
-		// One entry per triangle. A 0 means unvisited.
-		// A 1 means visited but not expanded. A 2 means
-		// visited and expanded.
-		queue := make([]int, len(tris))
+		// Create an empty queue, automatically allocating more
+		// space if necessary.
+		queue = queue[:0]
+		for len(queue) < len(tris) {
+			queue = append(queue, 0)
+		}
 
 		// Start at first triangle and check that all
 		// others are connected.
