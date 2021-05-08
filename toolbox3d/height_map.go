@@ -380,7 +380,8 @@ func (h *HeightMap) surfaceMesh() *model3d.Mesh {
 							t[i] = c
 						}
 					}
-					mesh.Add(t)
+					tCopy := t
+					mesh.Add(&tCopy)
 				}
 			}
 		}
@@ -490,12 +491,12 @@ func findUnsharedEdges(m *model3d.Mesh) map[[2]model3d.Coord3D]bool {
 	return edges
 }
 
-func triangulateQuad(surface [4]model3d.Coord3D) [2]*model3d.Triangle {
-	t1 := [2]*model3d.Triangle{
+func triangulateQuad(surface [4]model3d.Coord3D) [2]model3d.Triangle {
+	t1 := [2]model3d.Triangle{
 		{surface[0], surface[1], surface[2]},
 		{surface[2], surface[1], surface[3]},
 	}
-	t2 := [2]*model3d.Triangle{
+	t2 := [2]model3d.Triangle{
 		{surface[0], surface[1], surface[3]},
 		{surface[0], surface[3], surface[2]},
 	}
