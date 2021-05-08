@@ -104,3 +104,16 @@ func BenchmarkMeshFind(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkVertexToFace(b *testing.B) {
+	mesh := NewMesh()
+	for i := 0; i < 20000; i++ {
+		mesh.Add(randomTriangle())
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mesh.getVertexToFace()
+		var v2f map[Coord3D][]*Triangle
+		mesh.vertexToFace.Store(v2f)
+	}
+}
