@@ -55,19 +55,19 @@ func TestProfileSDF(t *testing.T) {
 			Radius: 0.4,
 		},
 	}
-	profileMesh := model2d.MarchingSquaresSearch(profileSolid, 0.01, 8)
+	profileMesh := model2d.MarchingSquaresSearch(profileSolid, 0.02, 8)
 	profile := model2d.MeshToSDF(profileMesh)
 
 	for _, minZ := range []float64{-0.3, 0.5} {
 		for _, maxZ := range []float64{minZ + 0.1, minZ + 0.3} {
-			solid3d := ProfileSolid(profileSolid, minZ, maxZ)
-			expected := MeshToSDF(MarchingCubesSearch(solid3d, 0.01, 8))
+			mesh3d := ProfileMesh(profileMesh, minZ, maxZ)
+			expected := MeshToSDF(mesh3d)
 			actual := ProfileSDF(profile, minZ, maxZ)
 			for i := 0; i < 10000; i++ {
 				coord := NewCoord3DRandNorm()
 				a := actual.SDF(coord)
 				x := expected.SDF(coord)
-				if math.Abs(a-x) > 0.02 {
+				if math.Abs(a-x) > 1e-5 {
 					t.Fatalf("unexpected SDF at %v: expected %f but got %f (minZ %f maxZ %f)",
 						coord, x, a, minZ, maxZ)
 				}
