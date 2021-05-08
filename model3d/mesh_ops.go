@@ -369,48 +369,43 @@ func (m *Mesh) slowNeedsRepair() bool {
 func (m *Mesh) SingularVertices() []Coord3D {
 	var res []Coord3D
 
-	// Queue used for a breadth-first search, which is reused
-	// for each vertex. Each triangle connected to the vertex
-	// gets one entry indicating its status on the queue.
-	// A 0 means unvisited, a 1 means visited but not expanded,
-	// and a 2 means visited and expanded.
-	var queue []int
+	// Queues reused for each vertex to store the current
+	// search state, where each entry is a triangle index.
+	var unvisited []int
+	var visitQueue []int
 
 	for vertex, tris := range m.getVertexToFace() {
 		if len(tris) == 0 {
 			continue
 		}
 
-		// Create an empty queue, automatically allocating more
-		// space if necessary.
-		queue = queue[:0]
-		for len(queue) < len(tris) {
-			queue = append(queue, 0)
+		// Start the search with triangle 0 in the queue.
+		unvisited = unvisited[:0]
+		for i := range tris[1:] {
+			unvisited = append(unvisited, i+1)
 		}
+		visitQueue = append(visitQueue[:0], 0)
 
-		// Start at first triangle and check that all
-		// others are connected.
-		queue[0] = 1
-		changed := true
-		numVisited := 1
-		for changed {
-			changed = false
-			for i, status := range queue {
-				if status != 1 {
-					continue
+		for len(unvisited) > 0 && len(visitQueue) > 0 {
+			expandIdx := visitQueue[len(visitQueue)-1]
+			expandTri := tris[expandIdx]
+			visitQueue = visitQueue[:len(visitQueue)-1]
+
+			for i := 0; i < len(unvisited); i++ {
+				visitIdx := unvisited[i]
+				if expandTri.SharesEdge(tris[visitIdx]) {
+					unvisited[i] = unvisited[len(unvisited)-1]
+					unvisited = unvisited[:len(unvisited)-1]
+					visitQueue = append(visitQueue, visitIdx)
+					i--
 				}
-				t := tris[i]
-				for j, t1 := range tris {
-					if queue[j] == 0 && t.SharesEdge(t1) {
-						queue[j] = 1
-						numVisited++
-						changed = true
-					}
-				}
-				queue[i] = 2
 			}
 		}
-		if numVisited != len(tris) {
+
+		// If we have visited every triangle, then all the
+		// triangles for the vertex are connected to each
+		// other via edges.
+		if len(unvisited) != 0 {
 			res = append(res, vertex)
 		}
 	}
