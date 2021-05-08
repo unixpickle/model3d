@@ -6,6 +6,41 @@ import (
 	"testing"
 )
 
+func TestMeshSingularVertices(t *testing.T) {
+	mesh1 := NewMeshRect(XYZ(-1, -1, -1), XYZ(1, 2, 3))
+	mesh2 := NewMeshRect(XYZ(1, 2, 3), XYZ(2, 3, 4))
+	mesh3 := NewMeshRect(XYZ(-2, -3, -4), XYZ(-1, -1, -1))
+
+	for _, mesh := range []*Mesh{mesh1, mesh2, mesh3} {
+		if len(mesh.SingularVertices()) != 0 {
+			t.Fatal("rect mesh should have no singularities")
+		}
+	}
+	joined := NewMesh()
+	joined.AddMesh(mesh1)
+	joined.AddMesh(mesh2)
+	svs := joined.SingularVertices()
+	if len(svs) != 1 || svs[0] != XYZ(1, 2, 3) {
+		t.Errorf("unexpected singular vertices: %v", svs)
+	}
+
+	joined = NewMesh()
+	joined.AddMesh(mesh1)
+	joined.AddMesh(mesh3)
+	svs = joined.SingularVertices()
+	if len(svs) != 1 || svs[0] != XYZ(-1, -1, -1) {
+		t.Errorf("unexpected singular vertices: %v", svs)
+	}
+
+	joined.AddMesh(mesh2)
+	svs = joined.SingularVertices()
+	if len(svs) != 2 ||
+		!((svs[0] == XYZ(1, 2, 3) && svs[1] == XYZ(-1, -1, -1)) ||
+			(svs[0] == XYZ(-1, -1, -1) && svs[1] == XYZ(1, 2, 3))) {
+		t.Errorf("unexpected singular vertices: %v", svs)
+	}
+}
+
 func TestMeshNeedsRepair(t *testing.T) {
 	t.Run("Missing", func(t *testing.T) {
 		mesh := NewMeshPolar(func(g GeoCoord) float64 {
@@ -290,6 +325,21 @@ func TestMeshFlattenBase(t *testing.T) {
 			}
 		}
 	})
+}
+
+func BenchmarkMeshSingularVertices(b *testing.B) {
+	m := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1.0
+	}, 100)
+	m.AddMesh(m.Translate(X(2)))
+	m = m.Repair(1e-5)
+	if n := len(m.SingularVertices()); n != 1 {
+		b.Fatalf("should be one singular vertex, got %d", n)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m.SingularVertices()
+	}
 }
 
 func BenchmarkMeshBlur(b *testing.B) {
