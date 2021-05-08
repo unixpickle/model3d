@@ -1,0 +1,115 @@
+package {{ .package }}
+
+{{define "coordMap" -}}
+// {{.mapType}} implements a map-like interface for
+// mapping {{.coordType}} to {{.elemType}}.
+//
+// This can be more efficient than using a map directly,
+// since it uses a special hash function for coordinates.
+// The speed-up is variable, but was ~2x as of mid-2021.
+type {{.mapType}} struct {
+    slowMap    map[{{.coordType}}]{{.elemType}}
+    fastMap    map[uint64]cellFor{{.mapType}}
+}
+
+// New{{.mapType}} creates an empty map.
+func New{{.mapType}}() *{{.mapType}} {
+    return &{{.mapType}}{fastMap: map[uint64]cellFor{{.mapType}}{}}
+}
+
+// Len gets the number of elements in the map.
+func (m *{{.mapType}}) Len() int {
+    if m.fastMap != nil {
+        return len(m.fastMap)
+    } else {
+        return len(m.slowMap)
+    }
+}
+
+// Load gets the value for the given key.
+//
+// If no value is present, the first return argument is a
+// zero value, and the second is false. Otherwise, the
+// second return value is true.
+func (m *{{.mapType}}) Load(key {{.coordType}}) ({{.elemType}}, bool) {
+    if m.fastMap != nil {
+        cell, ok := m.fastMap[key.fastHash64()]
+        if !ok || cell.Key != key {
+            return {{.zeroVal}}, false
+        }
+        return cell.Value, true
+    } else {
+        x, y := m.slowMap[key]
+        return x, y
+    }
+}
+
+// Delete removes the key from the map if it exists, and
+// does nothing otherwise.
+func (m *{{.mapType}}) Delete(key {{.coordType}}) {
+    if m.fastMap != nil {
+        hash := key.fastHash64()
+        if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
+            delete(m.fastMap, hash)
+        }
+    } else {
+        delete(m.slowMap, key)
+    }
+}
+
+// Store assigns the value to the given key, overwriting
+// the previous value for the key if necessary.
+func (m *{{.mapType}}) Store(key {{.coordType}}, value {{.elemType}}) {
+    if m.fastMap != nil {
+        hash := key.fastHash64()
+        cell, ok := m.fastMap[hash]
+        if ok && cell.Key != key {
+            // We must switch to a slow map to store colliding values.
+            m.fastToSlow()
+            m.slowMap[key] = value
+        } else {
+            m.fastMap[hash] = cellFor{{.mapType}}{Key: key, Value: value}
+        }
+    } else {
+        m.slowMap[key] = value
+    }
+}
+
+// Range iterates over the map, calling f successively for
+// each value until it returns false, or all entries are
+// enumerated.
+//
+// It is not safe to modify the map with Store or Delete
+// during enumeration.
+func (m *{{.mapType}}) Range(f func(key {{.coordType}}, value {{.elemType}}) bool) {
+    if m.fastMap != nil {
+        for _, cell := range m.fastMap {
+            if !f(cell.Key, cell.Value) {
+                return
+            }
+        }
+    } else {
+        for k, v := range m.slowMap {
+            if !f(k, v) {
+                return
+            }
+        }
+    }
+}
+
+func (m *{{.mapType}}) fastToSlow() {
+    m.slowMap = map[{{.coordType}}]{{.elemType}}{}
+    for _, cell := range m.fastMap {
+        m.slowMap[cell.Key] = cell.Value
+    }
+    m.fastMap = nil
+}
+
+type cellFor{{.mapType}} struct {
+    Key   {{.coordType}}
+    Value {{.elemType}}
+}
+{{end -}}
+
+{{- template "coordMap" mkargs . "mapType" "CoordMap" "elemType" "interface{}" "zeroVal" "nil" -}}
+{{- template "coordMap" mkargs . "mapType" "CoordToFaces" "elemType" (cat "[]*" .faceType) "zeroVal" "nil" -}}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"go/format"
 	"io/ioutil"
@@ -32,16 +33,43 @@ func main() {
 	Generate2d3dTemplate("sdf", checkNoChange)
 	Generate2d3dTemplate("coord_tree", checkNoChange)
 	Generate2d3dTemplate("coord_tree_test", checkNoChange)
+	Generate2d3dTemplate("coord_map", checkNoChange)
+	Generate2d3dTemplate("coord_map_test", checkNoChange)
 }
 
 func Generate2d3dTemplate(name string, checkNoChange bool) {
 	inPath := filepath.Join("templates", name+".template")
-	template, err := template.ParseFiles(inPath)
+	tmpl := template.New("")
+	tmpl.Funcs(template.FuncMap{
+		"mkargs": func(base map[string]interface{}, vs ...string) (map[string]interface{}, error) {
+			if len(vs)%2 != 0 {
+				return nil, errors.New("mismatched keys and values")
+			}
+			res := map[string]interface{}{}
+			for k, v := range base {
+				res[k] = v
+			}
+			for i := 0; i < len(vs); i += 2 {
+				res[vs[i]] = vs[i+1]
+			}
+			return res, nil
+		},
+		"cat": func(strs ...string) string {
+			res := ""
+			for _, s := range strs {
+				res += s
+			}
+			return res
+		},
+	})
+	data, err := ioutil.ReadFile(inPath)
+	essentials.Must(err)
+	_, err = tmpl.Parse(string(data))
 	essentials.Must(err)
 	for _, pkg := range []string{"model2d", "model3d"} {
 		outPath := filepath.Join(pkg, name+".go")
 		log.Println("Creating", outPath, "...")
-		data := RenderTemplate(template, TemplateEnvironment(pkg))
+		data := RenderTemplate(tmpl, TemplateEnvironment(pkg))
 		data = ReformatCode(data)
 		data = InjectGeneratedComment(data, inPath)
 		if checkNoChange {
