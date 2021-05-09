@@ -33,8 +33,8 @@ func main() {
 	Generate2d3dTemplate("sdf", checkNoChange)
 	Generate2d3dTemplate("coord_tree", checkNoChange)
 	Generate2d3dTemplate("coord_tree_test", checkNoChange)
-	Generate2d3dTemplate("coord_map", checkNoChange)
-	Generate2d3dTemplate("coord_map_test", checkNoChange)
+	Generate2d3dTemplate("fast_maps", checkNoChange)
+	Generate2d3dTemplate("fast_maps_test", checkNoChange)
 }
 
 func Generate2d3dTemplate(name string, checkNoChange bool) {

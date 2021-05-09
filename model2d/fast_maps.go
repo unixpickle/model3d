@@ -1,15 +1,15 @@
-// Generated from templates/coord_map.template
+// Generated from templates/fast_maps.template
 
-package model3d
+package model2d
 
 // CoordMap implements a map-like interface for
-// mapping Coord3D to interface{}.
+// mapping Coord to interface{}.
 //
 // This can be more efficient than using a map directly,
 // since it uses a special hash function for coordinates.
 // The speed-up is variable, but was ~2x as of mid-2021.
 type CoordMap struct {
-	slowMap map[Coord3D]interface{}
+	slowMap map[Coord]interface{}
 	fastMap map[uint64]cellForCoordMap
 }
 
@@ -29,7 +29,7 @@ func (m *CoordMap) Len() int {
 
 // Value is like Load(), but without a second return
 // value.
-func (m *CoordMap) Value(key Coord3D) interface{} {
+func (m *CoordMap) Value(key Coord) interface{} {
 	res, _ := m.Load(key)
 	return res
 }
@@ -39,7 +39,7 @@ func (m *CoordMap) Value(key Coord3D) interface{} {
 // If no value is present, the first return argument is a
 // zero value, and the second is false. Otherwise, the
 // second return value is true.
-func (m *CoordMap) Load(key Coord3D) (interface{}, bool) {
+func (m *CoordMap) Load(key Coord) (interface{}, bool) {
 	if m.fastMap != nil {
 		cell, ok := m.fastMap[key.fastHash64()]
 		if !ok || cell.Key != key {
@@ -54,7 +54,7 @@ func (m *CoordMap) Load(key Coord3D) (interface{}, bool) {
 
 // Delete removes the key from the map if it exists, and
 // does nothing otherwise.
-func (m *CoordMap) Delete(key Coord3D) {
+func (m *CoordMap) Delete(key Coord) {
 	if m.fastMap != nil {
 		hash := key.fastHash64()
 		if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
@@ -67,7 +67,7 @@ func (m *CoordMap) Delete(key Coord3D) {
 
 // Store assigns the value to the given key, overwriting
 // the previous value for the key if necessary.
-func (m *CoordMap) Store(key Coord3D, value interface{}) {
+func (m *CoordMap) Store(key Coord, value interface{}) {
 	if m.fastMap != nil {
 		hash := key.fastHash64()
 		cell, ok := m.fastMap[hash]
@@ -85,7 +85,7 @@ func (m *CoordMap) Store(key Coord3D, value interface{}) {
 
 // KeyRange is like Range, but only iterates over
 // keys, not values.
-func (m *CoordMap) KeyRange(f func(key Coord3D) bool) {
+func (m *CoordMap) KeyRange(f func(key Coord) bool) {
 	if m.fastMap != nil {
 		for _, cell := range m.fastMap {
 			if !f(cell.Key) {
@@ -107,7 +107,7 @@ func (m *CoordMap) KeyRange(f func(key Coord3D) bool) {
 //
 // It is not safe to modify the map with Store or Delete
 // during enumeration.
-func (m *CoordMap) Range(f func(key Coord3D, value interface{}) bool) {
+func (m *CoordMap) Range(f func(key Coord, value interface{}) bool) {
 	if m.fastMap != nil {
 		for _, cell := range m.fastMap {
 			if !f(cell.Key, cell.Value) {
@@ -124,7 +124,7 @@ func (m *CoordMap) Range(f func(key Coord3D, value interface{}) bool) {
 }
 
 func (m *CoordMap) fastToSlow() {
-	m.slowMap = map[Coord3D]interface{}{}
+	m.slowMap = map[Coord]interface{}{}
 	for _, cell := range m.fastMap {
 		m.slowMap[cell.Key] = cell.Value
 	}
@@ -132,18 +132,18 @@ func (m *CoordMap) fastToSlow() {
 }
 
 type cellForCoordMap struct {
-	Key   Coord3D
+	Key   Coord
 	Value interface{}
 }
 
 // CoordToFaces implements a map-like interface for
-// mapping Coord3D to []*Triangle.
+// mapping Coord to []*Segment.
 //
 // This can be more efficient than using a map directly,
 // since it uses a special hash function for coordinates.
 // The speed-up is variable, but was ~2x as of mid-2021.
 type CoordToFaces struct {
-	slowMap map[Coord3D][]*Triangle
+	slowMap map[Coord][]*Segment
 	fastMap map[uint64]cellForCoordToFaces
 }
 
@@ -163,7 +163,7 @@ func (m *CoordToFaces) Len() int {
 
 // Value is like Load(), but without a second return
 // value.
-func (m *CoordToFaces) Value(key Coord3D) []*Triangle {
+func (m *CoordToFaces) Value(key Coord) []*Segment {
 	res, _ := m.Load(key)
 	return res
 }
@@ -173,7 +173,7 @@ func (m *CoordToFaces) Value(key Coord3D) []*Triangle {
 // If no value is present, the first return argument is a
 // zero value, and the second is false. Otherwise, the
 // second return value is true.
-func (m *CoordToFaces) Load(key Coord3D) ([]*Triangle, bool) {
+func (m *CoordToFaces) Load(key Coord) ([]*Segment, bool) {
 	if m.fastMap != nil {
 		cell, ok := m.fastMap[key.fastHash64()]
 		if !ok || cell.Key != key {
@@ -188,7 +188,7 @@ func (m *CoordToFaces) Load(key Coord3D) ([]*Triangle, bool) {
 
 // Delete removes the key from the map if it exists, and
 // does nothing otherwise.
-func (m *CoordToFaces) Delete(key Coord3D) {
+func (m *CoordToFaces) Delete(key Coord) {
 	if m.fastMap != nil {
 		hash := key.fastHash64()
 		if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
@@ -201,7 +201,7 @@ func (m *CoordToFaces) Delete(key Coord3D) {
 
 // Store assigns the value to the given key, overwriting
 // the previous value for the key if necessary.
-func (m *CoordToFaces) Store(key Coord3D, value []*Triangle) {
+func (m *CoordToFaces) Store(key Coord, value []*Segment) {
 	if m.fastMap != nil {
 		hash := key.fastHash64()
 		cell, ok := m.fastMap[hash]
@@ -219,7 +219,7 @@ func (m *CoordToFaces) Store(key Coord3D, value []*Triangle) {
 
 // KeyRange is like Range, but only iterates over
 // keys, not values.
-func (m *CoordToFaces) KeyRange(f func(key Coord3D) bool) {
+func (m *CoordToFaces) KeyRange(f func(key Coord) bool) {
 	if m.fastMap != nil {
 		for _, cell := range m.fastMap {
 			if !f(cell.Key) {
@@ -241,7 +241,7 @@ func (m *CoordToFaces) KeyRange(f func(key Coord3D) bool) {
 //
 // It is not safe to modify the map with Store or Delete
 // during enumeration.
-func (m *CoordToFaces) Range(f func(key Coord3D, value []*Triangle) bool) {
+func (m *CoordToFaces) Range(f func(key Coord, value []*Segment) bool) {
 	if m.fastMap != nil {
 		for _, cell := range m.fastMap {
 			if !f(cell.Key, cell.Value) {
@@ -258,7 +258,7 @@ func (m *CoordToFaces) Range(f func(key Coord3D, value []*Triangle) bool) {
 }
 
 func (m *CoordToFaces) fastToSlow() {
-	m.slowMap = map[Coord3D][]*Triangle{}
+	m.slowMap = map[Coord][]*Segment{}
 	for _, cell := range m.fastMap {
 		m.slowMap[cell.Key] = cell.Value
 	}
@@ -266,6 +266,6 @@ func (m *CoordToFaces) fastToSlow() {
 }
 
 type cellForCoordToFaces struct {
-	Key   Coord3D
-	Value []*Triangle
+	Key   Coord
+	Value []*Segment
 }

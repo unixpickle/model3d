@@ -1,4 +1,4 @@
-// Generated from templates/coord_map_test.template
+// Generated from templates/fast_maps_test.template
 
 package model2d
 
