@@ -26,6 +26,13 @@ func (m *{{.mapType}}) Len() int {
     }
 }
 
+// Value is like Load(), but without a second return
+// value.
+func (m *{{.mapType}}) Value(key {{.coordType}}) {{.elemType}} {
+    res, _ := m.Load(key)
+    return res
+}
+
 // Load gets the value for the given key.
 //
 // If no value is present, the first return argument is a

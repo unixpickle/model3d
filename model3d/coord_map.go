@@ -27,6 +27,13 @@ func (m *CoordMap) Len() int {
 	}
 }
 
+// Value is like Load(), but without a second return
+// value.
+func (m *CoordMap) Value(key Coord3D) interface{} {
+	res, _ := m.Load(key)
+	return res
+}
+
 // Load gets the value for the given key.
 //
 // If no value is present, the first return argument is a
@@ -134,6 +141,13 @@ func (m *CoordToFaces) Len() int {
 	} else {
 		return len(m.slowMap)
 	}
+}
+
+// Value is like Load(), but without a second return
+// value.
+func (m *CoordToFaces) Value(key Coord3D) []*Triangle {
+	res, _ := m.Load(key)
+	return res
 }
 
 // Load gets the value for the given key.
