@@ -105,6 +105,29 @@ func BenchmarkMeshFind(b *testing.B) {
 	})
 }
 
+func BenchmarkMeshAddFindRemove(b *testing.B) {
+	m1 := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1.0
+	}, 30)
+	m2 := NewMesh()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m1.Iterate(func(t *Triangle) {
+			m2.Add(t)
+			for _, c := range t {
+				m2.Find(c)
+			}
+		})
+		m1.Iterate(func(t *Triangle) {
+			m2.Remove(t)
+			for _, c := range t {
+				m2.Find(c)
+			}
+		})
+	}
+}
+
 func BenchmarkVertexToFace(b *testing.B) {
 	mesh := NewMesh()
 	for i := 0; i < 20000; i++ {
