@@ -83,6 +83,24 @@ func (m *CoordMap) Store(key Coord, value interface{}) {
 	}
 }
 
+// ValueRange is like Range, but only iterates over
+// values, not keys.
+func (m *CoordMap) ValueRange(f func(key Coord) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key) {
+				return
+			}
+		}
+	} else {
+		for k := range m.slowMap {
+			if !f(k) {
+				return
+			}
+		}
+	}
+}
+
 // Range iterates over the map, calling f successively for
 // each value until it returns false, or all entries are
 // enumerated.
@@ -196,6 +214,24 @@ func (m *CoordToFaces) Store(key Coord, value []*Segment) {
 		}
 	} else {
 		m.slowMap[key] = value
+	}
+}
+
+// ValueRange is like Range, but only iterates over
+// values, not keys.
+func (m *CoordToFaces) ValueRange(f func(key Coord) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key) {
+				return
+			}
+		}
+	} else {
+		for k := range m.slowMap {
+			if !f(k) {
+				return
+			}
+		}
 	}
 }
 
