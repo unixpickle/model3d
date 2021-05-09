@@ -46,13 +46,15 @@ func (t *Triangle) SharesEdge(t1 *Triangle) bool {
 
 func (t *Triangle) inCommon(t1 *Triangle) int {
 	inCommon := 0
-	for _, p := range t {
-		for _, p1 := range t1 {
-			if p == p1 {
-				inCommon += 1
-				break
-			}
-		}
+	// Unrolled because this is a hot path in some algorithms.
+	if t[0] == t1[0] || t[0] == t1[1] || t[0] == t1[2] {
+		inCommon++
+	}
+	if t[1] == t1[0] || t[1] == t1[1] || t[1] == t1[2] {
+		inCommon++
+	}
+	if t[2] == t1[0] || t[2] == t1[1] || t[2] == t1[2] {
+		inCommon++
 	}
 	return inCommon
 }
