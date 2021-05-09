@@ -41,7 +41,7 @@ func (m *CoordMap) Value(key Coord) interface{} {
 // second return value is true.
 func (m *CoordMap) Load(key Coord) (interface{}, bool) {
 	if m.fastMap != nil {
-		cell, ok := m.fastMap[key.fastHash64()]
+		cell, ok := m.fastMap[hashForCoordMap(key)]
 		if !ok || cell.Key != key {
 			return nil, false
 		}
@@ -56,7 +56,7 @@ func (m *CoordMap) Load(key Coord) (interface{}, bool) {
 // does nothing otherwise.
 func (m *CoordMap) Delete(key Coord) {
 	if m.fastMap != nil {
-		hash := key.fastHash64()
+		hash := hashForCoordMap(key)
 		if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
 			delete(m.fastMap, hash)
 		}
@@ -69,7 +69,7 @@ func (m *CoordMap) Delete(key Coord) {
 // the previous value for the key if necessary.
 func (m *CoordMap) Store(key Coord, value interface{}) {
 	if m.fastMap != nil {
-		hash := key.fastHash64()
+		hash := hashForCoordMap(key)
 		cell, ok := m.fastMap[hash]
 		if ok && cell.Key != key {
 			// We must switch to a slow map to store colliding values.
@@ -136,6 +136,10 @@ type cellForCoordMap struct {
 	Value interface{}
 }
 
+func hashForCoordMap(c Coord) uint64 {
+	return c.fastHash64()
+}
+
 // CoordToFaces implements a map-like interface for
 // mapping Coord to []*Segment.
 //
@@ -175,7 +179,7 @@ func (m *CoordToFaces) Value(key Coord) []*Segment {
 // second return value is true.
 func (m *CoordToFaces) Load(key Coord) ([]*Segment, bool) {
 	if m.fastMap != nil {
-		cell, ok := m.fastMap[key.fastHash64()]
+		cell, ok := m.fastMap[hashForCoordToFaces(key)]
 		if !ok || cell.Key != key {
 			return nil, false
 		}
@@ -190,7 +194,7 @@ func (m *CoordToFaces) Load(key Coord) ([]*Segment, bool) {
 // does nothing otherwise.
 func (m *CoordToFaces) Delete(key Coord) {
 	if m.fastMap != nil {
-		hash := key.fastHash64()
+		hash := hashForCoordToFaces(key)
 		if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
 			delete(m.fastMap, hash)
 		}
@@ -203,7 +207,7 @@ func (m *CoordToFaces) Delete(key Coord) {
 // the previous value for the key if necessary.
 func (m *CoordToFaces) Store(key Coord, value []*Segment) {
 	if m.fastMap != nil {
-		hash := key.fastHash64()
+		hash := hashForCoordToFaces(key)
 		cell, ok := m.fastMap[hash]
 		if ok && cell.Key != key {
 			// We must switch to a slow map to store colliding values.
@@ -268,4 +272,428 @@ func (m *CoordToFaces) fastToSlow() {
 type cellForCoordToFaces struct {
 	Key   Coord
 	Value []*Segment
+}
+
+func hashForCoordToFaces(c Coord) uint64 {
+	return c.fastHash64()
+}
+
+// EdgeMap implements a map-like interface for
+// mapping [2]Coord to interface{}.
+//
+// This can be more efficient than using a map directly,
+// since it uses a special hash function for coordinates.
+// The speed-up is variable, but was ~2x as of mid-2021.
+type EdgeMap struct {
+	slowMap map[[2]Coord]interface{}
+	fastMap map[uint64]cellForEdgeMap
+}
+
+// NewEdgeMap creates an empty map.
+func NewEdgeMap() *EdgeMap {
+	return &EdgeMap{fastMap: map[uint64]cellForEdgeMap{}}
+}
+
+// Len gets the number of elements in the map.
+func (m *EdgeMap) Len() int {
+	if m.fastMap != nil {
+		return len(m.fastMap)
+	} else {
+		return len(m.slowMap)
+	}
+}
+
+// Value is like Load(), but without a second return
+// value.
+func (m *EdgeMap) Value(key [2]Coord) interface{} {
+	res, _ := m.Load(key)
+	return res
+}
+
+// Load gets the value for the given key.
+//
+// If no value is present, the first return argument is a
+// zero value, and the second is false. Otherwise, the
+// second return value is true.
+func (m *EdgeMap) Load(key [2]Coord) (interface{}, bool) {
+	if m.fastMap != nil {
+		cell, ok := m.fastMap[hashForEdgeMap(key)]
+		if !ok || cell.Key != key {
+			return nil, false
+		}
+		return cell.Value, true
+	} else {
+		x, y := m.slowMap[key]
+		return x, y
+	}
+}
+
+// Delete removes the key from the map if it exists, and
+// does nothing otherwise.
+func (m *EdgeMap) Delete(key [2]Coord) {
+	if m.fastMap != nil {
+		hash := hashForEdgeMap(key)
+		if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
+			delete(m.fastMap, hash)
+		}
+	} else {
+		delete(m.slowMap, key)
+	}
+}
+
+// Store assigns the value to the given key, overwriting
+// the previous value for the key if necessary.
+func (m *EdgeMap) Store(key [2]Coord, value interface{}) {
+	if m.fastMap != nil {
+		hash := hashForEdgeMap(key)
+		cell, ok := m.fastMap[hash]
+		if ok && cell.Key != key {
+			// We must switch to a slow map to store colliding values.
+			m.fastToSlow()
+			m.slowMap[key] = value
+		} else {
+			m.fastMap[hash] = cellForEdgeMap{Key: key, Value: value}
+		}
+	} else {
+		m.slowMap[key] = value
+	}
+}
+
+// KeyRange is like Range, but only iterates over
+// keys, not values.
+func (m *EdgeMap) KeyRange(f func(key [2]Coord) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key) {
+				return
+			}
+		}
+	} else {
+		for k := range m.slowMap {
+			if !f(k) {
+				return
+			}
+		}
+	}
+}
+
+// Range iterates over the map, calling f successively for
+// each value until it returns false, or all entries are
+// enumerated.
+//
+// It is not safe to modify the map with Store or Delete
+// during enumeration.
+func (m *EdgeMap) Range(f func(key [2]Coord, value interface{}) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key, cell.Value) {
+				return
+			}
+		}
+	} else {
+		for k, v := range m.slowMap {
+			if !f(k, v) {
+				return
+			}
+		}
+	}
+}
+
+func (m *EdgeMap) fastToSlow() {
+	m.slowMap = map[[2]Coord]interface{}{}
+	for _, cell := range m.fastMap {
+		m.slowMap[cell.Key] = cell.Value
+	}
+	m.fastMap = nil
+}
+
+type cellForEdgeMap struct {
+	Key   [2]Coord
+	Value interface{}
+}
+
+func hashForEdgeMap(c [2]Coord) uint64 {
+	h1 := c[0].fastHash()
+	h2 := c[1].fastHash()
+	return uint64(h1) | (uint64(h2) << 32)
+}
+
+// EdgeToBool implements a map-like interface for
+// mapping [2]Coord to bool.
+//
+// This can be more efficient than using a map directly,
+// since it uses a special hash function for coordinates.
+// The speed-up is variable, but was ~2x as of mid-2021.
+type EdgeToBool struct {
+	slowMap map[[2]Coord]bool
+	fastMap map[uint64]cellForEdgeToBool
+}
+
+// NewEdgeToBool creates an empty map.
+func NewEdgeToBool() *EdgeToBool {
+	return &EdgeToBool{fastMap: map[uint64]cellForEdgeToBool{}}
+}
+
+// Len gets the number of elements in the map.
+func (m *EdgeToBool) Len() int {
+	if m.fastMap != nil {
+		return len(m.fastMap)
+	} else {
+		return len(m.slowMap)
+	}
+}
+
+// Value is like Load(), but without a second return
+// value.
+func (m *EdgeToBool) Value(key [2]Coord) bool {
+	res, _ := m.Load(key)
+	return res
+}
+
+// Load gets the value for the given key.
+//
+// If no value is present, the first return argument is a
+// zero value, and the second is false. Otherwise, the
+// second return value is true.
+func (m *EdgeToBool) Load(key [2]Coord) (bool, bool) {
+	if m.fastMap != nil {
+		cell, ok := m.fastMap[hashForEdgeToBool(key)]
+		if !ok || cell.Key != key {
+			return false, false
+		}
+		return cell.Value, true
+	} else {
+		x, y := m.slowMap[key]
+		return x, y
+	}
+}
+
+// Delete removes the key from the map if it exists, and
+// does nothing otherwise.
+func (m *EdgeToBool) Delete(key [2]Coord) {
+	if m.fastMap != nil {
+		hash := hashForEdgeToBool(key)
+		if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
+			delete(m.fastMap, hash)
+		}
+	} else {
+		delete(m.slowMap, key)
+	}
+}
+
+// Store assigns the value to the given key, overwriting
+// the previous value for the key if necessary.
+func (m *EdgeToBool) Store(key [2]Coord, value bool) {
+	if m.fastMap != nil {
+		hash := hashForEdgeToBool(key)
+		cell, ok := m.fastMap[hash]
+		if ok && cell.Key != key {
+			// We must switch to a slow map to store colliding values.
+			m.fastToSlow()
+			m.slowMap[key] = value
+		} else {
+			m.fastMap[hash] = cellForEdgeToBool{Key: key, Value: value}
+		}
+	} else {
+		m.slowMap[key] = value
+	}
+}
+
+// KeyRange is like Range, but only iterates over
+// keys, not values.
+func (m *EdgeToBool) KeyRange(f func(key [2]Coord) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key) {
+				return
+			}
+		}
+	} else {
+		for k := range m.slowMap {
+			if !f(k) {
+				return
+			}
+		}
+	}
+}
+
+// Range iterates over the map, calling f successively for
+// each value until it returns false, or all entries are
+// enumerated.
+//
+// It is not safe to modify the map with Store or Delete
+// during enumeration.
+func (m *EdgeToBool) Range(f func(key [2]Coord, value bool) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key, cell.Value) {
+				return
+			}
+		}
+	} else {
+		for k, v := range m.slowMap {
+			if !f(k, v) {
+				return
+			}
+		}
+	}
+}
+
+func (m *EdgeToBool) fastToSlow() {
+	m.slowMap = map[[2]Coord]bool{}
+	for _, cell := range m.fastMap {
+		m.slowMap[cell.Key] = cell.Value
+	}
+	m.fastMap = nil
+}
+
+type cellForEdgeToBool struct {
+	Key   [2]Coord
+	Value bool
+}
+
+func hashForEdgeToBool(c [2]Coord) uint64 {
+	h1 := c[0].fastHash()
+	h2 := c[1].fastHash()
+	return uint64(h1) | (uint64(h2) << 32)
+}
+
+// EdgeToInt implements a map-like interface for
+// mapping [2]Coord to int.
+//
+// This can be more efficient than using a map directly,
+// since it uses a special hash function for coordinates.
+// The speed-up is variable, but was ~2x as of mid-2021.
+type EdgeToInt struct {
+	slowMap map[[2]Coord]int
+	fastMap map[uint64]cellForEdgeToInt
+}
+
+// NewEdgeToInt creates an empty map.
+func NewEdgeToInt() *EdgeToInt {
+	return &EdgeToInt{fastMap: map[uint64]cellForEdgeToInt{}}
+}
+
+// Len gets the number of elements in the map.
+func (m *EdgeToInt) Len() int {
+	if m.fastMap != nil {
+		return len(m.fastMap)
+	} else {
+		return len(m.slowMap)
+	}
+}
+
+// Value is like Load(), but without a second return
+// value.
+func (m *EdgeToInt) Value(key [2]Coord) int {
+	res, _ := m.Load(key)
+	return res
+}
+
+// Load gets the value for the given key.
+//
+// If no value is present, the first return argument is a
+// zero value, and the second is false. Otherwise, the
+// second return value is true.
+func (m *EdgeToInt) Load(key [2]Coord) (int, bool) {
+	if m.fastMap != nil {
+		cell, ok := m.fastMap[hashForEdgeToInt(key)]
+		if !ok || cell.Key != key {
+			return 0, false
+		}
+		return cell.Value, true
+	} else {
+		x, y := m.slowMap[key]
+		return x, y
+	}
+}
+
+// Delete removes the key from the map if it exists, and
+// does nothing otherwise.
+func (m *EdgeToInt) Delete(key [2]Coord) {
+	if m.fastMap != nil {
+		hash := hashForEdgeToInt(key)
+		if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
+			delete(m.fastMap, hash)
+		}
+	} else {
+		delete(m.slowMap, key)
+	}
+}
+
+// Store assigns the value to the given key, overwriting
+// the previous value for the key if necessary.
+func (m *EdgeToInt) Store(key [2]Coord, value int) {
+	if m.fastMap != nil {
+		hash := hashForEdgeToInt(key)
+		cell, ok := m.fastMap[hash]
+		if ok && cell.Key != key {
+			// We must switch to a slow map to store colliding values.
+			m.fastToSlow()
+			m.slowMap[key] = value
+		} else {
+			m.fastMap[hash] = cellForEdgeToInt{Key: key, Value: value}
+		}
+	} else {
+		m.slowMap[key] = value
+	}
+}
+
+// KeyRange is like Range, but only iterates over
+// keys, not values.
+func (m *EdgeToInt) KeyRange(f func(key [2]Coord) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key) {
+				return
+			}
+		}
+	} else {
+		for k := range m.slowMap {
+			if !f(k) {
+				return
+			}
+		}
+	}
+}
+
+// Range iterates over the map, calling f successively for
+// each value until it returns false, or all entries are
+// enumerated.
+//
+// It is not safe to modify the map with Store or Delete
+// during enumeration.
+func (m *EdgeToInt) Range(f func(key [2]Coord, value int) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key, cell.Value) {
+				return
+			}
+		}
+	} else {
+		for k, v := range m.slowMap {
+			if !f(k, v) {
+				return
+			}
+		}
+	}
+}
+
+func (m *EdgeToInt) fastToSlow() {
+	m.slowMap = map[[2]Coord]int{}
+	for _, cell := range m.fastMap {
+		m.slowMap[cell.Key] = cell.Value
+	}
+	m.fastMap = nil
+}
+
+type cellForEdgeToInt struct {
+	Key   [2]Coord
+	Value int
+}
+
+func hashForEdgeToInt(c [2]Coord) uint64 {
+	h1 := c[0].fastHash()
+	h2 := c[1].fastHash()
+	return uint64(h1) | (uint64(h2) << 32)
 }
