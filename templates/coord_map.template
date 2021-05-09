@@ -82,9 +82,9 @@ func (m *{{.mapType}}) Store(key {{.coordType}}, value {{.elemType}}) {
     }
 }
 
-// ValueRange is like Range, but only iterates over
-// values, not keys.
-func (m *{{.mapType}}) ValueRange(f func(key {{.coordType}}) bool) {
+// KeyRange is like Range, but only iterates over
+// keys, not values.
+func (m *{{.mapType}}) KeyRange(f func(key {{.coordType}}) bool) {
     if m.fastMap != nil {
         for _, cell := range m.fastMap {
             if !f(cell.Key) {
