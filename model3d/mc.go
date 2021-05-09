@@ -62,7 +62,7 @@ func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 	v2t := mesh.getVertexToFace()
 	for i, original := range inVertices {
 		out := outVertices[i]
-		for _, t := range v2t[original] {
+		for _, t := range v2t.Value(original) {
 			for j, c := range t {
 				if c == original {
 					t[j] = out

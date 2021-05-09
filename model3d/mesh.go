@@ -33,7 +33,7 @@ import (
 type Mesh struct {
 	faces map[*Triangle]bool
 
-	// Stores a map[Coord3D][]*Triangle
+	// Stores a *CoordToFaces
 	vertexToFace  atomic.Value
 	v2fCreateLock sync.Mutex
 }
@@ -302,7 +302,7 @@ func (m *Mesh) Add(f *Triangle) {
 	}
 
 	for _, p := range f {
-		v2f[p] = append(v2f[p], f)
+		addFaceToVertex(v2f, p, f)
 	}
 	m.faces[f] = true
 }
@@ -343,8 +343,8 @@ func (m *Mesh) Remove(f *Triangle) {
 	}
 }
 
-func (m *Mesh) removeFaceFromVertex(v2f map[Coord3D][]*Triangle, f *Triangle, p Coord3D) {
-	s := v2f[p]
+func (m *Mesh) removeFaceFromVertex(v2f *CoordToFaces, f *Triangle, p Coord3D) {
+	s := v2f.Value(p)
 	for i, f1 := range s {
 		if f1 == f {
 			essentials.UnorderedDelete(&s, i)
@@ -352,9 +352,9 @@ func (m *Mesh) removeFaceFromVertex(v2f map[Coord3D][]*Triangle, f *Triangle, p 
 		}
 	}
 	if len(s) == 0 {
-		delete(v2f, p)
+		v2f.Delete(p)
 	} else {
-		v2f[p] = s
+		v2f.Store(p, s)
 	}
 }
 
@@ -396,7 +396,7 @@ func (m *Mesh) IterateSorted(f func(*Triangle), cmp func(f1, f2 *Triangle) bool)
 func (m *Mesh) IterateVertices(f func(c Coord3D)) {
 	v2f := m.getVertexToFace()
 	for _, c := range m.VertexSlice() {
-		if _, ok := v2f[c]; ok {
+		if _, ok := v2f.Load(c); ok {
 			f(c)
 		}
 	}
@@ -423,8 +423,9 @@ func (m *Mesh) Neighbors(f *Triangle) []*Triangle {
 
 func (m *Mesh) neighborsWithCounts(t *Triangle) map[*Triangle]int {
 	counts := map[*Triangle]int{}
+	v2f := m.getVertexToFace()
 	for _, p := range t {
-		for _, t1 := range m.getVertexToFace()[p] {
+		for _, t1 := range v2f.Value(p) {
 			if t1 != t {
 				counts[t1]++
 			}
@@ -440,10 +441,10 @@ func (m *Mesh) neighborsWithCounts(t *Triangle) map[*Triangle]int {
 // from p1 to p2, you could do m.Find(p1, p2).
 func (m *Mesh) Find(ps ...Coord3D) []*Triangle {
 	if len(ps) == 1 {
-		return append([]*Triangle{}, m.getVertexToFace()[ps[0]]...)
+		return append([]*Triangle{}, m.getVertexToFace().Value(ps[0])...)
 	}
 
-	faces := m.getVertexToFace()[ps[0]]
+	faces := m.getVertexToFace().Value(ps[0])
 	res := make([]*Triangle, 0, len(faces))
 
 FaceLoop:
@@ -476,9 +477,10 @@ func (m *Mesh) Translate(v Coord3D) *Mesh {
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
 	mapping := map[Coord3D]Coord3D{}
 	if v2f := m.getVertexToFaceOrNil(); v2f != nil {
-		for c := range v2f {
+		v2f.KeyRange(func(c Coord3D) bool {
 			mapping[c] = f(c)
-		}
+			return true
+		})
 	} else {
 		for t := range m.faces {
 			for _, c := range t {
@@ -576,10 +578,11 @@ func (m *Mesh) TriangleSlice() []*Triangle {
 // mesh in memory.
 func (m *Mesh) VertexSlice() []Coord3D {
 	v2f := m.getVertexToFace()
-	vertices := make([]Coord3D, 0, len(v2f))
-	for v := range v2f {
+	vertices := make([]Coord3D, 0, v2f.Len())
+	v2f.KeyRange(func(v Coord3D) bool {
 		vertices = append(vertices, v)
-	}
+		return true
+	})
 	return vertices
 }
 
@@ -625,7 +628,7 @@ func (m *Mesh) Max() Coord3D {
 	return result
 }
 
-func (m *Mesh) getVertexToFace() map[Coord3D][]*Triangle {
+func (m *Mesh) getVertexToFace() *CoordToFaces {
 	v2f := m.getVertexToFaceOrNil()
 	if v2f != nil {
 		return v2f
@@ -643,10 +646,10 @@ func (m *Mesh) getVertexToFace() map[Coord3D][]*Triangle {
 		return v2f
 	}
 
-	v2f = map[Coord3D][]*Triangle{}
+	v2f = NewCoordToFaces()
 	for t := range m.faces {
 		for _, p := range t {
-			v2f[p] = append(v2f[p], t)
+			addFaceToVertex(v2f, p, t)
 		}
 	}
 	m.vertexToFace.Store(v2f)
@@ -654,10 +657,16 @@ func (m *Mesh) getVertexToFace() map[Coord3D][]*Triangle {
 	return v2f
 }
 
-func (m *Mesh) getVertexToFaceOrNil() map[Coord3D][]*Triangle {
+func (m *Mesh) getVertexToFaceOrNil() *CoordToFaces {
 	res := m.vertexToFace.Load()
 	if res == nil {
 		return nil
 	}
-	return res.(map[Coord3D][]*Triangle)
+	return res.(*CoordToFaces)
+}
+
+func addFaceToVertex(v2f *CoordToFaces, k Coord3D, v *Triangle) {
+	f := v2f.Value(k)
+	f = append(f, v)
+	v2f.Store(k, f)
 }

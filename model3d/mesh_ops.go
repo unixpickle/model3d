@@ -31,7 +31,7 @@ func (m *Mesh) Blur(rates ...float64) *Mesh {
 func (m *Mesh) BlurFiltered(f func(c1, c2 Coord3D) bool, rates ...float64) *Mesh {
 	capacity := len(m.faces) * 3
 	if v2t := m.getVertexToFaceOrNil(); v2t != nil {
-		capacity = len(v2t)
+		capacity = v2t.Len()
 	}
 	coordToIdx := make(map[Coord3D]int, capacity)
 	coords := make([]Coord3D, 0, capacity)
@@ -179,7 +179,7 @@ func (m *Mesh) FlattenBase(maxAngle float64) *Mesh {
 		newC := c
 		newC.Z = minZ
 		v2t := result.getVertexToFace()
-		for _, t2 := range v2t[c] {
+		for _, t2 := range v2t.Value(c) {
 			for i, c1 := range t2 {
 				if c1 == c {
 					t2[i] = newC
@@ -192,8 +192,8 @@ func (m *Mesh) FlattenBase(maxAngle float64) *Mesh {
 				delete(pending, t2)
 			}
 		}
-		v2t[newC] = v2t[c]
-		delete(v2t, c)
+		v2t.Store(newC, v2t.Value(c))
+		v2t.Delete(c)
 	}
 
 	for len(pending) > 0 {
@@ -223,7 +223,7 @@ func (m *Mesh) FlattenBase(maxAngle float64) *Mesh {
 func (m *Mesh) Repair(epsilon float64) *Mesh {
 	hashToClass := map[Coord3D]*equivalenceClass{}
 	allClasses := map[*equivalenceClass]bool{}
-	for c := range m.getVertexToFace() {
+	m.getVertexToFace().KeyRange(func(c Coord3D) bool {
 		hashes := make([]Coord3D, 0, 8)
 		classes := make(map[*equivalenceClass]bool, 8)
 		for i := 0.0; i <= 1.0; i += 1.0 {
@@ -251,7 +251,7 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 				hashToClass[hash] = class
 			}
 			allClasses[class] = true
-			continue
+			return true
 		}
 		newClass := &equivalenceClass{
 			Elements:  []Coord3D{c},
@@ -278,7 +278,8 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 			hashToClass[hash] = newClass
 		}
 		allClasses[newClass] = true
-	}
+		return true
+	})
 
 	coordToClass := map[Coord3D]*equivalenceClass{}
 	for class := range allClasses {
@@ -374,9 +375,9 @@ func (m *Mesh) SingularVertices() []Coord3D {
 	var unvisited []int
 	var visitQueue []int
 
-	for vertex, tris := range m.getVertexToFace() {
+	m.getVertexToFace().Range(func(vertex Coord3D, tris []*Triangle) bool {
 		if len(tris) == 0 {
-			continue
+			return true
 		}
 
 		// Start the search with triangle 0 in the queue.
@@ -408,7 +409,8 @@ func (m *Mesh) SingularVertices() []Coord3D {
 		if len(unvisited) != 0 {
 			res = append(res, vertex)
 		}
-	}
+		return true
+	})
 	return res
 }
 
@@ -572,8 +574,8 @@ func canEliminateSegment(m *Mesh, seg Segment) bool {
 	}
 
 	v2t := m.getVertexToFace()
-	neighbors1 := v2t[seg[0]]
-	neighbors2 := v2t[seg[1]]
+	neighbors1 := v2t.Value(seg[0])
+	neighbors2 := v2t.Value(seg[1])
 	otherSegs := make([]Segment, 0, len(neighbors1)+len(neighbors2))
 	for i, neighbors := range [][]*Triangle{neighbors1, neighbors2} {
 		for _, t := range neighbors {
@@ -614,7 +616,7 @@ func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool) {
 	v2t := m.getVertexToFace()
 	newNeighbors := []*Triangle{}
 	for i, segmentPoint := range segment {
-		for _, neighbor := range v2t[segmentPoint] {
+		for _, neighbor := range v2t.Value(segmentPoint) {
 			var removedSegs int
 			for _, seg := range neighbor.Segments() {
 				if seg[0] == segment[0] || seg[0] == segment[1] || seg[1] == segment[0] ||
@@ -651,8 +653,8 @@ func eliminateSegment(m *Mesh, segment Segment, remaining map[Segment]bool) {
 			}
 
 			newNeighbors = append(newNeighbors, neighbor)
-			delete(v2t, segmentPoint)
+			v2t.Delete(segmentPoint)
 		}
 	}
-	v2t[mp] = newNeighbors
+	v2t.Store(mp, newNeighbors)
 }

@@ -31,7 +31,7 @@ import (
 type Mesh struct {
 	faces map[*Segment]bool
 
-	// Stores a map[Coord][]*Segment
+	// Stores a *CoordToFaces
 	vertexToFace  atomic.Value
 	v2fCreateLock sync.Mutex
 }
@@ -104,7 +104,7 @@ func (m *Mesh) Add(f *Segment) {
 	}
 
 	for _, p := range f {
-		v2f[p] = append(v2f[p], f)
+		addFaceToVertex(v2f, p, f)
 	}
 	m.faces[f] = true
 }
@@ -131,8 +131,8 @@ func (m *Mesh) Remove(f *Segment) {
 	}
 }
 
-func (m *Mesh) removeFaceFromVertex(v2f map[Coord][]*Segment, f *Segment, p Coord) {
-	s := v2f[p]
+func (m *Mesh) removeFaceFromVertex(v2f *CoordToFaces, f *Segment, p Coord) {
+	s := v2f.Value(p)
 	for i, f1 := range s {
 		if f1 == f {
 			essentials.UnorderedDelete(&s, i)
@@ -140,9 +140,9 @@ func (m *Mesh) removeFaceFromVertex(v2f map[Coord][]*Segment, f *Segment, p Coor
 		}
 	}
 	if len(s) == 0 {
-		delete(v2f, p)
+		v2f.Delete(p)
 	} else {
-		v2f[p] = s
+		v2f.Store(p, s)
 	}
 }
 
@@ -184,7 +184,7 @@ func (m *Mesh) IterateSorted(f func(*Segment), cmp func(f1, f2 *Segment) bool) {
 func (m *Mesh) IterateVertices(f func(c Coord)) {
 	v2f := m.getVertexToFace()
 	for _, c := range m.VertexSlice() {
-		if _, ok := v2f[c]; ok {
+		if _, ok := v2f.Load(c); ok {
 			f(c)
 		}
 	}
@@ -216,8 +216,9 @@ func (m *Mesh) Neighbors(f *Segment) []*Segment {
 
 func (m *Mesh) neighborsWithCounts(t *Segment) map[*Segment]int {
 	counts := map[*Segment]int{}
+	v2f := m.getVertexToFace()
 	for _, p := range t {
-		for _, t1 := range m.getVertexToFace()[p] {
+		for _, t1 := range v2f.Value(p) {
 			if t1 != t {
 				counts[t1]++
 			}
@@ -233,10 +234,10 @@ func (m *Mesh) neighborsWithCounts(t *Segment) map[*Segment]int {
 // from p1 to p2, you could do m.Find(p1, p2).
 func (m *Mesh) Find(ps ...Coord) []*Segment {
 	if len(ps) == 1 {
-		return append([]*Segment{}, m.getVertexToFace()[ps[0]]...)
+		return append([]*Segment{}, m.getVertexToFace().Value(ps[0])...)
 	}
 
-	faces := m.getVertexToFace()[ps[0]]
+	faces := m.getVertexToFace().Value(ps[0])
 	res := make([]*Segment, 0, len(faces))
 
 FaceLoop:
@@ -269,9 +270,10 @@ func (m *Mesh) Translate(v Coord) *Mesh {
 func (m *Mesh) MapCoords(f func(Coord) Coord) *Mesh {
 	mapping := map[Coord]Coord{}
 	if v2f := m.getVertexToFaceOrNil(); v2f != nil {
-		for c := range v2f {
+		v2f.KeyRange(func(c Coord) bool {
 			mapping[c] = f(c)
-		}
+			return true
+		})
 	} else {
 		for t := range m.faces {
 			for _, c := range t {
@@ -335,10 +337,11 @@ func (m *Mesh) SegmentsSlice() []*Segment {
 // mesh in memory.
 func (m *Mesh) VertexSlice() []Coord {
 	v2f := m.getVertexToFace()
-	vertices := make([]Coord, 0, len(v2f))
-	for v := range v2f {
+	vertices := make([]Coord, 0, v2f.Len())
+	v2f.KeyRange(func(v Coord) bool {
 		vertices = append(vertices, v)
-	}
+		return true
+	})
 	return vertices
 }
 
@@ -384,7 +387,7 @@ func (m *Mesh) Max() Coord {
 	return result
 }
 
-func (m *Mesh) getVertexToFace() map[Coord][]*Segment {
+func (m *Mesh) getVertexToFace() *CoordToFaces {
 	v2f := m.getVertexToFaceOrNil()
 	if v2f != nil {
 		return v2f
@@ -402,10 +405,10 @@ func (m *Mesh) getVertexToFace() map[Coord][]*Segment {
 		return v2f
 	}
 
-	v2f = map[Coord][]*Segment{}
+	v2f = NewCoordToFaces()
 	for t := range m.faces {
 		for _, p := range t {
-			v2f[p] = append(v2f[p], t)
+			addFaceToVertex(v2f, p, t)
 		}
 	}
 	m.vertexToFace.Store(v2f)
@@ -413,10 +416,16 @@ func (m *Mesh) getVertexToFace() map[Coord][]*Segment {
 	return v2f
 }
 
-func (m *Mesh) getVertexToFaceOrNil() map[Coord][]*Segment {
+func (m *Mesh) getVertexToFaceOrNil() *CoordToFaces {
 	res := m.vertexToFace.Load()
 	if res == nil {
 		return nil
 	}
-	return res.(map[Coord][]*Segment)
+	return res.(*CoordToFaces)
+}
+
+func addFaceToVertex(v2f *CoordToFaces, k Coord, v *Segment) {
+	f := v2f.Value(k)
+	f = append(f, v)
+	v2f.Store(k, f)
 }

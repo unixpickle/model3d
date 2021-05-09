@@ -159,7 +159,7 @@ type indexMesh struct {
 func newIndexMesh(m *Mesh) *indexMesh {
 	capacity := len(m.faces) * 3
 	if v2t := m.getVertexToFaceOrNil(); v2t != nil {
-		capacity = len(v2t)
+		capacity = v2t.Len()
 	}
 
 	res := &indexMesh{

@@ -96,12 +96,16 @@ func (m *Mesh) Subdivide(iters int) *Mesh {
 // Manifold checks if the mesh is manifold, i.e. if every
 // vertex has two segments.
 func (m *Mesh) Manifold() bool {
-	for _, s := range m.getVertexToFace() {
-		if len(s) != 2 {
+	result := true
+	m.getVertexToFace().Range(func(_ Coord, s []*Segment) bool {
+		if len(s) == 2 {
+			return true
+		} else {
+			result = false
 			return false
 		}
-	}
-	return true
+	})
+	return result
 }
 
 // RepairNormals flips normals when they point within the
@@ -144,7 +148,7 @@ func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
 func (m *Mesh) Repair(epsilon float64) *Mesh {
 	hashToClass := map[Coord]*equivalenceClass{}
 	allClasses := map[*equivalenceClass]bool{}
-	for c := range m.getVertexToFace() {
+	m.getVertexToFace().KeyRange(func(c Coord) bool {
 		hashes := make([]Coord, 0, 4)
 		classes := make(map[*equivalenceClass]bool, 8)
 		for i := 0.0; i <= 1.0; i += 1.0 {
@@ -169,7 +173,7 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 				hashToClass[hash] = class
 			}
 			allClasses[class] = true
-			continue
+			return true
 		}
 		newClass := &equivalenceClass{
 			Elements:  []Coord{c},
@@ -196,7 +200,8 @@ func (m *Mesh) Repair(epsilon float64) *Mesh {
 			hashToClass[hash] = newClass
 		}
 		allClasses[newClass] = true
-	}
+		return true
+	})
 
 	coordToClass := map[Coord]*equivalenceClass{}
 	for class := range allClasses {
