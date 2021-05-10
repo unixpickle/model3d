@@ -101,6 +101,24 @@ func (m *CoordMap) KeyRange(f func(key Coord) bool) {
 	}
 }
 
+// ValueRange is like Range, but only iterates over
+// values only.
+func (m *CoordMap) ValueRange(f func(value interface{}) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Value) {
+				return
+			}
+		}
+	} else {
+		for _, v := range m.slowMap {
+			if !f(v) {
+				return
+			}
+		}
+	}
+}
+
 // Range iterates over the map, calling f successively for
 // each value until it returns false, or all entries are
 // enumerated.
@@ -221,6 +239,28 @@ func (m *CoordToFaces) Store(key Coord, value []*Segment) {
 	}
 }
 
+// Append appends x to the value stored for the given key
+// and returns the new value.
+func (m *CoordToFaces) Append(key Coord, x *Segment) []*Segment {
+	if m.fastMap != nil {
+		hash := hashForCoordToFaces(key)
+		cell, ok := m.fastMap[hash]
+		if ok && cell.Key != key {
+			// We must switch to a slow map to store colliding values.
+			m.fastToSlow()
+			return m.Append(key, x)
+		} else {
+			value := append(cell.Value, x)
+			m.fastMap[hash] = cellForCoordToFaces{Key: key, Value: value}
+			return value
+		}
+	} else {
+		value := append(m.slowMap[key], x)
+		m.slowMap[key] = value
+		return value
+	}
+}
+
 // KeyRange is like Range, but only iterates over
 // keys, not values.
 func (m *CoordToFaces) KeyRange(f func(key Coord) bool) {
@@ -233,6 +273,24 @@ func (m *CoordToFaces) KeyRange(f func(key Coord) bool) {
 	} else {
 		for k := range m.slowMap {
 			if !f(k) {
+				return
+			}
+		}
+	}
+}
+
+// ValueRange is like Range, but only iterates over
+// values only.
+func (m *CoordToFaces) ValueRange(f func(value []*Segment) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Value) {
+				return
+			}
+		}
+	} else {
+		for _, v := range m.slowMap {
+			if !f(v) {
 				return
 			}
 		}
@@ -371,6 +429,24 @@ func (m *EdgeMap) KeyRange(f func(key [2]Coord) bool) {
 	} else {
 		for k := range m.slowMap {
 			if !f(k) {
+				return
+			}
+		}
+	}
+}
+
+// ValueRange is like Range, but only iterates over
+// values only.
+func (m *EdgeMap) ValueRange(f func(value interface{}) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Value) {
+				return
+			}
+		}
+	} else {
+		for _, v := range m.slowMap {
+			if !f(v) {
 				return
 			}
 		}
@@ -517,6 +593,24 @@ func (m *EdgeToBool) KeyRange(f func(key [2]Coord) bool) {
 	}
 }
 
+// ValueRange is like Range, but only iterates over
+// values only.
+func (m *EdgeToBool) ValueRange(f func(value bool) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Value) {
+				return
+			}
+		}
+	} else {
+		for _, v := range m.slowMap {
+			if !f(v) {
+				return
+			}
+		}
+	}
+}
+
 // Range iterates over the map, calling f successively for
 // each value until it returns false, or all entries are
 // enumerated.
@@ -639,6 +733,27 @@ func (m *EdgeToInt) Store(key [2]Coord, value int) {
 	}
 }
 
+// Add adds x to the value stored for the given key and
+// returns the new value.
+func (m *EdgeToInt) Add(key [2]Coord, x int) int {
+	if m.fastMap != nil {
+		hash := hashForEdgeToInt(key)
+		cell, ok := m.fastMap[hash]
+		if ok && cell.Key != key {
+			// We must switch to a slow map to store colliding values.
+			m.fastToSlow()
+			return m.Add(key, x)
+		} else {
+			m.fastMap[hash] = cellForEdgeToInt{Key: key, Value: cell.Value + x}
+			return cell.Value + x
+		}
+	} else {
+		value := m.slowMap[key] + x
+		m.slowMap[key] = value
+		return value
+	}
+}
+
 // KeyRange is like Range, but only iterates over
 // keys, not values.
 func (m *EdgeToInt) KeyRange(f func(key [2]Coord) bool) {
@@ -651,6 +766,24 @@ func (m *EdgeToInt) KeyRange(f func(key [2]Coord) bool) {
 	} else {
 		for k := range m.slowMap {
 			if !f(k) {
+				return
+			}
+		}
+	}
+}
+
+// ValueRange is like Range, but only iterates over
+// values only.
+func (m *EdgeToInt) ValueRange(f func(value int) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Value) {
+				return
+			}
+		}
+	} else {
+		for _, v := range m.slowMap {
+			if !f(v) {
 				return
 			}
 		}

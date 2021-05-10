@@ -302,7 +302,7 @@ func (m *Mesh) Add(f *Triangle) {
 	}
 
 	for _, p := range f {
-		addFaceToVertex(v2f, p, f)
+		v2f.Append(p, f)
 	}
 	m.faces[f] = true
 }
@@ -649,7 +649,7 @@ func (m *Mesh) getVertexToFace() *CoordToFaces {
 	v2f = NewCoordToFaces()
 	for t := range m.faces {
 		for _, p := range t {
-			addFaceToVertex(v2f, p, t)
+			v2f.Append(p, t)
 		}
 	}
 	m.vertexToFace.Store(v2f)
@@ -663,10 +663,4 @@ func (m *Mesh) getVertexToFaceOrNil() *CoordToFaces {
 		return nil
 	}
 	return res.(*CoordToFaces)
-}
-
-func addFaceToVertex(v2f *CoordToFaces, k Coord3D, v *Triangle) {
-	f := v2f.Value(k)
-	f = append(f, v)
-	v2f.Store(k, f)
 }

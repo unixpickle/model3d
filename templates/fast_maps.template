@@ -82,6 +82,51 @@ func (m *{{.mapType}}) Store(key {{.keyType}}, value {{.elemType}}) {
     }
 }
 
+{{if eq .elemType "int" -}}
+// Add adds x to the value stored for the given key and
+// returns the new value.
+func (m *{{.mapType}}) Add(key {{.keyType}}, x {{.elemType}}) int {
+    if m.fastMap != nil {
+        hash := hashFor{{.mapType}}(key)
+        cell, ok := m.fastMap[hash]
+        if ok && cell.Key != key {
+            // We must switch to a slow map to store colliding values.
+            m.fastToSlow()
+            return m.Add(key, x)
+        } else {
+            m.fastMap[hash] = cellFor{{.mapType}}{Key: key, Value: cell.Value + x}
+            return cell.Value + x
+        }
+    } else {
+        value := m.slowMap[key] + x
+        m.slowMap[key] = value
+        return value
+    }
+}
+{{- else if hasprefix .elemType "[]" -}}
+// Append appends x to the value stored for the given key
+// and returns the new value.
+func (m *{{.mapType}}) Append(key {{.keyType}}, x {{slice .elemType 2}}) {{.elemType}} {
+    if m.fastMap != nil {
+        hash := hashFor{{.mapType}}(key)
+        cell, ok := m.fastMap[hash]
+        if ok && cell.Key != key {
+            // We must switch to a slow map to store colliding values.
+            m.fastToSlow()
+            return m.Append(key, x)
+        } else {
+            value := append(cell.Value, x)
+            m.fastMap[hash] = cellFor{{.mapType}}{Key: key, Value: value}
+            return value
+        }
+    } else {
+        value := append(m.slowMap[key], x)
+        m.slowMap[key] = value
+        return value
+    }
+}
+{{- end}}
+
 // KeyRange is like Range, but only iterates over
 // keys, not values.
 func (m *{{.mapType}}) KeyRange(f func(key {{.keyType}}) bool) {
@@ -94,6 +139,24 @@ func (m *{{.mapType}}) KeyRange(f func(key {{.keyType}}) bool) {
     } else {
         for k := range m.slowMap {
             if !f(k) {
+                return
+            }
+        }
+    }
+}
+
+// ValueRange is like Range, but only iterates over
+// values only.
+func (m *{{.mapType}}) ValueRange(f func(value {{.elemType}}) bool) {
+    if m.fastMap != nil {
+        for _, cell := range m.fastMap {
+            if !f(cell.Value) {
+                return
+            }
+        }
+    } else {
+        for _, v := range m.slowMap {
+            if !f(v) {
                 return
             }
         }

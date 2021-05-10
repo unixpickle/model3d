@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/unixpickle/essentials"
@@ -60,6 +61,9 @@ func Generate2d3dTemplate(name string, checkNoChange bool) {
 				res += s
 			}
 			return res
+		},
+		"hasprefix": func(s, prefix string) bool {
+			return strings.HasPrefix(s, prefix)
 		},
 	})
 	data, err := ioutil.ReadFile(inPath)
