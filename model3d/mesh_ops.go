@@ -309,7 +309,7 @@ func (m *Mesh) NeedsRepair() bool {
 		for i := 0; i < 3; i++ {
 			seg := NewSegment(face[i], face[(i+1)%3])
 			if counts.Add(seg, 1) > 2 {
-				return false
+				return true
 			}
 		}
 	}
