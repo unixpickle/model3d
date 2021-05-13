@@ -475,17 +475,17 @@ func (m *Mesh) Translate(v Coord3D) *Mesh {
 // MapCoords creates a new mesh by transforming all of the
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
-	mapping := map[Coord3D]Coord3D{}
+	mapping := NewCoordToCoord()
 	if v2f := m.getVertexToFaceOrNil(); v2f != nil {
 		v2f.KeyRange(func(c Coord3D) bool {
-			mapping[c] = f(c)
+			mapping.Store(c, f(c))
 			return true
 		})
 	} else {
 		for t := range m.faces {
 			for _, c := range t {
-				if _, ok := mapping[c]; !ok {
-					mapping[c] = f(c)
+				if _, ok := mapping.Load(c); !ok {
+					mapping.Store(c, f(c))
 				}
 			}
 		}
@@ -494,7 +494,7 @@ func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
 	m.Iterate(func(t *Triangle) {
 		t1 := *t
 		for i, p := range t {
-			t1[i] = mapping[p]
+			t1[i] = mapping.Value(p)
 		}
 		m1.Add(&t1)
 	})
