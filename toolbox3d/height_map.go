@@ -292,7 +292,7 @@ func (h *HeightMap) Mesh() *model3d.Mesh {
 	})
 
 	// Connect edges to base.
-	for edge := range edges {
+	edges.KeyRange(func(edge [2]model3d.Coord3D) bool {
 		p1, p2 := edge[0], edge[1]
 		mesh.AddQuad(
 			p2,
@@ -300,7 +300,8 @@ func (h *HeightMap) Mesh() *model3d.Mesh {
 			model3d.XY(p1.X, p1.Y),
 			model3d.XY(p2.X, p2.Y),
 		)
-	}
+		return true
+	})
 
 	return mesh
 }
@@ -323,7 +324,7 @@ func (h *HeightMap) MeshBidir() *model3d.Mesh {
 		})
 	})
 
-	for edge := range edges {
+	edges.KeyRange(func(edge [2]model3d.Coord3D) bool {
 		p1, p2 := edge[0], edge[1]
 		mesh.AddQuad(
 			p2,
@@ -331,7 +332,8 @@ func (h *HeightMap) MeshBidir() *model3d.Mesh {
 			model3d.XYZ(p1.X, p1.Y, -p1.Z),
 			model3d.XYZ(p2.X, p2.Y, -p2.Z),
 		)
-	}
+		return true
+	})
 
 	return mesh
 }
@@ -473,18 +475,18 @@ func separateSingularVertices(m *model3d.Mesh) {
 	}
 }
 
-func findUnsharedEdges(m *model3d.Mesh) map[[2]model3d.Coord3D]bool {
-	edges := map[[2]model3d.Coord3D]bool{}
+func findUnsharedEdges(m *model3d.Mesh) *model3d.EdgeToBool {
+	edges := model3d.NewEdgeToBool()
 	m.Iterate(func(t *model3d.Triangle) {
 		for i := 0; i < 3; i++ {
 			p1 := t[i]
 			p2 := t[(i+1)%3]
 			edge := [2]model3d.Coord3D{p1, p2}
 			otherEdge := [2]model3d.Coord3D{p2, p1}
-			if edges[otherEdge] {
-				delete(edges, otherEdge)
+			if edges.Value(otherEdge) {
+				edges.Delete(otherEdge)
 			} else {
-				edges[edge] = true
+				edges.Store(edge, true)
 			}
 		}
 	})
