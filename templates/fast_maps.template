@@ -214,6 +214,7 @@ func hashFor{{.mapType}}(c {{.keyType}}) uint64 {
 {{- template "fastMap" mkargs . "mapType" "CoordMap" "keyType" .coordType "elemType" "interface{}" "zeroVal" "nil" -}}
 {{- template "fastMap" mkargs . "mapType" "CoordToFaces" "keyType" .coordType "elemType" (cat "[]*" .faceType) "zeroVal" "nil" -}}
 {{- template "fastMap" mkargs . "mapType" "CoordToCoord" "keyType" .coordType "elemType" .coordType "zeroVal" (cat .coordType "{}") -}}
+{{- template "fastMap" mkargs . "mapType" "CoordToInt" "keyType" .coordType "elemType" "int" "zeroVal" "0" -}}
 
 {{- template "fastMap" mkargs . "mapType" "EdgeMap" "keyType" (cat "[2]" .coordType) "elemType" "interface{}" "zeroVal" "nil" -}}
 {{- template "fastMap" mkargs . "mapType" "EdgeToBool" "keyType" (cat "[2]" .coordType) "elemType" "bool" "zeroVal" "false" -}}

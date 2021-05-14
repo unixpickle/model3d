@@ -166,15 +166,15 @@ func newIndexMesh(m *Mesh) *indexMesh {
 		Coords:    make([]Coord3D, 0, capacity),
 		Triangles: make([][3]int, 0, len(m.faces)),
 	}
-	coordToIdx := make(map[Coord3D]int, capacity)
+	coordToIdx := NewCoordToInt()
 
 	m.Iterate(func(t *Triangle) {
 		var triangle [3]int
 		for i, c := range t {
-			idx, ok := coordToIdx[c]
+			idx, ok := coordToIdx.Load(c)
 			if !ok {
 				idx = len(res.Coords)
-				coordToIdx[c] = idx
+				coordToIdx.Store(c, idx)
 				res.Coords = append(res.Coords, c)
 			}
 			triangle[i] = idx
