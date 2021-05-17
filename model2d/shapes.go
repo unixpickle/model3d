@@ -66,7 +66,7 @@ func (s Segment) Closest(c Coord) Coord {
 func (s *Segment) RayCollisions(r *Ray, f func(RayCollision)) int {
 	if collides, scale := s.rayCollision(r); collides && scale >= 0 {
 		if f != nil {
-			f(RayCollision{Scale: scale, Normal: s.Normal()})
+			f(RayCollision{Scale: scale, Normal: s.Normal(), Extra: s})
 		}
 		return 1
 	}
@@ -77,7 +77,7 @@ func (s *Segment) RayCollisions(r *Ray, f func(RayCollision)) int {
 // one.
 func (s *Segment) FirstRayCollision(r *Ray) (RayCollision, bool) {
 	if collides, scale := s.rayCollision(r); collides && scale >= 0 {
-		return RayCollision{Scale: scale, Normal: s.Normal()}, true
+		return RayCollision{Scale: scale, Normal: s.Normal(), Extra: s}, true
 	}
 	return RayCollision{}, false
 }
