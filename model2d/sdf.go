@@ -30,6 +30,16 @@ type PointSDF interface {
 	PointSDF(c Coord) (Coord, float64)
 }
 
+// A FaceSDF is a PointSDF that can additionally get the
+// segment containing the closest point.
+type FaceSDF interface {
+	PointSDF
+
+	// FaceSDF gets the SDF at c and also returns the
+	// nearest point and face to c on the surface.
+	FaceSDF(c Coord) (*Segment, Coord, float64)
+}
+
 type funcSDF struct {
 	min Coord
 	max Coord
@@ -169,18 +179,18 @@ type meshSDF struct {
 	MDF *meshDistFunc
 }
 
-// MeshToSDF turns a mesh into a PointSDF.
-func MeshToSDF(m *Mesh) PointSDF {
+// MeshToSDF turns a mesh into a FaceSDF.
+func MeshToSDF(m *Mesh) FaceSDF {
 	faces := m.SegmentSlice()
 	GroupSegments(faces)
 	return GroupedSegmentsToSDF(faces)
 }
 
-// GroupedSegmentsToSDF creates a PointSDF from a slice
+// GroupedSegmentsToSDF creates a FaceSDF from a slice
 // of segments.
 // If the segments are not grouped by GroupSegments(),
 // the resulting PointSDF is inefficient.
-func GroupedSegmentsToSDF(faces []*Segment) PointSDF {
+func GroupedSegmentsToSDF(faces []*Segment) FaceSDF {
 	if len(faces) == 0 {
 		panic("cannot create empty SDF")
 	}
@@ -191,7 +201,8 @@ func GroupedSegmentsToSDF(faces []*Segment) PointSDF {
 }
 
 func (m *meshSDF) SDF(c Coord) float64 {
-	dist := m.MDF.Dist(c, math.Inf(1))
+	dist := math.Inf(1)
+	m.MDF.Dist(c, &dist, nil, nil)
 	if m.Solid.Contains(c) {
 		return dist
 	} else {
@@ -200,13 +211,24 @@ func (m *meshSDF) SDF(c Coord) float64 {
 }
 
 func (m *meshSDF) PointSDF(c Coord) (Coord, float64) {
-	point := Coord{}
 	dist := math.Inf(1)
-	m.MDF.PointDist(c, &point, &dist)
+	point := Coord{}
+	m.MDF.Dist(c, &dist, &point, nil)
 	if !m.Solid.Contains(c) {
 		dist = -dist
 	}
 	return point, dist
+}
+
+func (m *meshSDF) FaceSDF(c Coord) (*Segment, Coord, float64) {
+	dist := math.Inf(1)
+	point := Coord{}
+	var face *Segment
+	m.MDF.Dist(c, &dist, &point, &face)
+	if !m.Solid.Contains(c) {
+		dist = -dist
+	}
+	return face, point, dist
 }
 
 type meshDistFunc struct {
@@ -241,36 +263,19 @@ func (m *meshDistFunc) Max() Coord {
 	return m.max
 }
 
-func (m *meshDistFunc) Dist(c Coord, curMin float64) float64 {
-	if m.root != nil {
-		return math.Min(curMin, m.root.Dist(c))
-	}
-
-	boundDists := [2]float64{
-		pointToBoundsDistSquared(c, m.children[0].min, m.children[0].max),
-		pointToBoundsDistSquared(c, m.children[1].min, m.children[1].max),
-	}
-	iterates := m.children
-	if boundDists[0] > boundDists[1] {
-		iterates[0], iterates[1] = iterates[1], iterates[0]
-		boundDists[0], boundDists[1] = boundDists[1], boundDists[0]
-	}
-	for i, child := range iterates {
-		if boundDists[i] > curMin*curMin {
-			continue
-		}
-		curMin = math.Min(curMin, child.Dist(c, curMin))
-	}
-	return curMin
-}
-
-func (m *meshDistFunc) PointDist(c Coord, curPoint *Coord, curDist *float64) {
+func (m *meshDistFunc) Dist(c Coord, curDist *float64, curPoint *Coord,
+	curFace **Segment) {
 	if m.root != nil {
 		cp := m.root.Closest(c)
 		dist := cp.Dist(c)
 		if dist < *curDist {
 			*curDist = dist
-			*curPoint = cp
+			if curPoint != nil {
+				*curPoint = cp
+			}
+			if curFace != nil {
+				*curFace = m.root
+			}
 		}
 		return
 	}
@@ -288,6 +293,6 @@ func (m *meshDistFunc) PointDist(c Coord, curPoint *Coord, curDist *float64) {
 		if boundDists[i] > (*curDist)*(*curDist) {
 			continue
 		}
-		child.PointDist(c, curPoint, curDist)
+		child.Dist(c, curDist, curPoint, curFace)
 	}
 }
