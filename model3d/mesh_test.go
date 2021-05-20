@@ -8,6 +8,16 @@ import (
 	"github.com/unixpickle/model3d/model2d"
 )
 
+func TestNewMeshIcosphere(t *testing.T) {
+	for _, n := range []int{1, 2, 3, 4} {
+		mesh := NewMeshIcosphere(XYZ(-0.3, 0.4, -0.2), 0.315, n)
+		if len(mesh.TriangleSlice()) != 20*n*n {
+			t.Errorf("invalid triangle count: %d (expected %d)", len(mesh.TriangleSlice()), 20*n*n)
+		}
+		MustValidateMesh(t, mesh, true)
+	}
+}
+
 func TestNewMeshRect(t *testing.T) {
 	mesh := NewMeshRect(XYZ(-0.3, -0.4, -0.2), XYZ(0.4, 0.35, 0.19))
 	MustValidateMesh(t, mesh, true)

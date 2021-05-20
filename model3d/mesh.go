@@ -115,6 +115,17 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 	return res
 }
 
+// NewMeshIcosphere approximates a sphere using a geodesic
+// polyhedron, which is more symmetrical than the spheres
+// created with NewMeshPolar().
+//
+// The resulting model has 20*n^2 triangles.
+func NewMeshIcosphere(center Coord3D, radius float64, n int) *Mesh {
+	return SubdivideEdges(NewMeshIcosahedron(), n).MapCoords(func(c Coord3D) Coord3D {
+		return c.Normalize()
+	}).Scale(radius).Translate(center)
+}
+
 // NewMeshRect creates a new mesh around the rectangular
 // bounds.
 func NewMeshRect(min, max Coord3D) *Mesh {

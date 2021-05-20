@@ -97,6 +97,18 @@ func NewMeshPolar(radius func(theta float64) float64, stops int) *Mesh {
 	res.Add(&Segment{firstPoint, lastPoint})
 	return res
 }
+
+// NewMeshRect creates a rectangle mesh.
+func NewMeshRect(min, max Coord) *Mesh {
+	m := NewMesh()
+	p1 := XY(min.X, max.Y)
+	p2 := XY(max.X, min.Y)
+	m.Add(&Segment{min, p1})
+	m.Add(&Segment{p1, max})
+	m.Add(&Segment{max, p2})
+	m.Add(&Segment{p2, min})
+	return m
+}
 {{- else -}}
 // NewMeshPolar creates a mesh with a 3D polar function.
 //
@@ -157,21 +169,18 @@ func NewMeshPolar(radius func(g GeoCoord) float64, stops int) *Mesh {
 	}
 	return res
 }
-{{- end}}
 
-{{if .model2d -}}
-// NewMeshRect creates a rectangle mesh.
-func NewMeshRect(min, max Coord) *Mesh {
-	m := NewMesh()
-	p1 := XY(min.X, max.Y)
-	p2 := XY(max.X, min.Y)
-	m.Add(&Segment{min, p1})
-	m.Add(&Segment{p1, max})
-	m.Add(&Segment{max, p2})
-	m.Add(&Segment{p2, min})
-	return m
+// NewMeshIcosphere approximates a sphere using a geodesic
+// polyhedron, which is more symmetrical than the spheres
+// created with NewMeshPolar().
+//
+// The resulting model has 20*n^2 triangles.
+func NewMeshIcosphere(center Coord3D, radius float64, n int) *Mesh {
+	return SubdivideEdges(NewMeshIcosahedron(), n).MapCoords(func(c Coord3D) Coord3D {
+		return c.Normalize()
+	}).Scale(radius).Translate(center)
 }
-{{- else -}}
+
 // NewMeshRect creates a new mesh around the rectangular
 // bounds.
 func NewMeshRect(min, max {{.coordType}}) *Mesh {
