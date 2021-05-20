@@ -82,6 +82,63 @@ func loopSubdivision(m *Mesh) *Mesh {
 	return res
 }
 
+// SubdivideEdges sub-divides each edge into n sub-edges
+// and fills each original triangle with n^2 coplanar
+// triangles.
+func SubdivideEdges(m *Mesh, n int) *Mesh {
+	if n < 1 {
+		panic("number of sub-edges must be at least 1")
+	}
+
+	side1 := make([]Coord3D, n+1)
+	side2 := make([]Coord3D, n+1)
+	wideLine := make([]Coord3D, n+1)
+	narrowLine := make([]Coord3D, n)
+
+	res := NewMesh()
+	m.Iterate(func(t *Triangle) {
+		divideSegment(t[0], t[1], side1)
+		divideSegment(t[0], t[2], side2)
+
+		for i := 0; i < n; i++ {
+			wideLine = wideLine[:i+2]
+			narrowLine = narrowLine[:i+1]
+			divideSegment(side1[i], side2[i], narrowLine)
+			divideSegment(side1[i+1], side2[i+1], wideLine)
+			for i := 0; i < len(narrowLine); i++ {
+				res.Add(&Triangle{narrowLine[i], wideLine[i], wideLine[i+1]})
+				if i > 0 {
+					res.Add(&Triangle{narrowLine[i], narrowLine[i-1], wideLine[i]})
+				}
+			}
+		}
+	})
+	return res
+}
+
+func divideSegment(c1, c2 Coord3D, result []Coord3D) {
+	if len(result) == 1 {
+		result[0] = c1
+		return
+	}
+	// Rounding errors may make the result depend on the order
+	// of c1 and c2, so we explicitly order them.
+	seg := NewSegment(c1, c2)
+	if seg[0] != c1 {
+		divideSegment(c2, c1, result)
+		for i := 0; i < len(result)/2; i++ {
+			result[i], result[len(result)-(i+1)] = result[len(result)-(i+1)], result[i]
+		}
+	} else {
+		result[0] = c1
+		result[len(result)-1] = c2
+		for i := 1; i+1 < len(result); i++ {
+			t := float64(i) / float64(len(result)-1)
+			result[i] = c1.Scale(1 - t).Add(c2.Scale(t))
+		}
+	}
+}
+
 // A Subdivider is used for sub-dividing triangles in a
 // mesh to add levels of detail where it is needed in a
 // model.
