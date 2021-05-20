@@ -28,6 +28,11 @@ func TestNewMeshTorus(t *testing.T) {
 	MustValidateMesh(t, mesh, true)
 }
 
+func TestNewMeshIcosahedron(t *testing.T) {
+	mesh := NewMeshIcosahedron()
+	MustValidateMesh(t, mesh, true)
+}
+
 func TestProfileMesh(t *testing.T) {
 	mesh2d := model2d.NewMeshPolar(func(t float64) float64 {
 		return 2 + math.Cos(t*10)

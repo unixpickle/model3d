@@ -251,6 +251,37 @@ func NewMeshCone(tip, base Coord3D, radius float64, numStops int) *Mesh {
 	return res
 }
 
+// NewMeshIcosahedron creates a regular icosahedron.
+//
+// The resulting icosahedron is oriented such that two
+// points will be created at (0, -1, 0) and (0, 1, 0),
+// and exactly two other points will have an x value of
+// zero.
+func NewMeshIcosahedron() *Mesh {
+	m := NewMesh()
+
+	midLat := math.Atan(0.5)
+	topCircle := func(i int) Coord3D {
+		i = i % 5
+		return GeoCoord{Lat: -midLat, Lon: math.Pi * 2 * float64(i) / 5.0}.Coord3D()
+	}
+	bottomCircle := func(i int) Coord3D {
+		i = i % 5
+		return GeoCoord{Lat: midLat, Lon: math.Pi * 2 * (1.0/10.0 + float64(i)/5.0)}.Coord3D()
+	}
+
+	top := GeoCoord{Lat: -math.Pi / 2}.Coord3D()
+	bottom := GeoCoord{Lat: math.Pi / 2}.Coord3D()
+	for i := 0; i < 5; i++ {
+		m.Add(&Triangle{top, topCircle(i + 1), topCircle(i)})
+		m.Add(&Triangle{bottom, bottomCircle(i), bottomCircle(i + 1)})
+		m.Add(&Triangle{topCircle(i), topCircle(i + 1), bottomCircle(i)})
+		m.Add(&Triangle{bottomCircle(i + 1), bottomCircle(i), topCircle(i + 1)})
+	}
+
+	return m
+}
+
 // ProfileMesh creates a 3D mesh from a 2D mesh by using
 // the 2D mesh as a face surface and extending it along
 // the Z axis.
