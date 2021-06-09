@@ -58,9 +58,7 @@ func main() {
 		rotation := rotation.EvalX(t)
 		translate := model3d.Coord3D{X: translateX.EvalX(t), Z: translateZ.EvalX(t)}
 		transform := model3d.JoinedTransform{
-			&model3d.Matrix3Transform{
-				Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), rotation),
-			},
+			model3d.Rotation(model3d.Z(1), rotation),
 			&model3d.Translate{Offset: translate},
 		}
 		deformed := df(Constraints(mesh, transform))
@@ -149,8 +147,7 @@ func CreateMesh() *model3d.Mesh {
 
 	// Don't let the box face the camera head on,
 	// allowing us to see more detail.
-	rotate := model3d.NewMatrix3Rotation(model3d.Z(1), 0.4)
-	return box.MapCoords(rotate.MulColumn)
+	return box.Rotate(model3d.Z(1), 0.4)
 }
 
 func Constraints(mesh *model3d.Mesh, transform model3d.Transform) model3d.ARAPConstraints {

@@ -157,10 +157,7 @@ func BottomArea(m *model3d.Mesh, threshold float64) float64 {
 }
 
 func RotateMesh(m *model3d.Mesh, angle float64) *model3d.Mesh {
-	rotation := &model3d.Matrix3Transform{
-		Matrix: model3d.NewMatrix3Rotation(model3d.X(1), angle),
-	}
-	return m.MapCoords(rotation.Apply)
+	return m.Rotate(model3d.X(1), angle)
 }
 
 // CreateFilterRing creates a piece of plastic that fits

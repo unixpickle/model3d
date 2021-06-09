@@ -144,7 +144,7 @@ func createAttachment(link *model3d.Torus, name string) model3d.Solid {
 
 	return model3d.TransformSolid(model3d.JoinedTransform{
 		&model3d.Translate{Offset: model3d.X(xOffset)},
-		&model3d.Matrix3Transform{Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), angle)},
+		model3d.Rotation(model3d.Z(1), angle),
 		&model3d.Translate{Offset: linkTip},
 	}, rawAttachment)
 }

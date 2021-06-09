@@ -108,7 +108,7 @@ func CreateHeartSlice() model3d.Solid {
 	heartMesh = heartMesh.Translate(heartMesh.Min().Scale(-1))
 	heartMesh = heartMesh.MapCoords(heartMesh.Max().Recip().Mul)
 	heartMesh = heartMesh.Scale(HeartCutSize)
-	heartMesh = heartMesh.MapCoords(model2d.NewMatrix2Rotation(-math.Pi / 2).MulColumn)
+	heartMesh = heartMesh.Rotate(-math.Pi / 2)
 	heartSolid := model2d.NewColliderSolid(model2d.MeshToCollider(heartMesh))
 
 	cuts := model2d.JoinedSolid{}

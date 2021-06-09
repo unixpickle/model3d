@@ -108,10 +108,7 @@ func CreateEar(angle float64) model3d.Solid {
 
 	mesh = mesh.Translate(model2d.Y(-lastPoint.Y))
 	mesh = mesh.Scale(-1 / lastPoint.Y).Scale(0.9)
-	mesh = mesh.Transform(model2d.JoinedTransform{
-		&model2d.Translate{Offset: model2d.Y(1.3)},
-		&model2d.Matrix2Transform{Matrix: model2d.NewMatrix2Rotation(angle)},
-	})
+	mesh = mesh.Translate(model2d.Y(1.3)).Rotate(angle)
 	collider2d := model2d.MeshToCollider(mesh)
 	collider3d := model3d.ProfileCollider(collider2d, -0.001, 0.001)
 	return model3d.NewColliderSolidHollow(collider3d, 0.05)

@@ -98,11 +98,7 @@ func CreateModel(name string, solid model3d.Solid) {
 func RenderEngagedProfiles(spec *Spec, driven, drive model2d.Solid) {
 	driveMesh := model2d.MarchingSquaresSearch(drive, 0.01, 8)
 	drivenMesh := model2d.MarchingSquaresSearch(driven, 0.01, 8)
-
-	mat := model2d.NewMatrix2Rotation(math.Pi / 4)
-	drivenMesh = drivenMesh.MapCoords(func(c model2d.Coord) model2d.Coord {
-		return mat.MulColumn(c).Add(model2d.Coord{X: spec.CenterDistance})
-	})
+	drivenMesh = drivenMesh.Rotate(math.Pi / 4).Translate(model2d.X(spec.CenterDistance))
 
 	mesh := model2d.NewMesh()
 	mesh.AddMesh(driveMesh)
@@ -112,9 +108,7 @@ func RenderEngagedProfiles(spec *Spec, driven, drive model2d.Solid) {
 
 func CreateRendering(spec *Spec) {
 	driveTransform := model3d.JoinedTransform{
-		&model3d.Matrix3Transform{
-			Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), math.Pi/2),
-		},
+		model3d.Rotation(model3d.Z(1), math.Pi/2),
 		&model3d.Translate{
 			Offset: model3d.Coord3D{X: spec.DriveRadius(), Z: spec.BoardThickness},
 		},
@@ -167,9 +161,7 @@ func CreateAnimation(spec *Spec) {
 		}
 		pinLoc := driveTransform.Apply(pinCenter)
 		drivenTransform := model3d.JoinedTransform{
-			&model3d.Matrix3Transform{
-				Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), angle),
-			},
+			model3d.Rotation(model3d.Z(1), angle),
 			&model3d.Translate{
 				Offset: model3d.Coord3D{
 					X: spec.DriveRadius() + spec.CenterDistance,
@@ -214,9 +206,7 @@ func CreateAnimation(spec *Spec) {
 	for driveAngle := math.Pi / 2; driveAngle < math.Pi/2+math.Pi*2; driveAngle += 0.05 {
 		log.Println("Rendering drive angle", driveAngle, "...")
 		driveTransform := model3d.JoinedTransform{
-			&model3d.Matrix3Transform{
-				Matrix: model3d.NewMatrix3Rotation(model3d.Z(1), driveAngle),
-			},
+			model3d.Rotation(model3d.Z(1), driveAngle),
 			&model3d.Translate{
 				Offset: model3d.Coord3D{X: spec.DriveRadius(), Z: spec.BoardThickness},
 			},

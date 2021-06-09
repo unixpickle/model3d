@@ -137,11 +137,7 @@ func LoadDiamond() model3d.Collider {
 	mesh := model3d.NewMeshTriangles(triangles)
 
 	// Put the diamond on its side.
-	rotate := model3d.Matrix3Transform{
-		Matrix: model3d.NewMatrix3Rotation(model3d.Y(1),
-			0.5*math.Pi+math.Atan(1/1.2)),
-	}
-	mesh = mesh.MapCoords(rotate.Apply)
+	mesh = mesh.Rotate(model3d.Y(1), 0.5*math.Pi+math.Atan(1/1.2))
 
 	translate := model3d.Translate{
 		Offset: model3d.Coord3D{Z: -(2 + mesh.Min().Z), Y: 4},

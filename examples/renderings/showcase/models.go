@@ -15,7 +15,7 @@ func ReadCurvyThing() render3d.Object {
 	invMid := mesh.Min().Mid(mesh.Max()).Scale(-1)
 	invMid.Z = -mesh.Min().Z
 	mesh = mesh.Translate(invMid)
-	mesh = mesh.MapCoords(model3d.NewMatrix3Rotation(model3d.Z(1), -math.Pi/4).MulColumn)
+	mesh = mesh.Rotate(model3d.Z(1), -math.Pi/4)
 	mesh = mesh.Translate(model3d.Coord3D{X: CurvyThingX, Y: CurvyThingY})
 
 	return &render3d.ColliderObject{
@@ -31,12 +31,8 @@ func ReadCurvyThing() render3d.Object {
 func ReadRose() render3d.Object {
 	mesh := ReadModel("models/rose.stl.gz")
 	mesh = mesh.Translate(mesh.Min().Mid(mesh.Max()).Scale(-1))
-	mesh = mesh.MapCoords(model3d.NewMatrix3Rotation(model3d.X(1), math.Pi/4).MulColumn)
-	mesh = mesh.MapCoords(model3d.Coord3D{
-		X: RoseX,
-		Y: RoseY,
-		Z: RoseZ,
-	}.Add)
+	mesh = mesh.Rotate(model3d.X(1), math.Pi/4)
+	mesh = mesh.Translate(model3d.XYZ(RoseX, RoseY, RoseZ))
 
 	return render3d.JoinedObject{
 		&render3d.ColliderObject{
