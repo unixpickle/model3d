@@ -172,10 +172,16 @@ func ScaleSolid(solid Solid, s float64) Solid {
 	return TransformSolid(&Scale{Scale: s}, solid)
 }
 
-// TranslateSolid creates a new Solid by translating it by
-// a given offset.
+// TranslateSolid creates a new Solid by translating a
+// Solid by a given offset.
 func TranslateSolid(solid Solid, offset Coord) Solid {
 	return TransformSolid(&Translate{Offset: offset}, solid)
+}
+
+// RotateSolid creates a new Solid by rotating a Solid by
+// a given angle (in radians).
+func RotateSolid(solid Solid, axis Coord, angle float64) Solid {
+	return TransformSolid(Rotation(angle), solid)
 }
 
 // TransformSolid applies t to the solid s to produce a

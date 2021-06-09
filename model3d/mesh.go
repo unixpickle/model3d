@@ -514,6 +514,12 @@ func (m *Mesh) Translate(v Coord3D) *Mesh {
 	return m.MapCoords(v.Add)
 }
 
+// Rotate returns a mesh with all coordinates rotated
+// by a given angle (in radians) around a given unit axis.
+func (m *Mesh) Rotate(axis Coord3D, angle float64) *Mesh {
+	return m.Transform(Rotation(axis, angle))
+}
+
 // MapCoords creates a new mesh by transforming all of the
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
