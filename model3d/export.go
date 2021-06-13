@@ -7,8 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -138,48 +136,6 @@ func writePLY(w *bufio.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3
 	return w.Flush()
 }
 
-// A DirWriter provides an interface for creating multiple
-// files inside of an abstract directory.
-// Only one file can be written at a time, and each file
-// is automatically closed when Create() is called again.
-// The final file should be written/closed with Flush().
-//
-// This is implemented by zip.Writer and *FSDirWriter.
-type DirWriter interface {
-	Create(name string) (io.Writer, error)
-	Flush() error
-}
-
-// FSDirWriter implements the DirWriter interface for the
-// local filesystem.
-type FSDirWriter struct {
-	Root string
-
-	curFile *os.File
-}
-
-func (f *FSDirWriter) Create(name string) (io.Writer, error) {
-	if f.curFile != nil {
-		err := f.curFile.Close()
-		f.curFile = nil
-		if err != nil {
-			return nil, err
-		}
-	}
-	var err error
-	f.curFile, err = os.Create(filepath.Join(f.Root, name))
-	return f.curFile, err
-}
-
-func (f *FSDirWriter) Flush() error {
-	if f.curFile == nil {
-		return nil
-	}
-	res := f.curFile.Close()
-	f.curFile = nil
-	return res
-}
-
 // EncodeMaterialOBJ encodes a 3D model as a zip file
 // containing both an OBJ and an MTL file.
 //
@@ -211,23 +167,7 @@ func WriteMaterialOBJ(w io.Writer, ts []*Triangle, colorFunc func(t *Triangle) [
 
 func writeMaterialOBJ(w io.Writer, triangles []*Triangle,
 	colorFunc func(t *Triangle) [3]float64) error {
-	colorToMat := map[[3]float64]int{}
-	colorToTriangle := map[[3]float64][]*Triangle{}
-	coords := []Coord3D{}
-	coordToIdx := map[Coord3D]int{}
-	for _, t := range triangles {
-		c := colorFunc(t)
-		if _, ok := colorToMat[c]; !ok {
-			colorToMat[c] = len(colorToMat)
-		}
-		colorToTriangle[c] = append(colorToTriangle[c], t)
-		for _, p := range t {
-			if _, ok := coordToIdx[p]; !ok {
-				coordToIdx[p] = len(coords)
-				coords = append(coords, p)
-			}
-		}
-	}
+	obj, mtl := BuildMaterialOBJ(triangles, colorFunc)
 
 	zipFile := zip.NewWriter(w)
 
@@ -235,30 +175,7 @@ func writeMaterialOBJ(w io.Writer, triangles []*Triangle,
 	if err != nil {
 		return err
 	}
-
-	buf := bufio.NewWriter(fw)
-	if _, err := buf.WriteString("mtllib material.mtl\n"); err != nil {
-		return err
-	}
-	for _, c := range coords {
-		if _, err := buf.WriteString(fmt.Sprintf("v %f %f %f\n", c.X, c.Y, c.Z)); err != nil {
-			return err
-		}
-	}
-	for color, ts := range colorToTriangle {
-		matLine := fmt.Sprintf("usemtl mat%d\n", colorToMat[color])
-		if _, err := buf.WriteString(matLine); err != nil {
-			return err
-		}
-		for _, t := range ts {
-			faceLine := fmt.Sprintf("f %d %d %d\n", coordToIdx[t[0]]+1, coordToIdx[t[1]]+1,
-				coordToIdx[t[2]]+1)
-			if _, err := buf.WriteString(faceLine); err != nil {
-				return err
-			}
-		}
-	}
-	if err := buf.Flush(); err != nil {
+	if err := obj.Write(fw); err != nil {
 		return err
 	}
 
@@ -266,16 +183,7 @@ func writeMaterialOBJ(w io.Writer, triangles []*Triangle,
 	if err != nil {
 		return err
 	}
-	buf = bufio.NewWriter(fw)
-
-	for color, mat := range colorToMat {
-		mtlLine := fmt.Sprintf("newmtl mat%d\nillum 1\nKa %f %f %f\nKd %f %f %f\n",
-			mat, color[0], color[1], color[2], color[0], color[1], color[2])
-		if _, err := buf.WriteString(mtlLine); err != nil {
-			return err
-		}
-	}
-	if err := buf.Flush(); err != nil {
+	if err := mtl.Write(fw); err != nil {
 		return err
 	}
 
@@ -316,7 +224,7 @@ func (o *OBJFile) Write(w io.Writer) error {
 		}
 	}
 	for _, c := range o.Vertices {
-		if _, err := buf.WriteString(o.encode3D("f", c)); err != nil {
+		if _, err := buf.WriteString(o.encode3D("v", c)); err != nil {
 			return err
 		}
 	}
@@ -332,7 +240,7 @@ func (o *OBJFile) Write(w io.Writer) error {
 	}
 	for _, fg := range o.Faces {
 		if fg.Material != "" {
-			if _, err := buf.WriteString("usemtl " + fg.Material); err != nil {
+			if _, err := buf.WriteString("usemtl " + fg.Material + "\n"); err != nil {
 				return err
 			}
 		}
@@ -347,13 +255,13 @@ func (o *OBJFile) Write(w io.Writer) error {
 
 func (o *OBJFile) encode2D(name string, c Coord2D) string {
 	return name + " " + strconv.FormatFloat(c.X, 'f', -1, 32) +
-		" " + strconv.FormatFloat(c.Y, 'f', -1, 32)
+		" " + strconv.FormatFloat(c.Y, 'f', -1, 32) + "\n"
 }
 
 func (o *OBJFile) encode3D(name string, c Coord3D) string {
 	return name + " " + strconv.FormatFloat(c.X, 'f', -1, 32) +
 		" " + strconv.FormatFloat(c.Y, 'f', -1, 32) +
-		" " + strconv.FormatFloat(c.Z, 'f', -1, 32)
+		" " + strconv.FormatFloat(c.Z, 'f', -1, 32) + "\n"
 }
 
 func (o *OBJFile) encodeFace(coords [3][3]int) string {
@@ -370,7 +278,7 @@ func (o *OBJFile) encodeFace(coords [3][3]int) string {
 			res += strconv.Itoa(c[0]) + "/" + strconv.Itoa(c[1]) + "/" + strconv.Itoa(c[2])
 		}
 	}
-	return res
+	return res + "\n"
 }
 
 // MTLFileTextureMap is a configured texture map for an
@@ -385,10 +293,10 @@ type MTLFileTextureMap struct {
 // MTLFileMaterial is a single material in an MTLFile.
 type MTLFileMaterial struct {
 	Name             string
-	Ambient          [3]float64
-	Diffuse          [3]float64
-	Specular         [3]float64
-	SpecularExponent float64
+	Ambient          [3]float32
+	Diffuse          [3]float32
+	Specular         [3]float32
+	SpecularExponent float32
 
 	// Texture maps
 	AmbientMap   *MTLFileTextureMap
@@ -405,19 +313,19 @@ func (m *MTLFileMaterial) Write(w io.Writer) error {
 	data.WriteByte('\n')
 
 	colorNames := [3]string{"Ka", "Kd", "Ks"}
-	colors := [3][3]float64{m.Ambient, m.Diffuse, m.Specular}
+	colors := [3][3]float32{m.Ambient, m.Diffuse, m.Specular}
 	for i, color := range colors {
 		name := colorNames[i]
 		data.WriteString(name)
 		for _, c := range color {
 			data.WriteByte(' ')
-			data.WriteString(strconv.FormatFloat(c, 'f', 4, 32))
+			data.WriteString(strconv.FormatFloat(float64(c), 'f', 4, 32))
 		}
 		data.WriteByte('\n')
 	}
-	if m.Specular != [3]float64{} {
+	if m.Specular != [3]float32{} {
 		data.WriteString("Ns ")
-		data.WriteString(strconv.FormatFloat(m.SpecularExponent, 'f', -1, 32))
+		data.WriteString(strconv.FormatFloat(float64(m.SpecularExponent), 'f', -1, 32))
 		data.WriteByte('\n')
 	}
 	textures := []*MTLFileTextureMap{m.AmbientMap, m.DiffuseMap, m.SpecularMap, m.HighlightMap}
@@ -457,6 +365,65 @@ func (m *MTLFile) Write(w io.Writer) error {
 		}
 	}
 	return buf.Flush()
+}
+
+// BuildMaterialOBJ constructs obj and mtl files from a
+// triangle mesh where each triangle's color is determined
+// by a function c.
+//
+// Since the obj file must reference the mtl file, it does
+// so by the name "material.mtl". Change o.MaterialFiles
+// if this is not desired.
+func BuildMaterialOBJ(t []*Triangle, c func(t *Triangle) [3]float64) (o *OBJFile, m *MTLFile) {
+	colorToMat := map[[3]float32]int{}
+	colorToTriangle := map[[3]float32][]*Triangle{}
+	coords := []Coord3D{}
+	coordToIdx := NewCoordToInt()
+	for _, tri := range t {
+		color64 := c(tri)
+		color := [3]float32{float32(color64[0]), float32(color64[1]), float32(color64[2])}
+		if _, ok := colorToMat[color]; !ok {
+			colorToMat[color] = len(colorToMat)
+		}
+		colorToTriangle[color] = append(colorToTriangle[color], tri)
+		for _, p := range tri {
+			if _, ok := coordToIdx.Load(p); !ok {
+				coordToIdx.Store(p, len(coords))
+				coords = append(coords, p)
+			}
+		}
+	}
+
+	o = &OBJFile{
+		MaterialFiles: []string{"material.mtl"},
+		Vertices:      coords,
+		Faces:         make([]*OBJFileFaceGroup, 0, len(colorToMat)),
+	}
+	m = &MTLFile{Materials: make([]*MTLFileMaterial, len(colorToMat))}
+
+	for color, mat := range colorToMat {
+		m.Materials[mat] = &MTLFileMaterial{
+			Name:    "mat" + strconv.Itoa(mat),
+			Ambient: color,
+			Diffuse: color,
+		}
+	}
+	for color, tris := range colorToTriangle {
+		g := &OBJFileFaceGroup{
+			Material: "mat" + strconv.Itoa(colorToMat[color]),
+			Faces:    make([][3][3]int, len(tris)),
+		}
+		for i, face := range tris {
+			g.Faces[i] = [3][3]int{
+				{coordToIdx.Value(face[0]) + 1, 0, 0},
+				{coordToIdx.Value(face[1]) + 1, 0, 0},
+				{coordToIdx.Value(face[2]) + 1, 0, 0},
+			}
+		}
+		o.Faces = append(o.Faces, g)
+	}
+
+	return
 }
 
 // VertexColorsToTriangle creates a per-triangle color
