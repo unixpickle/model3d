@@ -373,6 +373,92 @@ func (o *OBJFile) encodeFace(coords [3][3]int) string {
 	return res
 }
 
+// MTLFileTextureMap is a configured texture map for an
+// MTLFileMaterial.
+type MTLFileTextureMap struct {
+	Filename string
+
+	// May be nil.
+	Options map[string]string
+}
+
+// MTLFileMaterial is a single material in an MTLFile.
+type MTLFileMaterial struct {
+	Name             string
+	Ambient          [3]float64
+	Diffuse          [3]float64
+	Specular         [3]float64
+	SpecularExponent float64
+
+	// Texture maps
+	AmbientMap   *MTLFileTextureMap
+	DiffuseMap   *MTLFileTextureMap
+	SpecularMap  *MTLFileTextureMap
+	HighlightMap *MTLFileTextureMap
+}
+
+// Write encodes m to a writer w.
+func (m *MTLFileMaterial) Write(w io.Writer) error {
+	data := bytes.NewBuffer(nil)
+	data.WriteString("newmtl ")
+	data.WriteString(m.Name)
+	data.WriteByte('\n')
+
+	colorNames := [3]string{"Ka", "Kd", "Ks"}
+	colors := [3][3]float64{m.Ambient, m.Diffuse, m.Specular}
+	for i, color := range colors {
+		name := colorNames[i]
+		data.WriteString(name)
+		for _, c := range color {
+			data.WriteByte(' ')
+			data.WriteString(strconv.FormatFloat(c, 'f', 4, 32))
+		}
+		data.WriteByte('\n')
+	}
+	if m.Specular != [3]float64{} {
+		data.WriteString("Ns ")
+		data.WriteString(strconv.FormatFloat(m.SpecularExponent, 'f', -1, 32))
+		data.WriteByte('\n')
+	}
+	textures := []*MTLFileTextureMap{m.AmbientMap, m.DiffuseMap, m.SpecularMap, m.HighlightMap}
+	textureNames := []string{"map_Ka", "map_Kd", "map_Ks", "map_Ns"}
+	for i, tex := range textures {
+		if tex == nil {
+			continue
+		}
+		data.WriteString(textureNames[i])
+		if tex.Options != nil {
+			for name, value := range tex.Options {
+				data.WriteString(" -")
+				data.WriteString(name)
+				data.WriteByte(' ')
+				data.WriteString(value)
+			}
+		}
+		data.WriteByte(' ')
+		data.WriteString(tex.Filename)
+		data.WriteByte('\n')
+	}
+	_, err := w.Write(data.Bytes())
+	return err
+}
+
+// MTLFile represents the contents of a Wavefront mtl
+// file, which is a companion of an obj file.
+type MTLFile struct {
+	Materials []*MTLFileMaterial
+}
+
+func (m *MTLFile) Write(w io.Writer) error {
+	buf := bufio.NewWriter(w)
+	for _, mat := range m.Materials {
+		if err := mat.Write(buf); err != nil {
+			return err
+		}
+	}
+	return buf.Flush()
+}
+
 // VertexColorsToTriangle creates a per-triangle color
 // function that averages the colors at each of the
 // vertices.
