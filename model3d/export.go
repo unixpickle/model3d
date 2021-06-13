@@ -7,6 +7,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -136,6 +138,48 @@ func writePLY(w *bufio.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3
 	return w.Flush()
 }
 
+// A DirWriter provides an interface for creating multiple
+// files inside of an abstract directory.
+// Only one file can be written at a time, and each file
+// is automatically closed when Create() is called again.
+// The final file should be written/closed with Flush().
+//
+// This is implemented by zip.Writer and *FSDirWriter.
+type DirWriter interface {
+	Create(name string) (io.Writer, error)
+	Flush() error
+}
+
+// FSDirWriter implements the DirWriter interface for the
+// local filesystem.
+type FSDirWriter struct {
+	Root string
+
+	curFile *os.File
+}
+
+func (f *FSDirWriter) Create(name string) (io.Writer, error) {
+	if f.curFile != nil {
+		err := f.curFile.Close()
+		f.curFile = nil
+		if err != nil {
+			return nil, err
+		}
+	}
+	var err error
+	f.curFile, err = os.Create(filepath.Join(f.Root, name))
+	return f.curFile, err
+}
+
+func (f *FSDirWriter) Flush() error {
+	if f.curFile == nil {
+		return nil
+	}
+	res := f.curFile.Close()
+	f.curFile = nil
+	return res
+}
+
 // EncodeMaterialOBJ encodes a 3D model as a zip file
 // containing both an OBJ and an MTL file.
 //
@@ -236,6 +280,97 @@ func writeMaterialOBJ(w io.Writer, triangles []*Triangle,
 	}
 
 	return zipFile.Close()
+}
+
+// An OBJFileFaceGroup is a group of faces with one
+// material in a Wavefront obj file.
+type OBJFileFaceGroup struct {
+	// Material is the material name, or "" by default.
+	Material string
+
+	// Each face has three vertices, which itself has a
+	// vertex, texture, and normal index.
+	// If a texture or normal index is 0, it is omitted.
+	Faces [][3][3]int
+}
+
+// An OBJFile represents the contents of a Wavefront obj
+// file.
+type OBJFile struct {
+	MaterialFiles []string
+
+	Vertices []Coord3D
+	UVs      []Coord2D
+	Normals  []Coord3D
+	Faces    []*OBJFileFaceGroup
+}
+
+// Write encodes the file to w and returns the first write
+// error encountered.
+func (o *OBJFile) Write(w io.Writer) error {
+	buf := bufio.NewWriter(w)
+	for _, mtl := range o.MaterialFiles {
+		_, err := buf.WriteString("mtllib " + mtl + "\n")
+		if err != nil {
+			return err
+		}
+	}
+	for _, c := range o.Vertices {
+		if _, err := buf.WriteString(o.encode3D("f", c)); err != nil {
+			return err
+		}
+	}
+	for _, n := range o.Normals {
+		if _, err := buf.WriteString(o.encode3D("vn", n)); err != nil {
+			return err
+		}
+	}
+	for _, t := range o.UVs {
+		if _, err := buf.WriteString(o.encode2D("vt", t)); err != nil {
+			return err
+		}
+	}
+	for _, fg := range o.Faces {
+		if fg.Material != "" {
+			if _, err := buf.WriteString("usemtl " + fg.Material); err != nil {
+				return err
+			}
+		}
+		for _, f := range fg.Faces {
+			if _, err := buf.WriteString(o.encodeFace(f)); err != nil {
+				return err
+			}
+		}
+	}
+	return buf.Flush()
+}
+
+func (o *OBJFile) encode2D(name string, c Coord2D) string {
+	return name + " " + strconv.FormatFloat(c.X, 'f', -1, 32) +
+		" " + strconv.FormatFloat(c.Y, 'f', -1, 32)
+}
+
+func (o *OBJFile) encode3D(name string, c Coord3D) string {
+	return name + " " + strconv.FormatFloat(c.X, 'f', -1, 32) +
+		" " + strconv.FormatFloat(c.Y, 'f', -1, 32) +
+		" " + strconv.FormatFloat(c.Z, 'f', -1, 32)
+}
+
+func (o *OBJFile) encodeFace(coords [3][3]int) string {
+	res := "f"
+	for _, c := range coords {
+		res += " "
+		if c[1] == 0 && c[2] == 0 {
+			res += strconv.Itoa(c[0])
+		} else if c[1] == 0 && c[2] != 0 {
+			res += strconv.Itoa(c[0]) + "//" + strconv.Itoa(c[2])
+		} else if c[1] != 0 && c[2] == 0 {
+			res += strconv.Itoa(c[0]) + "/" + strconv.Itoa(c[1])
+		} else {
+			res += strconv.Itoa(c[0]) + "/" + strconv.Itoa(c[1]) + "/" + strconv.Itoa(c[2])
+		}
+	}
+	return res
 }
 
 // VertexColorsToTriangle creates a per-triangle color
