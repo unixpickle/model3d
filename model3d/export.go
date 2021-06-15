@@ -207,10 +207,10 @@ type OBJFileFaceGroup struct {
 type OBJFile struct {
 	MaterialFiles []string
 
-	Vertices []Coord3D
-	UVs      []Coord2D
-	Normals  []Coord3D
-	Faces    []*OBJFileFaceGroup
+	Vertices   []Coord3D
+	UVs        []Coord2D
+	Normals    []Coord3D
+	FaceGroups []*OBJFileFaceGroup
 }
 
 // Write encodes the file to w and returns the first write
@@ -238,7 +238,7 @@ func (o *OBJFile) Write(w io.Writer) error {
 			return err
 		}
 	}
-	for _, fg := range o.Faces {
+	for _, fg := range o.FaceGroups {
 		if fg.Material != "" {
 			if _, err := buf.WriteString("usemtl " + fg.Material + "\n"); err != nil {
 				return err
@@ -375,52 +375,44 @@ func (m *MTLFile) Write(w io.Writer) error {
 // so by the name "material.mtl". Change o.MaterialFiles
 // if this is not desired.
 func BuildMaterialOBJ(t []*Triangle, c func(t *Triangle) [3]float64) (o *OBJFile, m *MTLFile) {
+	o = &OBJFile{
+		MaterialFiles: []string{"material.mtl"},
+	}
+	m = &MTLFile{}
+
 	colorToMat := map[[3]float32]int{}
-	colorToTriangle := map[[3]float32][]*Triangle{}
-	coords := []Coord3D{}
 	coordToIdx := NewCoordToInt()
 	for _, tri := range t {
 		color64 := c(tri)
-		color := [3]float32{float32(color64[0]), float32(color64[1]), float32(color64[2])}
-		if _, ok := colorToMat[color]; !ok {
-			colorToMat[color] = len(colorToMat)
+		color32 := [3]float32{float32(color64[0]), float32(color64[1]), float32(color64[2])}
+		matIdx, ok := colorToMat[color32]
+		var group *OBJFileFaceGroup
+		if !ok {
+			matIdx = len(colorToMat)
+			colorToMat[color32] = matIdx
+			matName := "mat" + strconv.Itoa(matIdx)
+			m.Materials = append(m.Materials, &MTLFileMaterial{
+				Name:    matName,
+				Ambient: color32,
+				Diffuse: color32,
+			})
+			group = &OBJFileFaceGroup{Material: matName}
+			o.FaceGroups = append(o.FaceGroups, group)
+		} else {
+			group = o.FaceGroups[matIdx]
 		}
-		colorToTriangle[color] = append(colorToTriangle[color], tri)
-		for _, p := range tri {
-			if _, ok := coordToIdx.Load(p); !ok {
-				coordToIdx.Store(p, len(coords))
-				coords = append(coords, p)
+		face := [3][3]int{}
+		for i, p := range tri {
+			if idx, ok := coordToIdx.Load(p); !ok {
+				idx = coordToIdx.Len()
+				coordToIdx.Store(p, idx)
+				o.Vertices = append(o.Vertices, p)
+				face[i][0] = idx + 1
+			} else {
+				face[i][0] = idx + 1
 			}
 		}
-	}
-
-	o = &OBJFile{
-		MaterialFiles: []string{"material.mtl"},
-		Vertices:      coords,
-		Faces:         make([]*OBJFileFaceGroup, 0, len(colorToMat)),
-	}
-	m = &MTLFile{Materials: make([]*MTLFileMaterial, len(colorToMat))}
-
-	for color, mat := range colorToMat {
-		m.Materials[mat] = &MTLFileMaterial{
-			Name:    "mat" + strconv.Itoa(mat),
-			Ambient: color,
-			Diffuse: color,
-		}
-	}
-	for color, tris := range colorToTriangle {
-		g := &OBJFileFaceGroup{
-			Material: "mat" + strconv.Itoa(colorToMat[color]),
-			Faces:    make([][3][3]int, len(tris)),
-		}
-		for i, face := range tris {
-			g.Faces[i] = [3][3]int{
-				{coordToIdx.Value(face[0]) + 1, 0, 0},
-				{coordToIdx.Value(face[1]) + 1, 0, 0},
-				{coordToIdx.Value(face[2]) + 1, 0, 0},
-			}
-		}
-		o.Faces = append(o.Faces, g)
+		group.Faces = append(group.Faces, face)
 	}
 
 	return
