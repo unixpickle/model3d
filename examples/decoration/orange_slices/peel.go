@@ -72,6 +72,33 @@ func (p *Peel) Contains(c model3d.Coord3D) bool {
 	return math.Abs(diff.Dot(longDir)) < PeelLongSide/2 && math.Abs(diff.Dot(shortDir)) < PeelSmallSide/2
 }
 
+// PeelMesh creates a mesh for the peel.
+func PeelMesh(stops int) *model3d.Mesh {
+	curve := PeelCentralCurve()
+	twist := PeelTwist()
+	centralDir := func(x float64) model3d.Coord3D {
+		delta := 0.001
+		if x > 0 {
+			x -= delta
+		}
+		return curve(x + delta).Sub(curve(x)).Normalize()
+
+	}
+	corners := func(t int) [4]model3d.Coord3D {
+		x := float64(t)/float64(stops-1)*2 - 1
+		c := curve(x)
+		dir := centralDir(x)
+
+		theta := model2d.CurveEvalX(twist, c)
+		rotation := model3d.Rotation(dir, theta)
+
+		longDir := model3d.Z(1.0)
+		shortDir := longDir.Cross(dir).Normalize()
+		longDir = rotation.Apply(longDir)
+		shortDir = rotation.Apply(shortDir)
+	}
+}
+
 // PeelCentralCurve gets the curve of the peel's center,
 // as a parameter of x.
 func PeelCentralCurve() func(x float64) model3d.Coord3D {
