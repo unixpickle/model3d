@@ -127,9 +127,8 @@ func PeelTwist() model2d.Curve {
 		},
 		model2d.BezierCurve{
 			model2d.XY(-0.2, 0.0),
-			model2d.XY(-0.19, 0.0),
-			model2d.XY(0.0, math.Pi/2),
-			model2d.XY(0.19, math.Pi),
+			model2d.XY(-0.05, 0.0),
+			model2d.XY(0.05, math.Pi),
 			model2d.XY(0.2, math.Pi),
 		},
 		model2d.BezierCurve{
