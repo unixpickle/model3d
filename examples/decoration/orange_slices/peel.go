@@ -10,66 +10,65 @@ import (
 const (
 	PeelLongSide  = 0.12
 	PeelSmallSide = 0.05
+	PeelStops     = 800
+	PeelRounding  = 0.01
 )
 
-type Peel struct {
-	twist        model2d.Curve
-	centralCurve model3d.PointSDF
-	centralDir   func(x float64) model3d.Coord3D
+func NewPeel() model3d.Solid {
+	mesh := PeelMesh(PeelStops)
+	return model3d.NewColliderSolidInset(model3d.MeshToCollider(mesh), -PeelRounding)
 }
 
-func NewPeel() *Peel {
-	p := PeelCentralCurve()
-	centralTris := model3d.NewMesh()
-	delta := 0.01
-	for x := -1.0; x+delta < 1.0; x += delta {
-		p1, p2 := p(x), p(x+delta)
-		centralTris.Add(&model3d.Triangle{p1, p1.Mid(p2), p2})
+// PeelMesh creates a mesh for the peel.
+func PeelMesh(stops int) *model3d.Mesh {
+	curve := PeelCentralCurve()
+	twist := PeelTwist()
+	centralDir := func(x float64) model3d.Coord3D {
+		delta := 0.001
+		if x > 0 {
+			x -= delta
+		}
+		return curve(x + delta).Sub(curve(x)).Normalize()
 	}
-	return &Peel{
-		twist:        PeelTwist(),
-		centralCurve: model3d.MeshToSDF(centralTris),
-		centralDir: func(x float64) model3d.Coord3D {
-			delta := 0.001
-			if x > 0 {
-				x -= delta
-			}
-			return p(x + delta).Sub(p(x)).Normalize()
+	corners := func(t int) [4]model3d.Coord3D {
+		x := float64(t)/float64(stops)*2 - 1
+		c := curve(x)
+		dir := centralDir(x)
 
-		},
-	}
-}
+		theta := model2d.CurveEvalX(twist, x)
+		rotation := model3d.Rotation(dir, theta)
 
-func (p *Peel) Min() model3d.Coord3D {
-	return model3d.XYZ(-1.1, -0.5, -0.5)
-}
+		longDir := model3d.Z(1.0)
+		shortDir := longDir.Cross(dir).Normalize()
+		longDir = rotation.Apply(longDir).Scale(PeelLongSide / 2.0)
+		shortDir = rotation.Apply(shortDir).Scale(PeelSmallSide / 2.0)
 
-func (p *Peel) Max() model3d.Coord3D {
-	return model3d.XYZ(1.1, 0.5, 0.2)
-}
-
-func (p *Peel) Contains(c model3d.Coord3D) bool {
-	if !model3d.InBounds(p, c) {
-		return false
-	}
-	nearest, _ := p.centralCurve.PointSDF(c)
-	centralDir := p.centralDir(nearest.X)
-	diff := c.Sub(nearest)
-
-	// Check if we are past an endpoint.
-	if math.Abs(nearest.Add(centralDir.Scale(centralDir.Dot(diff))).X) > 1 {
-		return false
+		scales := [4][2]float64{{1, 1}, {1, -1}, {-1, -1}, {-1, 1}}
+		res := [4]model3d.Coord3D{}
+		for i, scale := range scales {
+			res[i] = c.Add(shortDir.Scale(scale[0])).Add(longDir.Scale(scale[1]))
+		}
+		return res
 	}
 
-	theta := model2d.CurveEvalX(p.twist, nearest.X)
-	rotation := model3d.Rotation(centralDir, theta)
+	res := model3d.NewMesh()
+	for t := 0; t < stops; t++ {
+		corners1 := corners(t)
+		corners2 := corners(t + 1)
+		for i := 0; i < 4; i++ {
+			res.AddQuad(corners1[(i+1)%4], corners1[i], corners2[i], corners2[(i+1)%4])
+		}
+	}
+	for _, t := range [2]int{0, stops} {
+		corners := corners(t)
+		if t == 0 {
+			res.AddQuad(corners[0], corners[1], corners[2], corners[3])
+		} else {
+			res.AddQuad(corners[1], corners[0], corners[3], corners[2])
+		}
+	}
 
-	longDir := model3d.Z(1.0)
-	shortDir := longDir.Cross(centralDir).Normalize()
-	longDir = rotation.Apply(longDir)
-	shortDir = rotation.Apply(shortDir)
-
-	return math.Abs(diff.Dot(longDir)) < PeelLongSide/2 && math.Abs(diff.Dot(shortDir)) < PeelSmallSide/2
+	return res
 }
 
 // PeelCentralCurve gets the curve of the peel's center,
@@ -128,9 +127,8 @@ func PeelTwist() model2d.Curve {
 		},
 		model2d.BezierCurve{
 			model2d.XY(-0.2, 0.0),
-			model2d.XY(-0.19, 0.0),
-			model2d.XY(0.0, math.Pi/2),
-			model2d.XY(0.19, math.Pi),
+			model2d.XY(-0.05, 0.0),
+			model2d.XY(0.05, math.Pi),
 			model2d.XY(0.2, math.Pi),
 		},
 		model2d.BezierCurve{
