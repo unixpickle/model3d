@@ -10,13 +10,13 @@ import (
 func main() {
 	solid := model3d.JoinedSolid{
 		NewPeel(),
-		NewWedge(-0.99, -0.18),
-		NewWedge(0.18, 0.99),
+		NewWedge(-0.9999, -0.05),
+		NewWedge(0.05, 0.9999),
 	}
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, ColorFunc())
+	render3d.SaveRendering("rendering.png", mesh, model3d.XYZ(0.0, -2.0, 2.0), 500, 500, ColorFunc())
 	log.Println("Saving...")
 	mesh.SaveGroupedSTL("peel.stl")
 }
@@ -25,10 +25,10 @@ func ColorFunc() render3d.ColorFunc {
 	peelMesh := PeelMesh(PeelStops / 2)
 	peelSDF := model3d.MeshToSDF(peelMesh)
 	return func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
-		if peelSDF.SDF(c) > -(0.01 + PeelRounding) {
+		if peelSDF.SDF(c) > -(1e-3 + PeelRounding) {
 			// Make the peel slightly brighter.
 			return render3d.NewColorRGB(1.0, 0.63*1.1, 0.0)
 		}
-		return render3d.NewColorRGB(1.0, 0.63, 0.0)
+		return render3d.NewColorRGB(0.95, 0.60, 0.0)
 	}
 }

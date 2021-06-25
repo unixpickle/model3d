@@ -8,6 +8,8 @@ import (
 
 const (
 	WedgeThickness = PeelLongSide - 0.03
+	WedgeEdgeInset = 0.022
+	WedgeDelta     = 0.002
 )
 
 type Wedge struct {
@@ -16,13 +18,27 @@ type Wedge struct {
 
 func NewWedge(x1, x2 float64) *Wedge {
 	p := PeelCentralCurve()
-	p1, p2 := p(x1), p(x2)
+
+	// Project the peel shape onto a plane.
+	endPoint := x1
+	if math.Abs(x2) > math.Abs(x1) {
+		endPoint = x2
+	}
+	midPoint := (x1 + x2) / 2
+	projAxis1 := model3d.XZ(p(midPoint).X-p(endPoint).X, p(midPoint).Z-p(endPoint).Z).Normalize()
+	projAxis2 := model3d.Y(1)
+	orthoAxis := projAxis1.Cross(projAxis2)
+	bias := orthoAxis.Scale(orthoAxis.Dot(p(endPoint)))
+	projPeel := func(x float64) model3d.Coord3D {
+		return p(x).ProjectOut(orthoAxis).Add(bias)
+	}
+
+	p1, p2 := projPeel(x1), projPeel(x2)
 	edge := model3d.NewSegment(p1, p2)
 
 	tris := model3d.NewMesh()
-	delta := 0.01
-	for x := x1; x < x2-delta; x += delta {
-		p1, p2 = p(x), p(x+delta)
+	for x := x1 + WedgeEdgeInset; x < x2-WedgeEdgeInset-WedgeDelta; x += WedgeDelta {
+		p1, p2 = projPeel(x), projPeel(x+WedgeDelta)
 		proj1, proj2 := edge.Closest(p1), edge.Closest(p2)
 		tris.AddQuad(p1, p2, proj2, proj1)
 	}

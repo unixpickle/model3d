@@ -12,6 +12,7 @@ const (
 	PeelSmallSide = 0.05
 	PeelStops     = 800
 	PeelRounding  = 0.01
+	PeelEdgeInset = 0.01
 )
 
 func NewPeel() model3d.Solid {
@@ -31,7 +32,7 @@ func PeelMesh(stops int) *model3d.Mesh {
 		return curve(x + delta).Sub(curve(x)).Normalize()
 	}
 	corners := func(t int) [4]model3d.Coord3D {
-		x := float64(t)/float64(stops)*2 - 1
+		x := float64(t)/float64(stops)*(1-PeelEdgeInset)*2 - (1 - PeelEdgeInset)
 		c := curve(x)
 		dir := centralDir(x)
 
@@ -108,7 +109,10 @@ func PeelHeight() model2d.Curve {
 		},
 		model2d.BezierCurve{
 			model2d.XY(-0.2, -0.06),
-			model2d.XY(0.0, 0.0),
+			model2d.XY(-0.1, -0.03),
+			// Provide a small lift above the line.
+			model2d.XY(0.0, 0.05),
+			model2d.XY(0.1, -0.03),
 			model2d.XY(0.2, -0.06),
 		},
 		model2d.BezierCurve{
