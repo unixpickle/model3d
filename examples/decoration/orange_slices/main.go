@@ -7,16 +7,24 @@ import (
 	"github.com/unixpickle/model3d/render3d"
 )
 
+const (
+	Epsilon = 0.003
+)
+
 func main() {
 	solid := model3d.JoinedSolid{
 		NewPeel(),
 		NewWedge(-0.9999, -0.05),
 		NewWedge(0.05, 0.9999),
 	}
+
 	log.Println("Creating mesh...")
-	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
+	mesh := model3d.MarchingCubesSearch(solid, Epsilon, 8)
+
 	log.Println("Rendering...")
-	render3d.SaveRendering("rendering.png", mesh, model3d.XYZ(0.0, -2.0, 2.0), 500, 500, ColorFunc())
+	origin := model3d.XYZ(0.0, -2.0, 2.0)
+	render3d.SaveRendering("rendering.png", mesh, origin, 1000, 1000, ColorFunc())
+
 	log.Println("Saving...")
 	mesh.SaveGroupedSTL("peel.stl")
 }

@@ -7,13 +7,16 @@ import (
 )
 
 const (
-	WedgeThickness = PeelLongSide - 0.03
-	WedgeEdgeInset = 0.022
-	WedgeDelta     = 0.002
+	WedgeThickness    = PeelLongSide - 0.03
+	WedgeEdgeInset    = 0.022
+	WedgeDelta        = 0.002
+	WedgeCutOuts      = 4
+	WedgeCutOutRadius = 0.01
 )
 
 type Wedge struct {
-	faces model3d.FaceSDF
+	faces  model3d.FaceSDF
+	cutOut model3d.Solid
 }
 
 func NewWedge(x1, x2 float64) *Wedge {
@@ -43,6 +46,23 @@ func NewWedge(x1, x2 float64) *Wedge {
 		tris.AddQuad(p1, p2, proj2, proj1)
 	}
 
+	cutOutMiddle := model3d.NewMesh()
+	for i := 0; i < WedgeCutOuts; i++ {
+		frac := (float64(i) + 0.5) / float64(WedgeCutOuts)
+		x := x1 + (x2-x1)*frac
+		p1 := projPeel(x)
+		p2 := edge.Mid()
+		cutOutMiddle.Add(&model3d.Triangle{p1, p2, p2})
+	}
+	cutOutSolid := model3d.NewColliderSolidHollow(
+		model3d.MeshToCollider(cutOutMiddle),
+		WedgeCutOutRadius,
+	)
+	cutOut := model3d.JoinedSolid{
+		model3d.TranslateSolid(cutOutSolid, orthoAxis.Scale(WedgeThickness/2)),
+		model3d.TranslateSolid(cutOutSolid, orthoAxis.Scale(-WedgeThickness/2)),
+	}
+
 	// Remove singular triangles at the endpoints.
 	tris.Iterate(func(t *model3d.Triangle) {
 		if t.Area() < 1e-8 {
@@ -50,20 +70,27 @@ func NewWedge(x1, x2 float64) *Wedge {
 		}
 	})
 
-	return &Wedge{faces: model3d.MeshToSDF(tris)}
+	return &Wedge{
+		faces:  model3d.MeshToSDF(tris),
+		cutOut: cutOut,
+	}
 }
 
 func (w *Wedge) Min() model3d.Coord3D {
 	min := w.faces.Min()
-	return min.Sub(model3d.Ones(WedgeThickness))
+	return min.Sub(model3d.Ones(WedgeThickness / 2))
 }
 
 func (w *Wedge) Max() model3d.Coord3D {
 	min := w.faces.Max()
-	return min.Add(model3d.Ones(WedgeThickness))
+	return min.Add(model3d.Ones(WedgeThickness / 2))
 }
 
 func (w *Wedge) Contains(c model3d.Coord3D) bool {
+	if w.cutOut.Contains(c) {
+		return false
+	}
+
 	tri, neighbor, dist := w.faces.FaceSDF(c)
 
 	// Project c onto the triangle plane, and make sure it
