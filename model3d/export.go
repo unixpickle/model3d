@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bufio"
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
@@ -32,33 +31,34 @@ func WriteSTL(w io.Writer, triangles []*Triangle) error {
 }
 
 func writeSTL(w io.Writer, triangles []*Triangle) error {
+	if int(uint32(len(triangles))) != len(triangles) {
+		return errors.New("too many triangles for STL format")
+	}
 	bw := bufio.NewWriter(w)
-	if _, err := bw.Write(make([]byte, 80)); err != nil {
+	writer, err := fileformats.NewSTLWriter(bw, uint32(len(triangles)))
+	if err != nil {
 		return err
 	}
-	if err := binary.Write(bw, binary.LittleEndian, uint32(len(triangles))); err != nil {
-		return err
-	}
-	floats := make([]float32, 3*4)
+
 	for _, t := range triangles {
-		castVector32(floats, t.Normal())
-		castVector32(floats[3:], t[0])
-		castVector32(floats[3*2:], t[1])
-		castVector32(floats[3*3:], t[2])
-		if err := binary.Write(bw, binary.LittleEndian, floats); err != nil {
-			return err
+		verts := [3][3]float32{
+			castVector32(t[0]),
+			castVector32(t[1]),
+			castVector32(t[2]),
 		}
-		if _, err := bw.Write([]byte{0, 0}); err != nil {
+		if err := writer.WriteTriangle(castVector32(t.Normal()), verts); err != nil {
 			return err
 		}
 	}
 	return bw.Flush()
 }
 
-func castVector32(dest []float32, v Coord3D) {
+func castVector32(v Coord3D) [3]float32 {
+	var res [3]float32
 	for i, x := range v.Array() {
-		dest[i] = float32(x)
+		res[i] = float32(x)
 	}
+	return res
 }
 
 // EncodePLY encodes a 3D model as a PLY file, including

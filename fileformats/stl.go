@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// An STLWriter writes a triangle mesh in the STL format.
 type STLWriter struct {
 	w        io.Writer
 	trisLeft uint32
@@ -14,6 +15,9 @@ type STLWriter struct {
 	buffer [12]float32
 }
 
+// NewSTLWriter creates an STLWriter and writes a header,
+// which requires knowledge of the total number of
+// triangles being written.
 func NewSTLWriter(w io.Writer, numTris uint32) (*STLWriter, error) {
 	if _, err := w.Write(make([]byte, 80)); err != nil {
 		return nil, errors.Wrap(err, "write STL header")
@@ -24,6 +28,10 @@ func NewSTLWriter(w io.Writer, numTris uint32) (*STLWriter, error) {
 	return &STLWriter{w: w, trisLeft: numTris}, nil
 }
 
+// WriteTriangle writes a triangle to the file.
+//
+// This should be called exactly the number of times passed
+// to NewSTLWriter.
 func (s *STLWriter) WriteTriangle(normal [3]float32, faces [3][3]float32) error {
 	if s.trisLeft == 0 {
 		return errors.New("write STL triangle: too many triangles written")
