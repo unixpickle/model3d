@@ -3,6 +3,7 @@ package fileformats
 import (
 	"encoding/binary"
 	"io"
+	"math"
 
 	"github.com/pkg/errors"
 )
@@ -49,4 +50,51 @@ func (s *STLWriter) WriteTriangle(normal [3]float32, faces [3][3]float32) error 
 		return errors.Wrap(err, "write STL triangle")
 	}
 	return nil
+}
+
+// An STLReader reads STL files.
+type STLReader struct {
+	r       io.Reader
+	numTris uint32
+}
+
+// NewSTLReader creates an STL reader by reading the header
+// of an STL file.
+func NewSTLReader(r io.Reader) (*STLReader, error) {
+	header := make([]byte, 80)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return nil, errors.Wrap(err, "read STL header")
+	}
+	var numTris uint32
+	if err := binary.Read(r, binary.LittleEndian, &numTris); err != nil {
+		return nil, errors.Wrap(err, "read STL header")
+	}
+	return &STLReader{
+		r:       r,
+		numTris: numTris,
+	}, nil
+}
+
+// NumTriangles gets the total number of triangles in the
+// file as reported by the header.
+func (s *STLReader) NumTriangles() uint32 {
+	return s.numTris
+}
+
+// ReadTriangle reads the next triangle from the file.
+func (s *STLReader) ReadTriangle() (normal [3]float32, vertices [3][3]float32, err error) {
+	var data [4*4*3 + 2]byte
+	if _, err = io.ReadFull(s.r, data[:]); err != nil {
+		err = errors.Wrap(err, "read STL triangle")
+		return
+	}
+	for i := 0; i < 3; i++ {
+		normal[i] = math.Float32frombits(binary.LittleEndian.Uint32(data[i*4 : (i+1)*4]))
+	}
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			vertices[i][j] = math.Float32frombits(binary.LittleEndian.Uint32(data[(i*3+j+3)*4 : (i*3+j+4)*4]))
+		}
+	}
+	return
 }

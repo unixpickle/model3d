@@ -2,14 +2,13 @@ package model3d
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/unixpickle/model3d/fileformats"
 )
 
 // ReadSTL decodes a file in the STL file format.
@@ -22,40 +21,24 @@ func ReadSTL(r io.Reader) ([]*Triangle, error) {
 }
 
 func readSTL(r io.Reader) ([]*Triangle, error) {
-	header := make([]byte, 80)
-	if _, err := io.ReadFull(r, header); err != nil {
+	br := bufio.NewReader(r)
+	reader, err := fileformats.NewSTLReader(br)
+	if err != nil {
 		return nil, err
 	}
-	var numTris uint32
-	if err := binary.Read(r, binary.LittleEndian, &numTris); err != nil {
-		return nil, err
-	}
-	data := make([]byte, numTris*(4*4*3+2))
-	if _, err := io.ReadFull(r, data); err != nil {
-		return nil, err
-	}
-	vertexData := make([]byte, 0, numTris*4*3*3)
-	for i := 0; i < int(numTris); i++ {
-		idx := i*(4*4*3+2) + 4*3
-		vertexData = append(vertexData, data[idx:idx+4*3*3]...)
-	}
-	vertices := make([]float32, numTris*3*3)
-	if err := binary.Read(bytes.NewReader(vertexData), binary.LittleEndian, vertices); err != nil {
-		return nil, err
-	}
-	triangles := make([]*Triangle, numTris)
-	for i := range triangles {
-		verts := make([]float64, 9)
-		for j := range verts {
-			verts[j] = float64(vertices[i*3*3+j])
+	tris := make([]*Triangle, int(reader.NumTriangles()))
+	for i := range tris {
+		_, vertices, err := reader.ReadTriangle()
+		if err != nil {
+			return nil, err
 		}
-		triangles[i] = &Triangle{
-			Coord3D{verts[0], verts[1], verts[2]},
-			Coord3D{verts[3], verts[4], verts[5]},
-			Coord3D{verts[6], verts[7], verts[8]},
+		tri := &Triangle{}
+		for j, vert := range vertices {
+			tri[j] = XYZ(float64(vert[0]), float64(vert[1]), float64(vert[2]))
 		}
+		tris[i] = tri
 	}
-	return triangles, nil
+	return tris, nil
 }
 
 // ReadOFF decodes a file in the object file format.

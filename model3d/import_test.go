@@ -27,7 +27,7 @@ func TestImportSTL(t *testing.T) {
 			for k, c1 := range p1.Array() {
 				c2 := p2.Array()[k]
 				if math.Abs(c1-c2) > 1e-4 {
-					t.Error("unexpected vector component")
+					t.Error("unexpected vector component", c1, c2)
 				}
 			}
 		}
