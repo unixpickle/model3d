@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math"
 	"math/rand"
+	"os"
 	"testing"
 )
 
@@ -31,5 +32,20 @@ func TestImportSTL(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestImportOFF(t *testing.T) {
+	f, err := os.Open("test_data/cube.off")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	triangles, err := ReadOFF(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(triangles) != 12 {
+		t.Errorf("expected %d triangles but got %d", 12, len(triangles))
 	}
 }
