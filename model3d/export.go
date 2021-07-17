@@ -4,10 +4,8 @@ import (
 	"archive/zip"
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/unixpickle/model3d/fileformats"
@@ -76,65 +74,41 @@ func EncodePLY(triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) []byte {
 //
 // The colorFunc maps coordinates to 24-bit RGB colors.
 func WritePLY(w io.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) error {
-	if err := writePLY(bufio.NewWriter(w), triangles, colorFunc); err != nil {
-		return errors.Wrap(err, "write PLY")
-	}
-	return nil
-}
-
-func writePLY(w *bufio.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) error {
-	coords := []Coord3D{}
-	coordToIdx := map[Coord3D]int{}
+	coords := [][3]float64{}
+	colors := [][3]uint8{}
+	coordToIdx := NewCoordToInt()
 	for _, t := range triangles {
 		for _, p := range t {
-			if _, ok := coordToIdx[p]; !ok {
-				coordToIdx[p] = len(coords)
-				coords = append(coords, p)
+			if _, ok := coordToIdx.Load(p); !ok {
+				coordToIdx.Store(p, len(coords))
+				coords = append(coords, p.Array())
+				colors = append(colors, colorFunc(p))
 			}
 		}
 	}
 
-	var header strings.Builder
-	header.WriteString("ply\nformat ascii 1.0\n")
-	header.WriteString(fmt.Sprintf("element vertex %d\n", len(coords)))
-	header.WriteString("property float x\n")
-	header.WriteString("property float y\n")
-	header.WriteString("property float z\n")
-	header.WriteString("property uchar red\n")
-	header.WriteString("property uchar green\n")
-	header.WriteString("property uchar blue\n")
-	header.WriteString(fmt.Sprintf("element face %d\n", len(triangles)))
-	header.WriteString("property list uchar int vertex_index\n")
-	header.WriteString("end_header\n")
-
-	if _, err := w.WriteString(header.String()); err != nil {
+	p, err := fileformats.NewPLYWriter(w, len(coords), len(triangles))
+	if err != nil {
 		return err
 	}
 
-	for _, coord := range coords {
-		color := colorFunc(coord)
-		coordLine := fmt.Sprintf("%f %f %f %d %d %d\n", coord.X, coord.Y, coord.Z,
-			int(color[0]), int(color[1]), int(color[2]))
-		if _, err := w.WriteString(coordLine); err != nil {
+	for i, c := range coords {
+		if err := p.WriteCoord(c, colors[i]); err != nil {
 			return err
 		}
 	}
-
-	var triangleBuffer strings.Builder
 	for _, t := range triangles {
-		triangleBuffer.Reset()
-		triangleBuffer.WriteString("3")
-		for _, p := range t {
-			triangleBuffer.WriteByte(' ')
-			triangleBuffer.WriteString(strconv.Itoa(coordToIdx[p]))
+		idxs := [3]int{
+			coordToIdx.Value(t[0]),
+			coordToIdx.Value(t[1]),
+			coordToIdx.Value(t[2]),
 		}
-		triangleBuffer.WriteByte('\n')
-		if _, err := w.WriteString(triangleBuffer.String()); err != nil {
+		if err := p.WriteTriangle(idxs); err != nil {
 			return err
 		}
 	}
 
-	return w.Flush()
+	return nil
 }
 
 // EncodeMaterialOBJ encodes a 3D model as a zip file
