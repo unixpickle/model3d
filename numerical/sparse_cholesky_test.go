@@ -1,13 +1,19 @@
-package model3d
+package numerical
 
 import (
+	"compress/gzip"
+	"encoding/json"
+	"io/ioutil"
 	"math"
 	"math/rand"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 )
 
 func TestARAPSparsePermute(t *testing.T) {
-	matrix := newARAPSparse(1000)
+	matrix := NewSparseMatrix(1000)
 	entries := map[[2]int]float64{}
 
 	for i := 0; i < 100; i++ {
@@ -45,7 +51,7 @@ func TestARAPSparsePermute(t *testing.T) {
 	}
 }
 
-func TestARAPCholesky(t *testing.T) {
+func TestSparseCholesky(t *testing.T) {
 	factor := map[[2]int]float64{}
 	for i := 0; i < 15; i++ {
 		for j := 0; j <= i; j++ {
@@ -55,7 +61,7 @@ func TestARAPCholesky(t *testing.T) {
 		}
 	}
 
-	matrix := newARAPSparse(15)
+	matrix := NewSparseMatrix(15)
 	for i := 0; i < 15; i++ {
 		for j := 0; j < 15; j++ {
 			var sum float64
@@ -66,16 +72,16 @@ func TestARAPCholesky(t *testing.T) {
 		}
 	}
 
-	chol := newARAPCholesky(matrix)
+	chol := NewSparseCholesky(matrix)
 
-	inVec := make([]Coord3D, 15)
+	inVec := make([]Vec3, 15)
 	for i := range inVec {
-		inVec[i] = NewCoord3DRandNorm()
+		inVec[i] = NewVec3RandomNormal()
 	}
 
-	t.Run("Apply", func(t *testing.T) {
-		realOut := matrix.Apply(inVec)
-		cholOut := chol.Apply(inVec)
+	t.Run("ApplyVec3", func(t *testing.T) {
+		realOut := matrix.ApplyVec3(inVec)
+		cholOut := chol.ApplyVec3(inVec)
 		for i, x := range realOut {
 			a := cholOut[i]
 			if a.Dist(x) > 1e-5 || math.IsNaN(a.Sum()) {
@@ -85,8 +91,8 @@ func TestARAPCholesky(t *testing.T) {
 		}
 	})
 
-	t.Run("ApplyInverse", func(t *testing.T) {
-		inverted := matrix.Apply(chol.ApplyInverse(inVec))
+	t.Run("ApplyInverseVec3", func(t *testing.T) {
+		inverted := matrix.ApplyVec3(chol.ApplyInverseVec3(inVec))
 		for i, x := range inVec {
 			a := inverted[i]
 			if a.Dist(x) > 1e-5 || math.IsNaN(a.Sum()) {
@@ -97,21 +103,46 @@ func TestARAPCholesky(t *testing.T) {
 	})
 }
 
-func BenchmarkARAPCholesky(b *testing.B) {
-	// Some arbitrary mesh shape.
-	mesh := MarchingCubesSearch(JoinedSolid{
-		&Sphere{Radius: 1},
-		&Rect{MaxVal: XYZ(1.2, 0.2, 0.2)},
-	}, 0.05, 8)
+func BenchmarkSparseCholesky(b *testing.B) {
+	r, err := os.Open("test_data/sparse_mat.json.gz")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer r.Close()
+	gr, err := gzip.NewReader(r)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer gr.Close()
+	data, err := ioutil.ReadAll(gr)
+	if err != nil {
+		b.Fatal(err)
+	}
+	unjson := map[string]string{}
+	if err := json.Unmarshal(data, &unjson); err != nil {
+		b.Fatal(err)
+	}
+	coordToValue := map[[2]int]float64{}
+	maxCoord := 0
+	for k, v := range unjson {
+		parts := strings.Split(k, ",")
+		x, _ := strconv.Atoi(parts[0])
+		y, _ := strconv.Atoi(parts[1])
+		coord := [2]int{x, y}
+		value, _ := strconv.ParseFloat(v, 64)
+		coordToValue[coord] = value
+		if x > maxCoord {
+			maxCoord = x
+		}
+	}
 
-	op := newARAPOperator(NewARAP(mesh), map[int]Coord3D{
-		// Some arbitrary constraint.
-		0: X(2),
-	})
-	mat := op.squeezedMatrix()
+	mat := NewSparseMatrix(maxCoord + 1)
+	for coord, value := range coordToValue {
+		mat.Set(coord[0], coord[1], value)
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		newARAPCholesky(mat)
+		NewSparseCholesky(mat)
 	}
 }

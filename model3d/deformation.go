@@ -2,9 +2,8 @@ package model3d
 
 import (
 	"math"
-	"sort"
 
-	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/numerical"
 )
 
 const (
@@ -428,7 +427,7 @@ type arapOperator struct {
 	// Inverse of squeezedToFull with -1 at constraints.
 	fullToSqueezed []int
 
-	chol *arapCholesky
+	chol *numerical.SparseCholesky
 }
 
 func newARAPOperator(a *ARAP, constraints map[int]Coord3D) *arapOperator {
@@ -486,10 +485,19 @@ func (a *arapOperator) LinSolve(b []Coord3D) []Coord3D {
 	}
 
 	if a.chol == nil {
-		a.chol = newARAPCholesky(a.squeezedMatrix())
+		a.chol = numerical.NewSparseCholesky(a.squeezedMatrix())
 	}
 
-	return a.Unsqueeze(a.chol.ApplyInverse(b))
+	ins := make([]numerical.Vec3, len(b))
+	for i, x := range b {
+		ins[i] = x.Array()
+	}
+	outs := a.chol.ApplyInverseVec3(ins)
+	outCoords := make([]Coord3D, len(outs))
+	for i, x := range outs {
+		outCoords[i] = NewCoord3DArray(x)
+	}
+	return a.Unsqueeze(outCoords)
 }
 
 // Squeeze gets a vector that can be put through the
@@ -583,8 +591,8 @@ func (a *arapOperator) Targets(rotations []Matrix3) []Coord3D {
 	return res
 }
 
-func (a *arapOperator) squeezedMatrix() *arapSparse {
-	mat := newARAPSparse(len(a.squeezedToFull))
+func (a *arapOperator) squeezedMatrix() *numerical.SparseMatrix {
+	mat := numerical.NewSparseMatrix(len(a.squeezedToFull))
 	for i, fullIdx := range a.squeezedToFull {
 		neighbors := a.arap.neighbors[fullIdx]
 		weights := a.arap.weights[fullIdx]
@@ -601,314 +609,6 @@ func (a *arapOperator) squeezedMatrix() *arapSparse {
 	return mat
 }
 
-type arapCholesky struct {
-	lower *arapSparse
-	upper *arapSparse
-	perm  []int
-}
-
-func newARAPCholesky(mat *arapSparse) *arapCholesky {
-	perm := mat.RCM()
-	mat = mat.Permute(perm)
-	size := len(mat.rows)
-
-	lower := newARAPSparse(size)
-	upper := newARAPSparse(size)
-
-	diagonal := make([]float64, size)
-	for row := 0; row < size; row++ {
-		mat.Iterate(row, func(col int, x float64) {
-			if col == row {
-				diagonal[row] = x
-			}
-		})
-	}
-
-	belowCache := newARAPSparseMap(size)
-
-	for i := 0; i < size; i++ {
-		diagonalEntry := diagonal[i]
-		lower.Iterate(i, func(col int, x float64) {
-			diagonalEntry -= x * x
-		})
-		// TODO: see if we need to make sure the diagonal entry
-		// does not equal zero.
-		diagonalEntry = math.Sqrt(diagonalEntry)
-		lower.Set(i, i, diagonalEntry)
-		upper.Set(i, i, diagonalEntry)
-
-		belowCache.Clear()
-
-		mat.Iterate(i, func(j int, x float64) {
-			if j > i {
-				belowCache.Add(j, x)
-			}
-		})
-
-		lower.Iterate(i, func(k int, x float64) {
-			if k >= i || x == 0 {
-				return
-			}
-			// The entries in lower and upper are sorted because
-			// we added each entry in order.
-			for entryIdx := len(upper.rows[k]) - 1; entryIdx >= 0; entryIdx-- {
-				j := upper.indices[k][entryIdx]
-				if j <= i {
-					break
-				}
-				y := upper.rows[k][entryIdx]
-				if y != 0 {
-					belowCache.Add(j, -x*y)
-				}
-			}
-		})
-
-		// Intentionally adding the entries in order.
-		s := 1 / diagonalEntry
-		belowCache.IterateSorted(func(j int, v float64) {
-			x := v * s
-			lower.Set(j, i, x)
-			upper.Set(i, j, x)
-		})
-	}
-
-	return &arapCholesky{
-		lower: lower,
-		upper: upper,
-		perm:  perm,
-	}
-}
-
-// Apply computes A*x.
-func (a *arapCholesky) Apply(x []Coord3D) []Coord3D {
-	out := make([]Coord3D, len(x))
-	b := arapPerm(x, a.perm)
-	for i := range out {
-		var sum Coord3D
-		a.upper.Iterate(i, func(col int, x float64) {
-			sum = sum.Add(b[col].Scale(x))
-		})
-		out[i] = sum
-	}
-	for i := len(out) - 1; i >= 0; i-- {
-		var sum Coord3D
-		a.lower.Iterate(i, func(col int, x float64) {
-			sum = sum.Add(out[col].Scale(x))
-		})
-		out[i] = sum
-	}
-	return arapPermInv(out, a.perm)
-}
-
-// ApplyInverse computes A^-1*x.
-func (a *arapCholesky) ApplyInverse(x []Coord3D) []Coord3D {
-	b := arapPerm(x, a.perm)
-	out := make([]Coord3D, len(x))
-	a.lower.BacksubLower(out, b)
-	a.upper.BacksubUpper(out, out)
-	return arapPermInv(out, a.perm)
-}
-
-type arapSparse struct {
-	rows    [][]float64
-	indices [][]int
-}
-
-func newARAPSparse(size int) *arapSparse {
-	return &arapSparse{
-		rows:    make([][]float64, size),
-		indices: make([][]int, size),
-	}
-}
-
-// Set adds an entry to the matrix.
-//
-// The entry should not already be set.
-func (a *arapSparse) Set(row, col int, x float64) {
-	a.rows[row] = append(a.rows[row], x)
-	a.indices[row] = append(a.indices[row], col)
-}
-
-// Iterate loops through the non-zero entries in a row.
-func (a *arapSparse) Iterate(row int, f func(col int, x float64)) {
-	for i, col := range a.indices[row] {
-		f(col, a.rows[row][i])
-	}
-}
-
-// Permute permutes the rows and columns by perm, where
-// perm is the result of applying the permutation to the
-// list [0...n-1].
-func (a *arapSparse) Permute(perm []int) *arapSparse {
-	permInv := make([]int, len(perm))
-	for i, j := range perm {
-		permInv[j] = i
-	}
-	res := newARAPSparse(len(perm))
-	for i, j := range perm {
-		oldRow := a.indices[j]
-		newRow := make([]int, 0, len(oldRow))
-		for _, k := range oldRow {
-			newRow = append(newRow, permInv[k])
-		}
-		res.indices[i] = newRow
-		res.rows[i] = append([]float64{}, a.rows[j]...)
-	}
-	return res
-}
-
-// RCM computes the reverse Cuthill-McKee permutation for
-// the matrix.
-func (a *arapSparse) RCM() []int {
-	remaining := map[int]bool{}
-	for i := range a.indices {
-		remaining[i] = true
-	}
-
-	remainingNeighbors := func(i int) int {
-		var count int
-		for _, neighbor := range a.indices[i] {
-			if remaining[neighbor] {
-				count++
-			}
-		}
-		return count
-	}
-
-	drawBestStart := func() int {
-		result := -1
-		var resultNeighbors int
-		for i := range remaining {
-			n := remainingNeighbors(i)
-			if n < resultNeighbors || result == -1 {
-				result = i
-				resultNeighbors = n
-			}
-		}
-		return result
-	}
-
-	permutation := make([]int, 0, len(a.indices))
-	for i := range a.indices {
-		var expand int
-		if i >= len(permutation) {
-			expand = drawBestStart()
-			permutation = append(permutation, expand)
-			delete(remaining, expand)
-		} else {
-			expand = permutation[i]
-		}
-
-		allAdj := a.indices[expand]
-		neighbors := make([]int, 0, len(allAdj))
-		neighborOrder := make([]int, 0, len(allAdj))
-		for _, j := range allAdj {
-			if !remaining[j] {
-				continue
-			}
-			neighbors = append(neighbors, j)
-			neighborOrder = append(neighborOrder, remainingNeighbors(j))
-		}
-		essentials.VoodooSort(neighborOrder, func(i, j int) bool {
-			return neighborOrder[i] < neighborOrder[j]
-		}, neighbors)
-		for _, n := range neighbors {
-			permutation = append(permutation, n)
-			delete(remaining, n)
-		}
-	}
-
-	for i := 0; i < len(permutation)/2; i++ {
-		permutation[i], permutation[len(permutation)-1] = permutation[len(permutation)-1], permutation[i]
-	}
-
-	return permutation
-}
-
-// Apply computes A*x.
-func (a *arapSparse) Apply(x []Coord3D) []Coord3D {
-	res := make([]Coord3D, len(x))
-	for row, indices := range a.indices {
-		for col, value := range a.rows[row] {
-			res[row] = res[row].Add(x[indices[col]].Scale(value))
-		}
-	}
-	return res
-}
-
-// BacksubUpper writes U^-1*b to out.
-func (a *arapSparse) BacksubUpper(out, b []Coord3D) {
-	for row := len(b) - 1; row >= 0; row-- {
-		bValue := b[row]
-		var diagValue float64
-		a.Iterate(row, func(col int, x float64) {
-			if col < row {
-				panic("not upper-diagonal")
-			} else if col == row {
-				diagValue = x
-			} else {
-				bValue = bValue.Add(out[col].Scale(-x))
-			}
-		})
-		out[row] = bValue.Scale(1 / diagValue)
-	}
-}
-
-// BacksubLower writes L^-1*b to out.
-func (a *arapSparse) BacksubLower(out, b []Coord3D) {
-	for row, bValue := range b {
-		var diagValue float64
-		a.Iterate(row, func(col int, x float64) {
-			if col > row {
-				panic("not lower-diagonal")
-			} else if col == row {
-				diagValue = x
-			} else {
-				bValue = bValue.Add(out[col].Scale(-x))
-			}
-		})
-		out[row] = bValue.Scale(1 / diagValue)
-	}
-}
-
-type arapSparseMap struct {
-	data      []float64
-	contained []bool
-	indices   []int
-}
-
-func newARAPSparseMap(size int) *arapSparseMap {
-	return &arapSparseMap{
-		data:      make([]float64, size),
-		contained: make([]bool, size),
-		indices:   make([]int, 0, size),
-	}
-}
-
-func (a *arapSparseMap) Add(idx int, x float64) {
-	if !a.contained[idx] {
-		a.data[idx] = x
-		a.contained[idx] = true
-		a.indices = append(a.indices, idx)
-	} else {
-		a.data[idx] += x
-	}
-}
-
-func (a *arapSparseMap) IterateSorted(f func(idx int, x float64)) {
-	sort.Ints(a.indices)
-	for _, idx := range a.indices {
-		f(idx, a.data[idx])
-	}
-}
-
-func (a *arapSparseMap) Clear() {
-	for _, idx := range a.indices {
-		a.contained[idx] = false
-	}
-	a.indices = a.indices[:0]
-}
-
 type arapEdge [2]int
 
 func newARAPEdge(i1, i2 int) arapEdge {
@@ -917,20 +617,4 @@ func newARAPEdge(i1, i2 int) arapEdge {
 	} else {
 		return arapEdge{i2, i1}
 	}
-}
-
-func arapPerm(v []Coord3D, p []int) []Coord3D {
-	res := make([]Coord3D, len(v))
-	for i, j := range p {
-		res[i] = v[j]
-	}
-	return res
-}
-
-func arapPermInv(v []Coord3D, p []int) []Coord3D {
-	res := make([]Coord3D, len(v))
-	for i, j := range p {
-		res[j] = v[i]
-	}
-	return res
 }
