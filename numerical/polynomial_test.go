@@ -95,4 +95,11 @@ func TestPolynomialRealRoots(t *testing.T) {
 		roots := p.RealRoots()
 		checkRoots(t, roots, []float64{-5, 7, -3, -2, 3})
 	})
+
+	t.Run("LargeRepeated", func(t *testing.T) {
+		// (x+5)^2(x-7)(x+3)(x+2)(x-3)(x^2+2x+7)^2
+		p := Polynomial{154350, 205065, 123529, 40368, 1676, -4290, -1914, -384, -10, 9, 1}
+		roots := p.RealRoots()
+		checkRoots(t, roots, []float64{-5, -5, 7, -3, -2, 3})
+	})
 }
