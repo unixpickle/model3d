@@ -52,8 +52,8 @@ func (p Polynomial) Derivative() Polynomial {
 	return res
 }
 
-// RealRoots computes the real roots of the p, i.e. values
-// of x such that p(x) = 0. The result may have duplicates
+// RealRoots computes the real roots of p, i.e. values of
+// X such that p(x) = 0. The result may have duplicates
 // since roots can be repeated.
 //
 // If the polynomial has an infinite number of roots, one
@@ -140,7 +140,7 @@ func (p Polynomial) divideRoot(x float64) Polynomial {
 	return res
 }
 
-// searchRoot finds a root between to x values with
+// searchRoot finds a root between two x values with
 // different signs for p(x).
 func (p Polynomial) searchRoot(x1, x2 float64) float64 {
 	y1 := p.Eval(x1)
