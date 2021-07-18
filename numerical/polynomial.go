@@ -5,6 +5,8 @@ import (
 	"math"
 	"sort"
 	"strings"
+
+	"github.com/unixpickle/essentials"
 )
 
 // A Polynomial is an equation of the form
@@ -48,6 +50,24 @@ func (p Polynomial) Derivative() Polynomial {
 	res := make(Polynomial, len(p)-1)
 	for i, c := range p[1:] {
 		res[i] = c * float64(i+1)
+	}
+	return res
+}
+
+// Add returns the sum of p and p1.
+func (p Polynomial) Sum(p1 Polynomial) Polynomial {
+	res := make(Polynomial, essentials.MaxInt(len(p), len(p1)))
+	for i := range res {
+		if i < len(p) {
+			res[i] += p[i]
+		}
+		if i < len(p1) {
+			res[i] += p1[i]
+		}
+	}
+	// Terms may have cancelled out.
+	for len(res) > 0 && res[len(res)-1] == 0 {
+		res = res[:len(res)-1]
 	}
 	return res
 }
