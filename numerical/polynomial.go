@@ -72,6 +72,20 @@ func (p Polynomial) Sum(p1 Polynomial) Polynomial {
 	return res
 }
 
+// Mul computes the product of two polynomials.
+func (p Polynomial) Mul(p1 Polynomial) Polynomial {
+	if len(p) == 0 || len(p1) == 0 {
+		return Polynomial{}
+	}
+	res := make(Polynomial, len(p)+len(p1)-1)
+	for i, x := range p {
+		for j, y := range p1 {
+			res[i+j] += x * y
+		}
+	}
+	return res
+}
+
 // RealRoots computes the real roots of p, i.e. values of
 // X such that p(x) = 0. The result may have duplicates
 // since roots can be repeated.

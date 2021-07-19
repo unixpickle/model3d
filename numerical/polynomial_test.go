@@ -2,6 +2,7 @@ package numerical
 
 import (
 	"math"
+	"math/rand"
 	"testing"
 
 	"github.com/unixpickle/essentials"
@@ -102,4 +103,19 @@ func TestPolynomialRealRoots(t *testing.T) {
 		roots := p.RealRoots()
 		checkRoots(t, roots, []float64{-5, -5, 7, -3, -2, 3})
 	})
+}
+
+func TestPolynomialProduct(t *testing.T) {
+	// Two random-ish polynomials as test cases.
+	p1 := Polynomial{3.141592, 1.12313213, -3.14223, 5.123123}
+	p2 := Polynomial{-2.2103910238, 0.848989, -0.12124, -3.1239809, -5.12039}
+	prod := p1.Mul(p2)
+	for i := 0; i < 100; i++ {
+		x := rand.NormFloat64()
+		actual := prod.Eval(x)
+		expected := p1.Eval(x) * p2.Eval(x)
+		if math.Abs(actual-expected) > 1e-5 {
+			t.Errorf("mismatch at %f (expected %f but got %f)", x, expected, actual)
+		}
+	}
 }
