@@ -16,6 +16,10 @@ type BezierFitter struct {
 	// fit each Bezier curve.
 	// If 0, DefaultBezierFitterNumIters is used.
 	NumIters int
+
+	// MaxStep, if specified, is the maximum distance to
+	// move a control point at each step.
+	MaxStep float64
 }
 
 // Fit finds the cubic Bezier curve of best fit for the
@@ -65,6 +69,10 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) Bezie
 
 	guess := minStep
 	for i := 0; i < 32; i++ {
+		if b.MaxStep != 0 && guess >= b.MaxStep/maxNorm {
+			evalStep(b.MaxStep / maxNorm)
+			break
+		}
 		loss := evalStep(guess)
 		if loss > bestLoss || math.IsNaN(loss) || math.IsInf(loss, 0) {
 			break
