@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DefaultBezierFitterNumIters = 10
+	DefaultBezierFitterNumIters = 100
 )
 
 // A BezierFitter fits Bezier curves to points.
@@ -58,7 +58,7 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) Bezie
 		loss := b.loss(points, c1)
 		if loss < bestLoss {
 			bestLoss = loss
-			bestCurve = curve
+			bestCurve = c1
 		}
 		return loss
 	}
@@ -84,7 +84,7 @@ func (b *BezierFitter) gradient(points []Coord, curve BezierCurve) BezierCurve {
 	c1 := append(BezierCurve{}, curve...)
 	grad := make(BezierCurve, len(curve))
 	for i := 1; i < len(curve)-1; i++ {
-		pArr := c1[i].Array()
+		pArr := curve[i].Array()
 		gradArr := [2]float64{}
 		for axis := 0; axis < 2; axis++ {
 			newPArr := pArr
@@ -109,8 +109,8 @@ func (b *BezierFitter) loss(points []Coord, curve BezierCurve) float64 {
 		panic("curve must be a cubic Bezier curve (i.e. have four points)")
 	}
 	axisPolynomial := func(axis int) numerical.Polynomial {
-		// Expand 3(1-t)^3*w + 3(1-t)^2t*x + 3(1-t)t^2y + t^3z =>
-		// -3 t^3 w + 3 t^3 x - 3 t^3 y + t^3 z + 9 t^2 w - 6 t^2 x + 3 t^2 y - 9 t w + 3 t x + 3 w
+		// Expand (1-t)^3*w + 3(1-t)^2t*x + 3(1-t)t^2y + t^3z =>
+		// t^3 (-w) + 3 t^3 x - 3 t^3 y + t^3 z + 3 t^2 w - 6 t^2 x + 3 t^2 y - 3 t w + 3 t x + w
 		//
 		// t^3 coeff: (-3w + 3x - 3y + z)
 		// t^2 coeff: (9w - 6x + 3y)
@@ -121,7 +121,7 @@ func (b *BezierFitter) loss(points []Coord, curve BezierCurve) float64 {
 		y := curve[2].Array()[axis]
 		z := curve[3].Array()[axis]
 		return numerical.Polynomial{
-			3 * w, -9*w + 3*x, 9*w - 6*x + 3*y, -3*w + 3*x - 3*y + z,
+			w, 3*x - 3*w, 3*y - 6*x + 3*w, z - 3*y + 3*x - w,
 		}
 	}
 	total := 0.0
@@ -133,7 +133,7 @@ func (b *BezierFitter) loss(points []Coord, curve BezierCurve) float64 {
 		py[0] -= p.Y
 		lossPoly := px.Mul(px).Add(py.Mul(py))
 		minLoss := math.Inf(1)
-		for _, t := range append(lossPoly.RealRoots(), 0.0, 1.0) {
+		for _, t := range append(lossPoly.Derivative().RealRoots(), 0.0, 1.0) {
 			if t < 0 || t > 1 {
 				// Roots may lie outside of the Bezier t bound.
 				continue
