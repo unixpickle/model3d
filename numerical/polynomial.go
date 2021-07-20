@@ -55,7 +55,7 @@ func (p Polynomial) Derivative() Polynomial {
 }
 
 // Add returns the sum of p and p1.
-func (p Polynomial) Sum(p1 Polynomial) Polynomial {
+func (p Polynomial) Add(p1 Polynomial) Polynomial {
 	res := make(Polynomial, essentials.MaxInt(len(p), len(p1)))
 	for i := range res {
 		if i < len(p) {
