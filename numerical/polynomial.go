@@ -167,29 +167,45 @@ func (p Polynomial) IterRealRoots(f func(x float64) bool) {
 
 	// TODO: iteratively get more roots from the derivative, and check
 	// between roots as they come in.
-	extrema := append(append([]float64{-absBound}, p.Derivative().RealRoots()...), absBound)
-	sort.Float64s(extrema)
+	extrema := make([]float64, 2, len(p)+2)
+	extrema[0] = -absBound
+	extrema[1] = absBound
 
-	for i, x1 := range extrema[:len(extrema)-1] {
-		x2 := extrema[i+1]
-		y1 := p.Eval(x1)
-		y2 := p.Eval(x2)
-		if y1 == 0 {
-			if f(x1) {
-				p.divideRoot(x1).IterRealRoots(f)
+	var root float64
+	var foundRoot bool
+
+	p.Derivative().IterRealRoots(func(x float64) bool {
+		idx := sort.SearchFloat64s(extrema, x)
+		extrema = append(extrema, 0)
+		copy(extrema[idx+1:], extrema[idx:])
+		extrema[idx] = x
+		for i := idx; i < idx+2; i++ {
+			if i == 0 || i >= len(extrema) {
+				continue
 			}
-			return
-		} else if y2 == 0 {
-			if f(x2) {
-				p.divideRoot(x2).IterRealRoots(f)
+			x1 := extrema[i-1]
+			x2 := extrema[i]
+			y1 := p.Eval(x1)
+			y2 := p.Eval(x2)
+			if y1 == 0 {
+				foundRoot = true
+				root = x1
+			} else if y2 == 0 {
+				foundRoot = true
+				root = x2
+			} else if (y1 < 0) != (y2 < 0) {
+				root = p.searchRoot(x1, x2)
+				foundRoot = true
 			}
-			return
-		} else if (y1 < 0) != (y2 < 0) {
-			r := p.searchRoot(x1, x2)
-			if f(r) {
-				p.divideRoot(r).IterRealRoots(f)
+			if foundRoot {
+				break
 			}
-			return
+		}
+		return !foundRoot
+	})
+	if foundRoot {
+		if f(root) {
+			p.divideRoot(root).IterRealRoots(f)
 		}
 	}
 }
