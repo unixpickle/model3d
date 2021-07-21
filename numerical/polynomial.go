@@ -93,26 +93,47 @@ func (p Polynomial) Mul(p1 Polynomial) Polynomial {
 // If the polynomial has an infinite number of roots, one
 // NaN root is returned.
 func (p Polynomial) RealRoots() []float64 {
+	result := make([]float64, 0, len(p))
+	p.IterRealRoots(func(x float64) bool {
+		result = append(result, x)
+		return true
+	})
+	return result
+}
+
+// IterRealRoots iterates over the real roots of p.
+// This is similar to RealRoots(), but allows the caller
+// to stop iteration early be returning false.
+func (p Polynomial) IterRealRoots(f func(x float64) bool) {
 	if len(p) == 0 {
-		return []float64{math.NaN()}
+		f(math.NaN())
+		return
 	} else if p[len(p)-1] == 0 {
-		return p[:len(p)-1].RealRoots()
+		p[:len(p)-1].IterRealRoots(f)
+		return
 	} else if len(p) == 1 {
-		return []float64{}
+		return
 	} else if len(p) == 2 {
 		// Inverse of linear equation.
-		return []float64{-p[0] / p[1]}
+		f(-p[0] / p[1])
+		return
 	} else if len(p) == 3 {
 		// Quadratic formula.
 		a, b, c := p[2], p[1], p[0]
 		sqrtMe := b*b - 4*a*c
 		if sqrtMe < 0 {
-			return []float64{}
+			return
 		}
 		sqrt := math.Sqrt(sqrtMe)
-		root1 := (-b + sqrt) / (2 * a)
-		root2 := (-b - sqrt) / (2 * a)
-		return []float64{root1, root2}
+		root1 := (-b - sqrt) / (2 * a)
+		root2 := (-b + sqrt) / (2 * a)
+		if root1 > root2 {
+			root1, root2 = root2, root1
+		}
+		if f(root1) {
+			f(root2)
+		}
+		return
 	}
 
 	// Cauchy's bound for real roots.
@@ -127,14 +148,25 @@ func (p Polynomial) RealRoots() []float64 {
 
 	// Fast path to avoid finding roots of derivative.
 	if y1 == 0 {
-		return append(p.divideRoot(-absBound).RealRoots(), -absBound)
+		if f(-absBound) {
+			p.divideRoot(-absBound).IterRealRoots(f)
+		}
+		return
 	} else if y2 == 0 {
-		return append(p.divideRoot(absBound).RealRoots(), absBound)
+		if f(absBound) {
+			p.divideRoot(absBound).IterRealRoots(f)
+		}
+		return
 	} else if (y1 < 0) != (y2 < 0) {
 		r := p.searchRoot(-absBound, absBound)
-		return append(p.divideRoot(r).RealRoots(), r)
+		if f(r) {
+			p.divideRoot(r).IterRealRoots(f)
+		}
+		return
 	}
 
+	// TODO: iteratively get more roots from the derivative, and check
+	// between roots as they come in.
 	extrema := append(append([]float64{-absBound}, p.Derivative().RealRoots()...), absBound)
 	sort.Float64s(extrema)
 
@@ -143,16 +175,23 @@ func (p Polynomial) RealRoots() []float64 {
 		y1 := p.Eval(x1)
 		y2 := p.Eval(x2)
 		if y1 == 0 {
-			return append(p.divideRoot(x1).RealRoots(), x1)
+			if f(x1) {
+				p.divideRoot(x1).IterRealRoots(f)
+			}
+			return
 		} else if y2 == 0 {
-			return append(p.divideRoot(x2).RealRoots(), x2)
+			if f(x2) {
+				p.divideRoot(x2).IterRealRoots(f)
+			}
+			return
 		} else if (y1 < 0) != (y2 < 0) {
 			r := p.searchRoot(x1, x2)
-			return append(p.divideRoot(r).RealRoots(), r)
+			if f(r) {
+				p.divideRoot(r).IterRealRoots(f)
+			}
+			return
 		}
 	}
-
-	return []float64{}
 }
 
 // divideRoot returns the polynomial resulting from
