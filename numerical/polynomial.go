@@ -168,8 +168,12 @@ func (p Polynomial) IterRealRoots(f func(x float64) bool) {
 	// TODO: iteratively get more roots from the derivative, and check
 	// between roots as they come in.
 	extrema := make([]float64, 2, len(p)+2)
+	extremaY := make([]float64, 2, len(p)+2)
 	extrema[0] = -absBound
 	extrema[1] = absBound
+	for i, x := range extrema {
+		extremaY[i] = p.Eval(x)
+	}
 
 	var root float64
 	var foundRoot bool
@@ -177,16 +181,19 @@ func (p Polynomial) IterRealRoots(f func(x float64) bool) {
 	p.Derivative().IterRealRoots(func(x float64) bool {
 		idx := sort.SearchFloat64s(extrema, x)
 		extrema = append(extrema, 0)
+		extremaY = append(extremaY, 0)
 		copy(extrema[idx+1:], extrema[idx:])
+		copy(extremaY[idx+1:], extremaY[idx:])
 		extrema[idx] = x
+		extremaY[idx] = p.Eval(x)
 		for i := idx; i < idx+2; i++ {
 			if i == 0 || i >= len(extrema) {
 				continue
 			}
 			x1 := extrema[i-1]
 			x2 := extrema[i]
-			y1 := p.Eval(x1)
-			y2 := p.Eval(x2)
+			y1 := extremaY[i-1]
+			y2 := extremaY[i]
 			if y1 == 0 {
 				foundRoot = true
 				root = x1
