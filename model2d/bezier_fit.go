@@ -34,6 +34,10 @@ type BezierFitter struct {
 	// (and smallest) step to try for line search.
 	// If 0, DefaultBezierFitMinStepScale is used.
 	MinStepScale float64
+
+	// Momentum, if specified, is the momentum coefficient.
+	// If 0, regular gradient descent is used.
+	Momentum float64
 }
 
 // Fit finds the cubic Bezier curve of best fit for the
@@ -49,8 +53,22 @@ func (b *BezierFitter) FitCubic(points []Coord, start BezierCurve) BezierCurve {
 	if start == nil {
 		start = BezierCurve{points[0], points[0], points[len(points)-1], points[len(points)-1]}
 	}
+	var momentum BezierCurve
 	for i := 0; i < b.numIters(); i++ {
-		grad := b.gradient(points, start)
+		var grad BezierCurve
+		if b.Momentum == 0 {
+			grad = b.gradient(points, start)
+		} else {
+			grad = b.gradient(points, start)
+			if momentum == nil {
+				momentum = grad
+			} else {
+				for i, x := range grad {
+					momentum[i] = momentum[i].Scale(b.Momentum).Add(x)
+				}
+				grad = momentum
+			}
+		}
 		newStart := b.lineSearch(points, start, grad)
 		if newStart == nil {
 			break

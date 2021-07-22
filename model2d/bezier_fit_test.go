@@ -8,7 +8,7 @@ func TestBezierFitterSingle(t *testing.T) {
 	for i := range samples {
 		samples[i] = target.Eval(float64(i) / float64(len(samples)-1))
 	}
-	fitter := &BezierFitter{NumIters: 400}
+	fitter := &BezierFitter{NumIters: 100, Momentum: 0.5}
 	fit := fitter.FitCubic(samples, nil)
 	for i, x := range target {
 		a := fit[i]
@@ -24,7 +24,7 @@ func BenchmarkBezierFitterSingle(b *testing.B) {
 	for i := range samples {
 		samples[i] = target.Eval(float64(i) / float64(len(samples)-1))
 	}
-	fitter := &BezierFitter{NumIters: 400}
+	fitter := &BezierFitter{NumIters: 100, Momentum: 0.5}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		fitter.FitCubic(samples, nil)
