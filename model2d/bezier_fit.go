@@ -37,13 +37,19 @@ func (b *BezierFitter) FitCubic(points []Coord, start BezierCurve) BezierCurve {
 	}
 	for i := 0; i < b.numIters(); i++ {
 		grad := b.gradient(points, start)
-		start = b.lineSearch(points, start, grad)
+		newStart := b.lineSearch(points, start, grad)
+		if newStart == nil {
+			break
+		}
+		start = newStart
 	}
 	return start
 }
 
 // lineSearch finds the (locally optimal) best step size
 // and returns the result of the step.
+//
+// If the optimal step is 0, nil is returned.
 func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) BezierCurve {
 	delta := b.delta(curve)
 	maxNorm := 0.0
@@ -52,35 +58,34 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) Bezie
 	}
 	minStep := delta / maxNorm
 
-	bestCurve := curve
-	bestLoss := b.loss(points, curve)
-	evalStep := func(s float64) float64 {
+	curveForStep := func(s float64) BezierCurve {
 		c1 := append(BezierCurve{}, curve...)
 		for i, x := range c1 {
 			c1[i] = x.Add(grad[i].Scale(-s))
 		}
-		loss := b.loss(points, c1)
-		if loss < bestLoss {
-			bestLoss = loss
-			bestCurve = c1
-		}
-		return loss
+		return c1
+	}
+	evalStep := func(s float64) float64 {
+		return b.loss(points, curveForStep(s))
 	}
 
-	guess := minStep
-	for i := 0; i < 32; i++ {
-		if b.MaxStep != 0 && guess >= b.MaxStep/maxNorm {
-			evalStep(b.MaxStep / maxNorm)
-			break
-		}
-		loss := evalStep(guess)
-		if loss > bestLoss || math.IsNaN(loss) || math.IsInf(loss, 0) {
-			break
-		}
-		guess *= 2.0
-	}
+	lastGuesses := [2]float64{0, minStep}
+	lastValues := [2]float64{b.loss(points, curve), evalStep(minStep)}
 
-	return bestCurve
+	if lastValues[1] > lastValues[0] {
+		return nil
+	}
+	for i := 0; i < 64; i++ {
+		x := lastGuesses[1] * 2
+		y := evalStep(x)
+		if y > lastValues[1] {
+			s := numerical.GSS(lastGuesses[0], x, 8, evalStep)
+			return curveForStep(s)
+		}
+		lastGuesses[0], lastGuesses[1] = lastGuesses[1], x
+		lastValues[0], lastValues[1] = lastValues[1], y
+	}
+	return curveForStep(lastGuesses[1])
 }
 
 // gradient computes the gradient of the loss wrt the

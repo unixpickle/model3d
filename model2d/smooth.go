@@ -85,7 +85,7 @@ func optimalSmoothingStepSize(m *indexMesh, grad []Coord, squares bool) float64 
 		maxStep *= 2
 		maxLength = evalLength(maxStep)
 	}
-	return numerical.GSS(minStep, maxStep, evalLength)
+	return numerical.GSS(minStep, maxStep, 32, evalLength)
 }
 
 func optimalSmoothingStepSizeSquares(m *indexMesh, grad []Coord) float64 {
