@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	DefaultBezierFitterNumIters = 100
+	DefaultBezierFitterNumIters  = 100
+	DefaultBezierFitDelta        = 1e-5
+	DefaultBezierFitMinStepScale = 1e-2
 )
 
 // A BezierFitter fits Bezier curves to points.
@@ -20,6 +22,18 @@ type BezierFitter struct {
 	// MaxStep, if specified, is the maximum distance to
 	// move a control point at each step.
 	MaxStep float64
+
+	// Delta, if specified, controls the step size used
+	// for finite differences, relative to the size of the
+	// entire Bezier curve.
+	// If 0, DefaultBezierFitDelta is used.
+	Delta float64
+
+	// MinStepScale, if specified, is a scalar multiplied
+	// by the finite-differences delta to decide the first
+	// (and smallest) step to try for line search.
+	// If 0, DefaultBezierFitMinStepScale is used.
+	MinStepScale float64
 }
 
 // Fit finds the cubic Bezier curve of best fit for the
@@ -57,6 +71,11 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) Bezie
 		maxNorm = math.Max(maxNorm, g.Norm())
 	}
 	minStep := delta / maxNorm
+	if b.MinStepScale != 0 {
+		minStep *= b.MinStepScale
+	} else {
+		minStep *= DefaultBezierFitMinStepScale
+	}
 
 	curveForStep := func(s float64) BezierCurve {
 		c1 := append(BezierCurve{}, curve...)
@@ -167,7 +186,11 @@ func (b *BezierFitter) delta(c BezierCurve) float64 {
 		min = min.Min(x)
 		max = max.Max(x)
 	}
-	return max.Dist(min) * 1e-5
+	if b.Delta != 0 {
+		return max.Dist(min) * b.Delta
+	} else {
+		return max.Dist(min) * DefaultBezierFitDelta
+	}
 }
 
 func (b *BezierFitter) numIters() int {
