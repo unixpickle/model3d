@@ -237,26 +237,101 @@ func (p Polynomial) divideRoot(x float64) Polynomial {
 // searchRoot finds a root between two x values with
 // different signs for p(x).
 func (p Polynomial) searchRoot(x1, x2 float64) float64 {
+	if x2 < x1 {
+		return p.searchRoot(x2, x1)
+	}
 	y1 := p.Eval(x1)
-	diff := math.Abs(x1 - x2)
-	for {
-		mx := (x1 + x2) / 2
+	y2 := p.Eval(x2)
+	diff := x2 - x1
+	diffHistory := [4]float64{diff, diff, diff, diff}
+
+	update := func(mx float64) {
 		my := p.Eval(mx)
 		if my == 0 {
-			return mx
+			x1, x2 = mx, mx
+			y1, y2 = my, my
 		} else if (my < 0) == (y1 < 0) {
 			x1 = mx
 			y1 = my
 		} else {
 			x2 = mx
+			y2 = my
 		}
-		diff1 := math.Abs(x1 - x2)
-		if diff1 >= diff {
+	}
+	checkConvergence := func(didSecant bool) bool {
+		if x2 < x1 {
+			return true
+		}
+		diff1 := x2 - x1
+		if diff1 > diff || x1 == x2 || (!didSecant && diff1 == diff) {
 			// Our bounds are as close as they can be in
 			// this numeric format.
-			break
+			return true
 		}
 		diff = diff1
+		copy(diffHistory[:], diffHistory[1:])
+		diffHistory[len(diffHistory)-1] = diff
+		return false
 	}
-	return (x1 + x2) / 2
+	secantIter := func() bool {
+		mx := x1 - y1*(x1-x2)/(y1-y2)
+		if math.IsNaN(mx) || math.IsInf(mx, 0) || mx < x1 || mx > x2 {
+			return false
+		}
+		update(mx)
+		return true
+	}
+	bisectionIter := func() {
+		update((x1 + x2) / 2)
+	}
+	finalGuess := func() float64 {
+		return (x1 + x2) / 2
+	}
+
+	// Narrow in on the root before running the secant method.
+	for i := 0; i < 10; i++ {
+		bisectionIter()
+		if checkConvergence(false) {
+			return finalGuess()
+		}
+	}
+
+	// Hybrid secant-bisection method from the paper
+	// "Average Case Optimality of a Hybrid Secant-Bisection Method"
+	// https://www.ams.org/journals/mcom/1995-64-212/S0025-5718-1995-1312098-3/S0025-5718-1995-1312098-3.pdf.
+
+HybridLoop:
+	for {
+		for i := 0; i < 2; i++ {
+			if !secantIter() {
+				break HybridLoop
+			}
+			if checkConvergence(true) {
+				return finalGuess()
+			}
+		}
+		for {
+			if !secantIter() {
+				break HybridLoop
+			}
+			if checkConvergence(true) {
+				return finalGuess()
+			}
+			if diffHistory[len(diffHistory)-1] > diffHistory[0]/2 {
+				break
+			}
+		}
+		bisectionIter()
+		if checkConvergence(false) {
+			return finalGuess()
+		}
+	}
+
+	// Fall back on bisection method if secant method was bad.
+	for {
+		bisectionIter()
+		if checkConvergence(false) {
+			return finalGuess()
+		}
+	}
 }
