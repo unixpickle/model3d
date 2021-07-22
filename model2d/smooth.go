@@ -1,6 +1,6 @@
 package model2d
 
-import "math"
+import "github.com/unixpickle/model3d/numerical"
 
 type indexMesh struct {
 	Coords   []Coord
@@ -85,34 +85,7 @@ func optimalSmoothingStepSize(m *indexMesh, grad []Coord, squares bool) float64 
 		maxStep *= 2
 		maxLength = evalLength(maxStep)
 	}
-
-	// Golden section search
-	phi := (math.Sqrt(5) + 1) / 2
-	mid1 := maxStep - (maxStep-minStep)/phi
-	mid2 := minStep + (maxStep-minStep)/phi
-	val1 := evalLength(mid1)
-	val2 := evalLength(mid2)
-	for i := 0; i < 32; i++ {
-		if val2 > val1 {
-			maxStep = mid2
-			mid2 = mid1
-			val2 = val1
-			mid1 = maxStep - (maxStep-minStep)/phi
-			val1 = evalLength(mid1)
-		} else {
-			minStep = mid1
-			mid1 = mid2
-			val1 = val2
-			mid2 = minStep + (maxStep-minStep)/phi
-			val2 = evalLength(mid2)
-		}
-	}
-
-	if val1 < val2 {
-		return mid1
-	} else {
-		return mid2
-	}
+	return numerical.GSS(minStep, maxStep, evalLength)
 }
 
 func optimalSmoothingStepSizeSquares(m *indexMesh, grad []Coord) float64 {
