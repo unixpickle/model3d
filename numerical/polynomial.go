@@ -165,8 +165,6 @@ func (p Polynomial) IterRealRoots(f func(x float64) bool) {
 		return
 	}
 
-	// TODO: iteratively get more roots from the derivative, and check
-	// between roots as they come in.
 	extrema := make([]float64, 2, len(p)+2)
 	extremaY := make([]float64, 2, len(p)+2)
 	extrema[0] = -absBound
