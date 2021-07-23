@@ -2,6 +2,7 @@ package model2d
 
 import (
 	"math"
+	"sort"
 
 	"github.com/unixpickle/model3d/numerical"
 )
@@ -42,6 +43,9 @@ type BezierFitter struct {
 
 // Fit finds the cubic Bezier curve of best fit for the
 // points.
+//
+// The first and last points are used as start and end
+// points, and all the other points may be in any order.
 func (b *BezierFitter) FitCubic(points []Coord, start BezierCurve) BezierCurve {
 	if len(points) == 0 {
 		panic("at least one point is required")
@@ -76,6 +80,45 @@ func (b *BezierFitter) FitCubic(points []Coord, start BezierCurve) BezierCurve {
 		start = newStart
 	}
 	return start
+}
+
+// FirstGuess attempts to quickly approximate some subset
+// of the specified points with a Bezier curve, allowing
+// for potentially faster convergence when fitting all of
+// the points.
+//
+// This method assumes that all of the points are sorted
+// along the curve from a start point to an end point.
+// This is a stronger assumption than FitCubic() makes.
+func (b *BezierFitter) FirstGuess(points []Coord) BezierCurve {
+	if len(points) < 4 {
+		return b.FitCubic(points, nil)
+	}
+
+	lengths := make([]float64, len(points))
+	cur := 0.0
+	last := points[0]
+	for i, x := range points {
+		if i > 0 {
+			cur += x.Dist(last)
+		}
+		lengths[i] = cur
+	}
+	idx1 := sort.SearchFloat64s(lengths, cur*1.0/3.0)
+	idx2 := sort.SearchFloat64s(lengths, cur*2.0/3.0)
+	if idx1 < 1 {
+		idx1 = 1
+	} else if idx1 >= len(points)-2 {
+		idx1 = len(points) - 3
+	}
+	if idx2 <= idx1 {
+		idx2 = idx1 + 1
+	} else if idx2 >= len(points)-1 {
+		idx2 = len(points) - 2
+	}
+
+	subset := []Coord{points[0], points[idx1], points[idx2], points[len(points)-1]}
+	return b.FitCubic(subset, BezierCurve(subset))
 }
 
 // lineSearch finds the (locally optimal) best step size

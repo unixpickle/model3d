@@ -1,6 +1,8 @@
 package model2d
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestBezierFitterSingle(t *testing.T) {
 	target := BezierCurve{XY(0, 0), XY(1, -1), XY(2, 1.5), XY(3, 0)}
