@@ -41,12 +41,23 @@ type BezierFitter struct {
 	Momentum float64
 }
 
-// Fit finds the cubic Bezier curve of best fit for the
-// points.
+// FitCubic finds the cubic Bezier curve of best fit for
+// the points.
 //
 // The first and last points are used as start and end
 // points, and all the other points may be in any order.
 func (b *BezierFitter) FitCubic(points []Coord, start BezierCurve) BezierCurve {
+	return b.FitCubicConstrained(points, nil, nil, start)
+}
+
+// FitCubicConstrained is like FitCubic, but constrains
+// the tangent vectors at either the start or end point,
+// or both.
+//
+// If non-nil, t1 is the direction for the first control
+// point, and t2 is the direction for the final one.
+func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
+	start BezierCurve) BezierCurve {
 	if len(points) == 0 {
 		panic("at least one point is required")
 	} else if len(points) == 1 {
@@ -61,9 +72,9 @@ func (b *BezierFitter) FitCubic(points []Coord, start BezierCurve) BezierCurve {
 	for i := 0; i < b.numIters(); i++ {
 		var grad BezierCurve
 		if b.Momentum == 0 {
-			grad = b.gradient(points, start)
+			grad = b.gradient(points, t1, t2, start)
 		} else {
-			grad = b.gradient(points, start)
+			grad = b.gradient(points, t1, t2, start)
 			if momentum == nil {
 				momentum = grad
 			} else {
@@ -83,9 +94,9 @@ func (b *BezierFitter) FitCubic(points []Coord, start BezierCurve) BezierCurve {
 }
 
 // FirstGuess attempts to quickly approximate some subset
-// of the specified points with a Bezier curve, allowing
-// for potentially faster convergence when fitting all of
-// the points.
+// of the specified points with a cubic Bezier curve,
+// allowing for potentially faster convergence when
+// fitting all of the points.
 //
 // This method assumes that all of the points are sorted
 // along the curve from a start point to an end point.
@@ -171,26 +182,37 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) Bezie
 // gradient computes the gradient of the loss wrt the
 // curve control points.
 // The endpoint gradients are set to zero.
-func (b *BezierFitter) gradient(points []Coord, curve BezierCurve) BezierCurve {
+func (b *BezierFitter) gradient(points []Coord, t1, t2 *Coord, curve BezierCurve) BezierCurve {
 	delta := b.delta(curve)
 
 	c1 := append(BezierCurve{}, curve...)
 	grad := make(BezierCurve, len(curve))
+	tangents := []*Coord{t1, t2}
 	for i := 1; i < len(curve)-1; i++ {
-		pArr := curve[i].Array()
-		gradArr := [2]float64{}
-		for axis := 0; axis < 2; axis++ {
-			newPArr := pArr
-			newPArr[axis] += delta
-			c1[i] = NewCoordArray(newPArr)
+		tangent := tangents[i-1]
+		if tangent != nil {
+			v := tangent.Normalize()
+			c1[i] = curve[i].Add(v.Scale(delta))
 			loss1 := b.loss(points, c1)
-			newPArr[axis] -= 2 * delta
-			c1[i] = NewCoordArray(newPArr)
+			c1[i] = curve[i].Add(v.Scale(-delta))
 			loss2 := b.loss(points, c1)
-			gradArr[axis] = (loss1 - loss2) / (2 * delta)
+			grad[i] = v.Scale((loss1 - loss2) / (2 * delta))
+		} else {
+			pArr := curve[i].Array()
+			gradArr := [2]float64{}
+			for axis := 0; axis < 2; axis++ {
+				newPArr := pArr
+				newPArr[axis] += delta
+				c1[i] = NewCoordArray(newPArr)
+				loss1 := b.loss(points, c1)
+				newPArr[axis] -= 2 * delta
+				c1[i] = NewCoordArray(newPArr)
+				loss2 := b.loss(points, c1)
+				gradArr[axis] = (loss1 - loss2) / (2 * delta)
+			}
+			c1[i] = curve[i]
+			grad[i] = NewCoordArray(gradArr)
 		}
-		c1[i] = curve[i]
-		grad[i] = NewCoordArray(gradArr)
 	}
 
 	return grad
