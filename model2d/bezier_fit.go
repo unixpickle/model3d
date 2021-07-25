@@ -77,7 +77,15 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 	} else if len(points) == 1 {
 		return BezierCurve{points[0], points[0], points[0], points[0]}
 	} else if len(points) == 2 {
-		return BezierCurve{points[0], points[0], points[1], points[1]}
+		res := BezierCurve{points[0], points[0], points[1], points[1]}
+		delta := 0.1 * points[0].Dist(points[1])
+		if t1 != nil {
+			res[1] = points[0].Add((*t1).Normalize().Scale(delta))
+		}
+		if t2 != nil {
+			res[2] = points[3].Add((*t2).Normalize().Scale(delta))
+		}
+		return res
 	}
 	if start == nil {
 		start = BezierCurve{points[0], points[0], points[len(points)-1], points[len(points)-1]}
@@ -179,11 +187,11 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) Bezie
 		return c1
 	}
 	evalStep := func(s float64) float64 {
-		return b.loss(points, curveForStep(s))
+		return b.MSE(points, curveForStep(s))
 	}
 
 	lastGuesses := [2]float64{0, minStep}
-	lastValues := [2]float64{b.loss(points, curve), evalStep(minStep)}
+	lastValues := [2]float64{b.MSE(points, curve), evalStep(minStep)}
 
 	if lastValues[1] > lastValues[0] {
 		return nil
@@ -223,9 +231,9 @@ func (b *BezierFitter) gradient(points []Coord, t1, t2 *Coord, curve BezierCurve
 		if tangent != nil {
 			v := tangent.Normalize()
 			c1[i] = curve[i].Add(v.Scale(delta))
-			loss1 := b.loss(points, c1)
+			loss1 := b.MSE(points, c1)
 			c1[i] = curve[i].Add(v.Scale(-delta))
-			loss2 := b.loss(points, c1)
+			loss2 := b.MSE(points, c1)
 			grad[i] = v.Scale((loss1 - loss2) / (2 * delta))
 		} else {
 			pArr := curve[i].Array()
@@ -234,10 +242,10 @@ func (b *BezierFitter) gradient(points []Coord, t1, t2 *Coord, curve BezierCurve
 				newPArr := pArr
 				newPArr[axis] += delta
 				c1[i] = NewCoordArray(newPArr)
-				loss1 := b.loss(points, c1)
+				loss1 := b.MSE(points, c1)
 				newPArr[axis] -= 2 * delta
 				c1[i] = NewCoordArray(newPArr)
-				loss2 := b.loss(points, c1)
+				loss2 := b.MSE(points, c1)
 				gradArr[axis] = (loss1 - loss2) / (2 * delta)
 			}
 			c1[i] = curve[i]
@@ -248,8 +256,8 @@ func (b *BezierFitter) gradient(points []Coord, t1, t2 *Coord, curve BezierCurve
 	return grad
 }
 
-// loss computes the MSE of a Bezier fit.
-func (b *BezierFitter) loss(points []Coord, curve BezierCurve) float64 {
+// MSE computes the MSE of a cubic Bezier fit.
+func (b *BezierFitter) MSE(points []Coord, curve BezierCurve) float64 {
 	if len(curve) != 4 {
 		panic("curve must be a cubic Bezier curve (i.e. have four points)")
 	}

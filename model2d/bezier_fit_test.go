@@ -6,12 +6,7 @@ import (
 )
 
 func TestBezierFitterSingle(t *testing.T) {
-	target := BezierCurve{XY(0, 0), XY(1, -1), XY(2, 1.5), XY(3, 0)}
-	samples := make([]Coord, 50)
-	for i := range samples {
-		samples[i] = target.Eval(float64(i) / float64(len(samples)-1))
-	}
-	fitter := &BezierFitter{NumIters: 100, Momentum: 0.5}
+	target, samples, fitter := testBezierFitProblem()
 	fit := fitter.FitCubic(samples, nil)
 	for i, x := range target {
 		a := fit[i]
@@ -22,12 +17,7 @@ func TestBezierFitterSingle(t *testing.T) {
 }
 
 func TestBezierFitterFirstGuess(t *testing.T) {
-	target := BezierCurve{XY(0, 0), XY(1, -1), XY(2, 1.5), XY(3, 0)}
-	samples := make([]Coord, 50)
-	for i := range samples {
-		samples[i] = target.Eval(float64(i) / float64(len(samples)-1))
-	}
-	fitter := &BezierFitter{NumIters: 100, Momentum: 0.5}
+	target, samples, fitter := testBezierFitProblem()
 	fit := fitter.FirstGuess(samples)
 	for i, x := range target[1:3] {
 		a := fit[i+1]
@@ -38,12 +28,7 @@ func TestBezierFitterFirstGuess(t *testing.T) {
 }
 
 func TestBezierFitterSingleConstrained(t *testing.T) {
-	target := BezierCurve{XY(0, 0), XY(1, -1), XY(2, 1.5), XY(3, 0)}
-	samples := make([]Coord, 50)
-	for i := range samples {
-		samples[i] = target.Eval(float64(i) / float64(len(samples)-1))
-	}
-	fitter := &BezierFitter{NumIters: 100, Momentum: 0.5}
+	target, samples, fitter := testBezierFitProblem()
 	t1 := target[1].Sub(target[0])
 	t2 := target[3].Sub(target[2])
 	args := [][2]*Coord{{&t1, &t2}, {&t1, nil}, {nil, &t2}}
@@ -59,14 +44,37 @@ func TestBezierFitterSingleConstrained(t *testing.T) {
 }
 
 func BenchmarkBezierFitterSingle(b *testing.B) {
+	_, samples, fitter := testBezierFitProblem()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fitter.FitCubic(samples, nil)
+	}
+}
+
+func BenchmarkBezierFitterSingleConstrained(b *testing.B) {
+	target, samples, fitter := testBezierFitProblem()
+	t1 := target[1].Sub(target[0])
+	t2 := target[3].Sub(target[2])
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fitter.FitCubicConstrained(samples, &t1, &t2, nil)
+	}
+}
+
+func BenchmarkBezierFitterFirstGuess(b *testing.B) {
+	_, samples, fitter := testBezierFitProblem()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		fitter.FirstGuess(samples)
+	}
+}
+
+func testBezierFitProblem() (BezierCurve, []Coord, *BezierFitter) {
 	target := BezierCurve{XY(0, 0), XY(1, -1), XY(2, 1.5), XY(3, 0)}
 	samples := make([]Coord, 50)
 	for i := range samples {
 		samples[i] = target.Eval(float64(i) / float64(len(samples)-1))
 	}
 	fitter := &BezierFitter{NumIters: 100, Momentum: 0.5}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		fitter.FitCubic(samples, nil)
-	}
+	return target, samples, fitter
 }
