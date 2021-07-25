@@ -155,7 +155,7 @@ func (b *BezierFitter) FitChain(points []Coord, closed bool) []BezierCurve {
 					break
 				}
 				constraint2 = new(Coord)
-				*constraint2 = curves[0][3].Sub(curves[0][2])
+				*constraint2 = curves[0][0].Sub(curves[0][1])
 			}
 			fit := b.FitCubicConstrained(p, constraint1, constraint2, b.FirstGuess(p))
 			if lastTry == nil {
