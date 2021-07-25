@@ -4,11 +4,13 @@ import (
 	"math"
 	"sort"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/numerical"
 )
 
 const (
 	DefaultBezierFitterNumIters  = 100
+	DefaultBezierFitTolerance    = 1e-8
 	DefaultBezierFitDelta        = 1e-5
 	DefaultBezierFitMinStepScale = 1e-2
 	DefaultBezierFitLineStep     = 2.0
@@ -22,9 +24,13 @@ type BezierFitter struct {
 	// If 0, DefaultBezierFitterNumIters is used.
 	NumIters int
 
-	// MaxStep, if specified, is the maximum distance to
-	// move a control point at each step.
-	MaxStep float64
+	// Tolerance is the maximum mean-squared error for a
+	// curve when fitting a chain of connected points.
+	// It is relative to the area of the bounding box of
+	// the points in the chain.
+	//
+	// If 0, DefaultBezierFitTolerance is used.
+	Tolerance float64
 
 	// Delta, if specified, controls the step size used
 	// for finite differences, relative to the size of the
@@ -55,6 +61,125 @@ type BezierFitter struct {
 	Momentum float64
 }
 
+// Fit fits a collection of cubic Bezier curves to a
+// manifold mesh.
+func (b *BezierFitter) Fit(m *Mesh) []BezierCurve {
+	var res []BezierCurve
+	for _, hier := range MeshToHierarchy(m) {
+		res = append(res, b.hierarchyToCurves(hier)...)
+	}
+	return res
+}
+
+func (b *BezierFitter) hierarchyToCurves(m *MeshHierarchy) []BezierCurve {
+	segs := m.Mesh.SegmentSlice()
+	if len(segs) == 0 {
+		return nil
+	}
+	seg := segs[0]
+	points := make([]Coord, 0, len(segs)+1)
+	points = append(points, seg[0], seg[1])
+	m.Mesh.Remove(seg)
+	for i := 1; i < len(segs); i++ {
+		next := m.Mesh.Find(seg[1])
+		if len(next) != 1 {
+			panic("mesh is non-manifold")
+		}
+		seg = next[0]
+		m.Mesh.Remove(seg)
+		points = append(points, seg[1])
+	}
+	res := b.FitChain(points, true)
+	for _, child := range m.Children {
+		res = append(res, b.hierarchyToCurves(child)...)
+	}
+	return res
+}
+
+// FitChain fits a sequence of points along some curve
+// using one or more cubic Bezier curves.
+//
+// The closed argument indicates if the final point should
+// be smoothly reconnected to the first point.
+//
+// The points should be ordered along the desired curve.
+func (b *BezierFitter) FitChain(points []Coord, closed bool) []BezierCurve {
+	if len(points) <= 4 {
+		curve := b.FitCubic(points, nil)
+		if closed {
+			t1 := curve[3].Sub(curve[2])
+			t2 := curve[0].Sub(curve[1])
+			return []BezierCurve{
+				curve,
+				b.FitCubicConstrained([]Coord{points[len(points)-1], points[0]}, &t1, &t2, nil),
+			}
+		} else {
+			return []BezierCurve{curve}
+		}
+	}
+
+	tol := b.Tolerance
+	if tol == 0 {
+		tol = DefaultBezierFitTolerance
+	}
+	min, max := points[0], points[0]
+	for _, p := range points[1:] {
+		min = min.Min(p)
+		max = max.Max(p)
+	}
+	tol *= (max.Y - min.Y) * (max.X - min.Y)
+
+	if closed {
+		points = append(append([]Coord{}, points...), points[0])
+	}
+
+	curves := []BezierCurve{}
+	start := 0
+	var constraint1 *Coord
+	for start+1 < len(points) {
+		var lastTry BezierCurve
+		var lastSize int
+		size := essentials.MinInt(4, len(points)-start)
+		for {
+			includeEnd := false
+			if start+size >= len(points) {
+				size = len(points) - start
+				includeEnd = true
+			}
+			var constraint2 *Coord
+			p := points[start : start+size]
+			if includeEnd && closed {
+				if len(curves) == 0 {
+					// We will not attempt to fit the whole loop
+					// with one curve.
+					break
+				}
+				constraint2 = new(Coord)
+				*constraint2 = curves[0][3].Sub(curves[0][2])
+			}
+			fit := b.FitCubicConstrained(p, constraint1, constraint2, b.FirstGuess(p))
+			if lastTry == nil {
+				lastTry = fit
+				lastSize = size
+			}
+			if b.MSE(p, fit) > tol {
+				break
+			}
+			lastTry = fit
+			lastSize = size
+			if includeEnd {
+				break
+			}
+			size *= 2
+		}
+		curves = append(curves, lastTry)
+		start += lastSize - 1
+		constraint1 = new(Coord)
+		*constraint1 = lastTry[3].Sub(lastTry[2])
+	}
+	return curves
+}
+
 // FitCubic finds the cubic Bezier curve of best fit for
 // the points.
 //
@@ -83,7 +208,7 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 			res[1] = points[0].Add((*t1).Normalize().Scale(delta))
 		}
 		if t2 != nil {
-			res[2] = points[3].Add((*t2).Normalize().Scale(delta))
+			res[2] = points[1].Add((*t2).Normalize().Scale(delta))
 		}
 		return res
 	}
