@@ -11,6 +11,8 @@ const (
 	DefaultBezierFitterNumIters  = 100
 	DefaultBezierFitDelta        = 1e-5
 	DefaultBezierFitMinStepScale = 1e-2
+	DefaultBezierFitLineStep     = 2.0
+	DefaultBezierFitLineGSS      = 8
 )
 
 // A BezierFitter fits Bezier curves to points.
@@ -35,6 +37,18 @@ type BezierFitter struct {
 	// (and smallest) step to try for line search.
 	// If 0, DefaultBezierFitMinStepScale is used.
 	MinStepScale float64
+
+	// LineStep, if specified, is the rate of increase for
+	// each step of line search. Larger values make line
+	// search faster, but can miss local minima.
+	// If 0, DefaultBezierFitLineStep is used.
+	LineStep float64
+
+	// LineGSS, if specified, is the number of steps used
+	// for golden section search at the end of line
+	// search. Higher values yield more precise steps.
+	// If 0, DefaultBezierFitLineGSS is used.
+	LineGSS int
 
 	// Momentum, if specified, is the momentum coefficient.
 	// If 0, regular gradient descent is used.
@@ -174,11 +188,19 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) Bezie
 	if lastValues[1] > lastValues[0] {
 		return nil
 	}
+	step := b.LineStep
+	if step == 0 {
+		step = DefaultBezierFitLineStep
+	}
 	for i := 0; i < 64; i++ {
-		x := lastGuesses[1] * 2
+		x := lastGuesses[1] * step
 		y := evalStep(x)
 		if y > lastValues[1] {
-			s := numerical.GSS(lastGuesses[0], x, 8, evalStep)
+			gss := b.LineGSS
+			if gss == 0 {
+				gss = DefaultBezierFitLineGSS
+			}
+			s := numerical.GSS(lastGuesses[0], x, gss, evalStep)
 			return curveForStep(s)
 		}
 		lastGuesses[0], lastGuesses[1] = lastGuesses[1], x
