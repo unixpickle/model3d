@@ -1,6 +1,7 @@
 package model2d
 
 import (
+	"math"
 	"testing"
 )
 
@@ -15,6 +16,22 @@ func TestBezierFitterSingle(t *testing.T) {
 	for i, x := range target {
 		a := fit[i]
 		if x.Dist(a) > 1e-4 {
+			t.Errorf("control point %d should be %v but got %v", i, x, a)
+		}
+	}
+}
+
+func TestBezierFitterFirstGuess(t *testing.T) {
+	target := BezierCurve{XY(0, 0), XY(1, -1), XY(2, 1.5), XY(3, 0)}
+	samples := make([]Coord, 50)
+	for i := range samples {
+		samples[i] = target.Eval(float64(i) / float64(len(samples)-1))
+	}
+	fitter := &BezierFitter{NumIters: 100, Momentum: 0.5}
+	fit := fitter.FirstGuess(samples)
+	for i, x := range target[1:3] {
+		a := fit[i+1]
+		if x.Dot(a)/math.Sqrt(x.Dot(x)*a.Dot(a)) < 0.95 {
 			t.Errorf("control point %d should be %v but got %v", i, x, a)
 		}
 	}

@@ -115,21 +115,29 @@ func (b *BezierFitter) FirstGuess(points []Coord) BezierCurve {
 		}
 		lengths[i] = cur
 	}
-	idx1 := sort.SearchFloat64s(lengths, cur*1.0/3.0)
-	idx2 := sort.SearchFloat64s(lengths, cur*2.0/3.0)
-	if idx1 < 1 {
-		idx1 = 1
-	} else if idx1 >= len(points)-2 {
-		idx1 = len(points) - 3
-	}
-	if idx2 <= idx1 {
-		idx2 = idx1 + 1
-	} else if idx2 >= len(points)-1 {
-		idx2 = len(points) - 2
+
+	interp := func(t float64) Coord {
+		idx := sort.SearchFloat64s(lengths, cur*t)
+		if idx > len(points)-1 {
+			return points[len(points)-1]
+		} else if idx == 0 {
+			idx = 1
+		}
+		t1 := lengths[idx-1] / cur
+		t2 := lengths[idx] / cur
+		frac2 := (t - t1) / (t2 - t1)
+		return points[idx-1].Scale(1 - frac2).Add(points[idx].Scale(frac2))
 	}
 
-	subset := []Coord{points[0], points[idx1], points[idx2], points[len(points)-1]}
-	return b.FitCubic(subset, BezierCurve(subset))
+	// Approximate normals using a small fraction of the curve.
+	n1 := interp(0.01).Sub(points[0]).Normalize()
+	n2 := points[len(points)-1].Sub(interp(0.99)).Normalize()
+
+	// Fit third-way points.
+	p1 := interp(1.0 / 3.0)
+	p2 := interp(2.0 / 3.0)
+
+	return b.FitCubicConstrained([]Coord{points[0], p1, p2, points[len(points)-1]}, &n1, &n2, nil)
 }
 
 // lineSearch finds the (locally optimal) best step size
