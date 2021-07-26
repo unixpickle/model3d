@@ -108,13 +108,13 @@ func (b *BezierFitter) hierarchyToCurves(m *MeshHierarchy) []BezierCurve {
 // The closed argument indicates if the final point should
 // be smoothly reconnected to the first point.
 //
-// The points should be ordered along the desired curve.
+// The points should be ordered along the desired curve,
+// and no two points should be exactly equal.
 func (b *BezierFitter) FitChain(points []Coord, closed bool) []BezierCurve {
 	if len(points) <= 4 {
 		curve := b.FitCubic(points, nil)
 		if closed {
-			t1 := curve[3].Sub(curve[2])
-			t2 := curve[0].Sub(curve[1])
+			t2, t1 := bezierTangents(curve, -1)
 			return []BezierCurve{
 				curve,
 				b.FitCubicConstrained([]Coord{points[len(points)-1], points[0]}, &t1, &t2, nil),
@@ -161,7 +161,7 @@ func (b *BezierFitter) FitChain(points []Coord, closed bool) []BezierCurve {
 					break
 				}
 				constraint2 = new(Coord)
-				*constraint2 = curves[0][0].Sub(curves[0][1])
+				*constraint2, _ = bezierTangents(curves[0], -1)
 			}
 			fit := b.FitCubicConstrained(p, constraint1, constraint2, b.FirstGuess(p))
 			if lastTry == nil {
@@ -181,7 +181,7 @@ func (b *BezierFitter) FitChain(points []Coord, closed bool) []BezierCurve {
 		curves = append(curves, lastTry)
 		start += lastSize - 1
 		constraint1 = new(Coord)
-		*constraint1 = lastTry[3].Sub(lastTry[2])
+		_, *constraint1 = bezierTangents(lastTry, -1)
 	}
 	return curves
 }
@@ -207,28 +207,29 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 		panic("at least one point is required")
 	} else if len(points) == 1 {
 		return BezierCurve{points[0], points[0], points[0], points[0]}
-	} else if len(points) == 2 {
-		res := BezierCurve{points[0], points[0], points[1], points[1]}
-		delta := 0.1 * points[0].Dist(points[1])
+	}
+
+	if len(points) == 2 || start == nil {
+		delta := 0.1 * points[0].Dist(points[len(points)-1])
+		d1 := points[len(points)-1].Sub(points[0]).Normalize()
+		d2 := d1.Scale(-1)
 		if t1 != nil {
-			res[1] = points[0].Add((*t1).Normalize().Scale(delta))
+			d1 = (*t1).Normalize()
 		}
 		if t2 != nil {
-			res[2] = points[1].Add((*t2).Normalize().Scale(delta))
+			d2 = (*t2).Normalize()
 		}
-		return res
-	}
-	if start == nil {
-		dir := points[len(points)-1].Sub(points[0])
 		start = BezierCurve{
 			points[0],
-			points[0].Add(dir.Scale(1.0 / 3.0)),
-			points[0].Add(dir.Scale(2.0 / 3.0)),
+			points[0].Add(d1.Scale(delta)),
+			points[len(points)-1].Add(d2.Scale(delta)),
 			points[len(points)-1],
 		}
+		if len(points) == 2 {
+			return start
+		}
 	} else if t1 != nil || t2 != nil {
-		// Make sure the solution has the correct normals by projecting
-		// the first guess.
+		// Project start onto constraints.
 		start = append(BezierCurve{}, start...)
 		if t1 != nil {
 			d := (*t1).Normalize()
@@ -239,6 +240,7 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 			start[2] = start[3].Add(d.Scale(d.Dot(start[2].Sub(start[3]))))
 		}
 	}
+
 	var momentum BezierCurve
 	for i := 0; i < b.numIters(); i++ {
 		var grad BezierCurve
@@ -270,7 +272,8 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 // fitting all of the points.
 //
 // This method assumes that all of the points are sorted
-// along the curve from a start point to an end point.
+// along the curve from a start point to an end point, and
+// no two points are exactly equal.
 // This is a stronger assumption than FitCubic() makes.
 func (b *BezierFitter) FirstGuess(points []Coord) BezierCurve {
 	if len(points) < 4 {
@@ -483,4 +486,22 @@ func (b *BezierFitter) numIters() int {
 		return DefaultBezierFitterNumIters
 	}
 	return b.NumIters
+}
+
+func bezierTangents(b BezierCurve, scale float64) (n1, n2 Coord) {
+	n1 = b[1].Sub(b[0])
+	n2 = b[2].Sub(b[3])
+	if n1.Norm() == 0 {
+		n1 = b[2].Sub(b[0])
+		if n1.Norm() == 0 {
+			n1 = b[3].Sub(b[0])
+		}
+	}
+	if n2.Norm() == 0 {
+		n2 = b[1].Sub(b[3])
+		if n2.Norm() == 0 {
+			n2 = b[0].Sub(b[3])
+		}
+	}
+	return n1.Normalize().Scale(scale), n2.Normalize().Scale(scale)
 }
