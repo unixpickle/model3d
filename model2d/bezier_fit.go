@@ -214,6 +214,18 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 	}
 	if start == nil {
 		start = BezierCurve{points[0], points[0], points[len(points)-1], points[len(points)-1]}
+	} else if t1 != nil || t2 != nil {
+		// Make sure the solution has the correct normals by projecting
+		// the first guess.
+		start = append(BezierCurve{}, start...)
+		if t1 != nil {
+			d := (*t1).Normalize()
+			start[1] = start[0].Add(d.Scale(d.Dot(start[1].Sub(start[0]))))
+		}
+		if t2 != nil {
+			d := (*t2).Normalize()
+			start[2] = start[3].Add(d.Scale(d.Dot(start[2].Sub(start[3]))))
+		}
 	}
 	var momentum BezierCurve
 	for i := 0; i < b.numIters(); i++ {

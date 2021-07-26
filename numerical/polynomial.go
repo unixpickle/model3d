@@ -44,7 +44,7 @@ func (p Polynomial) Eval(x float64) float64 {
 
 // Derivative computes the derivative of the polynomial.
 func (p Polynomial) Derivative() Polynomial {
-	if len(p) == 1 {
+	if len(p) <= 1 {
 		return Polynomial{}
 	}
 	res := make(Polynomial, len(p)-1)
