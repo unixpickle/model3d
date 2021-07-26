@@ -40,7 +40,8 @@ type BezierFitter struct {
 
 	// L2Penalty, if specified, is a loss penalty imposed
 	// on the squared distance between the control points
-	// and their corresponding end-points.
+	// and their corresponding endpoints, scaled relative
+	// to the distance between the endpoints.
 	L2Penalty float64
 
 	// MinStepScale, if specified, is a scalar multiplied
@@ -218,7 +219,13 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 		return res
 	}
 	if start == nil {
-		start = BezierCurve{points[0], points[0], points[len(points)-1], points[len(points)-1]}
+		dir := points[len(points)-1].Sub(points[0])
+		start = BezierCurve{
+			points[0],
+			points[0].Add(dir.Scale(1.0 / 3.0)),
+			points[0].Add(dir.Scale(2.0 / 3.0)),
+			points[len(points)-1],
+		}
 	} else if t1 != nil || t2 != nil {
 		// Make sure the solution has the correct normals by projecting
 		// the first guess.
@@ -396,8 +403,9 @@ func (b *BezierFitter) gradient(points []Coord, t1, t2 *Coord, curve BezierCurve
 	}
 
 	if b.L2Penalty != 0 {
-		grad[1] = grad[1].Add(curve[1].Sub(curve[0]).Scale(2 * b.L2Penalty))
-		grad[2] = grad[2].Add(curve[2].Sub(curve[3]).Scale(2 * b.L2Penalty))
+		rel := curve[0].SquaredDist(curve[3])
+		grad[1] = grad[1].Add(curve[1].Sub(curve[0]).Scale(2 * rel * b.L2Penalty))
+		grad[2] = grad[2].Add(curve[2].Sub(curve[3]).Scale(2 * rel * b.L2Penalty))
 	}
 
 	return grad
@@ -406,7 +414,8 @@ func (b *BezierFitter) gradient(points []Coord, t1, t2 *Coord, curve BezierCurve
 func (b *BezierFitter) loss(points []Coord, curve BezierCurve) float64 {
 	res := b.MSE(points, curve)
 	if b.L2Penalty != 0 {
-		res += b.L2Penalty * (curve[1].SquaredDist(curve[0]) + curve[2].SquaredDist(curve[3]))
+		rel := curve[0].SquaredDist(curve[3])
+		res += b.L2Penalty * rel * (curve[1].SquaredDist(curve[0]) + curve[2].SquaredDist(curve[3]))
 	}
 	return res
 }
