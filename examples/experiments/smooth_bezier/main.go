@@ -16,12 +16,14 @@ import (
 func main() {
 	var smoothIters int
 	var tolerance float64
+	var l2Penalty float64
 	var upsampleRate float64
 	var thicken float64
 	var outline bool
 	var animationPath string
 	flag.IntVar(&smoothIters, "smooth-iters", 100, "number of smoothing iterations")
 	flag.Float64Var(&tolerance, "tolerance", model2d.DefaultBezierFitTolerance, "MSE tolerance")
+	flag.Float64Var(&l2Penalty, "l2-penalty", 0.0, "L2 loss penalty")
 	flag.Float64Var(&upsampleRate, "upsample-rate", 2.0, "extra resolution to add to output")
 	flag.Float64Var(&thicken, "thicken", 0.0, "extra thickness (in pixels) to give to the output")
 	flag.BoolVar(&outline, "outline", false, "produce an outline instead of a solid")
@@ -48,30 +50,28 @@ func main() {
 	mesh = mesh.SmoothSq(smoothIters)
 
 	log.Println("Fitting beziers...")
-	fitter := &model2d.BezierFitter{Tolerance: tolerance, Momentum: 0.5}
+	fitter := &model2d.BezierFitter{
+		Tolerance: tolerance,
+		L2Penalty: l2Penalty,
+		Momentum:  0.5,
+	}
 	beziers := fitter.Fit(mesh)
 	log.Printf("Fit %d beziers.", len(beziers))
 
-	if animationPath != "" {
-		log.Println("Rendering animation sequence...")
-		RenderSequence(animationPath, upsampleRate, size, mesh, beziers)
-	}
-
-	mesh = model2d.NewMesh()
+	log.Println("Rendering...")
+	outMesh := model2d.NewMesh()
 	for _, b := range beziers {
 		n := 100
 		for i := 0; i < n; i++ {
 			t1 := float64(i) / float64(n)
 			t2 := float64(i+1) / float64(n)
-			mesh.Add(&model2d.Segment{
+			outMesh.Add(&model2d.Segment{
 				b.Eval(t1),
 				b.Eval(t2),
 			})
 		}
 	}
-
-	log.Println("Rendering...")
-	collider := model2d.MeshToCollider(mesh)
+	collider := model2d.MeshToCollider(outMesh)
 	rast := &model2d.Rasterizer{Scale: upsampleRate, Bounds: model2d.NewRect(model2d.Coord{}, size)}
 	var img image.Image
 	if outline {
@@ -82,19 +82,32 @@ func main() {
 		img = rast.RasterizeSolid(model2d.NewColliderSolidInset(collider, -thicken))
 	}
 	essentials.Must(model2d.SaveImage(flag.Args()[1], img))
+
+	if animationPath != "" {
+		log.Println("Rendering animation sequence...")
+		RenderSequence(animationPath, upsampleRate, size, mesh, beziers)
+	}
 }
 
 func RenderSequence(animationPath string, upsampleRate float64, size model2d.Coord,
 	mesh *model2d.Mesh, beziers []model2d.BezierCurve) {
-	objects := []interface{}{
-		model2d.NewRect(model2d.Coord{}, size),
-		mesh,
+	rasterizeObj := func(obj interface{}, thickness float64) *image.Gray {
+		rast := &model2d.Rasterizer{
+			Scale:     upsampleRate,
+			Bounds:    model2d.NewRect(model2d.Coord{}, size),
+			LineWidth: thickness,
+		}
+		return rast.Rasterize(obj)
+	}
+
+	baseImages := []*image.Gray{
+		rasterizeObj(model2d.NewRect(model2d.Coord{}, size), 1.0),
+		rasterizeObj(mesh, 2.0),
 	}
 	colors := []color.Color{
 		color.Gray{Y: 0xff},
 		color.Gray{Y: 0xd0},
 	}
-	thicknesses := []float64{1.0, 2.0}
 
 	palette := make(color.Palette, 0, 256)
 	for i := 0; i < 256/2; i++ {
@@ -107,18 +120,9 @@ func RenderSequence(animationPath string, upsampleRate float64, size model2d.Coo
 			A: uint8(frac * 0xff),
 		})
 	}
-
 	g := &gif.GIF{}
-	rasterize := func(objects []interface{}, colors []color.Color, thicknesses []float64) {
-		imgs := make([]*image.Gray, len(objects))
-		for i, x := range objects {
-			rast := &model2d.Rasterizer{
-				Scale:     upsampleRate,
-				Bounds:    model2d.NewRect(model2d.Coord{}, size),
-				LineWidth: thicknesses[i],
-			}
-			imgs[i] = rast.Rasterize(x)
-		}
+
+	addFrame := func(imgs []*image.Gray, colors []color.Color) {
 		combined := model2d.ColorizeOverlay(imgs, colors)
 		frame := image.NewPaletted(combined.Bounds(), palette)
 		for y := 0; y < combined.Bounds().Dy(); y++ {
@@ -130,7 +134,7 @@ func RenderSequence(animationPath string, upsampleRate float64, size model2d.Coo
 		g.Delay = append(g.Delay, 30)
 	}
 
-	rasterize(objects, colors, thicknesses)
+	addFrame(baseImages, colors)
 	for _, b := range beziers {
 		oneBezier := model2d.NewMesh()
 		for j := 0; j < 100; j++ {
@@ -138,14 +142,12 @@ func RenderSequence(animationPath string, upsampleRate float64, size model2d.Coo
 			t2 := float64(j+1) / 100
 			oneBezier.Add(&model2d.Segment{b.Eval(t1), b.Eval(t2)})
 		}
-		o1 := append(objects, oneBezier)
+		i1 := append(baseImages, rasterizeObj(oneBezier, 15.0))
 		c1 := append(colors, color.RGBA{R: 0x65, G: 0xbc, B: 0xd4, A: 0xff})
-		t1 := append(thicknesses, 15.0)
-		rasterize(o1, c1, t1)
-		objects = append(objects, oneBezier)
+		addFrame(i1, c1)
+		baseImages = append(baseImages, rasterizeObj(oneBezier, 7.0))
 		colors = append(colors, color.Gray{Y: 0})
-		thicknesses = append(thicknesses, 7.0)
-		rasterize(objects, colors, thicknesses)
+		addFrame(baseImages, colors)
 	}
 
 	w, err := os.Create(animationPath)
