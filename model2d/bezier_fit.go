@@ -95,7 +95,7 @@ func (b *BezierFitter) hierarchyToCurves(m *MeshHierarchy) []BezierCurve {
 		m.Mesh.Remove(seg)
 		points = append(points, seg[1])
 	}
-	res := b.FitChain(points, true)
+	res := b.FitChain(points[:len(points)-1], true)
 	for _, child := range m.Children {
 		res = append(res, b.hierarchyToCurves(child)...)
 	}
