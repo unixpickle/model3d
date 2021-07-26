@@ -305,7 +305,7 @@ func (b *BezierFitter) FirstGuess(points []Coord) BezierCurve {
 
 	// Approximate normals using a small fraction of the curve.
 	n1 := interp(0.01).Sub(points[0]).Normalize()
-	n2 := points[len(points)-1].Sub(interp(0.99)).Normalize()
+	n2 := interp(0.99).Sub(points[len(points)-1]).Normalize()
 
 	// Fit third-way points.
 	p1 := interp(1.0 / 3.0)
