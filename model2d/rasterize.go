@@ -101,7 +101,8 @@ func SaveImage(path string, img image.Image) error {
 // (0xff) is negative.
 func Colorize(g *image.Gray, co color.Color) *image.RGBA {
 	intr, intg, intb, inta := color.RGBAModel.Convert(co).RGBA()
-	red, green, blue, alpha := float64(intr), float64(intg), float64(intb), float64(inta)
+	red, green, blue, alpha := float64(intr)/0x100, float64(intg)/0x100, float64(intb)/0x100,
+		float64(inta)/0x100
 	img := image.NewRGBA(g.Bounds())
 	bounds := img.Bounds()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
