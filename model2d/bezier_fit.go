@@ -38,6 +38,11 @@ type BezierFitter struct {
 	// If 0, DefaultBezierFitDelta is used.
 	Delta float64
 
+	// L2Penalty, if specified, is a loss penalty imposed
+	// on the squared distance between the control points
+	// and their corresponding end-points.
+	L2Penalty float64
+
 	// MinStepScale, if specified, is a scalar multiplied
 	// by the finite-differences delta to decide the first
 	// (and smallest) step to try for line search.
@@ -324,11 +329,11 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve) Bezie
 		return c1
 	}
 	evalStep := func(s float64) float64 {
-		return b.MSE(points, curveForStep(s))
+		return b.loss(points, curveForStep(s))
 	}
 
 	lastGuesses := [2]float64{0, minStep}
-	lastValues := [2]float64{b.MSE(points, curve), evalStep(minStep)}
+	lastValues := [2]float64{b.loss(points, curve), evalStep(minStep)}
 
 	if lastValues[1] > lastValues[0] {
 		return nil
@@ -390,7 +395,20 @@ func (b *BezierFitter) gradient(points []Coord, t1, t2 *Coord, curve BezierCurve
 		}
 	}
 
+	if b.L2Penalty != 0 {
+		grad[1] = grad[1].Add(curve[1].Sub(curve[0]).Scale(2 * b.L2Penalty))
+		grad[2] = grad[2].Add(curve[2].Sub(curve[3]).Scale(2 * b.L2Penalty))
+	}
+
 	return grad
+}
+
+func (b *BezierFitter) loss(points []Coord, curve BezierCurve) float64 {
+	res := b.MSE(points, curve)
+	if b.L2Penalty != 0 {
+		res += b.L2Penalty * (curve[1].SquaredDist(curve[0]) + curve[2].SquaredDist(curve[3]))
+	}
+	return res
 }
 
 // MSE computes the MSE of a cubic Bezier fit.
