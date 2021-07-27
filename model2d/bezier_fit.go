@@ -251,9 +251,7 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 			if momentum == nil {
 				momentum = grad
 			} else {
-				for i, x := range grad {
-					momentum[i] = momentum[i].Scale(b.Momentum).Add(x)
-				}
+				momentum = addBeziers(momentum, grad, b.Momentum, 1.0)
 				grad = momentum
 			}
 		}
@@ -504,4 +502,13 @@ func bezierTangents(b BezierCurve, scale float64) (n1, n2 Coord) {
 		}
 	}
 	return n1.Normalize().Scale(scale), n2.Normalize().Scale(scale)
+}
+
+func addBeziers(c1, c2 BezierCurve, s1, s2 float64) BezierCurve {
+	res := make(BezierCurve, len(c1))
+	for i, x := range c1 {
+		y := c2[i]
+		res[i] = x.Scale(s1).Add(y.Scale(s2))
+	}
+	return res
 }
