@@ -109,29 +109,10 @@ func RenderSequence(animationPath string, upsampleRate float64, size model2d.Coo
 		color.Gray{Y: 0xd0},
 	}
 
-	palette := make(color.Palette, 0, 256)
-	for i := 0; i < 256/2; i++ {
-		frac := float64(i) / float64(256/2-1)
-		palette = append(palette, color.Gray{Y: uint8(frac * 0xff)})
-		palette = append(palette, color.RGBA{
-			R: uint8(frac * 0x65),
-			G: uint8(frac * 0xbc),
-			B: uint8(frac * 0xd4),
-			A: uint8(frac * 0xff),
-		})
-	}
-	g := &gif.GIF{}
-
+	var frames []image.Image
 	addFrame := func(imgs []*image.Gray, colors []color.Color) {
 		combined := model2d.ColorizeOverlay(imgs, colors)
-		frame := image.NewPaletted(combined.Bounds(), palette)
-		for y := 0; y < combined.Bounds().Dy(); y++ {
-			for x := 0; x < combined.Bounds().Dx(); x++ {
-				frame.Set(x, y, combined.At(x, y))
-			}
-		}
-		g.Image = append(g.Image, frame)
-		g.Delay = append(g.Delay, 30)
+		frames = append(frames, combined)
 	}
 
 	addFrame(baseImages, colors)
@@ -149,6 +130,33 @@ func RenderSequence(animationPath string, upsampleRate float64, size model2d.Coo
 		colors = append(colors, color.Gray{Y: 0})
 		addFrame(baseImages, colors)
 	}
+
+	g := &gif.GIF{
+		Image: make([]*image.Paletted, len(frames)),
+		Delay: make([]int, len(frames)),
+	}
+	palette := make(color.Palette, 0, 256)
+	for i := 0; i < 256/2; i++ {
+		frac := float64(i) / float64(256/2-1)
+		palette = append(palette, color.Gray{Y: uint8(frac * 0xff)})
+		palette = append(palette, color.RGBA{
+			R: uint8(frac * 0x65),
+			G: uint8(frac * 0xbc),
+			B: uint8(frac * 0xd4),
+			A: uint8(frac * 0xff),
+		})
+	}
+	essentials.ConcurrentMap(0, len(frames), func(i int) {
+		combined := frames[i]
+		frame := image.NewPaletted(combined.Bounds(), palette)
+		for y := 0; y < combined.Bounds().Dy(); y++ {
+			for x := 0; x < combined.Bounds().Dx(); x++ {
+				frame.Set(x, y, combined.At(x, y))
+			}
+		}
+		g.Image[i] = frame
+		g.Delay[i] = 30
+	})
 
 	w, err := os.Create(animationPath)
 	essentials.Must(err)
