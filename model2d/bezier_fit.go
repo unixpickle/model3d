@@ -204,7 +204,8 @@ func (b *BezierFitter) FitCubic(points []Coord, start BezierCurve) BezierCurve {
 // or both.
 //
 // If non-nil, t1 is the direction for the first control
-// point, and t2 is the direction for the final one.
+// point from the first point, and t2 is the direction of
+// the second control point from the last point.
 func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 	start BezierCurve) BezierCurve {
 	if len(points) == 0 {
@@ -213,15 +214,17 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 		return BezierCurve{points[0], points[0], points[0], points[0]}
 	}
 
+	tc := newBezierTangentConstraints(t1, t2)
+
 	if len(points) == 2 || start == nil {
 		delta := 0.1 * points[0].Dist(points[len(points)-1])
 		d1 := points[len(points)-1].Sub(points[0]).Normalize()
 		d2 := d1.Scale(-1)
-		if t1 != nil {
-			d1 = (*t1).Normalize()
+		if tc.F[0] {
+			d1 = tc.V[0]
 		}
-		if t2 != nil {
-			d2 = (*t2).Normalize()
+		if tc.F[1] {
+			d2 = tc.V[1]
 		}
 		start = BezierCurve{
 			points[0],
@@ -233,18 +236,7 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 			return start
 		}
 	} else {
-		if t1 != nil || t2 != nil {
-			// Project start onto constraints.
-			start = append(BezierCurve{}, start...)
-			if t1 != nil {
-				d := (*t1).Normalize()
-				start[1] = start[0].Add(d.Scale(d.Dot(start[1].Sub(start[0]))))
-			}
-			if t2 != nil {
-				d := (*t2).Normalize()
-				start[2] = start[3].Add(d.Scale(d.Dot(start[2].Sub(start[3]))))
-			}
-		}
+		start = tc.Constrain(start)
 		if !b.AllowIntersections {
 			// Even if the user-passed initial guess didn't self-intersect,
 			// projecting it onto t1 and t2 could have caused intersections.
@@ -252,22 +244,22 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 		}
 	}
 
-	var momentum BezierCurve
+	var momentum numerical.Vec
 	for i := 0; i < b.numIters(); i++ {
-		var grad BezierCurve
+		var grad numerical.Vec
 		if b.Momentum == 0 {
-			grad = b.gradient(points, t1, t2, start)
+			grad = b.gradient(points, start, tc)
 		} else {
-			grad = b.gradient(points, t1, t2, start)
+			grad = b.gradient(points, start, tc)
 			if momentum == nil {
 				momentum = grad
 			} else {
-				momentum = addBeziers(momentum, grad, b.Momentum, 1.0)
-				grad = momentum
+				grad = momentum.Scale(b.Momentum).Add(grad)
+				momentum = grad
 			}
 		}
-		constraint := newBezierStepConstraint(start, grad, t1, t2, !b.AllowIntersections)
-		newStart := b.lineSearch(points, start, grad, constraint)
+		constraint := newBezierStepConstraint(start, grad, tc, !b.AllowIntersections)
+		newStart := b.lineSearch(points, start, grad.Norm(), constraint)
 		if newStart == nil {
 			break
 		}
@@ -328,20 +320,15 @@ func (b *BezierFitter) FirstGuess(points []Coord) BezierCurve {
 // and returns the result of the step.
 //
 // If the optimal step is 0, nil is returned.
-func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve,
+func (b *BezierFitter) lineSearch(points []Coord, curve BezierCurve, gradScale float64,
 	constraint *bezierStepConstraint) BezierCurve {
 	delta := b.delta(curve)
-	maxNorm := 0.0
-	for _, g := range grad {
-		maxNorm = math.Max(maxNorm, g.Norm())
-	}
-	minStep := delta / maxNorm
+	minStep := delta / gradScale
 	if b.MinStepScale != 0 {
 		minStep *= b.MinStepScale
 	} else {
 		minStep *= DefaultBezierFitMinStepScale
 	}
-	minStep = math.Max(minStep, constraint.MinStep)
 
 	if minStep > constraint.MaxStep {
 		return nil
@@ -381,43 +368,29 @@ func (b *BezierFitter) lineSearch(points []Coord, curve, grad BezierCurve,
 // gradient computes the gradient of the loss wrt the
 // curve control points.
 // The endpoint gradients are set to zero.
-func (b *BezierFitter) gradient(points []Coord, t1, t2 *Coord, curve BezierCurve) BezierCurve {
+func (b *BezierFitter) gradient(points []Coord, curve BezierCurve,
+	tc *bezierTangentConstraints) numerical.Vec {
 	delta := b.delta(curve)
 
-	c1 := append(BezierCurve{}, curve...)
-	grad := make(BezierCurve, len(curve))
-	tangents := []*Coord{t1, t2}
-	for i := 1; i < len(curve)-1; i++ {
-		tangent := tangents[i-1]
-		if tangent != nil {
-			v := tangent.Normalize()
-			c1[i] = curve[i].Add(v.Scale(delta))
-			loss1 := b.MSE(points, c1)
-			c1[i] = curve[i].Add(v.Scale(-delta))
-			loss2 := b.MSE(points, c1)
-			grad[i] = v.Scale((loss1 - loss2) / (2 * delta))
-		} else {
-			pArr := curve[i].Array()
-			gradArr := [2]float64{}
-			for axis := 0; axis < 2; axis++ {
-				newPArr := pArr
-				newPArr[axis] += delta
-				c1[i] = NewCoordArray(newPArr)
-				loss1 := b.MSE(points, c1)
-				newPArr[axis] -= 2 * delta
-				c1[i] = NewCoordArray(newPArr)
-				loss2 := b.MSE(points, c1)
-				gradArr[axis] = (loss1 - loss2) / (2 * delta)
-			}
-			c1[i] = curve[i]
-			grad[i] = NewCoordArray(gradArr)
-		}
+	grad := make(numerical.Vec, tc.Dim())
+	fv := make(numerical.Vec, tc.Dim())
+	for i := 0; i < tc.Dim(); i++ {
+		fv[i] = delta
+		loss1 := b.MSE(points, addBeziers(curve, tc.Expand(fv), 1.0, 1.0))
+		loss2 := b.MSE(points, addBeziers(curve, tc.Expand(fv), 1.0, -1.0))
+		grad[i] = (loss1 - loss2) / (2 * delta)
+		fv[i] = 0
 	}
 
 	if b.L2Penalty != 0 {
 		rel := curve[0].SquaredDist(curve[3])
-		grad[1] = grad[1].Add(curve[1].Sub(curve[0]).Scale(2 * rel * b.L2Penalty))
-		grad[2] = grad[2].Add(curve[2].Sub(curve[3]).Scale(2 * rel * b.L2Penalty))
+		g1 := tc.LinGrad(BezierCurve{
+			Coord{},
+			curve[1].Sub(curve[0]).Scale(2 * rel * b.L2Penalty),
+			curve[2].Sub(curve[3]).Scale(2 * rel * b.L2Penalty),
+			Coord{},
+		})
+		grad = grad.Add(g1)
 	}
 
 	return grad
@@ -497,8 +470,89 @@ func (b *BezierFitter) numIters() int {
 	return b.NumIters
 }
 
+type bezierTangentConstraints struct {
+	// Normalized tangent vectors.
+	V [2]Coord
+
+	// Flags set to true if tangent vector is constrained.
+	F [2]bool
+}
+
+func newBezierTangentConstraints(t1, t2 *Coord) *bezierTangentConstraints {
+	res := &bezierTangentConstraints{}
+	for i, t := range []*Coord{t1, t2} {
+		if t != nil {
+			res.V[i] = (*t).Normalize()
+			res.F[i] = true
+		}
+	}
+	return res
+}
+
+// Dim returns the number of free variables.
+func (b *bezierTangentConstraints) Dim() int {
+	res := 2
+	for _, f := range b.F {
+		if !f {
+			res++
+		}
+	}
+	return res
+}
+
+// Expand fills the entries of a Bezier gradient with the
+// free variables.
+func (b *bezierTangentConstraints) Expand(free numerical.Vec) BezierCurve {
+	res := make(BezierCurve, 4)
+	for i, v := range b.V {
+		if b.F[i] {
+			res[i+1] = v.Scale(free[0])
+			free = free[1:]
+		} else {
+			res[i+1] = XY(free[0], free[1])
+			free = free[2:]
+		}
+	}
+	if len(free) != 0 {
+		panic("incorrect number of free variables passed")
+	}
+	return res
+}
+
+// Constrain projects a Bezier curve onto the space of
+// allowed curves.
+func (b *bezierTangentConstraints) Constrain(c BezierCurve) BezierCurve {
+	if !b.F[0] && !b.F[1] {
+		return c
+	}
+
+	c = append(BezierCurve{}, c...)
+	if b.F[0] {
+		v := b.V[0]
+		c[1] = c[0].Add(v.Scale(v.Dot(c[1].Sub(c[0]))))
+	}
+	if b.F[1] {
+		v := b.V[1]
+		c[2] = c[3].Add(v.Scale(v.Dot(c[2].Sub(c[3]))))
+	}
+	return c
+}
+
+// LinGrad computes the gradient of a linear objective in
+// terms of the free variables.
+func (b *bezierTangentConstraints) LinGrad(g BezierCurve) numerical.Vec {
+	var res numerical.Vec
+	for i, c := range g[1:3] {
+		if b.F[i] {
+			res = append(res, b.V[i].Dot(c))
+		} else {
+			res = append(res, c.X, c.Y)
+		}
+	}
+	return res
+}
+
 type bezierStepConstraint struct {
-	MinStep float64
 	MaxStep float64
 
 	curve    BezierCurve
@@ -507,90 +561,63 @@ type bezierStepConstraint struct {
 	projGrad BezierCurve
 }
 
-func newBezierStepConstraint(c, grad BezierCurve, t1, t2 *Coord, on bool) *bezierStepConstraint {
+func newBezierStepConstraint(c BezierCurve, grad numerical.Vec, tc *bezierTangentConstraints,
+	on bool) *bezierStepConstraint {
 	if !on {
+		g := tc.Expand(grad)
 		return &bezierStepConstraint{
 			MaxStep:  math.Inf(1),
 			curve:    c,
-			grad:     grad,
+			grad:     g,
 			projStep: math.Inf(1),
-			projGrad: grad,
+			projGrad: g,
 		}
 	}
-
-	// Here, we figure out how far along the gradient we
-	// can travel until causing a self-intersection.
-	//
-	// We also possibly compute a direction the points can
-	// continue to move along indefinitely that will not
-	// cause self-intersections or break the tangent
-	// constraints.
 
 	v := c[3].Sub(c[0]).Normalize()
-	v1 := c[1].Dot(v)
-	v2 := c[2].Dot(v)
-	d1 := grad[1].Dot(v)
-	d2 := grad[2].Dot(v)
-	// Solve for t in v1 - t*d1 = v2 - t*d2
-	t := (v1 - v2) / (d1 - d2)
-	tooFar := t < 0 || d2 == d1 || math.IsNaN(t) || math.IsInf(t, 0)
-	if v2 < v1 {
-		// The curve is already self-intersecting.
-		if tooFar {
-			return &bezierStepConstraint{
-				MaxStep:  0,
-				curve:    c,
-				grad:     grad,
-				projStep: 0,
-				projGrad: make(BezierCurve, len(grad)),
-			}
-		} else {
-			// Once we get to step t, the curve will be non-intersecting
-			// again and we can safely follow the gradient.
-			return &bezierStepConstraint{
-				MaxStep:  math.Inf(1),
-				MinStep:  t,
-				curve:    c,
-				grad:     grad,
-				projStep: math.Inf(1),
-				projGrad: grad,
-			}
-		}
-	}
-	if tooFar {
+	separateDir := tc.LinGrad(BezierCurve{
+		Coord{},
+		v.Scale(-1),
+		v.Scale(1),
+		Coord{},
+	})
+
+	dot := separateDir.Dot(grad)
+
+	if dot < 0 {
+		// The negative gradient already pulls the points apart.
+		g := tc.Expand(grad)
 		return &bezierStepConstraint{
 			MaxStep:  math.Inf(1),
 			curve:    c,
-			grad:     grad,
+			grad:     g,
 			projStep: math.Inf(1),
-			projGrad: grad,
+			projGrad: g,
 		}
 	}
-	if t1 != nil && t2 != nil {
-		// We do not attempt to calculate a descent direction
-		// that will preserve the constraint.
+
+	curSeparation := c[2].Dot(v) - c[1].Dot(v)
+	maxStep := math.Max(0, curSeparation/dot)
+
+	projStep := grad.ProjectOut(separateDir)
+	if projStep.Norm() < 1e-5*grad.Norm() {
+		// For numerical reasons, we will ignore a small gradient
+		// pointing orthogonal to the direction of separation.
 		return &bezierStepConstraint{
-			MaxStep:  t,
+			MaxStep:  maxStep,
 			curve:    c,
-			grad:     grad,
-			projStep: t,
-			projGrad: make(BezierCurve, len(grad)),
+			grad:     tc.Expand(grad),
+			projStep: maxStep,
+			projGrad: make(BezierCurve, 4),
 		}
 	}
-	projGrad := append(BezierCurve{}, grad...)
-	for i, tan := range []*Coord{t1, t2} {
-		if tan == nil {
-			projGrad[i+1] = grad[i+1].ProjectOut(v)
-		} else {
-			projGrad[i+1] = Coord{}
-		}
-	}
+
 	return &bezierStepConstraint{
 		MaxStep:  math.Inf(1),
 		curve:    c,
-		grad:     grad,
-		projStep: t,
-		projGrad: projGrad,
+		grad:     tc.Expand(grad),
+		projStep: maxStep,
+		projGrad: tc.Expand(projStep),
 	}
 }
 
