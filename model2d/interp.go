@@ -137,7 +137,7 @@ func (b *InterpBitmap) Min() Coord {
 
 // Max gets the maximum of the pixel bounding box.
 func (b *InterpBitmap) Max() Coord {
-	return Coord{X: float64(b.Width), Y: float64(b.Height)}
+	return XY(float64(b.Width), float64(b.Height))
 }
 
 // Contains gets the bit at the interpolated coordinate.
@@ -147,6 +147,9 @@ func (b *InterpBitmap) Contains(c Coord) bool {
 	if c.X < 0 || c.Y < 0 || c.X >= float64(b.Width) || c.Y >= float64(b.Height) {
 		return false
 	}
+
+	// Interpolate around the middle of each pixel
+	c = c.Sub(XY(0.5, 0.5))
 
 	tx := c.X - math.Floor(c.X)
 	ty := c.Y - math.Floor(c.Y)
