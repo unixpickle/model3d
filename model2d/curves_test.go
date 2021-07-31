@@ -117,6 +117,35 @@ func TestBezierInverseX(t *testing.T) {
 	}
 }
 
+func TestBezierSplit(t *testing.T) {
+	c := BezierCurve{
+		Coord{X: 1, Y: 3},
+		Coord{X: 2, Y: 2},
+		Coord{X: 2, Y: 3},
+		Coord{X: 3, Y: -2},
+	}
+	for _, t0 := range []float64{0.01, 0.5, 0.99} {
+		expected1 := func(x float64) Coord {
+			return c.Eval(x * t0)
+		}
+		expected2 := func(x float64) Coord {
+			return c.Eval(t0 + x*(1-t0))
+		}
+		actual1, actual2 := c.Split(t0)
+		for x := 0.0; x < 1.0; x += 0.001 {
+			e1, e2 := expected1(x), expected2(x)
+			a1, a2 := actual1.Eval(x), actual2.Eval(x)
+			for i, a := range []Coord{a1, a2} {
+				e := []Coord{e1, e2}[i]
+				if a.Dist(e) > 1e-6 {
+					t.Errorf("disagreement at split %f (half %d): x=%f actual %f expected %f",
+						t0, i, x, a, e)
+				}
+			}
+		}
+	}
+}
+
 func TestSmoothBezier(t *testing.T) {
 	actualCurve := SmoothBezier(
 		Coord{}, Coord{X: 1, Y: 1}, Coord{X: 2, Y: 1}, Coord{X: 2},

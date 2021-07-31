@@ -187,6 +187,42 @@ func (b BezierCurve) Transpose() BezierCurve {
 	return res
 }
 
+// Split creates two Bezier curves from b, where the first
+// curve represents b in the range [0, t] and the second
+// in the range [t, 1].
+func (b BezierCurve) Split(t float64) (BezierCurve, BezierCurve) {
+	c1 := make(BezierCurve, len(b))
+	c2 := make(BezierCurve, len(b))
+
+	for axis := 0; axis < 2; axis++ {
+		// https://en.wikipedia.org/wiki/De_Casteljau%27s_algorithm
+		n := len(b) - 1
+		firstRow := make([]float64, n+1)
+		for i, c := range b {
+			firstRow[i] = c.Array()[axis]
+		}
+		betas := [][]float64{firstRow}
+		for j := 1; j <= n; j++ {
+			prev := betas[j-1]
+			row := make([]float64, n-j+1)
+			for i := range row {
+				row[i] = prev[i]*(1-t) + prev[i+1]*t
+			}
+			betas = append(betas, row)
+		}
+		for i, row := range betas {
+			arr := c1[i].Array()
+			arr[axis] = row[0]
+			c1[i] = NewCoordArray(arr)
+			arr = c2[i].Array()
+			arr[axis] = betas[n-i][i]
+			c2[i] = NewCoordArray(arr)
+		}
+	}
+
+	return c1, c2
+}
+
 // CacheScalarFunc creates a scalar function that is
 // equivalent to a deterministic function f, but caches
 // results across calls in a concurrency-safe manner.
