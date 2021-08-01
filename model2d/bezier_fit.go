@@ -168,7 +168,12 @@ func (b *BezierFitter) FitChain(points []Coord, closed bool) []BezierCurve {
 				constraint2 = new(Coord)
 				*constraint2, _ = bezierTangents(curves[0], -1)
 			}
-			fit := b.FitCubicConstrained(p, constraint1, constraint2, b.FirstGuess(p))
+			fit := b.FitCubicConstrained(
+				p,
+				constraint1,
+				constraint2,
+				b.FirstGuessConstrained(p, constraint1, constraint2),
+			)
 			if lastTry == nil {
 				lastTry = fit
 				lastSize = size
@@ -279,6 +284,13 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 // no two points are exactly equal.
 // This is a stronger assumption than FitCubic() makes.
 func (b *BezierFitter) FirstGuess(points []Coord) BezierCurve {
+	return b.FirstGuessConstrained(points, nil, nil)
+}
+
+// FirstGuessConstrained is like FirstGuess, but the
+// control points are optionally constrained to given
+// tangent directions.
+func (b *BezierFitter) FirstGuessConstrained(points []Coord, t1, t2 *Coord) BezierCurve {
 	if len(points) < 4 {
 		return b.FitCubic(points, nil)
 	}
@@ -307,14 +319,20 @@ func (b *BezierFitter) FirstGuess(points []Coord) BezierCurve {
 	}
 
 	// Approximate normals using a small fraction of the curve.
-	n1 := interp(0.01).Sub(points[0]).Normalize()
-	n2 := interp(0.99).Sub(points[len(points)-1]).Normalize()
+	if t1 == nil {
+		n1 := interp(0.01).Sub(points[0]).Normalize()
+		t1 = &n1
+	}
+	if t2 == nil {
+		n2 := interp(0.99).Sub(points[len(points)-1]).Normalize()
+		t2 = &n2
+	}
 
 	// Fit third-way points.
 	p1 := interp(1.0 / 3.0)
 	p2 := interp(2.0 / 3.0)
 
-	return b.FitCubicConstrained([]Coord{points[0], p1, p2, points[len(points)-1]}, &n1, &n2, nil)
+	return b.FitCubicConstrained([]Coord{points[0], p1, p2, points[len(points)-1]}, t1, t2, nil)
 }
 
 // lineSearch finds the (locally optimal) best step size
