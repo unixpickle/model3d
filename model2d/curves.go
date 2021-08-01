@@ -5,6 +5,10 @@ import (
 	"sync"
 )
 
+// DefaultBezierMaxSplits determines the maximum number of
+// subdivisions when computing Bezier arc lengths.
+const DefaultBezierMaxSplits = 16
+
 var binomialCoeffs = [][]float64{
 	{1, 1},
 	{1, 2, 1},
@@ -221,6 +225,36 @@ func (b BezierCurve) Split(t float64) (BezierCurve, BezierCurve) {
 	}
 
 	return c1, c2
+}
+
+// Length approximates the arclength of the curve within
+// the given margin of error.
+//
+// If maxSplits is specified, it determines the maximum
+// number of sub-divisions to perform. Otherwise,
+// DefaultBezierMaxSplits is used.
+func (b BezierCurve) Length(tol float64, maxSplits int) float64 {
+	if maxSplits == 0 {
+		maxSplits = DefaultBezierMaxSplits
+	}
+	return b.length(tol, maxSplits)
+}
+
+func (b BezierCurve) length(tol float64, maxSplits int) float64 {
+	lowerBound := b[0].Dist(b[len(b)-1])
+	upperBound := 0.0
+	for i, c := range b[1:] {
+		upperBound += c.Dist(b[i])
+	}
+	// Simplest version of adaptive subdivision.
+	// See "Adaptive subdivision and the length and energy of Bézier curves"
+	// (https://www.sciencedirect.com/science/article/pii/0925772195000542).
+	if maxSplits == 0 || upperBound-lowerBound < tol {
+		n := len(b) - 1
+		return (2*lowerBound + float64(n-1)*upperBound) / float64(n+1)
+	}
+	b1, b2 := b.Split(0.5)
+	return b1.length(tol/2, maxSplits-1) + b2.length(tol/2, maxSplits-1)
 }
 
 // CacheScalarFunc creates a scalar function that is

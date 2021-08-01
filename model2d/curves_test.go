@@ -146,6 +146,26 @@ func TestBezierSplit(t *testing.T) {
 	}
 }
 
+func TestBezierLength(t *testing.T) {
+	c := BezierCurve{
+		Coord{X: 1, Y: 3},
+		Coord{X: 2, Y: 2},
+		Coord{X: 2, Y: 3},
+		Coord{X: 3, Y: -2},
+	}
+	expected := 0.0
+	n := 10000
+	for i := 0; i < n; i++ {
+		t1 := float64(i) / float64(n)
+		t2 := float64(i+1) / float64(n)
+		expected += c.Eval(t1).Dist(c.Eval(t2))
+	}
+	actual := c.Length(1e-6, 0)
+	if math.Abs(actual-expected) > 1e-5 {
+		t.Errorf("expected length %f but got %f", expected, actual)
+	}
+}
+
 func TestSmoothBezier(t *testing.T) {
 	actualCurve := SmoothBezier(
 		Coord{}, Coord{X: 1, Y: 1}, Coord{X: 2, Y: 1}, Coord{X: 2},
@@ -265,4 +285,16 @@ func BenchmarkBezierEval(b *testing.B) {
 			curve.Eval(0.3)
 		}
 	})
+}
+
+func BenchmarkBezierLength(b *testing.B) {
+	c := BezierCurve{
+		Coord{X: 1, Y: 3},
+		Coord{X: 2, Y: 2},
+		Coord{X: 2, Y: 3},
+		Coord{X: 3, Y: -2},
+	}
+	for i := 0; i < b.N; i++ {
+		c.Length(1e-6, 0)
+	}
 }
