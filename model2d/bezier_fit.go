@@ -2,6 +2,7 @@ package model2d
 
 import (
 	"math"
+	"math/rand"
 	"sort"
 
 	"github.com/unixpickle/essentials"
@@ -86,7 +87,7 @@ func (b *BezierFitter) hierarchyToCurves(m *MeshHierarchy) []BezierCurve {
 	if len(segs) == 0 {
 		return nil
 	}
-	seg := segs[0]
+	seg := segs[rand.Intn(len(segs))]
 	points := make([]Coord, 0, len(segs)+1)
 	points = append(points, seg[0], seg[1])
 	m.Mesh.Remove(seg)
