@@ -70,6 +70,10 @@ type BezierFitter struct {
 	// AllowIntersections can be set to true to allow
 	// Bezier curves to cross themselves.
 	AllowIntersections bool
+
+	// NoFirstGuess disables FirstGuess() approximations
+	// during Fit() and FitChain() calls.
+	NoFirstGuess bool
 }
 
 // Fit fits a collection of cubic Bezier curves to a
@@ -168,12 +172,11 @@ func (b *BezierFitter) FitChain(points []Coord, closed bool) []BezierCurve {
 				constraint2 = new(Coord)
 				*constraint2, _ = bezierTangents(curves[0], -1)
 			}
-			fit := b.FitCubicConstrained(
-				p,
-				constraint1,
-				constraint2,
-				b.FirstGuessConstrained(p, constraint1, constraint2),
-			)
+			var start BezierCurve
+			if !b.NoFirstGuess {
+				start = b.FirstGuessConstrained(p, constraint1, constraint2)
+			}
+			fit := b.FitCubicConstrained(p, constraint1, constraint2, start)
 			if lastTry == nil {
 				lastTry = fit
 				lastSize = size
