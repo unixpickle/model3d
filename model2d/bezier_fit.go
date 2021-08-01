@@ -12,7 +12,7 @@ import (
 const (
 	DefaultBezierFitterNumIters  = 100
 	DefaultBezierFitTolerance    = 1e-8
-	DefaultBezierFitDelta        = 1e-5
+	DefaultBezierFitDelta        = 1e-6
 	DefaultBezierFitMinStepScale = 1e-2
 	DefaultBezierFitLineStep     = 2.0
 	DefaultBezierFitLineGSS      = 8
@@ -33,6 +33,14 @@ type BezierFitter struct {
 	// If 0, DefaultBezierFitTolerance is used.
 	Tolerance float64
 
+	// AbsTolerance is similar to Tolerance, but not
+	// relative to the size of a chain.
+	// If both Tolerance and AbsTolerance are specified,
+	// then the max of both are used.
+	//
+	// If 0, only the relative tolerance is used.
+	AbsTolerance float64
+
 	// Delta, if specified, controls the step size used
 	// for finite differences, relative to the size of the
 	// entire Bezier curve.
@@ -42,8 +50,14 @@ type BezierFitter struct {
 	// L2Penalty, if specified, is a loss penalty imposed
 	// on the squared distance between the control points
 	// and their corresponding endpoints, scaled relative
-	// to the distance between the endpoints.
+	// to the squared distance between the endpoints.
 	L2Penalty float64
+
+	// PerimPenalty, if specified, is a loss penalty
+	// imposed on the square of the length of the control
+	// polygon, which upper-bounds the square of the arc
+	// length.
+	PerimPenalty float64
 
 	// MinStepScale, if specified, is a scalar multiplied
 	// by the finite-differences delta to decide the first
@@ -143,6 +157,7 @@ func (b *BezierFitter) FitChain(points []Coord, closed bool) []BezierCurve {
 		max = max.Max(p)
 	}
 	tol *= (max.Y - min.Y) * (max.X - min.Y)
+	tol = math.Max(tol, b.AbsTolerance)
 
 	if closed {
 		points = append(append([]Coord{}, points...), points[0])
@@ -393,36 +408,30 @@ func (b *BezierFitter) lineSearch(points []Coord, curve BezierCurve, gradScale f
 func (b *BezierFitter) gradient(points []Coord, curve BezierCurve,
 	tc *bezierTangentConstraints) numerical.Vec {
 	delta := b.delta(curve)
-
 	grad := make(numerical.Vec, tc.Dim())
 	fv := make(numerical.Vec, tc.Dim())
 	for i := 0; i < tc.Dim(); i++ {
 		fv[i] = delta
-		loss1 := b.MSE(points, addBeziers(curve, tc.Expand(fv), 1.0, 1.0))
-		loss2 := b.MSE(points, addBeziers(curve, tc.Expand(fv), 1.0, -1.0))
-		grad[i] = (loss1 - loss2) / (2 * delta)
+		loss1 := b.loss(points, addBeziers(curve, tc.Expand(fv), 1.0, 1.0))
+		loss2 := b.loss(points, addBeziers(curve, tc.Expand(fv), 1.0, -1.0))
 		fv[i] = 0
+		grad[i] = (loss1 - loss2) / (2 * delta)
 	}
-
-	if b.L2Penalty != 0 {
-		rel := curve[0].SquaredDist(curve[3])
-		g1 := tc.LinGrad(BezierCurve{
-			Coord{},
-			curve[1].Sub(curve[0]).Scale(2 * rel * b.L2Penalty),
-			curve[2].Sub(curve[3]).Scale(2 * rel * b.L2Penalty),
-			Coord{},
-		})
-		grad = grad.Add(g1)
-	}
-
 	return grad
 }
 
 func (b *BezierFitter) loss(points []Coord, curve BezierCurve) float64 {
 	res := b.MSE(points, curve)
-	if b.L2Penalty != 0 {
+	if b.L2Penalty != 0 || b.PerimPenalty != 0 {
 		rel := curve[0].SquaredDist(curve[3])
-		res += b.L2Penalty * rel * (curve[1].SquaredDist(curve[0]) + curve[2].SquaredDist(curve[3]))
+		if b.L2Penalty != 0 {
+			dists := curve[1].SquaredDist(curve[0]) + curve[2].SquaredDist(curve[3])
+			res += b.L2Penalty * rel * dists
+		}
+		if b.PerimPenalty != 0 {
+			perim := curve[0].Dist(curve[1]) + curve[1].Dist(curve[2]) + curve[2].Dist(curve[3])
+			res += b.PerimPenalty * perim * perim
+		}
 	}
 	return res
 }
