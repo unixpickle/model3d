@@ -16,6 +16,31 @@ func TestBezierFitterSingle(t *testing.T) {
 	}
 }
 
+func TestBezierFitterNaNCase(t *testing.T) {
+	// Fitting these points historically gave a NaN because
+	// the gradient was zero.
+	points := []Coord{
+		XY(9.5720846748406, 18.68020595991276),
+		XY(9.7874167060906, 18.68167080366276),
+		XY(9.5720846748406, 18.92141689741276),
+		XY(9.5696432685906, 18.68167080366276),
+	}
+	fitter := &BezierFitter{
+		NumIters:     200,
+		Delta:        1e-7,
+		LineStep:     1.1,
+		PerimPenalty: 1e-4,
+		Momentum:     0.5,
+		NoFirstGuess: true,
+	}
+	fit := fitter.FitCubic(points, nil)
+	for _, c := range fit {
+		if math.IsNaN(c.Sum()) {
+			t.Fatalf("got NaNs in fit: %v", fit)
+		}
+	}
+}
+
 func TestBezierFitterFirstGuess(t *testing.T) {
 	target, samples, fitter := testBezierFitProblem()
 	fit := fitter.FirstGuess(samples)

@@ -282,6 +282,9 @@ func (b *BezierFitter) FitCubicConstrained(points []Coord, t1, t2 *Coord,
 				momentum = grad
 			}
 		}
+		if grad.Norm() == 0 {
+			break
+		}
 		constraint := newBezierStepConstraint(start, grad, tc, !b.AllowIntersections)
 		newStart := b.lineSearch(points, start, grad.Norm(), constraint)
 		if newStart == nil {
@@ -359,7 +362,7 @@ func (b *BezierFitter) FirstGuessConstrained(points []Coord, t1, t2 *Coord) Bezi
 // If the optimal step is 0, nil is returned.
 func (b *BezierFitter) lineSearch(points []Coord, curve BezierCurve, gradScale float64,
 	constraint *bezierStepConstraint) BezierCurve {
-	delta := b.delta(curve)
+	delta := b.delta(points)
 	minStep := delta / gradScale
 	if b.MinStepScale != 0 {
 		minStep *= b.MinStepScale
@@ -407,7 +410,7 @@ func (b *BezierFitter) lineSearch(points []Coord, curve BezierCurve, gradScale f
 // The endpoint gradients are set to zero.
 func (b *BezierFitter) gradient(points []Coord, curve BezierCurve,
 	tc *bezierTangentConstraints) numerical.Vec {
-	delta := b.delta(curve)
+	delta := b.delta(points)
 	grad := make(numerical.Vec, tc.Dim())
 	fv := make(numerical.Vec, tc.Dim())
 	for i := 0; i < tc.Dim(); i++ {
@@ -481,17 +484,17 @@ func (b *BezierFitter) MSE(points []Coord, curve BezierCurve) float64 {
 	return total / float64(len(points))
 }
 
-func (b *BezierFitter) delta(c BezierCurve) float64 {
-	min, max := c[0], c[0]
-	for _, x := range c {
+func (b *BezierFitter) delta(points []Coord) float64 {
+	min, max := points[0], points[0]
+	for _, x := range points {
 		min = min.Min(x)
 		max = max.Max(x)
 	}
+	delta := DefaultBezierFitDelta
 	if b.Delta != 0 {
-		return max.Dist(min) * b.Delta
-	} else {
-		return max.Dist(min) * DefaultBezierFitDelta
+		delta = b.Delta
 	}
+	return max.Dist(min) * delta
 }
 
 func (b *BezierFitter) numIters() int {
