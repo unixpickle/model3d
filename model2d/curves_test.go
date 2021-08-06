@@ -146,6 +146,27 @@ func TestBezierSplit(t *testing.T) {
 	}
 }
 
+func TestBezierPolynomials(t *testing.T) {
+	curve := BezierCurve{
+		Coord{X: 3, Y: 3},
+		Coord{X: 2, Y: 2},
+		Coord{X: 2, Y: 3},
+		Coord{X: 1, Y: -2},
+		Coord{X: 2, Y: -5},
+		Coord{X: 7, Y: -2},
+		Coord{X: 8, Y: 2},
+	}
+	ps := curve.Polynomials()
+	for i := 0; i < 1000; i++ {
+		x := rand.Float64()
+		expected := curve.Eval(x)
+		actual := XY(ps[0].Eval(x), ps[1].Eval(x))
+		if actual.Dist(expected) > 1e-5 {
+			t.Errorf("at time %f point should be %v but got %v", x, expected, actual)
+		}
+	}
+}
+
 func TestBezierLength(t *testing.T) {
 	c := BezierCurve{
 		Coord{X: 1, Y: 3},

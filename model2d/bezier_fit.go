@@ -444,29 +444,12 @@ func (b *BezierFitter) MSE(points []Coord, curve BezierCurve) float64 {
 	if len(curve) != 4 {
 		panic("curve must be a cubic Bezier curve (i.e. have four points)")
 	}
-	axisPolynomial := func(axis int) numerical.Polynomial {
-		// Expand (1-t)^3*w + 3(1-t)^2t*x + 3(1-t)t^2y + t^3z =>
-		// t^3 (-w) + 3 t^3 x - 3 t^3 y + t^3 z + 3 t^2 w - 6 t^2 x + 3 t^2 y - 3 t w + 3 t x + w
-		//
-		// t^3 coeff: (-3w + 3x - 3y + z)
-		// t^2 coeff: (9w - 6x + 3y)
-		// t coeff: -9w + 3x
-		// bias: 3w
-		w := curve[0].Array()[axis]
-		x := curve[1].Array()[axis]
-		y := curve[2].Array()[axis]
-		z := curve[3].Array()[axis]
-		return numerical.Polynomial{
-			w, 3*x - 3*w, 3*y - 6*x + 3*w, z - 3*y + 3*x - w,
-		}
-	}
+	axisPolynomials := curve.Polynomials()
 	total := 0.0
 	for _, p := range points {
 		// Project p onto the curve by finding the closest point.
-		px := axisPolynomial(0)
-		px[0] -= p.X
-		py := axisPolynomial(1)
-		py[0] -= p.Y
+		px := axisPolynomials[0].Add(numerical.Polynomial{-p.X})
+		py := axisPolynomials[1].Add(numerical.Polynomial{-p.Y})
 		lossPoly := px.Mul(px).Add(py.Mul(py))
 		minLoss := math.Inf(1)
 		for _, t := range append(lossPoly.Derivative().RealRoots(), 0.0, 1.0) {

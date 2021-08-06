@@ -3,6 +3,8 @@ package model2d
 import (
 	"math"
 	"sync"
+
+	"github.com/unixpickle/model3d/numerical"
 )
 
 // DefaultBezierMaxSplits determines the maximum number of
@@ -225,6 +227,27 @@ func (b BezierCurve) Split(t float64) (BezierCurve, BezierCurve) {
 	}
 
 	return c1, c2
+}
+
+// Polynomials converts the X and Y coordinates of the
+// curve into polynomials of t.
+func (b BezierCurve) Polynomials() [2]numerical.Polynomial {
+	if len(b) == 0 {
+		return [2]numerical.Polynomial{nil, nil}
+	} else if len(b) == 1 {
+		return [2]numerical.Polynomial{{b[0].X}, {b[0].Y}}
+	}
+	p1 := b[:len(b)-1].Polynomials()
+	p2 := b[1:].Polynomials()
+
+	// Polynomials representing (1-t) and t
+	t1 := numerical.Polynomial{1, -1}
+	t2 := numerical.Polynomial{0, 1}
+
+	return [2]numerical.Polynomial{
+		p1[0].Mul(t1).Add(p2[0].Mul(t2)),
+		p1[1].Mul(t1).Add(p2[1].Mul(t2)),
+	}
 }
 
 // Length approximates the arclength of the curve within
