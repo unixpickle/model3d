@@ -339,7 +339,7 @@ func (b BezierCurve) cubicLength(tol float64, maxSplits int) float64 {
 	}
 
 	b1, b2 := b.Split(0.5)
-	return b1.cubicLength(tol/2, maxSplits-1) + b2.length(tol/2, maxSplits-1)
+	return b1.cubicLength(tol/2, maxSplits-1) + b2.cubicLength(tol/2, maxSplits-1)
 }
 
 // CacheScalarFunc creates a scalar function that is
