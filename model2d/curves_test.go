@@ -168,23 +168,43 @@ func TestBezierPolynomials(t *testing.T) {
 }
 
 func TestBezierLength(t *testing.T) {
-	c := BezierCurve{
-		Coord{X: 1, Y: 3},
-		Coord{X: 2, Y: 2},
-		Coord{X: 2, Y: 3},
-		Coord{X: 3, Y: -2},
+	testCurve := func(t *testing.T, c BezierCurve) {
+		expected := 0.0
+		n := 100000
+		for i := 0; i < n; i++ {
+			t1 := float64(i) / float64(n)
+			t2 := float64(i+1) / float64(n)
+			expected += c.Eval(t1).Dist(c.Eval(t2))
+		}
+		actual := c.Length(1e-8, 0)
+		if math.Abs(actual-expected) > 1e-7 {
+			t.Errorf("expected length %f but got %f", expected, actual)
+		}
 	}
-	expected := 0.0
-	n := 10000
-	for i := 0; i < n; i++ {
-		t1 := float64(i) / float64(n)
-		t2 := float64(i+1) / float64(n)
-		expected += c.Eval(t1).Dist(c.Eval(t2))
-	}
-	actual := c.Length(1e-6, 0)
-	if math.Abs(actual-expected) > 1e-5 {
-		t.Errorf("expected length %f but got %f", expected, actual)
-	}
+	t.Run("Quad", func(t *testing.T) {
+		testCurve(t, BezierCurve{
+			Coord{X: 1, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 3, Y: 1},
+		})
+	})
+	t.Run("Cubic", func(t *testing.T) {
+		testCurve(t, BezierCurve{
+			Coord{X: 1, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 3, Y: -2},
+		})
+	})
+	t.Run("Quartic", func(t *testing.T) {
+		testCurve(t, BezierCurve{
+			Coord{X: 1, Y: 3},
+			Coord{X: 2, Y: 2},
+			Coord{X: 2, Y: 3},
+			Coord{X: 3, Y: -2},
+			Coord{X: 4, Y: 2},
+		})
+	})
 }
 
 func TestSmoothBezier(t *testing.T) {

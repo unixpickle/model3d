@@ -260,7 +260,11 @@ func (b BezierCurve) Length(tol float64, maxSplits int) float64 {
 	if maxSplits == 0 {
 		maxSplits = DefaultBezierMaxSplits
 	}
-	return b.length(tol, maxSplits)
+	if len(b) == 4 {
+		return b.cubicLength(tol, maxSplits)
+	} else {
+		return b.length(tol, maxSplits)
+	}
 }
 
 func (b BezierCurve) length(tol float64, maxSplits int) float64 {
@@ -278,6 +282,64 @@ func (b BezierCurve) length(tol float64, maxSplits int) float64 {
 	}
 	b1, b2 := b.Split(0.5)
 	return b1.length(tol/2, maxSplits-1) + b2.length(tol/2, maxSplits-1)
+}
+
+func (b BezierCurve) cubicLength(tol float64, maxSplits int) float64 {
+	// Algorithm ported from:
+	// https://github.com/linebender/kurbo/blob/347dbc7cdfb864ee3b5a6832b8748daf98722ade/src/cubicbez.rs#L213
+
+	if b[0].SquaredDist(b[1])+b[2].SquaredDist(b[3]) <= 0.5*tol*tol {
+		// Nearly degenerate Bezier curve.
+		return b[0].Dist(b[3])
+	}
+
+	ps := b.Polynomials()
+
+	cubicErrnorm := func() float64 {
+		d1 := ps[0].Derivative().Derivative()
+		d2 := ps[1].Derivative().Derivative()
+		d := BezierCurve{XY(d1.Eval(0), d2.Eval(0)), XY(d1.Eval(1), d2.Eval(1))}
+		dd := d[1].Sub(d[0])
+		return d[0].Dot(d[0]) + d[0].Dot(dd) + (1.0/3.0)*dd.Dot(dd)
+	}
+	errEstimate := func() float64 {
+		lc := b[0].Dist(b[len(b)-1])
+		lp := 0.0
+		for i, c := range b[1:] {
+			lp += c.Dist(b[i])
+		}
+		return 2.56e-8 * math.Pow(cubicErrnorm()/(lc*lc), 8) * lp
+	}
+
+	if maxSplits == 0 || errEstimate() < tol {
+		// 9th-order Gauss-Legendre quadrature.
+		deriv1 := ps[0].Derivative()
+		deriv2 := ps[1].Derivative()
+		normCurve := func(x float64) float64 {
+			return XY(deriv1.Eval(x), deriv2.Eval(x)).Norm()
+		}
+		// Gauss-Legendre coefficients.
+		weightsAndXs := [9][2]float64{
+			{0.3302393550012598, 0.0000000000000000},
+			{0.1806481606948574, -0.8360311073266358},
+			{0.1806481606948574, 0.8360311073266358},
+			{0.0812743883615744, -0.9681602395076261},
+			{0.0812743883615744, 0.9681602395076261},
+			{0.3123470770400029, -0.3242534234038089},
+			{0.3123470770400029, 0.3242534234038089},
+			{0.2606106964029354, -0.6133714327005904},
+			{0.2606106964029354, 0.6133714327005904},
+		}
+		sum := 0.0
+		for i := range weightsAndXs {
+			wi, xi := weightsAndXs[i][0], weightsAndXs[i][1]
+			sum += wi * normCurve(0.5*(xi+1))
+		}
+		return sum / 2
+	}
+
+	b1, b2 := b.Split(0.5)
+	return b1.cubicLength(tol/2, maxSplits-1) + b2.length(tol/2, maxSplits-1)
 }
 
 // CacheScalarFunc creates a scalar function that is
