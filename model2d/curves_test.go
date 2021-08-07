@@ -195,6 +195,30 @@ func TestBezierLength(t *testing.T) {
 			Coord{X: 2, Y: 3},
 			Coord{X: 3, Y: -2},
 		})
+
+		// This curve seems to push close to the error bound
+		// for cubics.
+		testCurve(t, BezierCurve{
+			{-0.15410584557718454, -0.49385517630417675},
+			{-0.15154246403697602, -0.5155318553225691},
+			{0.8225331751788417, 1.5556997675590987},
+			{1.5195600606132607, 0.8079498332492203},
+		})
+
+		for i := 0; i < 100; i++ {
+			c := BezierCurve{
+				NewCoordRandNorm(),
+				NewCoordRandNorm(),
+				NewCoordRandNorm(),
+				NewCoordRandNorm(),
+			}
+			expected := c.length(1e-6, 16)
+			actual := c.Length(9e-5, 0)
+			if math.Abs(actual-expected) > 1e-4 {
+				t.Errorf("incorrect length for %v: got %f expected %f (error %f)",
+					c, actual, expected, math.Abs(actual-expected))
+			}
+		}
 	})
 	t.Run("Quartic", func(t *testing.T) {
 		testCurve(t, BezierCurve{
