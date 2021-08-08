@@ -61,15 +61,7 @@ func main() {
 	log.Println("Rendering...")
 	outMesh := model2d.NewMesh()
 	for _, b := range beziers {
-		n := 100
-		for i := 0; i < n; i++ {
-			t1 := float64(i) / float64(n)
-			t2 := float64(i+1) / float64(n)
-			outMesh.Add(&model2d.Segment{
-				b.Eval(t1),
-				b.Eval(t2),
-			})
-		}
+		outMesh.AddMesh(model2d.CurveMesh(b, 100))
 	}
 	collider := model2d.MeshToCollider(outMesh)
 	rast := &model2d.Rasterizer{Scale: upsampleRate, Bounds: model2d.NewRect(model2d.Coord{}, size)}

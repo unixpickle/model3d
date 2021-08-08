@@ -63,6 +63,21 @@ func CurveTranspose(c Curve) Curve {
 	return &transposedCurve{C: c}
 }
 
+// CurveMesh creates a mesh with n evenly-spaced segments
+// along the curve.
+func CurveMesh(c Curve, n int) *Mesh {
+	m := NewMesh()
+	t1 := 0.0
+	c1 := c.Eval(t1)
+	for i := 0; i < n; i++ {
+		t2 := float64(i+1) / float64(n)
+		c2 := c.Eval(t2)
+		m.Add(&Segment{c1, c2})
+		t1, c1 = t2, c2
+	}
+	return m
+}
+
 // A JoinedCurve combines Curves into a single curve.
 // Each curve should end where the next curve begins.
 type JoinedCurve []Curve
