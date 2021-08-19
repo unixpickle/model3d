@@ -114,6 +114,26 @@ func (m *Mesh) AddMesh(m1 *Mesh) {
 	m1.Iterate(m.Add)
 }
 
+// Copy returns a shallow copy of m, where all of the
+// segments are the same exact pointers.
+func (m *Mesh) Copy() *Mesh {
+	m1 := NewMesh()
+	m1.AddMesh(m)
+	return m1
+}
+
+// DeepCopy returns a deep copy of m, where all of the
+// segments are copied individually.
+func (m *Mesh) DeepCopy() *Mesh {
+	m1 := NewMesh()
+	m.Iterate(func(f *Segment) {
+		f1 := new(Segment)
+		*f1 = *f
+		m1.Add(f1)
+	})
+	return m1
+}
+
 // Remove removes the segment f from the mesh.
 //
 // It looks at f as a pointer, so the pointer must be
