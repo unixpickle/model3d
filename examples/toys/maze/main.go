@@ -33,8 +33,7 @@ func main() {
 		Max:   WallHeight - 0.05,
 		Ratio: 0.1,
 	}
-	mesh3d := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.0125, 8)
-	mesh3d = mesh3d.Transform(ax.Inverse())
+	mesh3d := model3d.MarchingCubesConj(solid, 0.0125, 8, ax)
 	mesh3d = mesh3d.EliminateCoplanar(1e-8)
 	log.Println("Saving mesh...")
 	mesh3d.SaveGroupedSTL("maze.stl")

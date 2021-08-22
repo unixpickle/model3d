@@ -58,8 +58,7 @@ func main() {
 		Max:   OuterHeight - NotchSize*2 - 0.1,
 		Ratio: 0.1,
 	}
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, tubes), 0.01, 16)
-	mesh = mesh.Transform(ax.Inverse())
+	mesh := model3d.MarchingCubesConj(tubes, 0.01, 16, ax)
 	log.Println("Simplifying mesh...")
 	mesh = mesh.EliminateCoplanar(1e-5)
 	log.Println("Saving mesh...")

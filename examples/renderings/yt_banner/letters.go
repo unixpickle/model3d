@@ -33,8 +33,7 @@ func CreateLetters() render3d.Object {
 		Max:   LettersThickness - (LettersRounding + 0.01),
 		Ratio: 0.01,
 	}
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.01, 8)
-	mesh = mesh.Transform(ax.Inverse())
+	mesh := model3d.MarchingCubesConj(solid, 0.01, 8, ax)
 	mesh = mesh.EliminateCoplanar(1e-8)
 
 	return &render3d.ColliderObject{

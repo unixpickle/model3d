@@ -48,8 +48,7 @@ func main() {
 			Max:   args.SegmentDepth - 0.02,
 			Ratio: 0.25,
 		}
-		mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.01, 8)
-		mesh = mesh.Transform(ax.Inverse())
+		mesh := model3d.MarchingCubesConj(solid, 0.01, 8, ax)
 		mesh = mesh.EliminateCoplanar(1e-5)
 
 		saveMesh.AddMesh(mesh)

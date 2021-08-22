@@ -58,8 +58,7 @@ func main() {
 		Max:   depth - (thickness + 0.1),
 		Ratio: 0.025,
 	}
-	binMesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, binSolid), 0.015, 8)
-	binMesh = binMesh.Transform(ax.Inverse())
+	binMesh := model3d.MarchingCubesConj(binSolid, 0.015, 8, ax)
 	FinalizeMesh(binMesh, "bin")
 
 	log.Println("Creating knob mesh...")

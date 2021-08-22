@@ -35,8 +35,7 @@ func main() {
 		Max:   HolderHeight - 0.1,
 		Ratio: 0.1,
 	}
-	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.01, 8)
-	mesh = mesh.Transform(ax.Inverse())
+	mesh := model3d.MarchingCubesConj(solid, 0.01, 8, ax)
 
 	log.Println("Simplifying mesh...")
 	mesh = mesh.EliminateCoplanar(1e-8)
