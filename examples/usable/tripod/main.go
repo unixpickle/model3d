@@ -56,7 +56,7 @@ func main() {
 	cradle := CreateCradle(&args)
 	log.Println("Creating cradle mesh...")
 	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, cradle), 0.01, 8)
-	mesh = mesh.MapCoords(ax.Inverse().Apply)
+	mesh = mesh.Transform(ax.Inverse())
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println("Saving cradle mesh...")
 	mesh.SaveGroupedSTL("cradle.stl")
@@ -68,8 +68,7 @@ func main() {
 	ax.Ratio = 0.2
 	tripod := CreateTripod()
 	log.Println("Creating tripod mesh...")
-	mesh = model3d.MarchingCubesSearch(model3d.TransformSolid(ax, tripod), 0.01, 8)
-	mesh = mesh.MapCoords(ax.Inverse().Apply)
+	mesh = model3d.MarchingCubesConj(tripod, 0.01, 8, ax)
 	mesh = mesh.EliminateCoplanar(1e-8)
 	log.Println("Saving tripod mesh...")
 	mesh.SaveGroupedSTL("tripod.stl")

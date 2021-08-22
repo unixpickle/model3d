@@ -59,7 +59,7 @@ func main() {
 		Ratio: 0.1,
 	}
 	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, tubes), 0.01, 16)
-	mesh = mesh.MapCoords(ax.Inverse().Apply)
+	mesh = mesh.Transform(ax.Inverse())
 	log.Println("Simplifying mesh...")
 	mesh = mesh.EliminateCoplanar(1e-5)
 	log.Println("Saving mesh...")

@@ -87,7 +87,7 @@ func MarchingCubesConj(s Solid, delta float64, iters int, xforms ...Transform) *
 	joined := JoinedTransform(xforms)
 	solid := TransformSolid(joined, s)
 	mesh := MarchingCubesSearch(solid, delta, iters)
-	return mesh.MapCoords(joined.Inverse().Apply)
+	return mesh.Transform(joined.Inverse())
 }
 
 func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, min [3]float64, c Coord3D) Coord3D {

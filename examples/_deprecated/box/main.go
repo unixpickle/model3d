@@ -260,7 +260,5 @@ func (s *ScrewBase) Contains(c model3d.Coord3D) bool {
 }
 
 func ScaleUp(m *model3d.Mesh) *model3d.Mesh {
-	return m.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
-		return c.Scale(25.4)
-	})
+	return m.Scale(25.4)
 }

@@ -49,7 +49,7 @@ func main() {
 			Ratio: 0.1,
 		}
 		mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, LegSolid()), 0.01, 8)
-		mesh = mesh.MapCoords(ax.Inverse().Apply)
+		mesh = mesh.Transform(ax.Inverse())
 		mesh.SaveGroupedSTL("leg.stl")
 		render3d.SaveRandomGrid("leg.png", mesh, 3, 3, 300, nil)
 	}

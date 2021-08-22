@@ -125,8 +125,8 @@ func PitcherHandle() model3d.Solid {
 
 func FlattenTop(m *model3d.Mesh) *model3d.Mesh {
 	rotation := model3d.Rotation(model3d.X(1), math.Pi)
-	m = m.MapCoords(rotation.Apply)
+	m = m.Transform(rotation)
 	m = m.FlattenBase(0.99 * math.Pi / 2)
-	m = m.MapCoords(rotation.Inverse().Apply)
+	m = m.Transform(rotation.Inverse())
 	return m
 }

@@ -78,7 +78,7 @@ func main() {
 func MarchTransform(solid model3d.Solid, t model3d.Transform) *model3d.Mesh {
 	s1 := model3d.TransformSolid(t, solid)
 	m := model3d.MarchingCubesSearch(s1, 0.003, 8)
-	m = m.MapCoords(t.Inverse().Apply)
+	m = m.Transform(t.Inverse())
 	return m
 }
 

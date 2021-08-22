@@ -95,10 +95,10 @@ func LoadLabels() (solidOut model2d.Solid, centers []float64) {
 			width = HeartWidth
 		}
 		m = m.Translate(min.Scale(-1))
-		m = m.MapCoords(model2d.XY(
+		m = m.Translate(model2d.XY(
 			curX+TextPadding+(width-max.X+min.X)/2,
 			(maxHeight-max.Y+min.Y)/2,
-		).Add)
+		))
 		centers = append(centers, curX+width/2+TextPadding)
 		curX += width + TextPadding*2
 		fullMesh.AddMesh(m)

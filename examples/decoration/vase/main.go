@@ -33,7 +33,7 @@ func main() {
 	}
 
 	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, VaseSolid()), 0.015, 8)
-	mesh = mesh.MapCoords(ax.Inverse().Apply)
+	mesh = mesh.Transform(ax.Inverse())
 
 	log.Println("Flattening base...")
 	mesh = mesh.FlattenBase(0)

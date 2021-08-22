@@ -44,7 +44,7 @@ func testTransform(t *testing.T, transform model3d.Transform) {
 	sdf1 := model3d.MeshToSDF(mesh1)
 
 	mesh2 := model3d.MarchingCubesSearch(transformed, 0.02, 8)
-	mesh2 = mesh2.MapCoords(transform.Inverse().Apply)
+	mesh2 = mesh2.Transform(transform.Inverse())
 	sdf2 := model3d.MeshToSDF(mesh2)
 	solid2 := model3d.NewColliderSolid(model3d.MeshToCollider(mesh2))
 

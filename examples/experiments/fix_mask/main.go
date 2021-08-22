@@ -199,7 +199,7 @@ func CreateFilterRing(m *model3d.Mesh) *model3d.Mesh {
 	}
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(squeeze, solid), 0.1, 8)
-	mesh = mesh.MapCoords(squeeze.Inverse().Apply)
+	mesh = mesh.Transform(squeeze.Inverse())
 	log.Println("Done creating mesh...")
 	mesh = mesh.FlattenBase(0)
 	mesh = mesh.EliminateCoplanar(1e-8)

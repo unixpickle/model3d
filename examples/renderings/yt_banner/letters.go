@@ -34,7 +34,7 @@ func CreateLetters() render3d.Object {
 		Ratio: 0.01,
 	}
 	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), 0.01, 8)
-	mesh = mesh.MapCoords(ax.Inverse().Apply)
+	mesh = mesh.Transform(ax.Inverse())
 	mesh = mesh.EliminateCoplanar(1e-8)
 
 	return &render3d.ColliderObject{

@@ -122,8 +122,8 @@ func CreateRendering(spec *Spec) {
 	}
 
 	mesh := LoadModel("board")
-	mesh.AddMesh(LoadModel("drive").MapCoords(driveTransform.Apply))
-	mesh.AddMesh(LoadModel("driven").MapCoords(drivenTransform.Apply))
+	mesh.AddMesh(LoadModel("drive").Transform(driveTransform))
+	mesh.AddMesh(LoadModel("driven").Transform(drivenTransform))
 
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
@@ -215,8 +215,8 @@ func CreateAnimation(spec *Spec) {
 
 		mesh := model3d.NewMesh()
 		mesh.AddMesh(boardMesh)
-		mesh.AddMesh(driveMesh.MapCoords(driveTransform.Apply))
-		mesh.AddMesh(drivenMesh.MapCoords(drivenTransform.Apply))
+		mesh.AddMesh(driveMesh.Transform(driveTransform))
+		mesh.AddMesh(drivenMesh.Transform(drivenTransform))
 
 		img := render3d.NewImage(200, 200)
 		renderer.Render(img, render3d.Objectify(mesh, nil))

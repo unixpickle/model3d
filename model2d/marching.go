@@ -105,7 +105,7 @@ func MarchingSquaresConj(s Solid, delta float64, iters int, xforms ...Transform)
 	joined := JoinedTransform(xforms)
 	solid := TransformSolid(joined, s)
 	mesh := MarchingSquaresSearch(solid, delta, iters)
-	return mesh.MapCoords(joined.Inverse().Apply)
+	return mesh.Transform(joined.Inverse())
 }
 
 // MarchingSquaresASCII turns a Solid into an ASCII-art

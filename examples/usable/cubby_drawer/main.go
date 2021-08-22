@@ -59,7 +59,7 @@ func main() {
 		Ratio: 0.025,
 	}
 	binMesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, binSolid), 0.015, 8)
-	binMesh = binMesh.MapCoords(ax.Inverse().Apply)
+	binMesh = binMesh.Transform(ax.Inverse())
 	FinalizeMesh(binMesh, "bin")
 
 	log.Println("Creating knob mesh...")

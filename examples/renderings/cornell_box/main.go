@@ -138,11 +138,7 @@ func LoadDiamond() model3d.Collider {
 
 	// Put the diamond on its side.
 	mesh = mesh.Rotate(model3d.Y(1), 0.5*math.Pi+math.Atan(1/1.2))
-
-	translate := model3d.Translate{
-		Offset: model3d.Coord3D{Z: -(2 + mesh.Min().Z), Y: 4},
-	}
-	mesh = mesh.MapCoords(translate.Apply)
+	mesh = mesh.Translate(model3d.YZ(4, -(2 + mesh.Min().Z)))
 
 	return model3d.MeshToCollider(mesh)
 }

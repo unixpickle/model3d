@@ -50,7 +50,7 @@ func CreateBox(bone model2d.Collider) {
 
 	log.Println("Creating box mesh...")
 	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(ax, box), 0.01, 8)
-	mesh = mesh.MapCoords(ax.Inverse().Apply)
+	mesh = mesh.Transform(ax.Inverse())
 
 	log.Println("Saving box mesh...")
 	mesh.SaveGroupedSTL("box.stl")

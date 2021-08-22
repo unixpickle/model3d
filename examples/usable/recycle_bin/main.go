@@ -41,7 +41,7 @@ func main() {
 
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(model3d.TransformSolid(squeeze, &bin), 0.02, 16)
-	mesh = mesh.MapCoords(squeeze.Inverse().Apply)
+	mesh = mesh.Transform(squeeze.Inverse())
 	log.Printf("Simplifying mesh (%d triangles)...", len(mesh.TriangleSlice()))
 	mesh = mesh.EliminateCoplanar(1e-5)
 	log.Printf("Exporting mesh (%d triangles)...", len(mesh.TriangleSlice()))

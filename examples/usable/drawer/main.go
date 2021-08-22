@@ -91,7 +91,7 @@ func CreateMesh(solid model3d.Solid, name string, resolution float64, ax *toolbo
 	var mesh *model3d.Mesh
 	if ax != nil {
 		mesh = model3d.MarchingCubesSearch(model3d.TransformSolid(ax, solid), resolution, 8)
-		mesh = mesh.MapCoords(ax.Inverse().Apply)
+		mesh = mesh.Transform(ax.Inverse())
 	} else {
 		mesh = model3d.MarchingCubesSearch(solid, resolution, 8)
 	}

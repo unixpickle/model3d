@@ -62,10 +62,7 @@ func ReadVase() render3d.Object {
 	mesh = mesh.MapCoords(model3d.XYZ(0.8, 0.8, 0.8).Mul)
 
 	min, max := mesh.Min(), mesh.Max()
-	mesh = mesh.MapCoords(model3d.Coord3D{
-		X: VaseX - (max.X+min.X)/2,
-		Y: VaseY - (max.Y+min.Y)/2,
-	}.Add)
+	mesh = mesh.Translate(model3d.XY(VaseX-(max.X+min.X)/2, VaseY-(max.Y+min.Y)/2))
 	return &VaseObject{
 		Object: &render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(mesh),
@@ -102,10 +99,7 @@ func (v *VaseObject) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Materi
 func ReadRocks() render3d.Object {
 	mesh := ReadModel("models/rocks.stl.gz")
 	min, max := mesh.Min(), mesh.Max()
-	mesh = mesh.MapCoords(model3d.Coord3D{
-		X: -(max.X + min.X) / 2,
-		Y: RocksY - min.Y,
-	}.Add)
+	mesh = mesh.Translate(model3d.XY(-(max.X+min.X)/2, RocksY-min.Y))
 	return &render3d.ColliderObject{
 		Collider: model3d.MeshToCollider(mesh),
 		Material: &render3d.LambertMaterial{
@@ -130,11 +124,7 @@ func ReadPumpkin() render3d.Object {
 	for i, model := range models {
 		color := colors[i]
 		mesh := ReadModel(model)
-		mesh = mesh.MapCoords(model3d.Coord3D{
-			X: PumpkinX,
-			Y: PumpkinY,
-			Z: 1.1942578125000005,
-		}.Add)
+		mesh = mesh.Translate(model3d.XYZ(PumpkinX, PumpkinY, 1.1942578125000005))
 		parts = append(parts, &render3d.ColliderObject{
 			Collider: model3d.MeshToCollider(mesh),
 			Material: &render3d.LambertMaterial{

@@ -90,9 +90,7 @@ type PickleFunction struct {
 func NewPickleFunction() *PickleFunction {
 	bmp := model2d.MustReadBitmap("pickle.png", nil).FlipY()
 	mesh := bmp.Mesh().SmoothSq(100)
-	mesh = mesh.MapCoords(func(c model2d.Coord) model2d.Coord {
-		return c.Scale(PickleLength / float64(bmp.Height))
-	})
+	mesh = mesh.Scale(PickleLength / float64(bmp.Height))
 	collider := model2d.MeshToCollider(mesh)
 	return &PickleFunction{Collider: collider}
 }

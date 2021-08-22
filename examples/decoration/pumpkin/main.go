@@ -118,7 +118,7 @@ type EtchSolid struct {
 
 func NewEtchSolid() *EtchSolid {
 	bmp := model2d.MustReadBitmap("etching.png", nil)
-	scale := model2d.Coord{X: 1 / float64(bmp.Width), Y: 1 / float64(bmp.Height)}
+	scale := model2d.XY(1/float64(bmp.Width), 1/float64(bmp.Height))
 	mesh := bmp.Mesh().SmoothSq(50).MapCoords(scale.Mul)
 	return &EtchSolid{
 		Solid:  model2d.NewColliderSolid(model2d.MeshToCollider(mesh)),
