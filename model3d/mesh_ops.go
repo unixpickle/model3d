@@ -429,8 +429,7 @@ func (m *Mesh) RepairNormals(epsilon float64) (*Mesh, int) {
 //
 // See: https://arxiv.org/abs/math/0503219.
 func (m *Mesh) FlipDelaunay() *Mesh {
-	res := NewMesh()
-	res.AddMesh(m)
+	res := m.Copy()
 	changed := true
 	for changed {
 		changed = false

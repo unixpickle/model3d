@@ -233,8 +233,7 @@ type equivalenceClass struct {
 // will be retained if all of the remaining vertices are
 // not part of exactly two segments.
 func (m *Mesh) Decimate(maxVertices int) *Mesh {
-	res := NewMesh()
-	res.AddMesh(m)
+	res := m.Copy()
 	areas := map[Coord]float64{}
 	for _, v := range res.VertexSlice() {
 		areas[v] = vertexArea(m, v)
@@ -305,8 +304,7 @@ func vertexNeighbors(m *Mesh, c Coord) (n1, n2 Coord, ok bool) {
 // that is used to approximate co-linearity.
 // A good value for very precise results is 1e-8.
 func (m *Mesh) EliminateColinear(epsilon float64) *Mesh {
-	res := NewMesh()
-	res.AddMesh(m)
+	res := m.Copy()
 
 	eligible := map[Coord]bool{}
 	for _, v := range res.VertexSlice() {

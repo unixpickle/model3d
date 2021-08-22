@@ -94,8 +94,7 @@ func EncodeCustomSVG(meshes []*Mesh, colors []string, thicknesses []float64, bou
 // connected (with no vertices used more than twice), then
 // f is only called once.
 func findPolylines(m *Mesh, f func(points []Coord)) {
-	m1 := NewMesh()
-	m1.AddMesh(m)
+	m1 := m.Copy()
 	for len(m1.faces) > 0 {
 		f(findNextPolyline(m1))
 	}

@@ -277,8 +277,7 @@ func (h *HeightMap) SetHeightSquaredAt(c model2d.Coord, hs float64) {
 // the height map but above the Z axis.
 func (h *HeightMap) Mesh() *model3d.Mesh {
 	// Create a result mesh without a vertex-to-face cache.
-	mesh := model3d.NewMesh()
-	mesh.AddMesh(h.surfaceMesh())
+	mesh := h.surfaceMesh().Copy()
 
 	edges := findUnsharedEdges(mesh)
 
@@ -310,8 +309,7 @@ func (h *HeightMap) Mesh() *model3d.Mesh {
 // across the Z axis. This is like Mesh(), but with a
 // symmetrical base rather than a flat one.
 func (h *HeightMap) MeshBidir() *model3d.Mesh {
-	mesh := model3d.NewMesh()
-	mesh.AddMesh(h.surfaceMesh())
+	mesh := h.surfaceMesh().Copy()
 
 	edges := findUnsharedEdges(mesh)
 

@@ -189,8 +189,7 @@ func TestTriangleCollisionMismatch(t *testing.T) {
 	m := readNonIntersectingHook()
 
 	flat := m.FlattenBase(0)
-	flat1 := NewMesh()
-	flat1.AddMesh(flat)
+	flat1 := flat.Copy()
 
 	i1 := flat.SelfIntersections()
 	i2 := flat1.SelfIntersections()
