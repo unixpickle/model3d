@@ -13,6 +13,11 @@ const (
 	BackHeight  = 2.0
 	FrontHeight = 0.5
 	Slope       = 0.3
+
+	// Set to non-zero to put a hole in the front part of
+	// the holder to allow the bottom of the screen to be
+	// seen and touched.
+	MiddleHoleSize = 0.0
 )
 
 func main() {
@@ -27,7 +32,7 @@ func main() {
 			frontY := Depth + offset
 			backY := Depth + offset - HolderSize - Thickness
 			if c.Y < frontY && c.Y > frontY-Thickness && c.Z < FrontHeight+Thickness {
-				return true
+				return c.X <= Width/2-MiddleHoleSize/2 || c.X >= Width/2+MiddleHoleSize/2
 			}
 			if c.Y < backY && c.Y > backY-Thickness {
 				return true
