@@ -1,9 +1,12 @@
 package model2d
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/unixpickle/model3d/fileformats"
 )
 
 // EncodeCSV encodes the mesh as a CSV file.
@@ -53,34 +56,37 @@ func EncodeCustomSVG(meshes []*Mesh, colors []string, thicknesses []float64, bou
 		}
 	}
 
-	var result strings.Builder
-	result.WriteString(`<?xml version="1.0" encoding="utf-8" ?>`)
-	result.WriteString(
-		fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="%f %f %f %f">`,
-			min.X, min.Y, max.X-min.X, max.Y-min.Y))
+	var result bytes.Buffer
+	writer, err := fileformats.NewSVGWriter(&result, [4]float64{
+		min.X, min.Y, max.X - min.X, max.Y - min.Y,
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	for i, m := range meshes {
 		color := colors[i]
 		thickness := fmt.Sprintf("%f", thicknesses[i])
 		findPolylines(m, func(points []Coord) {
-			pointStrs := make([]string, len(points))
-			for i, c := range points {
-				pointStrs[i] = fmt.Sprintf("%f,%f", c.X, c.Y)
+			pointArrs := make([][2]float64, len(points))
+			for i, x := range points {
+				pointArrs[i] = x.Array()
 			}
-			if pointStrs[0] == pointStrs[len(pointStrs)-1] {
-				pointStrs = pointStrs[1:]
-				result.WriteString(`<polygon points="`)
-			} else {
-				result.WriteString(`<polyline points="`)
+			err = writer.WritePoly(pointArrs, map[string]string{
+				"fill":         "none",
+				"stroke-width": thickness,
+				"stroke":       color,
+			})
+			if err != nil {
+				panic(err)
 			}
-			result.WriteString(strings.Join(pointStrs, " "))
-			result.WriteString(`" stroke="` + color + `" fill="none" `)
-			result.WriteString(`stroke-width="` + thickness + `" />`)
 		})
 	}
 
-	result.WriteString("</svg>")
-	return []byte(result.String())
+	if err := writer.WriteEnd(); err != nil {
+		panic(err)
+	}
+	return result.Bytes()
 }
 
 // findPolylines finds sequences of connected segments and

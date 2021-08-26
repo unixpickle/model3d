@@ -1,6 +1,8 @@
 package fileformats
 
 import (
+	"bytes"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"strings"
@@ -8,10 +10,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+// An SVGWriter encodes paths to SVG files.
 type SVGWriter struct {
 	w io.Writer
 }
 
+// NewSVGWriter creates writes an SVG header and returns a
+// new SVGWriter.
+//
+// The viewbox argument specifies the bounding box of the
+// image as [minX, minY, width, height].
 func NewSVGWriter(w io.Writer, viewbox [4]float64) (*SVGWriter, error) {
 	header := `<?xml version="1.0" encoding="utf-8" ?>` +
 		fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="%f %f %f %f">`,
@@ -24,7 +32,7 @@ func NewSVGWriter(w io.Writer, viewbox [4]float64) (*SVGWriter, error) {
 
 // WritePoly writes a polygon or a polyline depending on
 // whether the final point matches up with the first.
-func (s *SVGWriter) WritePoly(name string, points [][2]float64, attrs map[string]string) error {
+func (s *SVGWriter) WritePoly(points [][2]float64, attrs map[string]string) error {
 	pointStrs := make([]string, len(points))
 	for i, c := range points {
 		pointStrs[i] = fmt.Sprintf("%f,%f", c[0], c[1])
@@ -37,23 +45,29 @@ func (s *SVGWriter) WritePoly(name string, points [][2]float64, attrs map[string
 		line = `<polyline points="`
 	}
 	line += strings.Join(pointStrs, " ")
+	line += `"`
 
 	var attrStrings []string
 	for attribute, value := range attrs {
-		attrStrings = append(attrStrings, fmt.Sprintf("%s=\"%s\"", attribute, value))
+		var encodedString bytes.Buffer
+		if err := xml.EscapeText(&encodedString, []byte(value)); err != nil {
+			return errors.Wrap(err, "write SVG polygon")
+		}
+		attrStrings = append(attrStrings, fmt.Sprintf("%s=\"%s\"", attribute, string(encodedString.Bytes())))
 	}
 	line += " " + strings.Join(attrStrings, " ")
 	if len(attrs) != 1 {
 		line += " "
 	}
 	line += "/>"
-	_, err := s.w.Write([]byte("</svg>"))
+	_, err := s.w.Write([]byte(line))
 	if err != nil {
 		return errors.Wrap(err, "write SVG polygon")
 	}
 	return nil
 }
 
+// WriteEnd writes any necessary footer information.
 func (s *SVGWriter) WriteEnd() error {
 	_, err := s.w.Write([]byte("</svg>"))
 	if err != nil {
