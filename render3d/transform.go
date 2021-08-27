@@ -30,6 +30,18 @@ func (t *translatedObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material,
 	})
 }
 
+// Rotate creates a new Object by rotating an Object by
+// a given angle (in radians) around a given (unit) axis.
+func Rotate(obj Object, axis model3d.Coord3D, angle float64) Object {
+	return MatrixMultiply(obj, model3d.NewMatrix3Rotation(axis, angle))
+}
+
+// Scale creates a new Object by scaling an Object by the
+// given factor along all axes.
+func Scale(obj Object, scale float64) Object {
+	return MatrixMultiply(obj, &model3d.Matrix3{scale, 0, 0, 0, scale, 0, 0, 0, scale})
+}
+
 // MatrixMultiply left-multiplies coordinates in an object
 // by a matrix m.
 // It can be used for rotations, scaling, etc.
