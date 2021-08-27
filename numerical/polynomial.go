@@ -3,6 +3,7 @@ package numerical
 import (
 	"fmt"
 	"math"
+	"math/cmplx"
 	"sort"
 	"strings"
 
@@ -132,6 +133,53 @@ func (p Polynomial) IterRealRoots(f func(x float64) bool) {
 		}
 		if f(root1) {
 			f(root2)
+		}
+		return
+	} else if len(p) == 4 {
+		// Cubic formula: https://en.wikipedia.org/wiki/Cubic_equation#General_cubic_formula
+		a, b, c, d := complex(p[3], 0), complex(p[2], 0), complex(p[1], 0), complex(p[0], 0)
+		disc0 := b*b - 3*a*c
+		disc1 := 2*b*b*b - 9*a*b*c + 27*a*a*d
+		addOrSub := cmplx.Sqrt(disc1*disc1 - 4*disc0*disc0*disc0)
+		// For numerical stability, choose the C with the largest
+		// absolute value.
+		c1 := (disc1 + addOrSub) / 2
+		c2 := (disc1 - addOrSub) / 2
+		bigC := c1
+		if cmplx.Abs(c2) > cmplx.Abs(c1) {
+			bigC = c2
+		}
+		bigC = cmplx.Pow(bigC, 1.0/3.0)
+
+		xForPhase := func(phase complex128) float64 {
+			thisC := phase * bigC
+			if thisC == 0 {
+				return real((-1.0 / (3 * a)) * b)
+			}
+			return real((-1.0 / (3 * a)) * (b + thisC + disc0/thisC))
+		}
+		roots := [3]float64{
+			xForPhase(1),
+			xForPhase(-0.5 + 0.8660254037844386i),
+			xForPhase(-0.5 - 0.8660254037844386i),
+		}
+
+		// One of the roots is real, so we select the one for which
+		// p(x) is closest to zero.
+		ys := [3]float64{
+			math.Abs(p.Eval(roots[0])),
+			math.Abs(p.Eval(roots[1])),
+			math.Abs(p.Eval(roots[2])),
+		}
+		root := roots[0]
+		if ys[1] < ys[0] && ys[1] < ys[2] {
+			root = roots[1]
+		} else if ys[2] < ys[0] && ys[2] < ys[1] {
+			root = roots[2]
+		}
+
+		if f(root) {
+			p.divideRoot(root).IterRealRoots(f)
 		}
 		return
 	}

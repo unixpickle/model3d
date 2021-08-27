@@ -121,8 +121,16 @@ func TestPolynomialProduct(t *testing.T) {
 }
 
 func BenchmarkPolynomialRealRoots(b *testing.B) {
-	p := Polynomial{154350, 205065, 123529, 40368, 1676, -4290, -1914, -384, -10, 9, 1}
-	for i := 0; i < b.N; i++ {
-		p.RealRoots()
-	}
+	b.Run("Deg3", func(b *testing.B) {
+		p := Polynomial{-10, 9, 1, 2}
+		for i := 0; i < b.N; i++ {
+			p.RealRoots()
+		}
+	})
+	b.Run("Deg10", func(b *testing.B) {
+		p := Polynomial{154350, 205065, 123529, 40368, 1676, -4290, -1914, -384, -10, 9, 1}
+		for i := 0; i < b.N; i++ {
+			p.RealRoots()
+		}
+	})
 }
