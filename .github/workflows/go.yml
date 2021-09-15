@@ -31,3 +31,6 @@ jobs:
 
     - name: Codegen Check
       run: go run . -check
+
+    - name: gofmt
+      run: ./check_gofmt.sh
