@@ -22,6 +22,11 @@ const (
 
 	// Radius of inner hole for umbrella to slide into.
 	SmallRadius = 0.625
+
+	// Controls the size of the cut in the side. This cut allows
+	// the part to contract slightly.
+	// Idea from: https://twitter.com/armand_dpl/status/1438179369944555535
+	CutoutThickness = 0.3
 )
 
 func main() {
@@ -30,7 +35,13 @@ func main() {
 			CreateLip(),
 			CreateMidHole(),
 		},
-		Negative: CreateSmallHole(),
+		Negative: model3d.JoinedSolid{
+			CreateSmallHole(),
+			model3d.NewRect(
+				model3d.XYZ(-CutoutThickness/2, -(LipRadius+1e-5), -(LipMinThickness+1e-5)),
+				model3d.XYZ(CutoutThickness/2, 0, HoleDepth+1e-5),
+			),
+		},
 	}
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
