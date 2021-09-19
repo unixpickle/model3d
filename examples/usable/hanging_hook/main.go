@@ -51,7 +51,7 @@ func main() {
 
 func HookSolid(minY, maxZ, width, thickness float64) model3d.Solid {
 	eval := func(t float64) model2d.Coord {
-		return model2d.XY(minY-thickness*0.5+(0.25-math.Pow(t-0.5, 2))*maxZ, t*maxZ+thickness/2)
+		return model2d.XY(minY-thickness*0.5+(0.25-math.Pow(t-0.5, 2))*maxZ, t*maxZ)
 	}
 	lines := model2d.NewMesh()
 	eps := 0.01
