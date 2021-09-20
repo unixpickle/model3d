@@ -18,6 +18,9 @@ const (
 	HandleHeight  = 2.5
 	HandleWidth   = 0.3
 	Thickness     = 0.2
+
+	// Use a handle that goes all the way down to the base.
+	FullHeightHandle = false
 )
 
 func main() {
@@ -61,9 +64,13 @@ func PitcherExteriorSolid() model3d.Solid {
 		}
 	})
 	rounded := model3d.NewColliderSolidHollow(model3d.MeshToCollider(mesh), Thickness/2)
+	handle := PitcherHandleTriangle()
+	if FullHeightHandle {
+		handle = PitcherHandleFullHeight(rounded.Min().Z)
+	}
 	return model3d.JoinedSolid{
 		rounded,
-		PitcherHandle(),
+		handle,
 		// Solid cylinder at the base instead of a
 		// rounded base (which needs support).
 		&model3d.Cylinder{
@@ -108,7 +115,7 @@ func Pyramid() model3d.Solid {
 	)
 }
 
-func PitcherHandle() model3d.Solid {
+func PitcherHandleTriangle() model3d.Solid {
 	x := PitcherRadius
 	z := PitcherHeight / 2
 	inset := Thickness * math.Sqrt(2)
@@ -119,6 +126,24 @@ func PitcherHandle() model3d.Solid {
 			zDist := math.Abs(c.Z - z)
 			curX := x + HandleHeight/2 - zDist
 			return c.X < curX && c.X > curX-inset
+		},
+	)
+}
+
+func PitcherHandleFullHeight(minZ float64) model3d.Solid {
+	x := PitcherRadius
+	z := PitcherHeight - Thickness - HandleHeight/2
+	inset := Thickness * math.Sqrt(2)
+	return model3d.CheckedFuncSolid(
+		model3d.XYZ(x-Thickness/2, -HandleWidth/2, minZ),
+		model3d.XYZ(x+HandleHeight/2, HandleWidth/2, z+HandleHeight/2),
+		func(c model3d.Coord3D) bool {
+			if c.Z > z {
+				zDist := math.Abs(c.Z - z)
+				curX := x + HandleHeight/2 - zDist
+				return c.X < curX && c.X > curX-inset
+			}
+			return c.Z < HandleWidth || c.X > x+HandleHeight/2-HandleWidth
 		},
 	)
 }
