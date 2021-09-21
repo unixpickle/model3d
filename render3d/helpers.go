@@ -1,7 +1,11 @@
 package render3d
 
 import (
+	"image"
+	"image/color"
+	"image/gif"
 	"math"
+	"os"
 
 	"github.com/unixpickle/model3d/model3d"
 )
@@ -152,6 +156,55 @@ func SaveRandomGrid(path string, obj interface{}, rows, cols, imgSize int,
 	}
 
 	return fullOutput.Save(path)
+}
+
+// SaveRotatingGIF saves a grayscale animated GIF panning
+// around a model.
+func SaveRotatingGIF(path string, obj interface{}, axis model3d.Coord3D, imgSize, frames int,
+	fps float64, colorFunc ColorFunc) error {
+	object := Objectify(obj, colorFunc)
+	min, max := object.Min(), object.Max()
+	center := min.Mid(max)
+
+	basis1, basis2 := axis.OrthoBasis()
+
+	var g gif.GIF
+	for i := 0; i < frames; i++ {
+		theta := math.Pi * 2 * float64(i) / float64(frames)
+		direction := basis1.Scale(math.Cos(theta)).Add(basis2.Scale(math.Sin(theta)))
+		caster := &RayCaster{
+			Camera: directionalCamera(object, direction),
+			Lights: []*PointLight{
+				{
+					Origin: center.Add(direction.Scale(1000 * min.Dist(max))),
+					Color:  NewColor(1.0),
+				},
+			},
+		}
+		subImage := NewImage(imgSize, imgSize)
+		caster.Render(subImage, object)
+		grayImage := subImage.Gray()
+
+		palette := make(color.Palette, 256)
+		for i := range palette {
+			palette[i] = &color.Gray{Y: uint8(i)}
+		}
+		out := image.NewPaletted(image.Rect(0, 0, imgSize, imgSize), palette)
+		for y := 0; y < imgSize; y++ {
+			for x := 0; x < imgSize; x++ {
+				out.SetColorIndex(x, y, grayImage.GrayAt(x, y).Y)
+			}
+		}
+		g.Image = append(g.Image, out)
+		g.Delay = append(g.Delay, int(math.Ceil(100/fps)))
+	}
+
+	w, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	return gif.EncodeAll(w, &g)
 }
 
 // directionalCamera figures out where to move a camera in
