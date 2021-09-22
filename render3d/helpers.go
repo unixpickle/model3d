@@ -160,29 +160,50 @@ func SaveRandomGrid(path string, obj interface{}, rows, cols, imgSize int,
 
 // SaveRotatingGIF saves a grayscale animated GIF panning
 // around a model.
-func SaveRotatingGIF(path string, obj interface{}, axis model3d.Coord3D, imgSize, frames int,
-	fps float64, colorFunc ColorFunc) error {
+//
+// The axis specifies the axis around which the model will
+// rotate.
+// The cameraDir specifies the direction (from the center
+// of the object) from which the camera will be extended
+// until it can see the entire object.
+func SaveRotatingGIF(path string, obj interface{}, axis, cameraDir model3d.Coord3D,
+	imgSize, frames int, fps float64, colorFunc ColorFunc) error {
 	object := Objectify(obj, colorFunc)
 	min, max := object.Min(), object.Max()
 	center := min.Mid(max)
 
-	basis1, basis2 := axis.OrthoBasis()
-
-	var g gif.GIF
+	var furthestCamera *Camera
+	transformed := make([]Object, frames)
 	for i := 0; i < frames; i++ {
 		theta := math.Pi * 2 * float64(i) / float64(frames)
-		direction := basis1.Scale(math.Cos(theta)).Add(basis2.Scale(math.Sin(theta)))
+		xObj := Translate(object, center.Scale(-1))
+		xObj = Rotate(xObj, axis, theta)
+		xObj = Translate(xObj, center)
+		transformed[i] = xObj
+
+		camera := directionalCamera(transformed[i], cameraDir.Normalize())
+		if furthestCamera == nil ||
+			camera.Origin.Dist(center) > furthestCamera.Origin.Dist(center) {
+			furthestCamera = camera
+		}
+	}
+
+	offset := furthestCamera.Origin.Sub(center)
+	lights := []*PointLight{
+		{
+			Origin: center.Add(offset.Scale(1000)),
+			Color:  NewColor(1.0),
+		},
+	}
+
+	var g gif.GIF
+	for _, xObj := range transformed {
 		caster := &RayCaster{
-			Camera: directionalCamera(object, direction),
-			Lights: []*PointLight{
-				{
-					Origin: center.Add(direction.Scale(1000 * min.Dist(max))),
-					Color:  NewColor(1.0),
-				},
-			},
+			Camera: furthestCamera,
+			Lights: lights,
 		}
 		subImage := NewImage(imgSize, imgSize)
-		caster.Render(subImage, object)
+		caster.Render(subImage, xObj)
 		grayImage := subImage.Gray()
 
 		palette := make(color.Palette, 256)
