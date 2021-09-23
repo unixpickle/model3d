@@ -33,4 +33,7 @@ jobs:
       run: go run . -check
 
     - name: gofmt
-      run: ./check_gofmt.sh
+      run: ./ci/check_gofmt.sh
+    
+    - name: gofmt
+      run: ./ci/check_large_files.sh
