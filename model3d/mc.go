@@ -90,6 +90,83 @@ func MarchingCubesConj(s Solid, delta float64, iters int, xforms ...Transform) *
 	return mesh.Transform(joined.Inverse())
 }
 
+// MarchingCubesRC is like MarchingCubes, but eliminates
+// rectangular volumes not intersecting a RectCollider.
+// This can be much more efficient than MarchingCubes if
+// the surface is sparse.
+//
+// Note that the RectCollider can be conservative and
+// possibly report collisions that do not occur.
+// However, it should never fail to report collisions,
+// since this could cause triangles to be missed.
+func MarchingCubesRC(s Solid, rc RectCollider, delta float64) *Mesh {
+	if !BoundsValid(s) {
+		panic("invalid bounds for solid")
+	}
+
+	table := mcLookupTable()
+	spacer := newSquareSpacer(s, delta)
+
+	numGos := runtime.GOMAXPROCS(0)
+	blockQueue := make(chan *mcBlock, numGos)
+	outputs := make(chan *Mesh, numGos)
+
+	blockFilter := func(m *mcBlock) bool {
+		// We add a small buffer around bounding boxes to prevent
+		// rounding errors from missing rect collisions.
+		epsilon := delta * 1e-3
+
+		return rc.RectCollision(m.Bounds(epsilon))
+	}
+
+	subDivideVolume := 64
+	for i := 0; i < numGos; i++ {
+		go func() {
+			result := NewMesh()
+			cache := newMcBlockCache()
+			for block := range blockQueue {
+				block.Pieces(subDivideVolume, blockFilter, func(block *mcBlock) {
+					cache.Populate(block, s)
+					for z := block.min[2]; z < block.max[2]; z++ {
+						for y := block.min[1]; y < block.max[1]; y++ {
+							for x := block.min[0]; x < block.max[0]; x++ {
+								bits := cache.GetCube(x, y, z)
+								triangles := table[bits]
+								if len(triangles) > 0 {
+									min := spacer.CornerCoord(x, y, z)
+									max := spacer.CornerCoord(x+1, y+1, z+1)
+									corners := mcCornerCoordinates(min, max)
+									for _, t := range triangles {
+										result.Add(t.Triangle(corners))
+									}
+								}
+							}
+						}
+					}
+				})
+			}
+			outputs <- result
+		}()
+	}
+
+	rootBlock := newMcBlock(spacer)
+
+	// Divide the volume up into relatively small pieces,
+	// but allow some splitting to be done by the individual
+	// Goroutines to increase performance.
+	divideVolume := essentials.MaxInt(rootBlock.Volume()/4096, subDivideVolume)
+	rootBlock.Pieces(divideVolume, blockFilter, func(m *mcBlock) {
+		blockQueue <- m
+	})
+	close(blockQueue)
+
+	mesh := NewMesh()
+	for i := 0; i < numGos; i++ {
+		mesh.AddMesh(<-outputs)
+	}
+	return mesh
+}
+
 func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, min [3]float64, c Coord3D) Coord3D {
 	arr := c.Array()
 
@@ -574,4 +651,140 @@ func (a *asyncSolidCache) FetchZ(z int) {
 		a.Cache.FetchZ(z)
 		a.Done <- struct{}{}
 	}()
+}
+
+// mcBlock is used to track a rectangular volume of maching
+// cubes cells.
+type mcBlock struct {
+	spacer *squareSpacer
+	min    [3]int
+	max    [3]int
+}
+
+func newMcBlock(spacer *squareSpacer) mcBlock {
+	return mcBlock{
+		spacer: spacer,
+		min:    [3]int{0, 0, 0},
+		max:    [3]int{len(spacer.Xs) - 1, len(spacer.Ys) - 1, len(spacer.Zs) - 1},
+	}
+}
+
+func (m *mcBlock) Bounds(epsilon float64) *Rect {
+	min := XYZ(m.spacer.Xs[m.min[0]], m.spacer.Ys[m.min[1]], m.spacer.Zs[m.min[2]])
+	max := XYZ(m.spacer.Xs[m.max[0]], m.spacer.Ys[m.max[1]], m.spacer.Zs[m.max[2]])
+	return NewRect(min.AddScalar(-epsilon), max.AddScalar(epsilon))
+}
+
+func (m *mcBlock) Volume() int {
+	res := 1
+	for i, min := range m.min {
+		res *= m.max[i] - min
+	}
+	return res
+}
+
+func (m *mcBlock) NumPoints() int {
+	res := 1
+	for i, min := range m.min {
+		res *= (m.max[i] - min) + 1
+	}
+	return res
+}
+
+func (m *mcBlock) Pieces(minVolume int, g func(*mcBlock) bool, f func(*mcBlock)) {
+	if !g(m) {
+		return
+	}
+	if m.Volume()/2 < minVolume {
+		f(m)
+	} else {
+		b1, b2 := m.Split()
+		b1.Pieces(minVolume, g, f)
+		b2.Pieces(minVolume, g, f)
+	}
+}
+
+func (m *mcBlock) Split() (mcBlock, mcBlock) {
+	lenX := m.max[0] - m.min[0]
+	lenY := m.max[1] - m.min[1]
+	lenZ := m.max[2] - m.min[2]
+	splitAxis := 0
+	if lenY >= lenX && lenY >= lenZ {
+		splitAxis = 1
+	} else if lenZ >= lenX && lenZ >= lenY {
+		splitAxis = 2
+	}
+
+	min1 := m.min
+	max1 := m.max
+	min2 := m.min
+	max2 := m.max
+	max1[splitAxis] = (m.max[splitAxis] + m.min[splitAxis]) / 2
+	min2[splitAxis] = max1[splitAxis]
+
+	s1 := mcBlock{
+		spacer: m.spacer,
+		min:    min1,
+		max:    max1,
+	}
+	s2 := mcBlock{
+		spacer: m.spacer,
+		min:    min2,
+		max:    max2,
+	}
+	return s1, s2
+}
+
+type mcBlockCache struct {
+	block  *mcBlock
+	values []bool
+}
+
+func newMcBlockCache() *mcBlockCache {
+	return &mcBlockCache{values: []bool{}}
+}
+
+func (m *mcBlockCache) Populate(block *mcBlock, s Solid) {
+	m.block = block
+	m.values = m.values[:0]
+	for zIdx := block.min[2]; zIdx <= block.max[2]; zIdx++ {
+		edgeZ := zIdx == 0 || zIdx == len(m.block.spacer.Zs)-1
+		z := block.spacer.Zs[zIdx]
+		for yIdx := block.min[1]; yIdx <= block.max[1]; yIdx++ {
+			edgeY := yIdx == 0 || yIdx == len(m.block.spacer.Ys)-1
+			y := block.spacer.Ys[yIdx]
+			for xIdx := block.min[0]; xIdx <= block.max[0]; xIdx++ {
+				edgeX := xIdx == 0 || xIdx == len(m.block.spacer.Xs)-1
+				x := block.spacer.Xs[xIdx]
+				value := s.Contains(XYZ(x, y, z))
+				if value && (edgeX || edgeY || edgeZ) {
+					panic("solid is true outside of bounds")
+				}
+				m.values = append(m.values, value)
+			}
+		}
+	}
+}
+
+func (m *mcBlockCache) GetCube(x, y, z int) mcIntersections {
+	x -= m.block.min[0]
+	y -= m.block.min[1]
+	z -= m.block.min[2]
+	return m.getSquare(x, y, z) | (m.getSquare(x, y, z+1) << 4)
+}
+
+func (m *mcBlockCache) getSquare(x, y, z int) mcIntersections {
+	yStride := (1 + m.block.max[0] - m.block.min[0])
+	zStride := yStride * (1 + m.block.max[1] - m.block.min[1])
+	result := mcIntersections(0)
+	mask := mcIntersections(1)
+	for y1 := y; y1 < y+2; y1++ {
+		for x1 := x; x1 < x+2; x1++ {
+			if m.values[z*zStride+y1*yStride+x1] {
+				result |= mask
+			}
+			mask <<= 1
+		}
+	}
+	return result
 }

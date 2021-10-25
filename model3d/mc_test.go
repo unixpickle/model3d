@@ -39,15 +39,66 @@ func TestMarchingCubesRandom(t *testing.T) {
 	}
 }
 
+func TestMarchingCubesRC(t *testing.T) {
+	t.Run("Sphere", func(t *testing.T) {
+		mesh := NewMeshIcosphere(XYZ(0.1, 0.3, -0.2), 1.0, 20)
+		collider := MeshToCollider(mesh)
+		solid := NewColliderSolid(collider)
+		base := MarchingCubes(solid, 0.1)
+		rc := MarchingCubesRC(solid, collider, 0.1)
+		if !meshesEqual(base, rc) {
+			t.Fatal("meshes should be equal")
+		}
+	})
+	t.Run("Boxes", func(t *testing.T) {
+		mesh := NewMesh()
+		mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
+		mesh.AddMesh(NewMeshRect(XYZ(0.1, 0, 0), XYZ(1, 1, 1)))
+		collider := MeshToCollider(mesh)
+		solid := NewColliderSolid(collider)
+		base := MarchingCubes(solid, 0.1)
+		rc := MarchingCubesRC(solid, collider, 0.1)
+		if !meshesEqual(base, rc) {
+			t.Fatal("meshes should be equal")
+		}
+	})
+}
+
 func BenchmarkMarchingCubes(b *testing.B) {
-	solid := &CylinderSolid{
-		P1:     XYZ(1, 2, 3),
-		P2:     XYZ(3, 1, 4),
-		Radius: 0.5,
-	}
-	for i := 0; i < b.N; i++ {
-		MarchingCubes(solid, 0.025)
-	}
+	b.Run("Cylinder", func(b *testing.B) {
+		solid := &CylinderSolid{
+			P1:     XYZ(1, 2, 3),
+			P2:     XYZ(3, 1, 4),
+			Radius: 0.5,
+		}
+		for i := 0; i < b.N; i++ {
+			MarchingCubes(solid, 0.025)
+		}
+	})
+	b.Run("Boxes", func(b *testing.B) {
+		mesh := NewMesh()
+		mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
+		mesh.AddMesh(NewMeshRect(XYZ(0.1, 0, 0), XYZ(1, 1, 1)))
+		solid := NewColliderSolid(MeshToCollider(mesh))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			MarchingCubes(solid, 0.025)
+		}
+	})
+}
+
+func BenchmarkMarchingCubesRC(b *testing.B) {
+	b.Run("Boxes", func(b *testing.B) {
+		mesh := NewMesh()
+		mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
+		mesh.AddMesh(NewMeshRect(XYZ(0.1, 0, 0), XYZ(1, 1, 1)))
+		collider := MeshToCollider(mesh)
+		solid := NewColliderSolid(collider)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			MarchingCubesRC(solid, collider, 0.025)
+		}
+	})
 }
 
 type randomSolid struct{}
