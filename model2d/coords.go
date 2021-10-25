@@ -5,6 +5,8 @@ import (
 	"math/rand"
 )
 
+var Origin = Coord{}
+
 // A Coord is a coordinate in 2-D Euclidean space.
 type Coord struct {
 	X float64

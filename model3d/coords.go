@@ -7,6 +7,8 @@ import (
 	"github.com/unixpickle/model3d/model2d"
 )
 
+var Origin = Coord3D{}
+
 // A GeoCoord specifies a location on a sphere with a unit
 // radius.
 //
