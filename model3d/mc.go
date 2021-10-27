@@ -46,36 +46,7 @@ func MarchingCubes(s Solid, delta float64) *Mesh {
 // every iteration.
 func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 	mesh := MarchingCubes(s, delta)
-
-	if iters == 0 {
-		return mesh
-	}
-
-	inVertices := mesh.VertexSlice()
-	outVertices := make([]Coord3D, len(inVertices))
-
-	min := s.Min().Array()
-	essentials.ConcurrentMap(0, len(inVertices), func(i int) {
-		outVertices[i] = mcSearchPoint(s, delta, iters, mesh, min, inVertices[i])
-	})
-
-	v2t := mesh.getVertexToFace()
-	for i, original := range inVertices {
-		out := outVertices[i]
-		for _, t := range v2t.Value(original) {
-			for j, c := range t {
-				if c == original {
-					t[j] = out
-					break
-				}
-			}
-		}
-	}
-
-	// We just invalidated the entire v2t cache by
-	// replacing the vertices in the triangles.
-	mesh.vertexToFace = atomic.Value{}
-
+	mcSearch(s, delta, iters, mesh)
 	return mesh
 }
 
@@ -165,6 +136,45 @@ func MarchingCubesRC(s Solid, rc RectCollider, delta float64) *Mesh {
 		mesh.AddMesh(<-outputs)
 	}
 	return mesh
+}
+
+// MarchingCubesSearchRC combines MarchingCubesSearch with
+// MarchingCubesRC.
+func MarchingCubesSearchRC(s Solid, rc RectCollider, delta float64, iters int) *Mesh {
+	mesh := MarchingCubesRC(s, rc, delta)
+	mcSearch(s, delta, iters, mesh)
+	return mesh
+}
+
+func mcSearch(s Solid, delta float64, iters int, mesh *Mesh) {
+	if iters == 0 {
+		return
+	}
+
+	inVertices := mesh.VertexSlice()
+	outVertices := make([]Coord3D, len(inVertices))
+
+	min := s.Min().Array()
+	essentials.ConcurrentMap(0, len(inVertices), func(i int) {
+		outVertices[i] = mcSearchPoint(s, delta, iters, mesh, min, inVertices[i])
+	})
+
+	v2t := mesh.getVertexToFace()
+	for i, original := range inVertices {
+		out := outVertices[i]
+		for _, t := range v2t.Value(original) {
+			for j, c := range t {
+				if c == original {
+					t[j] = out
+					break
+				}
+			}
+		}
+	}
+
+	// We just invalidated the entire v2t cache by
+	// replacing the vertices in the triangles.
+	mesh.vertexToFace = atomic.Value{}
 }
 
 func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, min [3]float64, c Coord3D) Coord3D {
