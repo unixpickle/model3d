@@ -39,13 +39,13 @@ func TestMarchingCubesRandom(t *testing.T) {
 	}
 }
 
-func TestMarchingCubesRC(t *testing.T) {
+func TestMarchingCubesFilter(t *testing.T) {
 	t.Run("Sphere", func(t *testing.T) {
 		mesh := NewMeshIcosphere(XYZ(0.1, 0.3, -0.2), 1.0, 20)
 		collider := MeshToCollider(mesh)
 		solid := NewColliderSolid(collider)
 		base := MarchingCubes(solid, 0.1)
-		rc := MarchingCubesRC(solid, collider, 0.1)
+		rc := MarchingCubesFilter(solid, collider.RectCollision, 0.1)
 		if !meshesEqual(base, rc) {
 			t.Fatal("meshes should be equal")
 		}
@@ -57,7 +57,7 @@ func TestMarchingCubesRC(t *testing.T) {
 		collider := MeshToCollider(mesh)
 		solid := NewColliderSolid(collider)
 		base := MarchingCubes(solid, 0.1)
-		rc := MarchingCubesRC(solid, collider, 0.1)
+		rc := MarchingCubesFilter(solid, collider.RectCollision, 0.1)
 		if !meshesEqual(base, rc) {
 			t.Fatal("meshes should be equal")
 		}
@@ -87,7 +87,7 @@ func BenchmarkMarchingCubes(b *testing.B) {
 	})
 }
 
-func BenchmarkMarchingCubesRC(b *testing.B) {
+func BenchmarkMarchingCubesFilter(b *testing.B) {
 	b.Run("Boxes", func(b *testing.B) {
 		mesh := NewMesh()
 		mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
@@ -96,7 +96,7 @@ func BenchmarkMarchingCubesRC(b *testing.B) {
 		solid := NewColliderSolid(collider)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			MarchingCubesRC(solid, collider, 0.025)
+			MarchingCubesFilter(solid, collider.RectCollision, 0.025)
 		}
 	})
 }

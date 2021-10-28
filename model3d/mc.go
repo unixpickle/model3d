@@ -61,16 +61,17 @@ func MarchingCubesConj(s Solid, delta float64, iters int, xforms ...Transform) *
 	return mesh.Transform(joined.Inverse())
 }
 
-// MarchingCubesRC is like MarchingCubes, but eliminates
-// rectangular volumes not intersecting a RectCollider.
+// MarchingCubesFilter is like MarchingCubes, but does not
+// scan rectangular volumes for which f returns false.
 // This can be much more efficient than MarchingCubes if
-// the surface is sparse.
+// the surface is sparse and f can tell when large regions
+// don't intersect the mesh.
 //
-// Note that the RectCollider can be conservative and
-// possibly report collisions that do not occur.
+// Note that the filter can be conservative and possibly
+// report collisions that do not occur.
 // However, it should never fail to report collisions,
 // since this could cause triangles to be missed.
-func MarchingCubesRC(s Solid, rc RectCollider, delta float64) *Mesh {
+func MarchingCubesFilter(s Solid, f func(*Rect) bool, delta float64) *Mesh {
 	if !BoundsValid(s) {
 		panic("invalid bounds for solid")
 	}
@@ -87,7 +88,7 @@ func MarchingCubesRC(s Solid, rc RectCollider, delta float64) *Mesh {
 		// rounding errors from missing rect collisions.
 		epsilon := delta * 1e-3
 
-		return rc.RectCollision(m.Bounds(epsilon))
+		return f(m.Bounds(epsilon))
 	}
 
 	subDivideVolume := 64
@@ -138,12 +139,37 @@ func MarchingCubesRC(s Solid, rc RectCollider, delta float64) *Mesh {
 	return mesh
 }
 
-// MarchingCubesSearchRC combines MarchingCubesSearch with
-// MarchingCubesRC.
-func MarchingCubesSearchRC(s Solid, rc RectCollider, delta float64, iters int) *Mesh {
-	mesh := MarchingCubesRC(s, rc, delta)
+// MarchingCubesSearchFilter combines MarchingCubesSearch with
+// MarchingCubesFilter.
+func MarchingCubesSearchFilter(s Solid, f func(*Rect) bool, delta float64, iters int) *Mesh {
+	mesh := MarchingCubesFilter(s, f, delta)
 	mcSearch(s, delta, iters, mesh)
 	return mesh
+}
+
+// MarchingCubesC2F computes a coarse mesh for the solid,
+// then uses that mesh to compute a fine mesh more
+// efficiently.
+//
+// The extraSpace argument, if non-zero, is extra space to
+// consider around the coarse mesh. It can be increased in
+// the case where the solid has fine details that are
+// totally missed by the coars mesh.
+func MarchingCubesC2F(s Solid, bigDelta, smallDelta, extraSpace float64, iters int) *Mesh {
+	if bigDelta < smallDelta {
+		panic("bigDelta should be >= smallDelta for efficiency")
+	}
+
+	// Add a conservative amount of space around the coarse mesh.
+	extraSpace += 2 * bigDelta * math.Sqrt(3)
+
+	coarseMesh := MarchingCubesSearch(s, bigDelta, iters)
+	collider := MeshToCollider(coarseMesh)
+	filter := func(r *Rect) bool {
+		r1 := NewRect(r.MinVal.AddScalar(-extraSpace), r.MaxVal.AddScalar(extraSpace))
+		return collider.RectCollision(r1)
+	}
+	return MarchingCubesSearchFilter(s, filter, smallDelta, iters)
 }
 
 func mcSearch(s Solid, delta float64, iters int, mesh *Mesh) {
