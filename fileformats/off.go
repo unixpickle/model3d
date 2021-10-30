@@ -88,8 +88,6 @@ func (o *OFFReader) ReadFace() (faces [][3]float64, err error) {
 		}
 	}()
 
-	fmt.Println(o.numFaces, o.curFace)
-
 	if o.curFace == o.numFaces {
 		return nil, io.EOF
 	} else if o.vertices == nil {
