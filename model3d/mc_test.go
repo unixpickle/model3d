@@ -76,7 +76,7 @@ func TestMarchingCubesC2F(t *testing.T) {
 	t.Run("Boxes", func(t *testing.T) {
 		mesh := NewMesh()
 		mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
-		mesh.AddMesh(NewMeshRect(XYZ(0.1, 0, 0), XYZ(1, 1, 1)))
+		mesh.AddMesh(NewMeshRect(XYZ(0.3, 0, 0), XYZ(1, 1, 1)))
 		collider := MeshToCollider(mesh)
 		solid := NewColliderSolid(collider)
 
