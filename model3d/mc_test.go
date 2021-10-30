@@ -74,59 +74,70 @@ func TestMarchingCubesC2F(t *testing.T) {
 		}
 	})
 
-	// Disable flaky test for now.
-	// TODO: figure out why this fails sometimes.
+	t.Run("Boxes", func(t *testing.T) {
+		mesh := NewMesh()
+		mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
+		mesh.AddMesh(NewMeshRect(XYZ(0.3, 0, 0), XYZ(1, 1, 1)))
+		collider := MeshToCollider(mesh)
+		solid := NewColliderSolid(collider)
 
-	// t.Run("Boxes", func(t *testing.T) {
-	// 	mesh := NewMesh()
-	// 	mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
-	// 	mesh.AddMesh(NewMeshRect(XYZ(0.3, 0, 0), XYZ(1, 1, 1)))
-	// 	collider := MeshToCollider(mesh)
-	// 	solid := NewColliderSolid(collider)
-
-	// 	mesh1 := MarchingCubesSearch(solid, 0.1, 8)
-	// 	mesh2 := MarchingCubesC2F(solid, 0.2, 0.1, 0, 8)
-	// 	if !meshesEqual(mesh1, mesh2) {
-	// 		t.Fatal("meshes should be equal")
-	// 	}
-	// })
+		mesh1 := MarchingCubesSearch(solid, 0.1, 8)
+		mesh2 := MarchingCubesC2F(solid, 0.2, 0.1, 0, 8)
+		MustValidateMesh(t, mesh1, true)
+		MustValidateMesh(t, mesh2, true)
+		if !meshesEqual(mesh1, mesh2) {
+			t.Fatal("meshes should be equal")
+		}
+	})
 }
 
 func BenchmarkMarchingCubes(b *testing.B) {
-	b.Run("Cylinder", func(b *testing.B) {
-		solid := &CylinderSolid{
-			P1:     XYZ(1, 2, 3),
-			P2:     XYZ(3, 1, 4),
-			Radius: 0.5,
-		}
-		for i := 0; i < b.N; i++ {
-			MarchingCubes(solid, 0.025)
-		}
+	runBench := func(b *testing.B, iters int) {
+		b.Run("Cylinder", func(b *testing.B) {
+			solid := &CylinderSolid{
+				P1:     XYZ(1, 2, 3),
+				P2:     XYZ(3, 1, 4),
+				Radius: 0.5,
+			}
+			for i := 0; i < b.N; i++ {
+				MarchingCubesSearch(solid, 0.025, iters)
+			}
+		})
+		b.Run("Boxes", func(b *testing.B) {
+			mesh := NewMesh()
+			mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
+			mesh.AddMesh(NewMeshRect(XYZ(0.1, 0, 0), XYZ(1, 1, 1)))
+			solid := NewColliderSolid(MeshToCollider(mesh))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				MarchingCubesSearch(solid, 0.025, iters)
+			}
+		})
+	}
+	b.Run("Search", func(b *testing.B) {
+		runBench(b, 8)
 	})
-	b.Run("Boxes", func(b *testing.B) {
-		mesh := NewMesh()
-		mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
-		mesh.AddMesh(NewMeshRect(XYZ(0.1, 0, 0), XYZ(1, 1, 1)))
-		solid := NewColliderSolid(MeshToCollider(mesh))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			MarchingCubes(solid, 0.025)
-		}
-	})
+	runBench(b, 0)
 }
 
 func BenchmarkMarchingCubesFilter(b *testing.B) {
-	b.Run("Boxes", func(b *testing.B) {
-		mesh := NewMesh()
-		mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
-		mesh.AddMesh(NewMeshRect(XYZ(0.1, 0, 0), XYZ(1, 1, 1)))
-		collider := MeshToCollider(mesh)
-		solid := NewColliderSolid(collider)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			MarchingCubesFilter(solid, collider.RectCollision, 0.025)
-		}
+	runBench := func(b *testing.B, iters int) {
+		b.Run("Boxes", func(b *testing.B) {
+			mesh := NewMesh()
+			mesh.AddMesh(NewMeshRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)))
+			mesh.AddMesh(NewMeshRect(XYZ(0.1, 0, 0), XYZ(1, 1, 1)))
+			collider := MeshToCollider(mesh)
+			solid := NewColliderSolid(collider)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				MarchingCubesSearchFilter(solid, collider.RectCollision, 0.025, iters)
+			}
+		})
+	}
+	b.Run("Search", func(b *testing.B) {
+		runBench(b, 8)
 	})
+	runBench(b, 0)
 }
 
 type randomSolid struct{}
