@@ -66,3 +66,30 @@ func TestMarchingSquaresASCII(t *testing.T) {
 		t.Errorf("expected:\n----\n%s\n----\nbut got:\n----\n%s\n----\n", expected, ascii)
 	}
 }
+
+func TestMarchingSquaresFilter(t *testing.T) {
+	t.Run("Circle", func(t *testing.T) {
+		mesh := NewMeshPolar(func(t float64) float64 {
+			return 1.0
+		}, 400).Translate(XY(0.1, -0.2))
+		collider := MeshToCollider(mesh)
+		solid := NewColliderSolid(collider)
+		base := MarchingSquares(solid, 0.1)
+		rc := MarchingSquaresFilter(solid, collider.RectCollision, 0.1)
+		if !meshesEqual(base, rc) {
+			t.Fatal("meshes should be equal")
+		}
+	})
+	t.Run("Boxes", func(t *testing.T) {
+		mesh := NewMesh()
+		mesh.AddMesh(NewMeshRect(XY(-1, -1), XY(0, 0)))
+		mesh.AddMesh(NewMeshRect(XY(0.1, 0), XY(1, 1)))
+		collider := MeshToCollider(mesh)
+		solid := NewColliderSolid(collider)
+		base := MarchingSquares(solid, 0.1)
+		rc := MarchingSquaresFilter(solid, collider.RectCollision, 0.1)
+		if !meshesEqual(base, rc) {
+			t.Fatal("meshes should be equal")
+		}
+	})
+}

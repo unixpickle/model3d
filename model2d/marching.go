@@ -2,7 +2,10 @@ package model2d
 
 import (
 	"math"
+	"runtime"
 	"strings"
+
+	"github.com/unixpickle/essentials"
 )
 
 /***************************************
@@ -140,6 +143,82 @@ func MarchingSquaresASCII(s Solid, delta float64) string {
 	}
 
 	return strings.Join(rows, "\n")
+}
+
+// MarchingSquaresFilter is like MarchingSquares, but does
+// not scan rectangular areas for which f returns false.
+// This can be much more efficient than MarchingCubes if
+// the surface is sparse and f can tell when large regions
+// don't intersect the mesh.
+//
+// Note that the filter can be conservative and possibly
+// report collisions that do not occur.
+// However, it should never fail to report collisions,
+// since this could cause segments to be missed.
+func MarchingSquaresFilter(s Solid, f func(*Rect) bool, delta float64) *Mesh {
+	if !BoundsValid(s) {
+		panic("invalid bounds for solid")
+	}
+
+	table := msLookupTable()
+	spacer := newSquareSpacer(s, delta)
+
+	numGos := runtime.GOMAXPROCS(0)
+	blockQueue := make(chan *msBlock, numGos)
+	outputs := make(chan *Mesh, numGos)
+
+	blockFilter := func(m *msBlock) bool {
+		// We add a small buffer around bounding boxes to prevent
+		// rounding errors from missing rect collisions.
+		epsilon := delta * 1e-3
+
+		return f(m.Bounds(epsilon))
+	}
+
+	subDivideVolume := 64
+	for i := 0; i < numGos; i++ {
+		go func() {
+			result := NewMesh()
+			cache := newMsBlockCache()
+			for block := range blockQueue {
+				block.Pieces(subDivideVolume, blockFilter, func(block *msBlock) {
+					cache.Populate(block, s)
+					for y := block.min[1]; y < block.max[1]; y++ {
+						for x := block.min[0]; x < block.max[0]; x++ {
+							bits := cache.GetSquare(x, y)
+							segments := table[bits]
+							if len(segments) > 0 {
+								min := spacer.CornerCoord(x, y)
+								max := spacer.CornerCoord(x+1, y+1)
+								corners := msCornerCoordinates(min, max)
+								for _, s := range segments {
+									result.Add(s.Segment(corners))
+								}
+							}
+						}
+					}
+				})
+			}
+			outputs <- result
+		}()
+	}
+
+	rootBlock := newMsBlock(spacer)
+
+	// Divide the area up into relatively small pieces, but
+	// allow some splitting to be done by the individual
+	// Goroutines to increase performance.
+	divideVolume := essentials.MaxInt(rootBlock.Area()/4096, subDivideVolume)
+	rootBlock.Pieces(divideVolume, blockFilter, func(m *msBlock) {
+		blockQueue <- m
+	})
+	close(blockQueue)
+
+	mesh := NewMesh()
+	for i := 0; i < numGos; i++ {
+		mesh.AddMesh(<-outputs)
+	}
+	return mesh
 }
 
 // msCorner represents a corner on a square.
@@ -334,6 +413,131 @@ func (s *solidCache) GetSegment(x int) msIntersections {
 		result |= 1
 	}
 	if s.values[x+1] {
+		result |= 2
+	}
+	return result
+}
+
+// msBlock is used to track a rectangular area of maching
+// squares cells.
+type msBlock struct {
+	spacer *squareSpacer
+	min    [2]int
+	max    [2]int
+}
+
+func newMsBlock(spacer *squareSpacer) msBlock {
+	return msBlock{
+		spacer: spacer,
+		min:    [2]int{0, 0},
+		max:    [2]int{len(spacer.Xs) - 1, len(spacer.Ys) - 1},
+	}
+}
+
+func (m *msBlock) Bounds(epsilon float64) *Rect {
+	min := XY(m.spacer.Xs[m.min[0]], m.spacer.Ys[m.min[1]])
+	max := XY(m.spacer.Xs[m.max[0]], m.spacer.Ys[m.max[1]])
+	return NewRect(min.AddScalar(-epsilon), max.AddScalar(epsilon))
+}
+
+func (m *msBlock) Area() int {
+	res := 1
+	for i, min := range m.min {
+		res *= m.max[i] - min
+	}
+	return res
+}
+
+func (m *msBlock) NumPoints() int {
+	res := 1
+	for i, min := range m.min {
+		res *= (m.max[i] - min) + 1
+	}
+	return res
+}
+
+func (m *msBlock) Pieces(minArea int, g func(*msBlock) bool, f func(*msBlock)) {
+	if !g(m) {
+		return
+	}
+	if m.Area()/2 < minArea {
+		f(m)
+	} else {
+		b1, b2 := m.Split()
+		b1.Pieces(minArea, g, f)
+		b2.Pieces(minArea, g, f)
+	}
+}
+
+func (m *msBlock) Split() (msBlock, msBlock) {
+	lenX := m.max[0] - m.min[0]
+	lenY := m.max[1] - m.min[1]
+	splitAxis := 0
+	if lenY >= lenX {
+		splitAxis = 1
+	}
+
+	min1 := m.min
+	max1 := m.max
+	min2 := m.min
+	max2 := m.max
+	max1[splitAxis] = (m.max[splitAxis] + m.min[splitAxis]) / 2
+	min2[splitAxis] = max1[splitAxis]
+
+	s1 := msBlock{
+		spacer: m.spacer,
+		min:    min1,
+		max:    max1,
+	}
+	s2 := msBlock{
+		spacer: m.spacer,
+		min:    min2,
+		max:    max2,
+	}
+	return s1, s2
+}
+
+type msBlockCache struct {
+	block  *msBlock
+	values []bool
+}
+
+func newMsBlockCache() *msBlockCache {
+	return &msBlockCache{values: []bool{}}
+}
+
+func (m *msBlockCache) Populate(block *msBlock, s Solid) {
+	m.block = block
+	m.values = m.values[:0]
+	for yIdx := block.min[1]; yIdx <= block.max[1]; yIdx++ {
+		edgeY := yIdx == 0 || yIdx == len(m.block.spacer.Ys)-1
+		y := block.spacer.Ys[yIdx]
+		for xIdx := block.min[0]; xIdx <= block.max[0]; xIdx++ {
+			edgeX := xIdx == 0 || xIdx == len(m.block.spacer.Xs)-1
+			x := block.spacer.Xs[xIdx]
+			value := s.Contains(XY(x, y))
+			if value && (edgeX || edgeY) {
+				panic("solid is true outside of bounds")
+			}
+			m.values = append(m.values, value)
+		}
+	}
+}
+
+func (m *msBlockCache) GetSquare(x, y int) msIntersections {
+	x -= m.block.min[0]
+	y -= m.block.min[1]
+	return m.getSegment(x, y) | (m.getSegment(x, y+1) << 2)
+}
+
+func (m *msBlockCache) getSegment(x, y int) msIntersections {
+	yStride := (1 + m.block.max[0] - m.block.min[0])
+	offset := yStride*y + x
+	result := msIntersections(0)
+	if m.values[offset] {
+		result |= 1
+	}
+	if m.values[offset+1] {
 		result |= 2
 	}
 	return result
