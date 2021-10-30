@@ -177,12 +177,12 @@ func mcSearch(s Solid, delta float64, iters int, mesh *Mesh) {
 		return
 	}
 
+	spacer := newSquareSpacer(s, delta)
 	inVertices := mesh.VertexSlice()
 	outVertices := make([]Coord3D, len(inVertices))
 
-	min := s.Min().Array()
 	essentials.ConcurrentMap(0, len(inVertices), func(i int) {
-		outVertices[i] = mcSearchPoint(s, delta, iters, mesh, min, inVertices[i])
+		outVertices[i] = mcSearchPoint(s, delta, iters, mesh, spacer, inVertices[i])
 	})
 
 	v2t := mesh.getVertexToFace()
@@ -203,26 +203,15 @@ func mcSearch(s Solid, delta float64, iters int, mesh *Mesh) {
 	mesh.vertexToFace = atomic.Value{}
 }
 
-func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, min [3]float64, c Coord3D) Coord3D {
-	arr := c.Array()
+func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, spacer *squareSpacer,
+	c Coord3D) Coord3D {
+	axis, falsePoint, truePoint := spacer.LookupEdgePoint(c)
 
-	// Figure out which axis the containing edge spans.
-	axis := -1
-	var falsePoint, truePoint float64
-	for i := 0; i < 3; i++ {
-		modulus := math.Abs(math.Mod(arr[i]-min[i], delta))
-		if modulus > delta/4 && modulus < 3*delta/4 {
-			axis = i
-			falsePoint = arr[i] - modulus
-			truePoint = falsePoint + delta
-			break
-		}
-	}
-	if axis == -1 {
-		panic("vertex not on edge")
-	}
-	if m.Find(c)[0].Normal().Array()[axis] > 0 {
-		truePoint, falsePoint = falsePoint, truePoint
+	arr := c.Array()
+	tp := arr
+	tp[axis] = truePoint
+	if !s.Contains(NewCoord3DArray(tp)) {
+		falsePoint, truePoint = truePoint, falsePoint
 	}
 
 	for i := 0; i < iters; i++ {
@@ -625,6 +614,21 @@ func (s *squareSpacer) Scan(solid Solid, f func(z int, bottom, top *solidCache))
 			caches[prevIdx].FetchZ(nextZ + len(caches) - 1)
 		}
 	}
+}
+
+func (s *squareSpacer) LookupEdgePoint(c Coord3D) (axis int, min, max float64) {
+	arr := c.Array()
+	origin := [3]float64{s.Xs[0], s.Ys[0], s.Zs[0]}
+	delta := s.Xs[1] - s.Xs[0]
+
+	for i, values := range [3][]float64{s.Xs, s.Ys, s.Zs} {
+		modulus := math.Abs(math.Mod(arr[i]-origin[i], delta))
+		if modulus > delta/4 && modulus < 3*delta/4 {
+			idx := int((arr[i] - origin[i]) / delta)
+			return i, values[idx], values[idx+1]
+		}
+	}
+	panic("vertex not on edge")
 }
 
 type solidCache struct {
