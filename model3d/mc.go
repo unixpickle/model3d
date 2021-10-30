@@ -154,7 +154,7 @@ func MarchingCubesSearchFilter(s Solid, f func(*Rect) bool, delta float64, iters
 // The extraSpace argument, if non-zero, is extra space to
 // consider around the coarse mesh. It can be increased in
 // the case where the solid has fine details that are
-// totally missed by the coars mesh.
+// totally missed by the coarse mesh.
 func MarchingCubesC2F(s Solid, bigDelta, smallDelta, extraSpace float64, iters int) *Mesh {
 	if bigDelta < smallDelta {
 		panic("bigDelta should be >= smallDelta for efficiency")

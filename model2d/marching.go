@@ -10,7 +10,7 @@ import (
 
 /***************************************
  * NOTE: based off of model3d/mc.go on *
- * Apr 18, 2020.                       *
+ * Oct 30, 2021.                       *
  ***************************************/
 
 // MarchingSquares turns a Solid into a mesh using a 2D
@@ -57,47 +57,7 @@ func MarchingSquares(s Solid, delta float64) *Mesh {
 // every iteration.
 func MarchingSquaresSearch(s Solid, delta float64, iters int) *Mesh {
 	mesh := MarchingSquares(s, delta)
-
-	if iters == 0 {
-		return mesh
-	}
-
-	min := s.Min().Array()
-	return mesh.MapCoords(func(c Coord) Coord {
-		arr := c.Array()
-
-		// Figure out which axis the containing edge spans.
-		axis := -1
-		var falsePoint, truePoint float64
-		for i := 0; i < 2; i++ {
-			modulus := math.Abs(math.Mod(arr[i]-min[i], delta))
-			if modulus > delta/4 && modulus < 3*delta/4 {
-				axis = i
-				falsePoint = arr[i] - modulus
-				truePoint = falsePoint + delta
-				break
-			}
-		}
-		if axis == -1 {
-			panic("vertex not on edge")
-		}
-		if mesh.Find(c)[0].Normal().Array()[axis] > 0 {
-			truePoint, falsePoint = falsePoint, truePoint
-		}
-
-		for i := 0; i < iters; i++ {
-			midPoint := (falsePoint + truePoint) / 2
-			arr[axis] = midPoint
-			if s.Contains(NewCoordArray(arr)) {
-				truePoint = midPoint
-			} else {
-				falsePoint = midPoint
-			}
-		}
-
-		arr[axis] = (falsePoint + truePoint) / 2
-		return NewCoordArray(arr)
-	})
+	return msSearch(s, delta, iters, mesh)
 }
 
 // MarchingSquaresConj is like MarchingSquaresSearch, but
@@ -147,7 +107,7 @@ func MarchingSquaresASCII(s Solid, delta float64) string {
 
 // MarchingSquaresFilter is like MarchingSquares, but does
 // not scan rectangular areas for which f returns false.
-// This can be much more efficient than MarchingCubes if
+// This can be much more efficient than MarchingSquares if
 // the surface is sparse and f can tell when large regions
 // don't intersect the mesh.
 //
@@ -219,6 +179,81 @@ func MarchingSquaresFilter(s Solid, f func(*Rect) bool, delta float64) *Mesh {
 		mesh.AddMesh(<-outputs)
 	}
 	return mesh
+}
+
+// MarchingSquaresSearchFilter combines the two methods
+// MarchingSquaresSearch and MarchingSquaresFilter.
+func MarchingSquaresSearchFilter(s Solid, f func(*Rect) bool, delta float64, iters int) *Mesh {
+	mesh := MarchingSquaresFilter(s, f, delta)
+	return msSearch(s, delta, iters, mesh)
+}
+
+// MarchingSquaresC2F computes a coarse mesh for the solid,
+// then uses that mesh to compute a fine mesh more
+// efficiently.
+//
+// The extraSpace argument, if non-zero, is extra space to
+// consider around the coarse mesh. It can be increased in
+// the case where the solid has fine details that are
+// totally missed by the coarse mesh.
+func MarchingSquaresC2F(s Solid, bigDelta, smallDelta, extraSpace float64, iters int) *Mesh {
+	if bigDelta < smallDelta {
+		panic("bigDelta should be >= smallDelta for efficiency")
+	}
+
+	// Add a conservative amount of space around the coarse mesh.
+	extraSpace += 2 * bigDelta * math.Sqrt(3)
+
+	coarseMesh := MarchingSquaresSearch(s, bigDelta, iters)
+	collider := MeshToCollider(coarseMesh)
+	filter := func(r *Rect) bool {
+		r1 := NewRect(r.MinVal.AddScalar(-extraSpace), r.MaxVal.AddScalar(extraSpace))
+		return collider.RectCollision(r1)
+	}
+	return MarchingSquaresSearchFilter(s, filter, smallDelta, iters)
+}
+
+func msSearch(s Solid, delta float64, iters int, mesh *Mesh) *Mesh {
+	if iters == 0 {
+		return mesh
+	}
+
+	min := s.Min().Array()
+	return mesh.MapCoords(func(c Coord) Coord {
+		arr := c.Array()
+
+		// Figure out which axis the containing edge spans.
+		axis := -1
+		var falsePoint, truePoint float64
+		for i := 0; i < 2; i++ {
+			modulus := math.Abs(math.Mod(arr[i]-min[i], delta))
+			if modulus > delta/4 && modulus < 3*delta/4 {
+				axis = i
+				falsePoint = arr[i] - modulus
+				truePoint = falsePoint + delta
+				break
+			}
+		}
+		if axis == -1 {
+			panic("vertex not on edge")
+		}
+		if mesh.Find(c)[0].Normal().Array()[axis] > 0 {
+			truePoint, falsePoint = falsePoint, truePoint
+		}
+
+		for i := 0; i < iters; i++ {
+			midPoint := (falsePoint + truePoint) / 2
+			arr[axis] = midPoint
+			if s.Contains(NewCoordArray(arr)) {
+				truePoint = midPoint
+			} else {
+				falsePoint = midPoint
+			}
+		}
+
+		arr[axis] = (falsePoint + truePoint) / 2
+		return NewCoordArray(arr)
+	})
 }
 
 // msCorner represents a corner on a square.
