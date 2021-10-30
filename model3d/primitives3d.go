@@ -129,6 +129,16 @@ func (r *Rect) SDF(c Coord3D) float64 {
 	return minDist
 }
 
+// Expand returns a new Rect that is delta units further
+// along in every direction, making it a total of 2*delta
+// units longer along each axis.
+func (r *Rect) Expand(delta float64) *Rect {
+	return &Rect{
+		MinVal: r.MinVal.AddScalar(-delta),
+		MaxVal: r.MaxVal.AddScalar(delta),
+	}
+}
+
 // A Sphere is a spherical 3D primitive.
 type Sphere struct {
 	Center Coord3D

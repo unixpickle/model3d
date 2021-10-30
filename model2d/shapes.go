@@ -201,3 +201,13 @@ func (r *Rect) Max() Coord {
 func (r *Rect) Contains(c Coord) bool {
 	return InBounds(r, c)
 }
+
+// Expand returns a new Rect that is delta units further
+// along in every direction, making it a total of 2*delta
+// units longer along each axis.
+func (r *Rect) Expand(delta float64) *Rect {
+	return &Rect{
+		MinVal: r.MinVal.AddScalar(-delta),
+		MaxVal: r.MaxVal.AddScalar(delta),
+	}
+}

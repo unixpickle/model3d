@@ -207,7 +207,7 @@ func MarchingSquaresC2F(s Solid, bigDelta, smallDelta, extraSpace float64, iters
 	coarseMesh := MarchingSquaresSearch(s, bigDelta, iters)
 	collider := MeshToCollider(coarseMesh)
 	filter := func(r *Rect) bool {
-		r1 := NewRect(r.MinVal.AddScalar(-extraSpace), r.MaxVal.AddScalar(extraSpace))
+		r1 := r.Expand(extraSpace)
 		return collider.RectCollision(r1)
 	}
 	return MarchingSquaresSearchFilter(s, filter, smallDelta, iters)
