@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d/model2d"
@@ -10,7 +11,7 @@ import (
 )
 
 var (
-	DirtColor    = render3d.NewColorRGB(0.33, 0.25, 0.17)
+	PebbleColor  = render3d.NewColorRGB(0.3, 0.3, 0.3)
 	VaseColor    = render3d.NewColorRGB(0.66, 0.44, 0.20)
 	CactusColor1 = render3d.NewColorRGB(0.0, 0.7, 0.0)
 	CactusColor2 = render3d.NewColorRGB(0.0, 0.5, 0.0)
@@ -18,17 +19,25 @@ var (
 
 func main() {
 	vase := VaseSolid()
+	pebbles := PebbleSolid()
 	body := CactusSolid()
 	joined := model3d.JoinedSolid{
 		vase,
+		pebbles,
 		body,
 	}
-	mesh := model3d.MarchingCubesSearch(joined, 0.02, 8)
-	mesh.SaveGroupedSTL("cactus.stl")
-	colorFunc := ColorFunc()
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc)
-	render3d.SaveRotatingGIF("rendering.gif", mesh, model3d.Z(1), model3d.Y(1), 300, 20, 5.0, colorFunc)
 
+	log.Println("Creating mesh...")
+	mesh := model3d.MarchingCubesSearch(joined, 0.007, 8)
+
+	log.Println("Creating color function...")
+	colorFunc := ColorFunc()
+
+	log.Println("Rendering...")
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc)
+	// render3d.SaveRotatingGIF("rendering.gif", mesh, model3d.Z(1), model3d.Y(1), 300, 20, 5.0, colorFunc)
+
+	log.Println("Saving mesh...")
 	triColor := model3d.VertexColorsToTriangle(func(c model3d.Coord3D) [3]float64 {
 		r, g, b := render3d.RGB(colorFunc(c, model3d.RayCollision{}))
 		return [3]float64{r, g, b}
@@ -53,6 +62,24 @@ func VaseSolid() model3d.Solid {
 			return r < radius && r >= minRadius
 		},
 	)
+}
+
+func PebbleSolid() model3d.Solid {
+	rockRadius := 0.04
+	totalRadius := 0.6
+	minRadius := 0.2
+	results := model3d.JoinedSolid{}
+	for r := totalRadius; r >= minRadius; r -= rockRadius {
+		numRocks := int(2 * math.Pi * r / rockRadius)
+		rockRadSpacing := (2 * math.Pi) / float64(numRocks)
+		for i := 0; i < numRocks; i++ {
+			theta := rockRadSpacing * float64(i)
+			center := model3d.XY(math.Cos(theta), math.Sin(theta)).Scale(r)
+			center.Z = -0.15
+			results = append(results, &model3d.Sphere{Center: center, Radius: rockRadius})
+		}
+	}
+	return results.Optimize()
 }
 
 func CactusSolid() model3d.Solid {
@@ -83,27 +110,29 @@ func CactusSolid() model3d.Solid {
 
 func ColorFunc() render3d.ColorFunc {
 	vase := model3d.MeshToSDF(model3d.MarchingCubesSearch(VaseSolid(), 0.03, 8))
+	pebbles := model3d.MeshToSDF(model3d.MarchingCubesSearch(PebbleSolid(), 0.01, 8))
 	body := model3d.MeshToSDF(model3d.MarchingCubesSearch(CactusSolid(), 0.01, 8))
 
 	return func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
-		vFace, _, vDist := vase.FaceSDF(c)
+		vDist := vase.SDF(c)
+		pDist := pebbles.SDF(c)
 		bFace, _, bDist := body.FaceSDF(c)
-		if math.Abs(vDist) < math.Abs(bDist) {
-			if vFace.Normal().Z > 0.99 && c.Z < -0.04 {
-				return DirtColor
-			}
+		if math.Abs(pDist)-0.01 < math.Abs(vDist) && math.Abs(pDist) < math.Abs(bDist) {
+			return PebbleColor
+		} else if math.Abs(vDist) < math.Abs(bDist) {
 			return VaseColor
-		}
-		normal := bFace.Normal()
-		xz := normal.XZ().Norm()
-		if normal.X < 0 {
-			xz *= -1
-		}
-		theta := math.Atan2(normal.Y, xz)
-		if int((theta+math.Pi*2)/(math.Pi/13))%2 == 0 {
-			return CactusColor1
 		} else {
-			return CactusColor2
+			normal := bFace.Normal()
+			xz := normal.XZ().Norm()
+			if normal.X < 0 {
+				xz *= -1
+			}
+			theta := math.Atan2(normal.Y, xz)
+			if int((theta+math.Pi*2)/(math.Pi/13))%2 == 0 {
+				return CactusColor1
+			} else {
+				return CactusColor2
+			}
 		}
 	}
 }
