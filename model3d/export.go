@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/fileformats"
 )
 
@@ -179,11 +180,17 @@ func BuildMaterialOBJ(t []*Triangle, c func(t *Triangle) [3]float64) (o *filefor
 	}
 	m = &fileformats.MTLFile{}
 
+	triColors := make([][3]float32, len(t))
+	essentials.ConcurrentMap(0, len(t), func(i int) {
+		tri := t[i]
+		color64 := c(tri)
+		triColors[i] = [3]float32{float32(color64[0]), float32(color64[1]), float32(color64[2])}
+	})
+
 	colorToMat := map[[3]float32]int{}
 	coordToIdx := NewCoordToInt()
-	for _, tri := range t {
-		color64 := c(tri)
-		color32 := [3]float32{float32(color64[0]), float32(color64[1]), float32(color64[2])}
+	for i, tri := range t {
+		color32 := triColors[i]
 		matIdx, ok := colorToMat[color32]
 		var group *fileformats.OBJFileFaceGroup
 		if !ok {
