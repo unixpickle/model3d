@@ -34,15 +34,11 @@ func main() {
 	colorFunc := ColorFunc()
 
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
 	// render3d.SaveRotatingGIF("rendering.gif", mesh, model3d.Z(1), model3d.Y(1), 300, 20, 5.0, colorFunc)
 
 	log.Println("Saving mesh...")
-	triColor := model3d.VertexColorsToTriangle(func(c model3d.Coord3D) [3]float64 {
-		r, g, b := render3d.RGB(colorFunc(c, model3d.RayCollision{}))
-		return [3]float64{r, g, b}
-	})
-	mesh.SaveMaterialOBJ("cactus.zip", triColor)
+	mesh.SaveMaterialOBJ("cactus.zip", colorFunc.TriangleColor)
 }
 
 func VaseSolid() model3d.Solid {
@@ -108,12 +104,12 @@ func CactusSolid() model3d.Solid {
 	}
 }
 
-func ColorFunc() render3d.ColorFunc {
+func ColorFunc() toolbox3d.CoordColorFunc {
 	vase := model3d.MeshToSDF(model3d.MarchingCubesSearch(VaseSolid(), 0.03, 8))
 	pebbles := model3d.MeshToSDF(model3d.MarchingCubesSearch(PebbleSolid(), 0.01, 8))
 	body := model3d.MeshToSDF(model3d.MarchingCubesSearch(CactusSolid(), 0.01, 8))
 
-	return func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
+	return func(c model3d.Coord3D) render3d.Color {
 		vDist := vase.SDF(c)
 		pDist := pebbles.SDF(c)
 		bFace, _, bDist := body.FaceSDF(c)

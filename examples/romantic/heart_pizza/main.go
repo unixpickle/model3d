@@ -43,15 +43,11 @@ func main() {
 	mesh = dec.Decimate(mesh)
 
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, ColorFunc())
+	colorFunc := ColorFunc()
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
 
 	log.Println("Saving mesh...")
-	colorFunc := ColorFunc()
-	triColor := model3d.VertexColorsToTriangle(func(c model3d.Coord3D) [3]float64 {
-		r, g, b := render3d.RGB(colorFunc(c, model3d.RayCollision{}))
-		return [3]float64{r, g, b}
-	})
-	mesh.SaveMaterialOBJ("pizza.zip", triColor)
+	mesh.SaveMaterialOBJ("pizza.zip", colorFunc.TriangleColor)
 }
 
 func GetHeartRim() model3d.Solid {
@@ -97,7 +93,7 @@ func GetPepperonis(expand float64) model3d.Solid {
 	return res.Optimize()
 }
 
-func ColorFunc() render3d.ColorFunc {
+func ColorFunc() toolbox3d.CoordColorFunc {
 	rim := GetHeartRim()
 	outline := model2d.NewColliderSolid(model2d.MeshToCollider(GetHeartOutline()))
 
@@ -107,7 +103,7 @@ func ColorFunc() render3d.ColorFunc {
 	}
 	pepperonis := GetPepperonis(PepperoniEpsilon)
 
-	return func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
+	return func(c model3d.Coord3D) render3d.Color {
 		if pepperonis.Contains(c) {
 			return render3d.NewColorRGB(0.75, 0.35, 0.25)
 		} else if c.Z < CheeseHeight+0.01 && c.Z > CheeseHeight-0.01 &&
