@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d/model3d"
@@ -37,8 +38,14 @@ func main() {
 	}
 	solid = append(solid, SoftSolid(base, 0.05))
 
-	mesh := model3d.MarchingCubesSearch(solid, 0.02, 8)
+	log.Println("Creating mesh...")
+	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
 	color := ColorFunc()
+
+	log.Println("Saving mesh...")
+	mesh.SaveMaterialOBJ("tiffany_tree.zip", color.TriangleColor)
+
+	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, color.RenderColor)
 }
 
@@ -83,7 +90,7 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 				return render3d.NewColor(1.0)
 			}
 		}
-		if c.Z > Cones()[2].Tip.Z-0.2 {
+		if c.Z > Cones()[2].Tip.Z-0.17 {
 			return render3d.NewColor(0.5)
 		}
 		return render3d.NewColorRGB(0x66/255.0, 0xf3/255.0, 0xed/255.0)
