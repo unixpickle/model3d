@@ -11,8 +11,32 @@ import (
 func main() {
 	solid := model3d.JoinedSolid{}
 	for _, cone := range Cones() {
-		solid = append(solid, cone)
+		solid = append(solid, SoftSolid(cone, 0.02))
 	}
+
+	// Create the ring holder on top
+	ring := &model3d.Torus{
+		Center:      Cones()[2].Tip.Add(model3d.Z(0.25)),
+		Axis:        model3d.Y(1),
+		InnerRadius: 0.1,
+		OuterRadius: 0.25,
+	}
+	ringConnector := &model3d.Cylinder{
+		P1:     ring.Center.Add(model3d.Z(-0.25)),
+		P2:     ring.Center.Add(model3d.Z(-0.5)),
+		Radius: 0.1,
+	}
+	holder := model3d.SmoothJoin(0.02, ring, ringConnector)
+	solid = append(solid, holder)
+
+	// Create the snow white base
+	base := &model3d.Cylinder{
+		P1:     model3d.Z(-0.3),
+		P2:     model3d.Z(0.0),
+		Radius: 0.2,
+	}
+	solid = append(solid, SoftSolid(base, 0.05))
+
 	mesh := model3d.MarchingCubesSearch(solid, 0.02, 8)
 	color := ColorFunc()
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, color.RenderColor)
@@ -34,8 +58,21 @@ func Cones() []*model3d.Cone {
 	return cones
 }
 
+func SoftSolid(s model3d.SDF, radius float64) model3d.Solid {
+	return model3d.CheckedFuncSolid(
+		s.Min().AddScalar(-radius),
+		s.Max().AddScalar(radius),
+		func(c model3d.Coord3D) bool {
+			return s.SDF(c) > -radius
+		},
+	)
+}
+
 func ColorFunc() toolbox3d.CoordColorFunc {
 	return func(c model3d.Coord3D) render3d.Color {
+		if c.Z < 0 {
+			return render3d.NewColor(1.0)
+		}
 		loopCounts := []int{8, 6, 5}
 		theta := math.Atan2(c.Y, c.X) + math.Pi
 		for i, cone := range Cones() {
@@ -45,6 +82,9 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 			if math.Abs(z+zOffset-c.Z) < thickness/2 || math.Abs(cone.Base.Z-c.Z) < thickness {
 				return render3d.NewColor(1.0)
 			}
+		}
+		if c.Z > Cones()[2].Tip.Z-0.2 {
+			return render3d.NewColor(0.5)
 		}
 		return render3d.NewColorRGB(0x66/255.0, 0xf3/255.0, 0xed/255.0)
 	}
