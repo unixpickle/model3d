@@ -371,6 +371,21 @@ func (s *smoothJoin) Contains(c Coord3D) bool {
 	return d1*d1+d2*d2 > s.radius*s.radius
 }
 
+// SDFToSolid creates a Solid which is true inside the SDF.
+//
+// If the outset argument is non-zero, it is the extra
+// distance outside the SDF that is considered inside the
+// solid. It can also be negative to inset the solid.
+func SDFToSolid(s SDF, outset float64) Solid {
+	return CheckedFuncSolid(
+		s.Min().AddScalar(-outset),
+		s.Max().AddScalar(outset),
+		func(c Coord3D) bool {
+			return s.SDF(c) > -outset
+		},
+	)
+}
+
 // ProfileSolid turns a 2D solid into a 3D solid by
 // elongating the 2D solid along the Z axis.
 func ProfileSolid(solid2d model2d.Solid, minZ, maxZ float64) Solid {

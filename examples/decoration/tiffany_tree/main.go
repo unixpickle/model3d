@@ -12,7 +12,7 @@ import (
 func main() {
 	solid := model3d.JoinedSolid{}
 	for _, cone := range Cones() {
-		solid = append(solid, SoftSolid(cone, 0.02))
+		solid = append(solid, model3d.SDFToSolid(cone, 0.02))
 	}
 
 	// Create the ring holder on top
