@@ -333,8 +333,8 @@ func SmoothJoin(radius float64, sdfs ...SDF) Solid {
 		max = max.Max(s.Max())
 	}
 	return &smoothJoin{
-		min:    min,
-		max:    max,
+		min:    min.AddScalar(-radius),
+		max:    max.AddScalar(radius),
 		sdfs:   sdfs,
 		radius: radius,
 	}
