@@ -266,8 +266,8 @@ func SmoothJoin(radius float64, sdfs ...SDF) Solid {
 		max = max.Max(s.Max())
 	}
 	return &smoothJoin{
-		min:    min,
-		max:    max,
+		min:    min.AddScalar(-radius),
+		max:    max.AddScalar(radius),
 		sdfs:   sdfs,
 		radius: radius,
 	}
@@ -302,6 +302,21 @@ func (s *smoothJoin) Contains(c Coord) bool {
 	d1 := s.radius - distances[0]
 	d2 := s.radius - distances[1]
 	return d1*d1+d2*d2 > s.radius*s.radius
+}
+
+// SDFToSolid creates a Solid which is true inside the SDF.
+//
+// If the outset argument is non-zero, it is the extra
+// distance outside the SDF that is considered inside the
+// solid. It can also be negative to inset the solid.
+func SDFToSolid(s SDF, outset float64) Solid {
+	return CheckedFuncSolid(
+		s.Min().AddScalar(-outset),
+		s.Max().AddScalar(outset),
+		func(c Coord) bool {
+			return s.SDF(c) > -outset
+		},
+	)
 }
 
 func BitmapToSolid(b *Bitmap) Solid {
