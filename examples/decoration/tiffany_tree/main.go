@@ -22,12 +22,16 @@ func main() {
 		InnerRadius: 0.1,
 		OuterRadius: 0.25,
 	}
-	ringConnector := &model3d.Cylinder{
-		P1:     ring.Center.Add(model3d.Z(-0.25)),
-		P2:     ring.Center.Add(model3d.Z(-0.5)),
-		Radius: 0.1,
+	ringConnector := &model3d.SubtractedSolid{
+		Positive: &model3d.Cylinder{
+			P1:     ring.Center.Add(model3d.Z(-0.25)),
+			P2:     ring.Center.Add(model3d.Z(-0.5)),
+			Radius: 0.1,
+		},
+		Negative: ring,
 	}
-	holder := model3d.SmoothJoin(0.02, ring, ringConnector)
+	ringConnectorSDF := model3d.MeshToSDF(model3d.MarchingCubesSearch(ringConnector, 0.005, 8))
+	holder := model3d.SmoothJoin(0.02, ring, ringConnectorSDF)
 	solid = append(solid, holder)
 
 	// Create the snow white base
@@ -36,7 +40,7 @@ func main() {
 		P2:     model3d.Z(0.0),
 		Radius: 0.2,
 	}
-	solid = append(solid, SoftSolid(base, 0.05))
+	solid = append(solid, model3d.SDFToSolid(base, 0.05))
 
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
@@ -63,16 +67,6 @@ func Cones() []*model3d.Cone {
 		z += radius
 	}
 	return cones
-}
-
-func SoftSolid(s model3d.SDF, radius float64) model3d.Solid {
-	return model3d.CheckedFuncSolid(
-		s.Min().AddScalar(-radius),
-		s.Max().AddScalar(radius),
-		func(c model3d.Coord3D) bool {
-			return s.SDF(c) > -radius
-		},
-	)
 }
 
 func ColorFunc() toolbox3d.CoordColorFunc {
