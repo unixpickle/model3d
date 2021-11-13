@@ -3,6 +3,7 @@
 package model2d
 
 import (
+	"math"
 	"sort"
 )
 
@@ -275,9 +276,69 @@ func SmoothJoin(radius float64, sdfs ...SDF) Solid {
 			if distances[1] > radius {
 				return false
 			}
+
 			d1 := radius - distances[0]
 			d2 := radius - distances[1]
 			return d1*d1+d2*d2 > radius*radius
+		},
+	)
+}
+
+// SmoothJoinV2 is like SmoothJoin, but uses closest point
+// information to improve results for SDFs that don't
+// intersect at nearly right angles.
+func SmoothJoinV2(radius float64, sdfs ...PointSDF) Solid {
+	min := sdfs[0].Min()
+	max := sdfs[0].Max()
+	for _, s := range sdfs[1:] {
+		min = min.Min(s.Min())
+		max = max.Max(s.Max())
+	}
+	return CheckedFuncSolid(
+		min.AddScalar(-radius),
+		max.AddScalar(radius),
+		func(c Coord) bool {
+			var closestDists [2]float64
+			var closestPoints [2]Coord
+			for i, s := range sdfs {
+				p, d := s.PointSDF(c)
+				if d > 0 {
+					return true
+				}
+				if i < 2 {
+					closestPoints[i] = p
+					closestDists[i] = d
+					if i == 2 {
+						if closestDists[0] < closestDists[1] {
+							closestDists[0], closestDists[1] = closestDists[1], closestDists[0]
+							closestPoints[0], closestPoints[1] = closestPoints[1], closestPoints[0]
+						}
+					}
+				} else {
+					if d <= closestDists[0] {
+						closestDists[1] = closestDists[0]
+						closestPoints[1] = closestPoints[0]
+						closestDists[0] = d
+						closestPoints[0] = p
+					} else if d < closestDists[1] {
+						closestDists[1] = d
+						closestPoints[1] = p
+					}
+				}
+			}
+
+			v1 := c.Sub(closestPoints[0])
+			v2 := c.Sub(closestPoints[1])
+			cosTheta := math.Abs(v1.Dot(v2))
+			n1 := v1.Norm()
+			n2 := v2.Norm()
+			if n1 > 0 && n2 > 0 {
+				cosTheta /= n1 * n2
+			}
+
+			d1 := math.Max(0, closestDists[0]+radius)
+			d2 := math.Max(0, closestDists[1]+radius)
+			return d1*d1+d2*d2-2*cosTheta*d1*d2 > radius*radius
 		},
 	)
 }
