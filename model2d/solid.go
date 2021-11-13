@@ -245,13 +245,6 @@ func CacheSolidBounds(s Solid) Solid {
 	return ForceSolidBounds(s, s.Min(), s.Max())
 }
 
-type smoothJoin struct {
-	min    Coord
-	max    Coord
-	sdfs   []SDF
-	radius float64
-}
-
 // SmoothJoin joins the SDFs into a union Solid and
 // smooths the intersections using a given smoothing
 // radius.
