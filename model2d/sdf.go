@@ -30,10 +30,21 @@ type PointSDF interface {
 	PointSDF(c Coord) (Coord, float64)
 }
 
+// A NormalSDF is an SDF that can additionally get the
+// tangent normal for the nearest point on a surface.
+type NormalSDF interface {
+	SDF
+
+	// NormalSDF gets the SDF at c and also returns the
+	// normal at the nearest point to c on the surface.
+	NormalSDF(c Coord) (Coord, float64)
+}
+
 // A FaceSDF is a PointSDF that can additionally get the
 // segment containing the closest point.
 type FaceSDF interface {
 	PointSDF
+	NormalSDF
 
 	// FaceSDF gets the SDF at c and also returns the
 	// nearest point and face to c on the surface.
@@ -218,6 +229,11 @@ func (m *meshSDF) PointSDF(c Coord) (Coord, float64) {
 		dist = -dist
 	}
 	return point, dist
+}
+
+func (m *meshSDF) NormalSDF(c Coord) (Coord, float64) {
+	face, _, dist := m.FaceSDF(c)
+	return face.Normal(), dist
 }
 
 func (m *meshSDF) FaceSDF(c Coord) (*Segment, Coord, float64) {

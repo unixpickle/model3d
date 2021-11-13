@@ -5,7 +5,6 @@ package model3d
 import (
 	"github.com/unixpickle/model3d/model2d"
 	"math"
-	"sort"
 )
 
 // A Solid is a boolean function where a value of true
@@ -328,31 +327,40 @@ func SmoothJoin(radius float64, sdfs ...SDF) Solid {
 		min.AddScalar(-radius),
 		max.AddScalar(radius),
 		func(c Coord3D) bool {
-			var distances []float64
-			for _, s := range sdfs {
+			var closestDists [2]float64
+			for i, s := range sdfs {
 				d := s.SDF(c)
 				if d > 0 {
 					return true
 				}
-				distances = append(distances, -d)
+				if i < 2 {
+					closestDists[i] = d
+					if i == 2 {
+						if closestDists[1] > closestDists[0] {
+							closestDists[0], closestDists[1] = closestDists[1], closestDists[0]
+						}
+					}
+				} else {
+					if d >= closestDists[0] {
+						closestDists[1] = closestDists[0]
+						closestDists[0] = d
+					} else if d > closestDists[1] {
+						closestDists[1] = d
+					}
+				}
 			}
-			sort.Float64s(distances)
 
-			if distances[1] > radius {
-				return false
-			}
-
-			d1 := radius - distances[0]
-			d2 := radius - distances[1]
+			d1 := math.Max(0, closestDists[0]+radius)
+			d2 := math.Max(0, closestDists[1]+radius)
 			return d1*d1+d2*d2 > radius*radius
 		},
 	)
 }
 
-// SmoothJoinV2 is like SmoothJoin, but uses closest point
-// information to improve results for SDFs that don't
-// intersect at nearly right angles.
-func SmoothJoinV2(radius float64, sdfs ...PointSDF) Solid {
+// SmoothJoinV2 is like SmoothJoin, but uses surface
+// normals to improve results for SDFs that intersect at
+// obtuse angles.
+func SmoothJoinV2(radius float64, sdfs ...NormalSDF) Solid {
 	min := sdfs[0].Min()
 	max := sdfs[0].Max()
 	for _, s := range sdfs[1:] {
@@ -364,46 +372,39 @@ func SmoothJoinV2(radius float64, sdfs ...PointSDF) Solid {
 		max.AddScalar(radius),
 		func(c Coord3D) bool {
 			var closestDists [2]float64
-			var closestPoints [2]Coord3D
+			var closestNormals [2]Coord3D
 			for i, s := range sdfs {
-				p, d := s.PointSDF(c)
+				p, d := s.NormalSDF(c)
 				if d > 0 {
 					return true
 				}
 				if i < 2 {
-					closestPoints[i] = p
+					closestNormals[i] = p
 					closestDists[i] = d
 					if i == 2 {
-						if closestDists[0] < closestDists[1] {
+						if closestDists[1] > closestDists[0] {
 							closestDists[0], closestDists[1] = closestDists[1], closestDists[0]
-							closestPoints[0], closestPoints[1] = closestPoints[1], closestPoints[0]
+							closestNormals[0], closestNormals[1] = closestNormals[1], closestNormals[0]
 						}
 					}
 				} else {
-					if d <= closestDists[0] {
+					if d >= closestDists[0] {
 						closestDists[1] = closestDists[0]
-						closestPoints[1] = closestPoints[0]
+						closestNormals[1] = closestNormals[0]
 						closestDists[0] = d
-						closestPoints[0] = p
-					} else if d < closestDists[1] {
+						closestNormals[0] = p
+					} else if d > closestDists[1] {
 						closestDists[1] = d
-						closestPoints[1] = p
+						closestNormals[1] = p
 					}
 				}
 			}
 
-			v1 := c.Sub(closestPoints[0])
-			v2 := c.Sub(closestPoints[1])
-			cosTheta := math.Abs(v1.Dot(v2))
-			n1 := v1.Norm()
-			n2 := v2.Norm()
-			if n1 > 0 && n2 > 0 {
-				cosTheta /= n1 * n2
-			}
-
-			d1 := math.Max(0, closestDists[0]+radius)
-			d2 := math.Max(0, closestDists[1]+radius)
-			return d1*d1+d2*d2-2*cosTheta*d1*d2 > radius*radius
+			cosTheta := math.Abs(closestNormals[0].Dot(closestNormals[1]))
+			r := radius * math.Sqrt(1-cosTheta*cosTheta)
+			d1 := math.Max(0, closestDists[0]+r)
+			d2 := math.Max(0, closestDists[1]+r)
+			return d1*d1+d2*d2 > r*r
 		},
 	)
 }
