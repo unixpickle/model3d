@@ -265,43 +265,28 @@ func SmoothJoin(radius float64, sdfs ...SDF) Solid {
 		min = min.Min(s.Min())
 		max = max.Max(s.Max())
 	}
-	return &smoothJoin{
-		min:    min.AddScalar(-radius),
-		max:    max.AddScalar(radius),
-		sdfs:   sdfs,
-		radius: radius,
-	}
-}
+	return CheckedFuncSolid(
+		min.AddScalar(-radius),
+		max.AddScalar(radius),
+		func(c Coord) bool {
+			var distances []float64
+			for _, s := range sdfs {
+				d := s.SDF(c)
+				if d > 0 {
+					return true
+				}
+				distances = append(distances, -d)
+			}
+			sort.Float64s(distances)
 
-func (s *smoothJoin) Min() Coord {
-	return s.min
-}
-
-func (s *smoothJoin) Max() Coord {
-	return s.max
-}
-
-func (s *smoothJoin) Contains(c Coord) bool {
-	if !InBounds(s, c) {
-		return false
-	}
-
-	var distances []float64
-	for _, s := range s.sdfs {
-		d := s.SDF(c)
-		if d > 0 {
-			return true
-		}
-		distances = append(distances, -d)
-	}
-	sort.Float64s(distances)
-
-	if distances[1] > s.radius {
-		return false
-	}
-	d1 := s.radius - distances[0]
-	d2 := s.radius - distances[1]
-	return d1*d1+d2*d2 > s.radius*s.radius
+			if distances[1] > radius {
+				return false
+			}
+			d1 := radius - distances[0]
+			d2 := radius - distances[1]
+			return d1*d1+d2*d2 > radius*radius
+		},
+	)
 }
 
 // SDFToSolid creates a Solid which is true inside the SDF.
