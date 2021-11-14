@@ -599,6 +599,26 @@ func (t *Torus) Contains(c Coord3D) bool {
 // SDF determines the minimum distance from a point to the
 // surface of the torus.
 func (t *Torus) SDF(c Coord3D) float64 {
+	return t.genericSDF(c, nil, nil)
+}
+
+// PointSDF is like SDF, but also returns the closest point
+// on the surface of the torus.
+func (t *Torus) PointSDF(c Coord3D) (Coord3D, float64) {
+	var point Coord3D
+	dist := t.genericSDF(c, &point, nil)
+	return point, dist
+}
+
+// NormalSDF is like SDF, but also returns the normal on
+// the surface of the torus at the closest point to c.
+func (t *Torus) NormalSDF(c Coord3D) (Coord3D, float64) {
+	var normal Coord3D
+	dist := t.genericSDF(c, nil, &normal)
+	return normal, dist
+}
+
+func (t *Torus) genericSDF(c Coord3D, closest, normal *Coord3D) float64 {
 	b1, b2 := t.Axis.OrthoBasis()
 	centered := c.Sub(t.Center)
 
@@ -606,10 +626,32 @@ func (t *Torus) SDF(c Coord3D) float64 {
 	// the center of the torus.
 	x := b1.Dot(centered)
 	y := b2.Dot(centered)
-	scale := t.OuterRadius / math.Sqrt(x*x+y*y)
+	outerNorm := math.Sqrt(x*x + y*y)
+	if outerNorm == 0 {
+		// Degenerate case in the exact center of the torus.
+		x = 1.0
+		outerNorm = 1
+	}
+	scale := t.OuterRadius / outerNorm
 	x *= scale
 	y *= scale
 	ringPoint := b1.Scale(x).Add(b2.Scale(y))
+
+	if closest != nil || normal != nil {
+		direction := centered.Sub(ringPoint)
+		norm := direction.Norm()
+		if norm == 0 {
+			// Degenerate case for point exactly on the outer ring.
+			direction = t.Axis
+			norm = t.Axis.Norm()
+		}
+		if normal != nil {
+			*normal = direction.Scale(1 / norm)
+		}
+		if closest != nil {
+			*closest = ringPoint.Add(direction.Scale(t.InnerRadius / norm)).Add(t.Center)
+		}
+	}
 
 	return t.InnerRadius - ringPoint.Dist(centered)
 }

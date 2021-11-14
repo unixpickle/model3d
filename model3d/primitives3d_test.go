@@ -12,6 +12,11 @@ type solidSDF interface {
 	SDF(Coord3D) float64
 }
 
+type pointNormalSDF interface {
+	PointSDF
+	NormalSDF(Coord3D) (Coord3D, float64)
+}
+
 type solidColliderSDF interface {
 	Collider
 	SDF(Coord3D) float64
@@ -184,6 +189,8 @@ func TestTorusSDF(t *testing.T) {
 		mesh := NewMeshTorus(torus.Center, torus.Axis, torus.InnerRadius, torus.OuterRadius,
 			innerStops, outerStops)
 		testMeshSDF(t, torus, mesh, epsilon)
+		testPointSDFConsistency(t, torus)
+		testNormalSDFConsistency(t, torus)
 	}
 }
 
@@ -218,6 +225,43 @@ func testSolidSDF(t *testing.T, s solidSDF) {
 		if math.Abs(sdf1-sdf2) > delta*3 {
 			t.Errorf("mismatched SDF: expected %f but got %f (solid %v)", sdf1, sdf2,
 				s)
+		}
+	}
+}
+
+func testPointSDFConsistency(t *testing.T, p PointSDF) {
+	rad := p.Min().Dist(p.Max())
+	min := p.Min().AddScalar(-rad)
+	max := p.Min().AddScalar(rad)
+	for i := 0; i < 100; i++ {
+		c := NewCoord3DRandBounds(min, max)
+		point, sdf := p.PointSDF(c)
+		if math.Abs(math.Abs(sdf)-point.Dist(c)) > 1e-5 {
+			t.Errorf("mismatched SDF and point distance: %v (sdf=%f) (dist=%f)",
+				c, sdf, point.Dist(c))
+		}
+		if math.Abs(p.SDF(point)) > 1e-5 {
+			t.Errorf("nearest point %v should have 0 SDF, but got %f", point, p.SDF(point))
+		}
+	}
+}
+
+func testNormalSDFConsistency(t *testing.T, p pointNormalSDF) {
+	rad := p.Min().Dist(p.Max())
+	min := p.Min().AddScalar(-rad)
+	max := p.Min().AddScalar(rad)
+	for i := 0; i < 1000; i++ {
+		c := NewCoord3DRandBounds(min, max)
+		point, sdf1 := p.PointSDF(c)
+		normal, sdf2 := p.NormalSDF(c)
+		if math.Abs(sdf1-sdf2) > 1e-5 {
+			t.Errorf("inconsistent SDF values: %f and %f", sdf1, sdf2)
+		}
+		delta := normal.Scale(rad * 1e-5)
+		outside := p.SDF(point.Add(delta))
+		inside := p.SDF(point.Sub(delta))
+		if outside > 0 || inside < 0 {
+			t.Errorf("unexpected SDFs when moving my normal/-normal: %f, %f", outside, inside)
 		}
 	}
 }
