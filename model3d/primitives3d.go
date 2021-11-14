@@ -243,6 +243,19 @@ func (s *Sphere) PointSDF(c Coord3D) (Coord3D, float64) {
 	}
 }
 
+// NormalSDF gets the signed distance function at c and
+// also returns the normal at the nearest point to c on the
+// sphere.
+func (s *Sphere) NormalSDF(c Coord3D) (Coord3D, float64) {
+	direction := c.Sub(s.Center)
+	if norm := direction.Norm(); norm == 0 {
+		// Pick an arbitrary normal
+		return X(1), s.Radius
+	} else {
+		return direction.Scale(1 / norm), s.SDF(c)
+	}
+}
+
 // A Cylinder is a cylindrical 3D primitive.
 //
 // The cylinder is defined as all the positions within a

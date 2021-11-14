@@ -127,10 +127,13 @@ func TestRectSDF(t *testing.T) {
 
 func TestSphereSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		testSolidSDF(t, &Sphere{
+		sphere := &Sphere{
 			Center: NewCoord3DRandNorm(),
 			Radius: math.Abs(rand.NormFloat64()) + 0.1,
-		})
+		}
+		testSolidSDF(t, sphere)
+		testPointSDFConsistency(t, sphere)
+		testNormalSDFConsistency(t, sphere)
 	}
 }
 
