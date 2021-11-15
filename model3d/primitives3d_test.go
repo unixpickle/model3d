@@ -175,17 +175,7 @@ func TestConeSDF(t *testing.T) {
 
 func TestTorusSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		outer := math.Abs(rand.NormFloat64()) + 0.1
-		inner := math.Abs(rand.NormFloat64()) + 0.1
-		if inner > outer {
-			outer, inner = inner, outer
-		}
-		torus := &Torus{
-			Axis:        NewCoord3DRandNorm(),
-			Center:      NewCoord3DRandNorm(),
-			OuterRadius: outer,
-			InnerRadius: inner,
-		}
+		torus := randomTorus()
 		epsilon := 0.04
 		innerStops := int(math.Ceil(2 * math.Pi * torus.InnerRadius / epsilon))
 		outerStops := int(math.Ceil(2 * math.Pi * (torus.OuterRadius + torus.InnerRadius) / epsilon))
@@ -365,4 +355,18 @@ func testSolidColliderSDFRay(t *testing.T, sc solidColliderSDF, ray *Ray) {
 		}
 		t.Error("unreported ray collision detected", rc, actualCollisions)
 	})
+}
+
+func randomTorus() *Torus {
+	outer := math.Abs(rand.NormFloat64()) + 0.1
+	inner := math.Abs(rand.NormFloat64()) + 0.1
+	if inner > outer {
+		outer, inner = inner, outer
+	}
+	return &Torus{
+		Axis:        NewCoord3DRandNorm(),
+		Center:      NewCoord3DRandNorm(),
+		OuterRadius: outer,
+		InnerRadius: inner,
+	}
 }
