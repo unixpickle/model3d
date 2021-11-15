@@ -2,6 +2,8 @@ package model3d
 
 import (
 	"math"
+
+	"github.com/unixpickle/model3d/numerical"
 )
 
 // A Rect is a 3D primitive that fills an axis-aligned
@@ -607,6 +609,66 @@ func (t *Torus) Max() Coord3D {
 // Contains determines if c is within the torus.
 func (t *Torus) Contains(c Coord3D) bool {
 	return t.SDF(c) >= 0
+}
+
+// FirstRayCollision gets the first ray collision with the
+// surface of the torus.
+func (t *Torus) FirstRayCollision(ray *Ray) (RayCollision, bool) {
+	var scale float64
+	var result RayCollision
+	var collides bool
+	t.RayCollisions(ray, func(rc RayCollision) {
+		if !collides || rc.Scale < scale {
+			scale = rc.Scale
+			result = rc
+			collides = true
+		}
+	})
+	return result, collides
+}
+
+// RayCollisions calls f (if non-nil) with each ray
+// collision with the surface of the torus.
+// It returns the number of collisions.
+func (t *Torus) RayCollisions(ray *Ray, f func(RayCollision)) int {
+	// First, transform the torus to be centered and make
+	// y the central axis
+	x, z := t.Axis.OrthoBasis()
+	y := t.Axis.Normalize()
+	basis := NewMatrix3Columns(x, y, z).Transpose()
+	o := basis.MulColumn(ray.Origin.Sub(t.Center))
+	d := basis.MulColumn(ray.Direction)
+	r := t.InnerRadius
+	R := t.OuterRadius
+
+	// Based on http://blog.marcinchwedczuk.pl/ray-tracing-torus.
+	o2SubR2 := o.NormSquared() - (r*r + R*R)
+	oDotD := o.Dot(d)
+	dSquared := d.NormSquared()
+	polynomial := numerical.Polynomial{
+		o2SubR2*o2SubR2 - 4*R*R*(r*r-o.Y*o.Y),
+		4*o2SubR2*oDotD + 8*R*R*o.Y*d.Y,
+		2*dSquared*o2SubR2 + 4*oDotD*oDotD + 4*R*R*d.Y*d.Y,
+		4 * dSquared * oDotD,
+		dSquared * dSquared,
+	}
+	n := 0
+	polynomial.IterRealRoots(func(x float64) bool {
+		if x >= 0 {
+			n += 1
+			p := ray.Origin.Add(ray.Direction.Scale(x))
+			normal, _ := t.NormalSDF(p)
+			f(RayCollision{Scale: x, Normal: normal})
+		}
+		return true
+	})
+	return n
+}
+
+// SphereCollision checks if any part of the surface of the
+// torus is contained in a sphere.
+func (t *Torus) SphereCollision(c Coord3D, r float64) bool {
+	return math.Abs(t.SDF(c)) <= r
 }
 
 // SDF determines the minimum distance from a point to the

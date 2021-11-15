@@ -289,6 +289,12 @@ func TestCylinderColliderSDF(t *testing.T) {
 	}
 }
 
+func TestTorusColliderSDF(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		testSolidColliderSDF(t, randomTorus())
+	}
+}
+
 func testSolidColliderSDF(t *testing.T, sc solidColliderSDF) {
 	for i := 0; i < 1000; i++ {
 		ray := &Ray{
