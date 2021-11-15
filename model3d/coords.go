@@ -180,6 +180,11 @@ func (c Coord3D) Norm() float64 {
 	return math.Sqrt(c.X*c.X + c.Y*c.Y + c.Z*c.Z)
 }
 
+// NormSquared computes the squared vector L2 norm.
+func (c Coord3D) NormSquared() float64 {
+	return c.X*c.X + c.Y*c.Y + c.Z*c.Z
+}
+
 // Dot computes the dot product of c and c1.
 func (c Coord3D) Dot(c1 Coord3D) float64 {
 	return c.X*c1.X + c.Y*c1.Y + c.Z*c1.Z

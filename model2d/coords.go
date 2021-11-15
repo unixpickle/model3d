@@ -91,6 +91,11 @@ func (c Coord) Norm() float64 {
 	return math.Sqrt(c.X*c.X + c.Y*c.Y)
 }
 
+// NormSquared computes the squared vector L2 norm.
+func (c Coord) NormSquared() float64 {
+	return c.X*c.X + c.Y*c.Y
+}
+
 // Dot computes the dot product of c and c1.
 func (c Coord) Dot(c1 Coord) float64 {
 	return c.X*c1.X + c.Y*c1.Y
