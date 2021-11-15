@@ -635,8 +635,9 @@ func (t *Torus) RayCollisions(ray *Ray, f func(RayCollision)) int {
 	// y the central axis
 	x, z := t.Axis.OrthoBasis()
 	y := t.Axis.Normalize()
-	o := ray.Origin.Sub(t.Center)
-	d := NewMatrix3Columns(x, y, z).Transpose().MulColumn(ray.Direction)
+	basis := NewMatrix3Columns(x, y, z).Transpose()
+	o := basis.MulColumn(ray.Origin.Sub(t.Center))
+	d := basis.MulColumn(ray.Direction)
 	r := t.InnerRadius
 	R := t.OuterRadius
 
