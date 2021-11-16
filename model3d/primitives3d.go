@@ -704,7 +704,8 @@ func (t *Torus) genericSDF(c Coord3D, closest, normal *Coord3D) float64 {
 	outerNorm := math.Sqrt(x*x + y*y)
 	if outerNorm == 0 {
 		// Degenerate case in the exact center of the torus.
-		x = 1.0
+		x = 1
+		y = 0
 		outerNorm = 1
 	}
 	scale := t.OuterRadius / outerNorm
@@ -714,17 +715,30 @@ func (t *Torus) genericSDF(c Coord3D, closest, normal *Coord3D) float64 {
 
 	if closest != nil || normal != nil {
 		direction := centered.Sub(ringPoint)
-		norm := direction.Norm()
-		if norm == 0 {
+		if norm := direction.Norm(); norm == 0 {
 			// Degenerate case for point exactly on the outer ring.
-			direction = t.Axis
-			norm = t.Axis.Norm()
+			direction = t.Axis.Normalize()
+		} else {
+			direction = direction.Scale(1 / norm)
+
+			// When the point is very close to the ring, the resulting
+			// direction might not actually be pointing in the right
+			// direction due to rounding errors.
+			invalidDirection := ringPoint.Cross(t.Axis)
+			direction = direction.ProjectOut(invalidDirection)
+			if norm := direction.Norm(); norm < 1e-5 {
+				// Most of the direction was due to rounding error.
+				direction = t.Axis
+				norm = t.Axis.Norm()
+			} else {
+				direction = direction.Scale(1 / norm)
+			}
 		}
 		if normal != nil {
-			*normal = direction.Scale(1 / norm)
+			*normal = direction
 		}
 		if closest != nil {
-			*closest = ringPoint.Add(direction.Scale(t.InnerRadius / norm)).Add(t.Center)
+			*closest = ringPoint.Add(direction.Scale(t.InnerRadius)).Add(t.Center)
 		}
 	}
 

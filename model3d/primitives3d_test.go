@@ -186,7 +186,7 @@ func TestTorusSDF(t *testing.T) {
 		outerPoint := torus.Center.Add(
 			x.Scale(math.Cos(2)).Add(y.Scale(math.Sin(2))).Scale(torus.OuterRadius),
 		)
-		checkPoints := []Coord3D{torus.Center, outerPoint}
+		checkPoints := []Coord3D{torus.Center, outerPoint, torus.Center.Add(XYZ(1e-16, -1e-16, 0))}
 		testPointSDFConsistency(t, torus, checkPoints...)
 		testNormalSDFConsistency(t, torus, checkPoints...)
 	}
