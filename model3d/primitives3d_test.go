@@ -182,8 +182,13 @@ func TestTorusSDF(t *testing.T) {
 		mesh := NewMeshTorus(torus.Center, torus.Axis, torus.InnerRadius, torus.OuterRadius,
 			innerStops, outerStops)
 		testMeshSDF(t, torus, mesh, epsilon)
-		testPointSDFConsistency(t, torus)
-		testNormalSDFConsistency(t, torus)
+		x, y := torus.Axis.OrthoBasis()
+		outerPoint := torus.Center.Add(
+			x.Scale(math.Cos(2)).Add(y.Scale(math.Sin(2))).Scale(torus.OuterRadius),
+		)
+		checkPoints := []Coord3D{torus.Center, outerPoint}
+		testPointSDFConsistency(t, torus, checkPoints...)
+		testNormalSDFConsistency(t, torus, checkPoints...)
 	}
 }
 
@@ -222,12 +227,11 @@ func testSolidSDF(t *testing.T, s solidSDF) {
 	}
 }
 
-func testPointSDFConsistency(t *testing.T, p PointSDF) {
+func testPointSDFConsistency(t *testing.T, p PointSDF, checkPoints ...Coord3D) {
 	rad := p.Min().Dist(p.Max())
 	min := p.Min().AddScalar(-rad)
 	max := p.Min().AddScalar(rad)
-	for i := 0; i < 100; i++ {
-		c := NewCoord3DRandBounds(min, max)
+	checkPoint := func(c Coord3D) {
 		point, sdf := p.PointSDF(c)
 		if math.Abs(math.Abs(sdf)-point.Dist(c)) > 1e-5 {
 			t.Errorf("mismatched SDF and point distance: %v (sdf=%f) (dist=%f)",
@@ -237,14 +241,19 @@ func testPointSDFConsistency(t *testing.T, p PointSDF) {
 			t.Errorf("nearest point %v should have 0 SDF, but got %f", point, p.SDF(point))
 		}
 	}
+	for _, c := range checkPoints {
+		checkPoint(c)
+	}
+	for i := 0; i < 100; i++ {
+		checkPoint(NewCoord3DRandBounds(min, max))
+	}
 }
 
-func testNormalSDFConsistency(t *testing.T, p pointNormalSDF) {
+func testNormalSDFConsistency(t *testing.T, p pointNormalSDF, checkPoints ...Coord3D) {
 	rad := p.Min().Dist(p.Max())
 	min := p.Min().AddScalar(-rad)
 	max := p.Min().AddScalar(rad)
-	for i := 0; i < 1000; i++ {
-		c := NewCoord3DRandBounds(min, max)
+	checkPoint := func(c Coord3D) {
 		point, sdf1 := p.PointSDF(c)
 		normal, sdf2 := p.NormalSDF(c)
 		if math.Abs(sdf1-sdf2) > 1e-5 {
@@ -256,6 +265,12 @@ func testNormalSDFConsistency(t *testing.T, p pointNormalSDF) {
 		if outside > 0 || inside < 0 {
 			t.Errorf("unexpected SDFs when moving my normal/-normal: %f, %f", outside, inside)
 		}
+	}
+	for _, c := range checkPoints {
+		checkPoint(c)
+	}
+	for i := 0; i < 1000; i++ {
+		checkPoint(NewCoord3DRandBounds(min, max))
 	}
 }
 
