@@ -438,6 +438,26 @@ func (c *Cylinder) SphereCollision(center Coord3D, r float64) bool {
 
 // SDF gets the signed distance to the cylinder.
 func (c *Cylinder) SDF(coord Coord3D) float64 {
+	return c.genericSDF(coord, nil, nil)
+}
+
+// PointSDF gets the signed distance to the cylinder
+// and the closest point on the surface.
+func (c *Cylinder) PointSDF(coord Coord3D) (Coord3D, float64) {
+	var p Coord3D
+	sdf := c.genericSDF(coord, nil, &p)
+	return p, sdf
+}
+
+// NormalSDF gets the signed distance to the cylinder
+// and the normal at the closest point on the surface.
+// func (c *Cylinder) NormalSDF(coord Coord3D) (Coord3D, float64) {
+// 	var n Coord3D
+// 	sdf := c.genericSDF(coord, &n, nil)
+// 	return n, sdf
+// }
+
+func (c *Cylinder) genericSDF(coord Coord3D, normalOut, pointOut *Coord3D) float64 {
 	axis := c.P2.Sub(c.P1)
 	norm := axis.Norm()
 	axis = axis.Scale(1 / norm)
@@ -452,27 +472,58 @@ func (c *Cylinder) SDF(coord Coord3D) float64 {
 		} else {
 			dist = -sd
 		}
+		if normalOut != nil || pointOut != nil {
+			projPoint := c.P1.Add(axis.Scale(d))
+			delta := coord.Sub(projPoint)
+			b1, _ := axis.OrthoBasis()
+			normal := safeNormal(delta, b1, axis)
+			if normalOut != nil {
+				*normalOut = normal
+			}
+			if pointOut != nil {
+				*pointOut = projPoint.Add(normal.Scale(c.Radius))
+			}
+		}
 	}
 
-	dist = math.Min(dist, filledCircleDist(coord, c.P1, axis, c.Radius))
-	dist = math.Min(dist, filledCircleDist(coord, c.P2, axis, c.Radius))
+	filledCircleDist(coord, c.P1, axis.Scale(-1), c.Radius, &dist, normalOut, pointOut)
+	filledCircleDist(coord, c.P2, axis, c.Radius, &dist, normalOut, pointOut)
 	if !contained {
 		dist = -dist
 	}
 	return dist
 }
 
-func filledCircleDist(c, center, axis Coord3D, radius float64) float64 {
+func filledCircleDist(c, center, axis Coord3D, radius float64, curDist *float64, normalOut, pointOut *Coord3D) {
 	b1, b2 := axis.OrthoBasis()
 	mat := NewMatrix3Columns(b1, b2, axis).Transpose()
 	proj := mat.MulColumn(c.Sub(center))
 	norm2 := proj.XY().Norm()
 	if norm2 < radius {
-		return math.Abs(proj.Z)
+		dist := math.Abs(proj.Z)
+		if dist <= *curDist {
+			*curDist = dist
+			if normalOut != nil {
+				*normalOut = axis
+			}
+			if pointOut != nil {
+				*pointOut = center.Add(b1.Scale(proj.X)).Add(b2.Scale(proj.Y))
+			}
+		}
+	} else {
+		norm2 -= radius
+		dist := math.Sqrt(norm2*norm2 + proj.Z*proj.Z)
+		if dist <= *curDist {
+			*curDist = dist
+			if normalOut != nil {
+				*normalOut = axis
+			}
+			if pointOut != nil {
+				dir2d := proj.XY().Normalize().Scale(radius)
+				*pointOut = center.Add(b1.Scale(dir2d.X)).Add(b2.Scale(dir2d.Y))
+			}
+		}
 	}
-
-	norm2 -= radius
-	return math.Sqrt(norm2*norm2 + proj.Z*proj.Z)
 }
 
 // castPlane gets the collision with r and a plane defined
@@ -546,7 +597,8 @@ func (c *Cone) Contains(p Coord3D) bool {
 }
 
 func (c *Cone) SDF(p Coord3D) float64 {
-	baseDist := filledCircleDist(p, c.Base, c.Tip.Sub(c.Base).Normalize(), c.Radius)
+	baseDist := math.Inf(1)
+	filledCircleDist(p, c.Base, c.Tip.Sub(c.Base).Normalize(), c.Radius, &baseDist, nil, nil)
 
 	centerLine := c.Tip.Sub(c.Base)
 	centerOffset := p.Sub(c.Base)
@@ -715,25 +767,8 @@ func (t *Torus) genericSDF(c Coord3D, closest, normal *Coord3D) float64 {
 
 	if closest != nil || normal != nil {
 		direction := centered.Sub(ringPoint)
-		if norm := direction.Norm(); norm == 0 {
-			// Degenerate case for point exactly on the outer ring.
-			direction = t.Axis.Normalize()
-		} else {
-			direction = direction.Scale(1 / norm)
-
-			// When the point is very close to the ring, the resulting
-			// direction might not actually be pointing in the right
-			// direction due to rounding errors.
-			invalidDirection := ringPoint.Cross(t.Axis)
-			direction = direction.ProjectOut(invalidDirection)
-			if norm := direction.Norm(); norm < 1e-5 {
-				// Most of the direction was due to rounding error.
-				direction = t.Axis
-				norm = t.Axis.Norm()
-			} else {
-				direction = direction.Scale(1 / norm)
-			}
-		}
+		invalidDirection := ringPoint.Cross(t.Axis)
+		direction = safeNormal(direction, t.Axis.Normalize(), invalidDirection)
 		if normal != nil {
 			*normal = direction
 		}
@@ -743,4 +778,24 @@ func (t *Torus) genericSDF(c Coord3D, closest, normal *Coord3D) float64 {
 	}
 
 	return t.InnerRadius - ringPoint.Dist(centered)
+}
+
+func safeNormal(direction, fallbackDirection, invalidDirection Coord3D) Coord3D {
+	if norm := direction.Norm(); norm == 0 {
+		// Fully degenerate case.
+		direction = fallbackDirection
+	} else {
+		direction = direction.Scale(1 / norm)
+
+		// When direction was very small, it might be pointing in
+		// an invalid direction once we normalize it.
+		direction = direction.ProjectOut(invalidDirection)
+		if norm := direction.Norm(); norm < 1e-5 {
+			// Most of the direction was due to rounding error.
+			direction = fallbackDirection
+		} else {
+			direction = direction.Scale(1 / norm)
+		}
+	}
+	return direction
 }
