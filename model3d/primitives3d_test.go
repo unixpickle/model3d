@@ -150,6 +150,8 @@ func TestCylinderSDF(t *testing.T) {
 		numStops := int(math.Ceil(2 * math.Pi * cyl.Radius / epsilon))
 		mesh := NewMeshCylinder(cyl.P1, cyl.P2, cyl.Radius, numStops)
 		testMeshSDF(t, cyl, mesh, epsilon)
+		testPointSDFConsistency(t, cyl)
+		testNormalSDFConsistency(t, cyl)
 	}
 }
 
@@ -263,7 +265,7 @@ func testNormalSDFConsistency(t *testing.T, p pointNormalSDF, checkPoints ...Coo
 		outside := p.SDF(point.Add(delta))
 		inside := p.SDF(point.Sub(delta))
 		if outside > 0 || inside < 0 {
-			t.Errorf("unexpected SDFs when moving my normal/-normal: %f, %f", outside, inside)
+			t.Errorf("unexpected SDFs when moving by normal/-normal: %f, %f", outside, inside)
 		}
 	}
 	for _, c := range checkPoints {
