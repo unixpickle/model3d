@@ -715,25 +715,8 @@ func (t *Torus) genericSDF(c Coord3D, closest, normal *Coord3D) float64 {
 
 	if closest != nil || normal != nil {
 		direction := centered.Sub(ringPoint)
-		if norm := direction.Norm(); norm == 0 {
-			// Degenerate case for point exactly on the outer ring.
-			direction = t.Axis.Normalize()
-		} else {
-			direction = direction.Scale(1 / norm)
-
-			// When the point is very close to the ring, the resulting
-			// direction might not actually be pointing in the right
-			// direction due to rounding errors.
-			invalidDirection := ringPoint.Cross(t.Axis)
-			direction = direction.ProjectOut(invalidDirection)
-			if norm := direction.Norm(); norm < 1e-5 {
-				// Most of the direction was due to rounding error.
-				direction = t.Axis
-				norm = t.Axis.Norm()
-			} else {
-				direction = direction.Scale(1 / norm)
-			}
-		}
+		invalidDirection := ringPoint.Cross(t.Axis)
+		direction = safeNormal(direction, t.Axis.Normalize(), invalidDirection)
 		if normal != nil {
 			*normal = direction
 		}
@@ -743,4 +726,24 @@ func (t *Torus) genericSDF(c Coord3D, closest, normal *Coord3D) float64 {
 	}
 
 	return t.InnerRadius - ringPoint.Dist(centered)
+}
+
+func safeNormal(direction, fallbackDirection, invalidDirection Coord3D) Coord3D {
+	if norm := direction.Norm(); norm == 0 {
+		// Fully degenerate case.
+		direction = fallbackDirection
+	} else {
+		direction = direction.Scale(1 / norm)
+
+		// When direction was very small, it might be pointing in
+		// an invalid direction once we normalize it.
+		direction = direction.ProjectOut(invalidDirection)
+		if norm := direction.Norm(); norm < 1e-5 {
+			// Most of the direction was due to rounding error.
+			direction = fallbackDirection
+		} else {
+			direction = direction.Scale(1 / norm)
+		}
+	}
+	return direction
 }
