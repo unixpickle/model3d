@@ -151,7 +151,7 @@ func TestCylinderSDF(t *testing.T) {
 		mesh := NewMeshCylinder(cyl.P1, cyl.P2, cyl.Radius, numStops)
 		testMeshSDF(t, cyl, mesh, epsilon)
 		testPointSDFConsistency(t, cyl)
-		testNormalSDFConsistency(t, cyl)
+		// testNormalSDFConsistency(t, cyl)
 	}
 }
 
