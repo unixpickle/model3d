@@ -451,11 +451,11 @@ func (c *Cylinder) PointSDF(coord Coord3D) (Coord3D, float64) {
 
 // NormalSDF gets the signed distance to the cylinder
 // and the normal at the closest point on the surface.
-// func (c *Cylinder) NormalSDF(coord Coord3D) (Coord3D, float64) {
-// 	var n Coord3D
-// 	sdf := c.genericSDF(coord, &n, nil)
-// 	return n, sdf
-// }
+func (c *Cylinder) NormalSDF(coord Coord3D) (Coord3D, float64) {
+	var n Coord3D
+	sdf := c.genericSDF(coord, &n, nil)
+	return n, sdf
+}
 
 func (c *Cylinder) genericSDF(coord Coord3D, normalOut, pointOut *Coord3D) float64 {
 	axis := c.P2.Sub(c.P1)
