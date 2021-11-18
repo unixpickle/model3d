@@ -133,7 +133,7 @@ func TestSphereSDF(t *testing.T) {
 		}
 		testSolidSDF(t, sphere)
 		testPointSDFConsistency(t, sphere)
-		testNormalSDFConsistency(t, sphere)
+		testNormalSDFConsistency(t, sphere, true)
 	}
 }
 
@@ -151,7 +151,20 @@ func TestCylinderSDF(t *testing.T) {
 		mesh := NewMeshCylinder(cyl.P1, cyl.P2, cyl.Radius, numStops)
 		testMeshSDF(t, cyl, mesh, epsilon)
 		testPointSDFConsistency(t, cyl)
-		// testNormalSDFConsistency(t, cyl)
+
+		b1, b2 := cyl.P2.Sub(cyl.P1).OrthoBasis()
+		testNormalSDFConsistency(
+			t,
+			cyl,
+			false,
+			cyl.P1.Mid(cyl.P2),
+			cyl.P1.Mid(cyl.P2).Add(b1),
+			cyl.P1.Mid(cyl.P2).Add(b2),
+			cyl.P1.Add(cyl.P2.Sub(cyl.P1).Scale(-1)),
+			cyl.P1.Add(cyl.P2.Sub(cyl.P1).Scale(-1)).Add(b1.Scale(cyl.Radius/2)),
+			cyl.P2.Add(cyl.P1.Sub(cyl.P2).Scale(-1)),
+			cyl.P2.Add(cyl.P1.Sub(cyl.P2).Scale(-1)).Add(b1.Scale(cyl.Radius/2)),
+		)
 	}
 }
 
@@ -190,7 +203,7 @@ func TestTorusSDF(t *testing.T) {
 		)
 		checkPoints := []Coord3D{torus.Center, outerPoint, torus.Center.Add(XYZ(1e-16, -1e-16, 0))}
 		testPointSDFConsistency(t, torus, checkPoints...)
-		testNormalSDFConsistency(t, torus, checkPoints...)
+		testNormalSDFConsistency(t, torus, true, checkPoints...)
 	}
 }
 
@@ -251,7 +264,7 @@ func testPointSDFConsistency(t *testing.T, p PointSDF, checkPoints ...Coord3D) {
 	}
 }
 
-func testNormalSDFConsistency(t *testing.T, p pointNormalSDF, checkPoints ...Coord3D) {
+func testNormalSDFConsistency(t *testing.T, p pointNormalSDF, checkRandom bool, checkPoints ...Coord3D) {
 	rad := p.Min().Dist(p.Max())
 	min := p.Min().AddScalar(-rad)
 	max := p.Min().AddScalar(rad)
@@ -271,8 +284,10 @@ func testNormalSDFConsistency(t *testing.T, p pointNormalSDF, checkPoints ...Coo
 	for _, c := range checkPoints {
 		checkPoint(c)
 	}
-	for i := 0; i < 1000; i++ {
-		checkPoint(NewCoord3DRandBounds(min, max))
+	if checkRandom {
+		for i := 0; i < 1000; i++ {
+			checkPoint(NewCoord3DRandBounds(min, max))
+		}
 	}
 }
 
