@@ -117,18 +117,82 @@ func (r *Rect) SphereCollision(c Coord3D, radius float64) bool {
 // SDF gets the signed distance to the surface of the
 // rectangular volume.
 func (r *Rect) SDF(c Coord3D) float64 {
+	return r.genericSDF(c, nil, nil)
+}
+
+// PointSDF gets the nearest point on the surface of the
+// cube and the corresponding SDF.
+func (r *Rect) PointSDF(c Coord3D) (Coord3D, float64) {
+	var p Coord3D
+	res := r.genericSDF(c, nil, &p)
+	return p, res
+}
+
+// NormalSDF gets the nearest point on the surface of the
+// cube and the corresponding SDF.
+func (r *Rect) NormalSDF(c Coord3D) (Coord3D, float64) {
+	var n Coord3D
+	res := r.genericSDF(c, &n, nil)
+	return n, res
+}
+
+func (r *Rect) genericSDF(c Coord3D, normalOut, pointOut *Coord3D) float64 {
 	if !r.Contains(c) {
-		return -math.Sqrt(pointToBoundsDistSquared(c, r.MinVal, r.MaxVal))
+		// We can project directly to the cube to hit the surface.
+		nearest := c.Min(r.MaxVal).Max(r.MinVal)
+		if pointOut != nil {
+			*pointOut = nearest
+		}
+		if normalOut != nil {
+			minArr := r.MinVal.Array()
+			maxArr := r.MaxVal.Array()
+			var normal [3]float64
+			for i, x := range nearest.Array() {
+				if x == minArr[i] {
+					normal = [3]float64{}
+					normal[i] = -1
+				} else if x == maxArr[i] {
+					normal = [3]float64{}
+					normal[i] = 1
+				}
+			}
+			*normalOut = NewCoord3DArray(normal)
+		}
+		return -c.Dist(nearest)
 	}
 
+	// Find the closest side of the cube.
 	minArr := r.MinVal.Array()
 	maxArr := r.MaxVal.Array()
 	cArr := c.Array()
-	minDist := math.Inf(1)
+	dist := math.Inf(1)
 	for i := 0; i < 3; i++ {
-		minDist = math.Min(minDist, math.Min(cArr[i]-minArr[i], maxArr[i]-cArr[i]))
+		minD := cArr[i] - minArr[i]
+		maxD := maxArr[i] - cArr[i]
+		axisD := math.Min(minD, maxD)
+		if axisD < dist {
+			dist = axisD
+			if normalOut != nil {
+				var arr [3]float64
+				if minD < maxD {
+					arr[i] = -1.0
+				} else {
+					arr[i] = 1.0
+				}
+				*normalOut = NewCoord3DArray(arr)
+			}
+			if pointOut != nil {
+				arr := cArr
+				if minD < maxD {
+					arr[i] = minArr[i]
+				} else {
+					arr[i] = maxArr[i]
+				}
+				*pointOut = NewCoord3DArray(arr)
+			}
+		}
 	}
-	return minDist
+	return dist
 }
 
 // Expand returns a new Rect that is delta units further

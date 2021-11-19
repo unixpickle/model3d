@@ -122,6 +122,25 @@ func TestRectSDF(t *testing.T) {
 			MaxVal: c1.Max(c2).Add(XYZ(0.1, 0.1, 0.1)),
 		}
 		testMeshSDF(t, r, NewMeshRect(r.MinVal, r.MaxVal), 1e-5)
+		testPointSDFConsistency(t, r)
+		testNormalSDFConsistency(
+			t,
+			r,
+			false,
+			r.MinVal.Mid(r.MaxVal),
+			r.MinVal.Mid(r.MaxVal).Add(X(0.01)),
+			r.MinVal.Mid(r.MaxVal).Add(X(-0.01)),
+			r.MinVal.Mid(r.MaxVal).Add(Y(0.01)),
+			r.MinVal.Mid(r.MaxVal).Add(Y(-0.01)),
+			r.MinVal.Mid(r.MaxVal).Add(Z(0.01)),
+			r.MinVal.Mid(r.MaxVal).Add(Z(-0.01)),
+			r.MinVal.Mid(r.MaxVal).Add(X(0.2)),
+			r.MinVal.Mid(r.MaxVal).Add(X(-0.2)),
+			r.MinVal.Mid(r.MaxVal).Add(Y(0.2)),
+			r.MinVal.Mid(r.MaxVal).Add(Y(-0.2)),
+			r.MinVal.Mid(r.MaxVal).Add(Z(0.2)),
+			r.MinVal.Mid(r.MaxVal).Add(Z(-0.2)),
+		)
 	}
 }
 
