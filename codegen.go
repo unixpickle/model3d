@@ -36,6 +36,7 @@ func main() {
 	Generate2d3dTemplate("coord_tree_test", checkNoChange)
 	Generate2d3dTemplate("fast_maps", checkNoChange)
 	Generate2d3dTemplate("fast_maps_test", checkNoChange)
+	Generate2d3dTemplate("shapes", checkNoChange)
 }
 
 func Generate2d3dTemplate(name string, checkNoChange bool) {
@@ -93,22 +94,31 @@ func TemplateEnvironment(pkg string) map[string]interface{} {
 	matrixType := "Matrix2"
 	faceType := "Segment"
 	faceName := "segment"
+	circleType := "Circle"
+	circleName := "circle"
+	circleLetter := "c"
 	numDims := 2
 	if pkg == "model3d" {
 		coordType = "Coord3D"
 		matrixType = "Matrix3"
 		faceType = "Triangle"
 		faceName = "triangle"
+		circleType = "Sphere"
+		circleName = "sphere"
+		circleLetter = "s"
 		numDims = 3
 	}
 	return map[string]interface{}{
-		"package":    pkg,
-		"model2d":    pkg == "model2d",
-		"coordType":  coordType,
-		"matrixType": matrixType,
-		"faceType":   faceType,
-		"faceName":   faceName,
-		"numDims":    numDims,
+		"package":      pkg,
+		"model2d":      pkg == "model2d",
+		"coordType":    coordType,
+		"matrixType":   matrixType,
+		"faceType":     faceType,
+		"faceName":     faceName,
+		"circleType":   circleType,
+		"circleName":   circleName,
+		"circleLetter": circleLetter,
+		"numDims":      numDims,
 	}
 }
 

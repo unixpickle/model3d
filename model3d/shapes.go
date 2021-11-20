@@ -1,3 +1,5 @@
+// Generated from templates/shapes.template
+
 package model3d
 
 import (
@@ -5,6 +7,123 @@ import (
 
 	"github.com/unixpickle/model3d/numerical"
 )
+
+// A Sphere is a spherical 3D primitive.
+type Sphere struct {
+	Center Coord3D
+	Radius float64
+}
+
+// Min gets the minimum point of the bounding box.
+func (s *Sphere) Min() Coord3D {
+	return s.Center.AddScalar(-s.Radius)
+}
+
+// Max gets the maximum point of the bounding box.
+func (s *Sphere) Max() Coord3D {
+	return s.Center.AddScalar(s.Radius)
+}
+
+// Contains checks if a point c is inside the sphere.
+func (s *Sphere) Contains(coord Coord3D) bool {
+	return coord.Dist(s.Center) <= s.Radius
+}
+
+// FirstRayCollision gets the first ray collision with the
+// sphere, if one occurs.
+func (s *Sphere) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	var res RayCollision
+	var ok bool
+	s.RayCollisions(r, func(rc RayCollision) {
+		// Collisions are sorted from first to last.
+		if !ok {
+			res = rc
+			ok = true
+		}
+	})
+	return res, ok
+}
+
+// RayCollisions calls f (if non-nil) with every ray
+// collision.
+//
+// It returns the total number of collisions.
+func (s *Sphere) RayCollisions(r *Ray, f func(RayCollision)) int {
+	// Want to find where ||(o+a*d)-c||^2 = r^2
+	// Let's call o = (o-c) for the rest of this.
+	// ||a*d+o||^2 = r^2
+	// a^2*d^2 + 2*a*d*o + o^2 = r^2
+	// a^2*(d^2) + a*(2*d*o) + (o^2 - r^2) = 0
+	// quadratic equation: a=(d^2), b=(2*d*o), c = (o^2 - r^2)
+	o := r.Origin.Sub(s.Center)
+	d := r.Direction
+	a := d.Dot(d)
+	b := 2 * d.Dot(o)
+	c_ := o.Dot(o) - s.Radius*s.Radius
+
+	discriminant := b*b - 4*a*c_
+	if discriminant <= 0 {
+		return 0
+	}
+
+	sqrtDisc := math.Sqrt(discriminant)
+	t1 := (-b + sqrtDisc) / (2 * a)
+	t2 := (-b - sqrtDisc) / (2 * a)
+	if t1 > t2 {
+		t1, t2 = t2, t1
+	}
+
+	var count int
+	for _, t := range []float64{t1, t2} {
+		if t < 0 {
+			continue
+		}
+		count++
+		if f != nil {
+			point := r.Origin.Add(r.Direction.Scale(t))
+			normal := point.Sub(s.Center).Normalize()
+			f(RayCollision{Normal: normal, Scale: t})
+		}
+	}
+
+	return count
+}
+
+// SphereCollision checks if the surface of s collides
+// with a solid sphere centered at c with radius r.
+func (s *Sphere) SphereCollision(center Coord3D, r float64) bool {
+	return math.Abs(s.SDF(center)) <= r
+}
+
+// SDF gets the signed distance relative to the sphere.
+func (s *Sphere) SDF(coord Coord3D) float64 {
+	return s.Radius - coord.Dist(s.Center)
+}
+
+// PointSDF gets the signed distance function at coord
+// and also returns the nearest point to it on the sphere.
+func (s *Sphere) PointSDF(coord Coord3D) (Coord3D, float64) {
+	direction := coord.Sub(s.Center)
+	if norm := direction.Norm(); norm == 0 {
+		// Pick an arbitrary point
+		return s.Center.Add(X(s.Radius)), s.Radius
+	} else {
+		return s.Center.Add(direction.Scale(s.Radius / norm)), s.SDF(coord)
+	}
+}
+
+// NormalSDF gets the signed distance function at coord
+// and also returns the normal at the nearest point to it
+// on the sphere.
+func (s *Sphere) NormalSDF(coord Coord3D) (Coord3D, float64) {
+	direction := coord.Sub(s.Center)
+	if norm := direction.Norm(); norm == 0 {
+		// Pick an arbitrary normal
+		return X(1), s.Radius
+	} else {
+		return direction.Scale(1 / norm), s.SDF(coord)
+	}
+}
 
 // A Rect is a 3D primitive that fills an axis-aligned
 // rectangular volume.
@@ -202,123 +321,6 @@ func (r *Rect) Expand(delta float64) *Rect {
 	return &Rect{
 		MinVal: r.MinVal.AddScalar(-delta),
 		MaxVal: r.MaxVal.AddScalar(delta),
-	}
-}
-
-// A Sphere is a spherical 3D primitive.
-type Sphere struct {
-	Center Coord3D
-	Radius float64
-}
-
-// Min gets the minimum point of the bounding box.
-func (s *Sphere) Min() Coord3D {
-	return XYZ(s.Center.X-s.Radius, s.Center.Y-s.Radius, s.Center.Z-s.Radius)
-}
-
-// Max gets the maximum point of the bounding box.
-func (s *Sphere) Max() Coord3D {
-	return XYZ(s.Center.X+s.Radius, s.Center.Y+s.Radius, s.Center.Z+s.Radius)
-}
-
-// Contains checks if a point c is inside the sphere.
-func (s *Sphere) Contains(c Coord3D) bool {
-	return c.Dist(s.Center) <= s.Radius
-}
-
-// FirstRayCollision gets the first ray collision with the
-// sphere, if one occurs.
-func (s *Sphere) FirstRayCollision(r *Ray) (RayCollision, bool) {
-	var res RayCollision
-	var ok bool
-	s.RayCollisions(r, func(rc RayCollision) {
-		// Collisions are sorted from first to last.
-		if !ok {
-			res = rc
-			ok = true
-		}
-	})
-	return res, ok
-}
-
-// RayCollisions calls f (if non-nil) with every ray
-// collision.
-//
-// It returns the total number of collisions.
-func (s *Sphere) RayCollisions(r *Ray, f func(RayCollision)) int {
-	// Want to find where ||(o+a*d)-c||^2 = r^2
-	// Let's call o = (o-c) for the rest of this.
-	// ||a*d+o||^2 = r^2
-	// a^2*d^2 + 2*a*d*o + o^2 = r^2
-	// a^2*(d^2) + a*(2*d*o) + (o^2 - r^2) = 0
-	// quadratic equation: a=(d^2), b=(2*d*o), c = (o^2 - r^2)
-	o := r.Origin.Sub(s.Center)
-	d := r.Direction
-	a := d.Dot(d)
-	b := 2 * d.Dot(o)
-	c := o.Dot(o) - s.Radius*s.Radius
-
-	discriminant := b*b - 4*a*c
-	if discriminant <= 0 {
-		return 0
-	}
-
-	sqrtDisc := math.Sqrt(discriminant)
-	t1 := (-b + sqrtDisc) / (2 * a)
-	t2 := (-b - sqrtDisc) / (2 * a)
-	if t1 > t2 {
-		t1, t2 = t2, t1
-	}
-
-	var count int
-	for _, t := range []float64{t1, t2} {
-		if t < 0 {
-			continue
-		}
-		count++
-		if f != nil {
-			point := r.Origin.Add(r.Direction.Scale(t))
-			normal := point.Sub(s.Center).Normalize()
-			f(RayCollision{Normal: normal, Scale: t})
-		}
-	}
-
-	return count
-}
-
-// SphereCollision checks if the surface of s collides
-// with another sphere centered at c with radius r.
-func (s *Sphere) SphereCollision(c Coord3D, r float64) bool {
-	return math.Abs(s.SDF(c)) <= r
-}
-
-// SDF gets the signed distance relative to the sphere.
-func (s *Sphere) SDF(c Coord3D) float64 {
-	return s.Radius - c.Dist(s.Center)
-}
-
-// PointSDF gets the signed distance function at c and
-// also returns the nearest point to c on the sphere.
-func (s *Sphere) PointSDF(c Coord3D) (Coord3D, float64) {
-	direction := c.Sub(s.Center)
-	if norm := direction.Norm(); norm == 0 {
-		// Pick an arbitrary point
-		return s.Center.Add(X(s.Radius)), s.Radius
-	} else {
-		return s.Center.Add(direction.Scale(s.Radius / norm)), s.SDF(c)
-	}
-}
-
-// NormalSDF gets the signed distance function at c and
-// also returns the normal at the nearest point to c on the
-// sphere.
-func (s *Sphere) NormalSDF(c Coord3D) (Coord3D, float64) {
-	direction := c.Sub(s.Center)
-	if norm := direction.Norm(); norm == 0 {
-		// Pick an arbitrary normal
-		return X(1), s.Radius
-	} else {
-		return direction.Scale(1 / norm), s.SDF(c)
 	}
 }
 
