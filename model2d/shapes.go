@@ -123,7 +123,8 @@ func (c *Circle) NormalSDF(coord Coord) (Coord, float64) {
 	}
 }
 
-// A Rect is a 2D axis-aligned rectangle.
+// A Rect is a 2D primitive that fills an axis-aligned
+// rectangular space.
 type Rect struct {
 	MinVal Coord
 	MaxVal Coord
@@ -139,16 +140,164 @@ func BoundsRect(b Bounder) *Rect {
 	return NewRect(b.Min(), b.Max())
 }
 
+// Min yields r.MinVal.
 func (r *Rect) Min() Coord {
 	return r.MinVal
 }
 
+// Max yields r.MaxVal.
 func (r *Rect) Max() Coord {
 	return r.MaxVal
 }
 
+// Contains checks if c is inside of r.
 func (r *Rect) Contains(c Coord) bool {
-	return InBounds(r, c)
+	return c.Min(r.MinVal) == r.MinVal && c.Max(r.MaxVal) == r.MaxVal
+}
+
+// FirstRayCollision gets the first ray collision with the
+// rectangular surface.
+func (r *Rect) FirstRayCollision(ray *Ray) (RayCollision, bool) {
+	tMin, tMax := rayCollisionWithBounds(ray, r.MinVal, r.MaxVal)
+	if tMax < tMin || tMax < 0 {
+		return RayCollision{}, false
+	}
+
+	t := tMin
+	if t < 0 {
+		t = tMax
+	}
+
+	return RayCollision{
+		Scale:  t,
+		Normal: r.normalAt(ray.Origin.Add(ray.Direction.Scale(t))),
+	}, true
+}
+
+// RayCollisions calls f (if non-nil) with each ray
+// collision with the rectangular surface.
+// It returns the number of collisions.
+func (r *Rect) RayCollisions(ray *Ray, f func(RayCollision)) int {
+	tMin, tMax := rayCollisionWithBounds(ray, r.MinVal, r.MaxVal)
+	if tMax < tMin || tMax < 0 {
+		return 0
+	}
+
+	var count int
+	for _, t := range []float64{tMin, tMax} {
+		if t < 0 {
+			continue
+		}
+		count++
+		if f != nil {
+			f(RayCollision{
+				Scale:  t,
+				Normal: r.normalAt(ray.Origin.Add(ray.Direction.Scale(t))),
+			})
+		}
+	}
+	return count
+}
+
+func (r *Rect) normalAt(c Coord) Coord {
+	var axis int
+	var sign float64
+	minDist := math.Inf(1)
+
+	minArr := r.MinVal.Array()
+	maxArr := r.MaxVal.Array()
+	cArr := c.Array()
+	for i, cVal := range cArr {
+		if d := math.Abs(cVal - minArr[i]); d < minDist {
+			minDist = d
+			sign = -1
+			axis = i
+		}
+		if d := math.Abs(cVal - maxArr[i]); d < minDist {
+			minDist = d
+			sign = 1
+			axis = i
+		}
+	}
+
+	var resArr [2]float64
+	resArr[axis] = sign
+	return NewCoordArray(resArr)
+}
+
+// SphereCollision checks if a solid sphere touches any
+// part of the rectangular surface.
+func (r *Rect) SphereCollision(c Coord, radius float64) bool {
+	return math.Abs(r.SDF(c)) <= radius
+}
+
+// SDF gets the signed distance to the surface of the
+// rectangular volume.
+func (r *Rect) SDF(c Coord) float64 {
+	return r.genericSDF(c, nil, nil)
+}
+
+// PointSDF gets the nearest point on the surface of the
+// cube and the corresponding SDF.
+func (r *Rect) PointSDF(c Coord) (Coord, float64) {
+	var p Coord
+	res := r.genericSDF(c, nil, &p)
+	return p, res
+}
+
+// NormalSDF gets the nearest point on the surface of the
+// cube and the corresponding SDF.
+func (r *Rect) NormalSDF(c Coord) (Coord, float64) {
+	var n Coord
+	res := r.genericSDF(c, &n, nil)
+	return n, res
+}
+
+func (r *Rect) genericSDF(c Coord, normalOut, pointOut *Coord) float64 {
+	if !r.Contains(c) {
+		// We can project directly to the cube to hit the surface.
+		nearest := c.Min(r.MaxVal).Max(r.MinVal)
+		if pointOut != nil {
+			*pointOut = nearest
+		}
+		if normalOut != nil {
+			*normalOut = r.normalAt(nearest)
+		}
+		return -c.Dist(nearest)
+	}
+
+	// Find the closest side of the cube.
+	minArr := r.MinVal.Array()
+	maxArr := r.MaxVal.Array()
+	cArr := c.Array()
+	dist := math.Inf(1)
+	for i := 0; i < 2; i++ {
+		minD := cArr[i] - minArr[i]
+		maxD := maxArr[i] - cArr[i]
+		axisD := math.Min(minD, maxD)
+		if axisD < dist {
+			dist = axisD
+			if normalOut != nil {
+				var arr [2]float64
+				if minD < maxD {
+					arr[i] = -1.0
+				} else {
+					arr[i] = 1.0
+				}
+				*normalOut = NewCoordArray(arr)
+			}
+			if pointOut != nil {
+				arr := cArr
+				if minD < maxD {
+					arr[i] = minArr[i]
+				} else {
+					arr[i] = maxArr[i]
+				}
+				*pointOut = NewCoordArray(arr)
+			}
+		}
+	}
+	return dist
 }
 
 // Expand returns a new Rect that is delta units further

@@ -126,7 +126,7 @@ func (s *Sphere) NormalSDF(coord Coord3D) (Coord3D, float64) {
 }
 
 // A Rect is a 3D primitive that fills an axis-aligned
-// rectangular volume.
+// rectangular space.
 type Rect struct {
 	MinVal Coord3D
 	MaxVal Coord3D
@@ -263,19 +263,7 @@ func (r *Rect) genericSDF(c Coord3D, normalOut, pointOut *Coord3D) float64 {
 			*pointOut = nearest
 		}
 		if normalOut != nil {
-			minArr := r.MinVal.Array()
-			maxArr := r.MaxVal.Array()
-			var normal [3]float64
-			for i, x := range nearest.Array() {
-				if x == minArr[i] {
-					normal = [3]float64{}
-					normal[i] = -1
-				} else if x == maxArr[i] {
-					normal = [3]float64{}
-					normal[i] = 1
-				}
-			}
-			*normalOut = NewCoord3DArray(normal)
+			*normalOut = r.normalAt(nearest)
 		}
 		return -c.Dist(nearest)
 	}
