@@ -204,6 +204,21 @@ func TestConeSDF(t *testing.T) {
 		numStops := int(math.Ceil(2 * math.Pi * cone.Radius / epsilon))
 		mesh := NewMeshCone(cone.Tip, cone.Base, cone.Radius, numStops)
 		testMeshSDF(t, cone, mesh, epsilon)
+		testPointSDFConsistency(t, cone, cone.Base.Add(cone.Base.Sub(cone.Tip)))
+
+		b1, b2 := cone.Tip.Sub(cone.Base).OrthoBasis()
+		testNormalSDFConsistency(
+			t,
+			cone,
+			false,
+			cone.Tip.Mid(cone.Base).Add(b1.Scale(cone.Radius*0.51)),
+			cone.Tip.Mid(cone.Base).Add(b2.Scale(cone.Radius*0.51)),
+			cone.Tip.Mid(cone.Base).Add(b1.Scale(cone.Radius*0.49)),
+			cone.Tip.Mid(cone.Base).Add(b2.Scale(cone.Radius*0.49)),
+			cone.Tip.Mid(cone.Base).Add(b1.Scale(cone.Radius*0.2)),
+			cone.Tip.Mid(cone.Base).Add(b2.Scale(cone.Radius*0.2)),
+			cone.Base.Add(cone.Base.Sub(cone.Tip)),
+		)
 	}
 }
 

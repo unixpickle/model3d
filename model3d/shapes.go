@@ -618,6 +618,7 @@ type Cone struct {
 	Radius float64
 }
 
+// Min gets the minimum point of the bounding box.
 func (c *Cone) Min() Coord3D {
 	axis := c.Tip.Sub(c.Base)
 	minOffsets := (Coord3D{
@@ -628,6 +629,7 @@ func (c *Cone) Min() Coord3D {
 	return minOffsets.Add(c.Base).Min(c.Tip)
 }
 
+// Max gets the maximum point of the bounding box.
 func (c *Cone) Max() Coord3D {
 	axis := c.Tip.Sub(c.Base)
 	maxOffsets := (Coord3D{
@@ -638,6 +640,7 @@ func (c *Cone) Max() Coord3D {
 	return maxOffsets.Add(c.Base).Max(c.Tip)
 }
 
+// Contains checks if p is inside the cone.
 func (c *Cone) Contains(p Coord3D) bool {
 	diff := c.Tip.Sub(c.Base)
 	direction := diff.Normalize()
@@ -650,22 +653,49 @@ func (c *Cone) Contains(p Coord3D) bool {
 	return projection.Dist(p) <= c.Radius*radiusFrac
 }
 
-func (c *Cone) SDF(p Coord3D) float64 {
-	baseDist := math.Inf(1)
-	filledCircleDist(p, c.Base, c.Tip.Sub(c.Base).Normalize(), c.Radius, &baseDist, nil, nil)
+// SDF determines the minimum distance from a point to the
+// surface of the cone.
+func (c *Cone) SDF(coord Coord3D) float64 {
+	return c.genericSDF(coord, nil, nil)
+}
+
+// PointSDF is like SDF, but also returns the closest point
+// on the surface of the cone.
+func (c *Cone) PointSDF(coord Coord3D) (Coord3D, float64) {
+	var point Coord3D
+	dist := c.genericSDF(coord, nil, &point)
+	return point, dist
+}
+
+// NormalSDF is like SDF, but also returns the normal on
+// the surface of the cone at the closest point to coord.
+func (c *Cone) NormalSDF(coord Coord3D) (Coord3D, float64) {
+	var normal Coord3D
+	dist := c.genericSDF(coord, &normal, nil)
+	return normal, dist
+}
+
+func (c *Cone) genericSDF(p Coord3D, normalOut, pointOut *Coord3D) float64 {
+	dist := math.Inf(1)
+	filledCircleDist(p, c.Base, c.Base.Sub(c.Tip).Normalize(), c.Radius,
+		&dist, normalOut, pointOut)
 
 	centerLine := c.Tip.Sub(c.Base)
 	centerOffset := p.Sub(c.Base)
-	proj := centerOffset.ProjectOut(centerLine)
-	if proj.Norm() == 0 {
-		// We are nearly at the centerline.
-		proj.X = 1
-	}
-	axis := proj.Normalize()
+	fallback, _ := centerLine.OrthoBasis()
+	axis := safeNormal(centerOffset, fallback, centerLine)
 	edgeSegment := NewSegment(c.Tip, c.Base.Add(axis.Scale(c.Radius)))
 	edgeDist := edgeSegment.Dist(p)
 
-	dist := math.Min(baseDist, edgeDist)
+	if edgeDist < dist {
+		dist = edgeDist
+		if normalOut != nil {
+			*normalOut = axis.Scale(c.Radius).Add(c.Tip.Sub(c.Base)).Normalize()
+		}
+		if pointOut != nil {
+			*pointOut = edgeSegment.Closest(p)
+		}
+	}
 	if c.Contains(p) {
 		return dist
 	} else {
