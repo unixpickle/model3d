@@ -41,32 +41,23 @@ func RenderExperiment(name string, f func() (noSmooth, v1, v2 model2d.Solid)) {
 func EasyCase() (noSmooth, v1, v2 model2d.Solid) {
 	square := model2d.NewRect(model2d.XY(-1.0, -1.0), model2d.XY(1.0, 1.0))
 	circle := &model2d.Circle{Center: model2d.XY(1, 1), Radius: 1.0}
-	squareSDF := model2d.MeshToSDF(model2d.MarchingSquaresSearch(square, 0.01, 8))
-	// Smooth the circle to make the normals more accurate.
-	circleSDF := model2d.MeshToSDF(model2d.MarchingSquaresSearch(circle, 0.01, 8).SmoothSq(10))
-	return model2d.SmoothJoin(0.0, squareSDF, circleSDF),
-		model2d.SmoothJoin(0.2, squareSDF, circleSDF),
-		model2d.SmoothJoinV2(0.2, squareSDF, circleSDF)
+	return model2d.SmoothJoin(0.0, square, circle),
+		model2d.SmoothJoin(0.2, square, circle),
+		model2d.SmoothJoinV2(0.2, square, circle)
 }
 
 func MiddleCase() (noSmooth, v1, v2 model2d.Solid) {
 	square := model2d.NewRect(model2d.XY(-0.5, -1.0), model2d.XY(0.0, 1.0))
 	circle := &model2d.Circle{Center: model2d.XY(0, 1), Radius: 1.0}
-	squareSDF := model2d.MeshToSDF(model2d.MarchingSquaresSearch(square, 0.01, 8))
-	// Smooth the circle to make the normals more accurate.
-	circleSDF := model2d.MeshToSDF(model2d.MarchingSquaresSearch(circle, 0.01, 8).SmoothSq(10))
-	return model2d.SmoothJoin(0.0, squareSDF, circleSDF),
-		model2d.SmoothJoin(0.2, squareSDF, circleSDF),
-		model2d.SmoothJoinV2(0.2, squareSDF, circleSDF)
+	return model2d.SmoothJoin(0.0, square, circle),
+		model2d.SmoothJoin(0.2, square, circle),
+		model2d.SmoothJoinV2(0.2, square, circle)
 }
 
 func ParallelCase() (noSmooth, v1, v2 model2d.Solid) {
 	square := model2d.NewRect(model2d.XY(-0.95, -1.0), model2d.XY(0.0, 1.0))
 	circle := &model2d.Circle{Center: model2d.XY(0, 1), Radius: 1.0}
-	squareSDF := model2d.MeshToSDF(model2d.MarchingSquaresSearch(square, 0.01, 8))
-	// Smooth the circle to make the normals more accurate.
-	circleSDF := model2d.MeshToSDF(model2d.MarchingSquaresSearch(circle, 0.01, 8).SmoothSq(10))
-	return model2d.SmoothJoin(0.0, squareSDF, circleSDF),
-		model2d.SmoothJoin(0.2, squareSDF, circleSDF),
-		model2d.SmoothJoinV2(0.2, squareSDF, circleSDF)
+	return model2d.SmoothJoin(0.0, square, circle),
+		model2d.SmoothJoin(0.2, square, circle),
+		model2d.SmoothJoinV2(0.2, square, circle)
 }
