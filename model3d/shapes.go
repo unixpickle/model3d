@@ -682,12 +682,8 @@ func (c *Cone) genericSDF(p Coord3D, normalOut, pointOut *Coord3D) float64 {
 
 	centerLine := c.Tip.Sub(c.Base)
 	centerOffset := p.Sub(c.Base)
-	proj := centerOffset.ProjectOut(centerLine)
-	if proj.Norm() == 0 {
-		// We are nearly at the centerline.
-		proj, _ = centerLine.OrthoBasis()
-	}
-	axis := proj.Normalize()
+	fallback, _ := centerLine.OrthoBasis()
+	axis := safeNormal(centerOffset, fallback, centerLine)
 	edgeSegment := NewSegment(c.Tip, c.Base.Add(axis.Scale(c.Radius)))
 	edgeDist := edgeSegment.Dist(p)
 
