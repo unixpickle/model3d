@@ -316,6 +316,34 @@ func (r *Rect) Expand(delta float64) *Rect {
 	}
 }
 
+// A Capsule is a shape which contains all of the points
+// within a given distance of a line segment.
+type Capsule struct {
+	P1     {{.coordType}}
+	P2     {{.coordType}}
+	Radius float64
+}
+
+// Min gets the minimum point of the bounding box.
+func (c *Capsule) Min() {{.coordType}} {
+	return c.P1.Min(c.P2).AddScalar(-c.Radius)
+}
+
+// Max gets the maximum point of the bounding box.
+func (c *Capsule) Max() {{.coordType}} {
+	return c.P1.Max(c.P2).AddScalar(c.Radius)
+}
+
+// Contains checks if c is within the capsule.
+func (c *Capsule) Contains(coord {{.coordType}}) bool {
+{{- if .model2d}}
+	segment := Segment{c.P1, c.P2}
+{{- else -}}
+	segment := NewSegment(c.P1, c.P2)
+{{- end}}
+	return segment.Dist(coord) <= c.Radius
+}
+
 {{if not .model2d}}
 // A Cylinder is a cylindrical 3D primitive.
 //

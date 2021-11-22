@@ -42,6 +42,16 @@ func TestCylinderBounds(t *testing.T) {
 	}
 }
 
+func TestCapsuleBounds(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		testSolidBounds(t, &Capsule{
+			P1:     NewCoord3DRandNorm(),
+			P2:     NewCoord3DRandNorm(),
+			Radius: math.Abs(rand.NormFloat64()),
+		})
+	}
+}
+
 func TestConeBounds(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		testSolidBounds(t, &Cone{

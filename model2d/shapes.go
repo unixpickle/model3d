@@ -309,3 +309,27 @@ func (r *Rect) Expand(delta float64) *Rect {
 		MaxVal: r.MaxVal.AddScalar(delta),
 	}
 }
+
+// A Capsule is a shape which contains all of the points
+// within a given distance of a line segment.
+type Capsule struct {
+	P1     Coord
+	P2     Coord
+	Radius float64
+}
+
+// Min gets the minimum point of the bounding box.
+func (c *Capsule) Min() Coord {
+	return c.P1.Min(c.P2).AddScalar(-c.Radius)
+}
+
+// Max gets the maximum point of the bounding box.
+func (c *Capsule) Max() Coord {
+	return c.P1.Max(c.P2).AddScalar(c.Radius)
+}
+
+// Contains checks if c is within the capsule.
+func (c *Capsule) Contains(coord Coord) bool {
+	segment := Segment{c.P1, c.P2}
+	return segment.Dist(coord) <= c.Radius
+}
