@@ -225,9 +225,9 @@ func (r *Rect) normalAt(c Coord) Coord {
 	return NewCoordArray(resArr)
 }
 
-// SphereCollision checks if a solid sphere touches any
+// CircleCollision checks if a solid circle touches any
 // part of the rectangular surface.
-func (r *Rect) SphereCollision(c Coord, radius float64) bool {
+func (r *Rect) CircleCollision(c Coord, radius float64) bool {
 	return math.Abs(r.SDF(c)) <= radius
 }
 

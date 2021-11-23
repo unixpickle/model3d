@@ -231,9 +231,9 @@ func (r *Rect) normalAt(c {{.coordType}}) {{.coordType}} {
 	return New{{.coordType}}Array(resArr)
 }
 
-// SphereCollision checks if a solid sphere touches any
+// {{.circleType}}Collision checks if a solid {{.circleName}} touches any
 // part of the rectangular surface.
-func (r *Rect) SphereCollision(c {{.coordType}}, radius float64) bool {
+func (r *Rect) {{.circleType}}Collision(c {{.coordType}}, radius float64) bool {
 	return math.Abs(r.SDF(c)) <= radius
 }
 
