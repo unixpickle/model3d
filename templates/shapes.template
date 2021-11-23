@@ -850,7 +850,7 @@ func (t *Torus) SDF(c Coord3D) float64 {
 // on the surface of the torus.
 func (t *Torus) PointSDF(c Coord3D) (Coord3D, float64) {
 	var point Coord3D
-	dist := t.genericSDF(c, &point, nil)
+	dist := t.genericSDF(c, nil, &point)
 	return point, dist
 }
 
@@ -858,11 +858,11 @@ func (t *Torus) PointSDF(c Coord3D) (Coord3D, float64) {
 // the surface of the torus at the closest point to c.
 func (t *Torus) NormalSDF(c Coord3D) (Coord3D, float64) {
 	var normal Coord3D
-	dist := t.genericSDF(c, nil, &normal)
+	dist := t.genericSDF(c, &normal, nil)
 	return normal, dist
 }
 
-func (t *Torus) genericSDF(c Coord3D, closest, normal *Coord3D) float64 {
+func (t *Torus) genericSDF(c Coord3D, normal, closest *Coord3D) float64 {
 	b1, b2 := t.Axis.OrthoBasis()
 	centered := c.Sub(t.Center)
 
