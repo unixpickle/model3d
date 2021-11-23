@@ -240,7 +240,7 @@ func (r *Rect) SDF(c Coord3D) float64 {
 }
 
 // PointSDF gets the nearest point on the surface of the
-// cube and the corresponding SDF.
+// rect and the corresponding SDF.
 func (r *Rect) PointSDF(c Coord3D) (Coord3D, float64) {
 	var p Coord3D
 	res := r.genericSDF(c, nil, &p)
@@ -248,7 +248,7 @@ func (r *Rect) PointSDF(c Coord3D) (Coord3D, float64) {
 }
 
 // NormalSDF gets the nearest point on the surface of the
-// cube and the corresponding SDF.
+// rect and the corresponding SDF.
 func (r *Rect) NormalSDF(c Coord3D) (Coord3D, float64) {
 	var n Coord3D
 	res := r.genericSDF(c, &n, nil)
@@ -257,7 +257,7 @@ func (r *Rect) NormalSDF(c Coord3D) (Coord3D, float64) {
 
 func (r *Rect) genericSDF(c Coord3D, normalOut, pointOut *Coord3D) float64 {
 	if !r.Contains(c) {
-		// We can project directly to the cube to hit the surface.
+		// We can project directly to the rect to hit the surface.
 		nearest := c.Min(r.MaxVal).Max(r.MinVal)
 		if pointOut != nil {
 			*pointOut = nearest
@@ -268,7 +268,7 @@ func (r *Rect) genericSDF(c Coord3D, normalOut, pointOut *Coord3D) float64 {
 		return -c.Dist(nearest)
 	}
 
-	// Find the closest side of the cube.
+	// Find the closest side of the rect.
 	minArr := r.MinVal.Array()
 	maxArr := r.MaxVal.Array()
 	cArr := c.Array()
@@ -334,6 +334,64 @@ func (c *Capsule) Max() Coord3D {
 func (c *Capsule) Contains(coord Coord3D) bool {
 	segment := NewSegment(c.P1, c.P2)
 	return segment.Dist(coord) <= c.Radius
+}
+
+// SDF gets the signed distance to the surface of the capsule.
+func (c *Capsule) SDF(coord Coord3D) float64 {
+	return c.genericSDF(coord, nil, nil)
+}
+
+// PointSDF gets the nearest point on the surface of the
+// capsule and the corresponding SDF.
+func (c *Capsule) PointSDF(coord Coord3D) (Coord3D, float64) {
+	var p Coord3D
+	res := c.genericSDF(coord, nil, &p)
+	return p, res
+}
+
+// NormalSDF gets the nearest point on the surface of the
+// capsule and the corresponding SDF.
+func (c *Capsule) NormalSDF(coord Coord3D) (Coord3D, float64) {
+	var n Coord3D
+	res := c.genericSDF(coord, &n, nil)
+	return n, res
+}
+
+func (c *Capsule) genericSDF(coord Coord3D, normalOut, pointOut *Coord3D) float64 {
+	v := c.P2.Sub(c.P1)
+	norm := v.Norm()
+	axis := v.Scale(1 / norm)
+	dot := coord.Sub(c.P1).Dot(axis)
+	if dot < 0 || dot > norm {
+		proxy := &Sphere{Radius: c.Radius}
+		if dot < 0 {
+			proxy.Center = c.P1
+		} else {
+			proxy.Center = c.P2
+		}
+		if normalOut != nil {
+			*normalOut, _ = proxy.NormalSDF(coord)
+		}
+		if pointOut != nil {
+			*pointOut, _ = proxy.PointSDF(coord)
+		}
+		return proxy.SDF(coord)
+	}
+
+	sdf := c.Radius - Segment{c.P1, c.P2}.Dist(coord)
+	if normalOut != nil || pointOut != nil {
+		projPoint := c.P1.Add(axis.Scale(dot))
+		delta := coord.Sub(projPoint)
+		b1, _ := axis.OrthoBasis()
+		normal := safeNormal(delta, b1, axis)
+		if normalOut != nil {
+			*normalOut = normal
+		}
+		if pointOut != nil {
+			*pointOut = projPoint.Add(normal.Scale(c.Radius))
+		}
+	}
+	return sdf
 }
 
 // A Cylinder is a cylindrical 3D primitive.

@@ -238,7 +238,7 @@ func (r *Rect) SDF(c Coord) float64 {
 }
 
 // PointSDF gets the nearest point on the surface of the
-// cube and the corresponding SDF.
+// rect and the corresponding SDF.
 func (r *Rect) PointSDF(c Coord) (Coord, float64) {
 	var p Coord
 	res := r.genericSDF(c, nil, &p)
@@ -246,7 +246,7 @@ func (r *Rect) PointSDF(c Coord) (Coord, float64) {
 }
 
 // NormalSDF gets the nearest point on the surface of the
-// cube and the corresponding SDF.
+// rect and the corresponding SDF.
 func (r *Rect) NormalSDF(c Coord) (Coord, float64) {
 	var n Coord
 	res := r.genericSDF(c, &n, nil)
@@ -255,7 +255,7 @@ func (r *Rect) NormalSDF(c Coord) (Coord, float64) {
 
 func (r *Rect) genericSDF(c Coord, normalOut, pointOut *Coord) float64 {
 	if !r.Contains(c) {
-		// We can project directly to the cube to hit the surface.
+		// We can project directly to the rect to hit the surface.
 		nearest := c.Min(r.MaxVal).Max(r.MinVal)
 		if pointOut != nil {
 			*pointOut = nearest
@@ -266,7 +266,7 @@ func (r *Rect) genericSDF(c Coord, normalOut, pointOut *Coord) float64 {
 		return -c.Dist(nearest)
 	}
 
-	// Find the closest side of the cube.
+	// Find the closest side of the rect.
 	minArr := r.MinVal.Array()
 	maxArr := r.MaxVal.Array()
 	cArr := c.Array()
@@ -332,4 +332,83 @@ func (c *Capsule) Max() Coord {
 func (c *Capsule) Contains(coord Coord) bool {
 	segment := Segment{c.P1, c.P2}
 	return segment.Dist(coord) <= c.Radius
+}
+
+// SDF gets the signed distance to the surface of the capsule.
+func (c *Capsule) SDF(coord Coord) float64 {
+	return c.genericSDF(coord, nil, nil)
+}
+
+// PointSDF gets the nearest point on the surface of the
+// capsule and the corresponding SDF.
+func (c *Capsule) PointSDF(coord Coord) (Coord, float64) {
+	var p Coord
+	res := c.genericSDF(coord, nil, &p)
+	return p, res
+}
+
+// NormalSDF gets the nearest point on the surface of the
+// capsule and the corresponding SDF.
+func (c *Capsule) NormalSDF(coord Coord) (Coord, float64) {
+	var n Coord
+	res := c.genericSDF(coord, &n, nil)
+	return n, res
+}
+
+func (c *Capsule) genericSDF(coord Coord, normalOut, pointOut *Coord) float64 {
+	v := c.P2.Sub(c.P1)
+	norm := v.Norm()
+	axis := v.Scale(1 / norm)
+	dot := coord.Sub(c.P1).Dot(axis)
+	if dot < 0 || dot > norm {
+		proxy := &Circle{Radius: c.Radius}
+		if dot < 0 {
+			proxy.Center = c.P1
+		} else {
+			proxy.Center = c.P2
+		}
+		if normalOut != nil {
+			*normalOut, _ = proxy.NormalSDF(coord)
+		}
+		if pointOut != nil {
+			*pointOut, _ = proxy.PointSDF(coord)
+		}
+		return proxy.SDF(coord)
+	}
+
+	sdf := c.Radius - Segment{c.P1, c.P2}.Dist(coord)
+	if normalOut != nil || pointOut != nil {
+		projPoint := c.P1.Add(axis.Scale(dot))
+		delta := coord.Sub(projPoint)
+
+		b1 := XY(-axis.Y, axis.X)
+		normal := safeNormal(delta, b1, axis)
+		if normalOut != nil {
+			*normalOut = normal
+		}
+		if pointOut != nil {
+			*pointOut = projPoint.Add(normal.Scale(c.Radius))
+		}
+	}
+	return sdf
+}
+
+func safeNormal(direction, fallbackDirection, invalidDirection Coord) Coord {
+	if norm := direction.Norm(); norm == 0 {
+		// Fully degenerate case.
+		direction = fallbackDirection
+	} else {
+		direction = direction.Scale(1 / norm)
+
+		// When direction was very small, it might be pointing in
+		// an invalid direction once we normalize it.
+		direction = direction.ProjectOut(invalidDirection)
+		if norm := direction.Norm(); norm < 1e-5 {
+			// Most of the direction was due to rounding error.
+			direction = fallbackDirection
+		} else {
+			direction = direction.Scale(1 / norm)
+		}
+	}
+	return direction
 }
