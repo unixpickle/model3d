@@ -395,6 +395,16 @@ func TestCylinderColliderSDF(t *testing.T) {
 	}
 }
 
+func TestCapsuleColliderSDF(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		testSolidColliderSDF(t, &Capsule{
+			P1:     Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
+			P2:     Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
+			Radius: math.Abs(rand.NormFloat64()),
+		})
+	}
+}
+
 func TestTorusColliderSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		testSolidColliderSDF(t, randomTorus())

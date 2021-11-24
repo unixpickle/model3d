@@ -2,6 +2,7 @@ package {{.package}}
 
 import (
 	"math"
+	"sort"
 
 	{{if not .model2d}}
 	"github.com/unixpickle/model3d/numerical"
@@ -342,6 +343,101 @@ func (c *Capsule) Contains(coord {{.coordType}}) bool {
 	segment := NewSegment(c.P1, c.P2)
 {{- end}}
 	return segment.Dist(coord) <= c.Radius
+}
+
+// FirstRayCollision gets the first ray collision with the
+// capsule, if one occurs.
+func (c *Capsule) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	var res RayCollision
+	var ok bool
+	c.RayCollisions(r, func(rc RayCollision) {
+		// Collisions are sorted from first to last.
+		if !ok || rc.Scale < res.Scale {
+			res = rc
+			ok = true
+		}
+	})
+	return res, ok
+}
+
+// RayCollisions calls f (if non-nil) with every ray
+// collision.
+//
+// It returns the total number of collisions.
+func (c *Capsule) RayCollisions(r *Ray, f func(RayCollision)) int {
+	var colls []RayCollision
+	for _, p := range []{{.coordType}}{c.P1, c.P2} {
+		circle := &{{.circleType}}{Center: p, Radius: c.Radius}
+		circle.RayCollisions(r, func(rc RayCollision) {
+			colls = append(colls, rc)
+		})
+	}
+
+	// Borrowed from Cylinder.RayCollisions.
+	v := c.P2.Sub(c.P1).Normalize()
+	o := r.Origin.Sub(c.P1)
+	d := r.Direction
+	v1 := v.Scale(o.Dot(v)).Sub(o)
+	v2 := v.Scale(d.Dot(v)).Sub(d)
+	a := v2.Dot(v2)
+	b := 2 * v1.Dot(v2)
+	cVal := v1.Dot(v1) - c.Radius*c.Radius
+	discriminant := b*b - 4*a*cVal
+
+	if discriminant > 0 {
+		sqrt := math.Sqrt(discriminant)
+		maxScale := c.P2.Sub(c.P1).Norm()
+		for _, sign := range []float64{-1, 1} {
+			t := (-b + sign*sqrt) / (2 * a)
+			if t < 0 {
+				// Colisions cannot occur before ray start.
+				continue
+			}
+			// Make sure the collision happens between P1 and P2.
+			p := o.Add(d.Scale(t))
+			if frac := v.Dot(p); frac >= 0 && frac < maxScale {
+				colls = append(colls, RayCollision{
+					Scale:  t,
+					Normal: p.Sub(v.Scale(frac)).Normalize(),
+				})
+			}
+		}
+	}
+
+	if len(colls) == 0 {
+		return 0
+	} else if len(colls) == 1 {
+		if f != nil {
+			f(colls[0])
+		}
+		return 1
+	}
+
+	sort.Slice(colls, func(i, j int) bool {
+		return colls[i].Scale < colls[j].Scale
+	})
+
+	// There can be at most two collisions: entering and leaving.
+	// There may be more (phantom) collisions in between since we
+	// tracked collisions with spheres at the endpoints, not
+	// hemispheres.
+	count := 1
+	if !c.Contains(r.Origin) {
+		if f != nil {
+			f(colls[0])
+		}
+		count += 1
+	}
+	if f != nil {
+		f(colls[len(colls)-1])
+	}
+	return count
+}
+
+// {{.circleType}}Collision checks if the surface of c collides
+// with a solid {{.circleName}} centered at c with radius r.
+func (c *Capsule) {{.circleType}}Collision(center {{.coordType}}, r float64) bool {
+	return math.Abs(c.SDF(center)) <= r
 }
 
 // SDF gets the signed distance to the surface of the capsule.
