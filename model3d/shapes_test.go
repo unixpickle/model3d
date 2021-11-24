@@ -197,6 +197,36 @@ func TestCylinderSDF(t *testing.T) {
 	}
 }
 
+func TestCapsuleSDF(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		p1 := NewCoord3DRandUnit()
+		p2 := NewCoord3DRandUnit()
+		c := &Capsule{
+			P1:     p1,
+			P2:     p2,
+			Radius: math.Abs(rand.NormFloat64()) + 0.1,
+		}
+		epsilon := 0.2 * c.Radius
+		mesh := MarchingCubesSearch(c, epsilon/3, 8)
+		testMeshSDF(t, c, mesh, epsilon)
+		testPointSDFConsistency(t, c)
+
+		b1, b2 := c.P2.Sub(c.P1).OrthoBasis()
+		testNormalSDFConsistency(
+			t,
+			c,
+			true,
+			c.P1.Mid(c.P2),
+			c.P1.Mid(c.P2).Add(b1),
+			c.P1.Mid(c.P2).Add(b2),
+			c.P1.Add(c.P2.Sub(c.P1).Scale(-1)),
+			c.P1.Add(c.P2.Sub(c.P1).Scale(-1)).Add(b1.Scale(c.Radius/2)),
+			c.P2.Add(c.P1.Sub(c.P2).Scale(-1)),
+			c.P2.Add(c.P1.Sub(c.P2).Scale(-1)).Add(b1.Scale(c.Radius/2)),
+		)
+	}
+}
+
 func TestConeSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		p1 := NewCoord3DRandUnit()
