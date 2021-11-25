@@ -55,6 +55,16 @@ func (p Polynomial) Derivative() Polynomial {
 	return res
 }
 
+// Scale returns a new polynomial with the coefficients of
+// p multiplied by c.
+func (p Polynomial) Scale(c float64) Polynomial {
+	res := make(Polynomial, len(p))
+	for i, x := range p {
+		res[i] = x * c
+	}
+	return res
+}
+
 // Add returns the sum of p and p1.
 func (p Polynomial) Add(p1 Polynomial) Polynomial {
 	res := make(Polynomial, essentials.MaxInt(len(p), len(p1)))

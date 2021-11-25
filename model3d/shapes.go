@@ -343,7 +343,6 @@ func (c *Capsule) FirstRayCollision(r *Ray) (RayCollision, bool) {
 	var res RayCollision
 	var ok bool
 	c.RayCollisions(r, func(rc RayCollision) {
-		// Collisions are sorted from first to last.
 		if !ok || rc.Scale < res.Scale {
 			res = rc
 			ok = true
@@ -408,6 +407,11 @@ func (c *Capsule) RayCollisions(r *Ray, f func(RayCollision)) int {
 	sort.Slice(colls, func(i, j int) bool {
 		return colls[i].Scale < colls[j].Scale
 	})
+
+	// There can be at most two collisions: entering and leaving.
+	// There may be more (phantom) collisions in between since we
+	// tracked collisions with spheres at the endpoints, not
+	// hemispheres.
 	count := 1
 	if !c.Contains(r.Origin) {
 		if f != nil {
@@ -824,6 +828,84 @@ func (c *Cone) Contains(p Coord3D) bool {
 	}
 	projection := c.Base.Add(direction.Scale(frac))
 	return projection.Dist(p) <= c.Radius*radiusFrac
+}
+
+// FirstRayCollision gets the first ray collision with the
+// cone, if one occurs.
+func (c *Cone) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	var res RayCollision
+	var ok bool
+	c.RayCollisions(r, func(rc RayCollision) {
+		if !ok || rc.Scale < res.Scale {
+			res = rc
+			ok = true
+		}
+	})
+	return res, ok
+}
+
+// RayCollisions calls f (if non-nil) with every ray
+// collision.
+//
+// It returns the total number of collisions.
+func (c *Cone) RayCollisions(r *Ray, f func(RayCollision)) int {
+	n := 0
+
+	axis := c.Base.Sub(c.Tip)
+	norm := axis.Norm()
+	axis = axis.Scale(1 / norm)
+	b1, b2 := axis.OrthoBasis()
+
+	o := r.Origin.Sub(c.Tip)
+	d := r.Direction
+	dist1 := numerical.Polynomial{b1.Dot(o), b1.Dot(d)}
+	dist2 := numerical.Polynomial{b2.Dot(o), b2.Dot(d)}
+	distSq := dist1.Mul(dist1).Add(dist2.Mul(dist2))
+	radius := numerical.Polynomial{o.Dot(axis) * c.Radius / norm, d.Dot(axis) * c.Radius / norm}
+	radiusSq := radius.Mul(radius)
+
+	sqSurfaceDist := distSq.Add(radiusSq.Scale(-1))
+	sqSurfaceDist.IterRealRoots(func(t float64) bool {
+		if t >= 0 {
+			p := o.Add(d.Scale(t))
+			absPoint := r.Origin.Add(r.Direction.Scale(t))
+			segment := NewSegment(c.Tip.Add(c.Tip.Sub(c.Base).Scale(100)), c.Base.Add(c.Base.Sub(c.Tip).Scale(100)))
+			realRad := absPoint.Sub(c.Tip).Dot(axis) * (c.Radius / norm)
+			if dot := axis.Dot(p); dot >= 0 && dot <= norm {
+				if f != nil {
+					normal := p.Scale(c.Radius).Add(c.Base.Sub(c.Tip)).Normalize()
+					f(RayCollision{
+						Scale:  t,
+						Normal: normal,
+					})
+				}
+				n++
+			}
+		}
+		return true
+	})
+
+	// Check collision at base
+	normal := axis
+	bias := normal.Dot(c.Base)
+	coll, ok := castPlane(axis, bias, r)
+	if ok {
+		p := r.Origin.Add(r.Direction.Scale(coll.Scale))
+		if p.Dist(c.Base) <= c.Radius {
+			n++
+			if f != nil {
+				f(coll)
+			}
+		}
+	}
+
+	return n
+}
+
+// SphereCollision checks if the surface of c collides
+// with a solid sphere centered at c with radius r.
+func (c *Cone) SphereCollision(center Coord3D, r float64) bool {
+	return math.Abs(c.SDF(center)) <= r
 }
 
 // SDF determines the minimum distance from a point to the

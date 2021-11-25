@@ -341,7 +341,6 @@ func (c *Capsule) FirstRayCollision(r *Ray) (RayCollision, bool) {
 	var res RayCollision
 	var ok bool
 	c.RayCollisions(r, func(rc RayCollision) {
-		// Collisions are sorted from first to last.
 		if !ok || rc.Scale < res.Scale {
 			res = rc
 			ok = true
@@ -406,6 +405,11 @@ func (c *Capsule) RayCollisions(r *Ray, f func(RayCollision)) int {
 	sort.Slice(colls, func(i, j int) bool {
 		return colls[i].Scale < colls[j].Scale
 	})
+
+	// There can be at most two collisions: entering and leaving.
+	// There may be more (phantom) collisions in between since we
+	// tracked collisions with spheres at the endpoints, not
+	// hemispheres.
 	count := 1
 	if !c.Contains(r.Origin) {
 		if f != nil {
