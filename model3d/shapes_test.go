@@ -485,13 +485,19 @@ func testSolidColliderSDFRay(t *testing.T, sc solidColliderSDF, ray *Ray) {
 	}
 
 	var actualCollisions []RayCollision
-	sc.RayCollisions(ray, func(rc RayCollision) {
+	n := sc.RayCollisions(ray, func(rc RayCollision) {
 		actualCollisions = append(actualCollisions, rc)
 		p := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
 		if math.Abs(sc.SDF(p)) > 1e-8 {
 			t.Error("ray collision not on boundary")
 		}
 	})
+	if n != len(actualCollisions) {
+		t.Errorf("reported %d collisions but returned %d", len(actualCollisions), n)
+	}
+	if n1 := sc.RayCollisions(ray, nil); n1 != n {
+		t.Errorf("reported %d collisions with no callback and %d otherwise", n1, n)
+	}
 
 	sort.Slice(actualCollisions, func(i, j int) bool {
 		return actualCollisions[i].Scale < actualCollisions[j].Scale

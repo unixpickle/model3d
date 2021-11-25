@@ -1059,10 +1059,12 @@ func (t *Torus) RayCollisions(ray *Ray, f func(RayCollision)) int {
 	n := 0
 	polynomial.IterRealRoots(func(x float64) bool {
 		if x >= 0 {
-			n += 1
+			n++
 			p := ray.Origin.Add(ray.Direction.Scale(x))
 			normal, _ := t.NormalSDF(p)
-			f(RayCollision{Scale: x, Normal: normal})
+			if f != nil {
+				f(RayCollision{Scale: x, Normal: normal})
+			}
 		}
 		return true
 	})

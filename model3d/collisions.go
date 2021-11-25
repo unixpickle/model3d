@@ -633,10 +633,12 @@ func (p *profileCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
 			return 0
 		}
 		for _, rc := range collisions2d {
-			f(RayCollision{
-				Normal: XY(rc.Normal.X, rc.Normal.Y),
-				Scale:  rc.Scale,
-			})
+			if f != nil {
+				f(RayCollision{
+					Normal: XY(rc.Normal.X, rc.Normal.Y),
+					Scale:  rc.Scale,
+				})
+			}
 		}
 		return len(collisions2d)
 	}
@@ -652,26 +654,32 @@ func (p *profileCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
 
 	var count int
 	if minT >= 0 && inside2d(minT) {
-		f(RayCollision{
-			Normal: minTNormal,
-			Scale:  minT,
-		})
+		if f != nil {
+			f(RayCollision{
+				Normal: minTNormal,
+				Scale:  minT,
+			})
+		}
 		count++
 	}
 	for _, rc := range collisions2d {
 		if rc.Scale >= minT && rc.Scale <= maxT {
-			f(RayCollision{
-				Normal: XY(rc.Normal.X, rc.Normal.Y),
-				Scale:  rc.Scale,
-			})
+			if f != nil {
+				f(RayCollision{
+					Normal: XY(rc.Normal.X, rc.Normal.Y),
+					Scale:  rc.Scale,
+				})
+			}
 			count++
 		}
 	}
 	if maxT >= 0 && inside2d(maxT) {
-		f(RayCollision{
-			Normal: maxTNormal,
-			Scale:  maxT,
-		})
+		if f != nil {
+			f(RayCollision{
+				Normal: maxTNormal,
+				Scale:  maxT,
+			})
+		}
 		count++
 	}
 
