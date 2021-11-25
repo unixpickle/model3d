@@ -67,7 +67,7 @@ func NewCoord2DRandUniform() Coord2D {
 
 // NewCoord2DRandBounds creates a random Coord2D uniformly
 // inside the given rectangular boundary.
-func NewCoordRandBounds(min, max Coord2D) Coord2D {
+func NewCoord2DRandBounds(min, max Coord2D) Coord2D {
 	return model2d.NewCoordRandBounds(min, max)
 }
 
