@@ -407,11 +407,30 @@ func TestCapsuleColliderSDF(t *testing.T) {
 
 func TestConeColliderSDF(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		testSolidColliderSDF(t, &Cone{
+		c := &Cone{
 			Tip:    Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
 			Base:   Coord3D{rand.NormFloat64(), rand.NormFloat64(), rand.NormFloat64()},
 			Radius: math.Abs(rand.NormFloat64()),
-		})
+		}
+		testSolidColliderSDF(t, c)
+
+		// Make sure the normals are accurate.
+		p := c.Tip.Mid(c.Base)
+		b1, b2 := c.Base.Sub(c.Tip).OrthoBasis()
+		rayDir := b1.Add(b2).Normalize()
+		ray := &Ray{
+			Origin:    p.Add(rayDir.Scale(c.Radius)),
+			Direction: rayDir.Scale(-1),
+		}
+		rc, ok := c.FirstRayCollision(ray)
+		if !ok {
+			t.Error("back-facing ray should collide")
+		}
+		collPoint := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
+		normal, _ := c.NormalSDF(collPoint)
+		if math.Abs(normal.Dot(rc.Normal)) < 0.999 {
+			t.Errorf("expected normal %v but got %v", rc.Normal, normal)
+		}
 	}
 }
 

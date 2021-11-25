@@ -877,7 +877,8 @@ func (c *Cone) RayCollisions(r *Ray, f func(RayCollision)) int {
 			p := o.Add(d.Scale(t))
 			if dot := axis.Dot(p); dot >= 0 && dot <= norm {
 				if f != nil {
-					normal := p.Scale(c.Radius).Add(c.Base.Sub(c.Tip)).Normalize()
+					baseAxis := safeNormal(p.Add(c.Tip).Sub(c.Base), b1, axis)
+					normal := baseAxis.Scale(c.Radius).Add(c.Tip.Sub(c.Base)).Normalize()
 					f(RayCollision{
 						Scale:  t,
 						Normal: normal,
