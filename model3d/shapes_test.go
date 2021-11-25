@@ -414,22 +414,34 @@ func TestConeColliderSDF(t *testing.T) {
 		}
 		testSolidColliderSDF(t, c)
 
-		// Make sure the normals are accurate.
-		p := c.Tip.Mid(c.Base)
 		b1, b2 := c.Base.Sub(c.Tip).OrthoBasis()
+		testRays := []*Ray{}
+
+		// Shoot a ray towards the center of the cone.
+		p := c.Tip.Mid(c.Base)
 		rayDir := b1.Add(b2).Normalize()
-		ray := &Ray{
+		testRays = append(testRays, &Ray{
 			Origin:    p.Add(rayDir.Scale(c.Radius)),
 			Direction: rayDir.Scale(-1),
-		}
-		rc, ok := c.FirstRayCollision(ray)
-		if !ok {
-			t.Error("back-facing ray should collide")
-		}
-		collPoint := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
-		normal, _ := c.NormalSDF(collPoint)
-		if math.Abs(normal.Dot(rc.Normal)) < 0.999 {
-			t.Errorf("expected normal %v but got %v", rc.Normal, normal)
+		})
+
+		// Shoot a ray into the bottom of the cone.
+		testRays = append(testRays, &Ray{
+			Origin:    c.Base.Add(c.Base.Sub(c.Tip)),
+			Direction: c.Tip.Sub(c.Base),
+		})
+
+		for _, ray := range testRays {
+			rc, ok := c.FirstRayCollision(ray)
+			if !ok {
+				t.Error("back-facing ray should collide")
+				continue
+			}
+			collPoint := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
+			normal, _ := c.NormalSDF(collPoint)
+			if math.Abs(normal.Dot(rc.Normal)) < 0.999 {
+				t.Errorf("expected normal %v but got %v", rc.Normal, normal)
+			}
 		}
 	}
 }
