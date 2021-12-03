@@ -141,7 +141,7 @@ func SaveRandomGrid(path string, obj interface{}, rows, cols, imgSize int,
 		for j := 0; j < cols; j++ {
 			direction := model3d.NewCoord3DRandUnit()
 			caster := &RayCaster{
-				Camera: directionalCamera(object, direction),
+				Camera: DirectionalCamera(object, direction),
 				Lights: []*PointLight{
 					{
 						Origin: center.Add(direction.Scale(1000)),
@@ -181,7 +181,7 @@ func SaveRotatingGIF(path string, obj interface{}, axis, cameraDir model3d.Coord
 		xObj = Translate(xObj, center)
 		transformed[i] = xObj
 
-		camera := directionalCamera(transformed[i], cameraDir.Normalize())
+		camera := DirectionalCamera(transformed[i], cameraDir.Normalize())
 		if furthestCamera == nil ||
 			camera.Origin.Dist(center) > furthestCamera.Origin.Dist(center) {
 			furthestCamera = camera
@@ -228,10 +228,10 @@ func SaveRotatingGIF(path string, obj interface{}, axis, cameraDir model3d.Coord
 	return gif.EncodeAll(w, &g)
 }
 
-// directionalCamera figures out where to move a camera in
+// DirectionalCamera figures out where to move a camera in
 // the given unit direction to capture the bounding box of
 // an object.
-func directionalCamera(object Object, direction model3d.Coord3D) *Camera {
+func DirectionalCamera(object Object, direction model3d.Coord3D) *Camera {
 	min, max := object.Min(), object.Max()
 	baseline := min.Dist(max)
 	center := min.Mid(max)
