@@ -34,22 +34,34 @@ func main() {
 	)
 	log.Println("Creating main mesh...")
 	mesh := model3d.MarchingCubesSearch(solid, 0.03, 8)
-	log.Println("Rendering main mesh...")
-	colorFunc := func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
-		return render3d.NewColorRGB(0, 1.0, 0)
-	}
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc)
 	log.Println("Saving main mesh...")
 	mesh.Scale(FinalScale).SaveGroupedSTL("tree.stl")
 
 	log.Println("Creating separate ridges...")
+	ridgeMesh := model3d.NewMesh()
 	for i, z := range []float64{-2.0, -3.0, -4.0, -5.0} {
 		solid2d := RidgeSolid(z)
 		solid3d := model3d.ProfileSolid(solid2d, 0, RidgeThickness)
 		solid3d = model3d.TranslateSolid(solid3d, model3d.Z(z))
 		mesh := model3d.MarchingCubesSearch(solid3d, 0.02, 8)
 		mesh.Scale(FinalScale).SaveGroupedSTL(fmt.Sprintf("ridge_%d.stl", i))
+		ridgeMesh.AddMesh(mesh)
 	}
+
+	log.Println("Rendering full model...")
+	ridgeSDF := model3d.MeshToSDF(ridgeMesh)
+	treeSDF := model3d.MeshToSDF(mesh)
+	colorFunc := func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
+		ridgeDist := ridgeSDF.SDF(c)
+		treeDist := treeSDF.SDF(c)
+		if treeDist > ridgeDist {
+			return render3d.NewColorRGB(0, 0.8, 0)
+		} else {
+			return render3d.NewColor(0.8)
+		}
+	}
+	mesh.AddMesh(ridgeMesh)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc)
 }
 
 func OuterRadiusFunc() func(float64) float64 {
