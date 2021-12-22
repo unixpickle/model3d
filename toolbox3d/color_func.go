@@ -46,7 +46,7 @@ func ConstantCoordColorFunc(c render3d.Color) CoordColorFunc {
 // Pass a sequence of object, color, object, color, ...
 // where objects are *model3d.Mesh or model3d.SDF, and
 // colors are render3d.Color or CoordColorFunc.
-func SDFCoordColorFunc(sdfsAndColors ...interface{}) CoordColorFunc {
+func JoinedCoordColorFunc(sdfsAndColors ...interface{}) CoordColorFunc {
 	if len(sdfsAndColors)%2 != 0 {
 		panic("must pass an even number of arguments")
 	}

@@ -105,19 +105,15 @@ func CactusSolid() model3d.Solid {
 }
 
 func ColorFunc() toolbox3d.CoordColorFunc {
-	vase := model3d.MeshToSDF(model3d.MarchingCubesSearch(VaseSolid(), 0.03, 8))
-	pebbles := model3d.MeshToSDF(model3d.MarchingCubesSearch(PebbleSolid(), 0.01, 8))
+	vase := model3d.MarchingCubesSearch(VaseSolid(), 0.03, 8)
+	pebbles := model3d.MarchingCubesSearch(PebbleSolid(), 0.01, 8)
 	body := model3d.MeshToSDF(model3d.MarchingCubesSearch(CactusSolid(), 0.01, 8))
 
-	return func(c model3d.Coord3D) render3d.Color {
-		vDist := vase.SDF(c)
-		pDist := pebbles.SDF(c)
-		bFace, _, bDist := body.FaceSDF(c)
-		if math.Abs(pDist)-0.01 < math.Abs(vDist) && math.Abs(pDist) < math.Abs(bDist) {
-			return PebbleColor
-		} else if math.Abs(vDist) < math.Abs(bDist) {
-			return VaseColor
-		} else {
+	return toolbox3d.JoinedCoordColorFunc(
+		vase, VaseColor,
+		pebbles, PebbleColor,
+		body, toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
+			bFace, _, _ := body.FaceSDF(c)
 			normal := bFace.Normal()
 			xz := normal.XZ().Norm()
 			if normal.X < 0 {
@@ -129,6 +125,6 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 			} else {
 				return CactusColor2
 			}
-		}
-	}
+		}),
+	)
 }

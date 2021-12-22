@@ -50,7 +50,7 @@ func main() {
 	}
 
 	log.Println("Rendering full model...")
-	colorFunc := toolbox3d.SDFCoordColorFunc(
+	colorFunc := toolbox3d.JoinedCoordColorFunc(
 		ridgeMesh, render3d.NewColor(0.8),
 		mesh, render3d.NewColorRGB(0, 0.8, 0),
 	)
