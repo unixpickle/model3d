@@ -8,6 +8,7 @@ import (
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
@@ -49,19 +50,12 @@ func main() {
 	}
 
 	log.Println("Rendering full model...")
-	ridgeSDF := model3d.MeshToSDF(ridgeMesh)
-	treeSDF := model3d.MeshToSDF(mesh)
-	colorFunc := func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
-		ridgeDist := ridgeSDF.SDF(c)
-		treeDist := treeSDF.SDF(c)
-		if treeDist > ridgeDist {
-			return render3d.NewColorRGB(0, 0.8, 0)
-		} else {
-			return render3d.NewColor(0.8)
-		}
-	}
+	colorFunc := toolbox3d.SDFCoordColorFunc(
+		ridgeMesh, render3d.NewColor(0.8),
+		mesh, render3d.NewColorRGB(0, 0.8, 0),
+	)
 	mesh.AddMesh(ridgeMesh)
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
 }
 
 func OuterRadiusFunc() func(float64) float64 {

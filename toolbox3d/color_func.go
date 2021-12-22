@@ -1,6 +1,9 @@
 package toolbox3d
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
@@ -26,4 +29,57 @@ func (c CoordColorFunc) TriangleColor(t *model3d.Triangle) [3]float64 {
 		sum[2] += b / 3
 	}
 	return sum
+}
+
+// ConstantCoordColorFunc creates a CoordColorFunc that
+// returns a constant value.
+func ConstantCoordColorFunc(c render3d.Color) CoordColorFunc {
+	return func(x model3d.Coord3D) render3d.Color {
+		return c
+	}
+}
+
+// JoinedCoordColorFunc creates a CoordColorFunc that
+// evaluates separate CoordColorFunc for different objects,
+// where the object with maximum SDF is chosen.
+//
+// Pass a sequence of object, color, object, color, ...
+// where objects are *model3d.Mesh or model3d.SDF, and
+// colors are render3d.Color or CoordColorFunc.
+func SDFCoordColorFunc(sdfsAndColors ...interface{}) CoordColorFunc {
+	if len(sdfsAndColors)%2 != 0 {
+		panic("must pass an even number of arguments")
+	}
+	sdfs := make([]model3d.SDF, 0, len(sdfsAndColors)/2)
+	colorFns := make([]CoordColorFunc, 0, len(sdfsAndColors)/2)
+	for i := 0; i < len(sdfsAndColors); i += 2 {
+		switch obj := sdfsAndColors[i].(type) {
+		case model3d.SDF:
+			sdfs = append(sdfs, obj)
+		case *model3d.Mesh:
+			sdfs = append(sdfs, model3d.MeshToSDF(obj))
+		default:
+			panic(fmt.Sprintf("unknown type for object: %T", obj))
+		}
+		switch colorFn := sdfsAndColors[i+1].(type) {
+		case CoordColorFunc:
+			colorFns = append(colorFns, colorFn)
+		case render3d.Color:
+			colorFns = append(colorFns, ConstantCoordColorFunc(colorFn))
+		default:
+			panic(fmt.Sprintf("unknown type for color: %T", colorFn))
+		}
+	}
+	return func(c model3d.Coord3D) render3d.Color {
+		maxSDF := math.Inf(-1)
+		var maxColorFn CoordColorFunc
+		for i, sdf := range sdfs {
+			value := sdf.SDF(c)
+			if value > maxSDF {
+				maxSDF = value
+				maxColorFn = colorFns[i]
+			}
+		}
+		return maxColorFn(c)
+	}
 }
