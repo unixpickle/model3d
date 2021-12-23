@@ -2,10 +2,10 @@ package main
 
 import (
 	"log"
-	"math"
 	"os"
 
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
@@ -65,11 +65,11 @@ func main() {
 	defer w.Close()
 	essentials.Must(mesh.SaveMaterialOBJ(
 		"color_heart_statue.zip",
-		model3d.VertexColorsToTriangle(colorFunc.VertexColor),
+		colorFunc.TriangleColor,
 	))
 
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderFunc)
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
 }
 
 func LoadLetter(filename string, x float64) model3d.Solid {
@@ -90,36 +90,11 @@ func LoadLetter(filename string, x float64) model3d.Solid {
 	return profile
 }
 
-type ColorFunc struct {
-	sdfs   []model3d.SDF
-	colors [][3]float64
-}
-
-func NewColorFunc(colors map[model3d.Solid][3]float64) *ColorFunc {
-	res := &ColorFunc{}
+func NewColorFunc(colors map[model3d.Solid][3]float64) toolbox3d.CoordColorFunc {
+	var args []interface{}
 	for solid, color := range colors {
 		mesh := model3d.MarchingCubesSearch(solid, MarchingDelta, 8)
-		sdf := model3d.MeshToSDF(mesh)
-		res.sdfs = append(res.sdfs, sdf)
-		res.colors = append(res.colors, color)
+		args = append(args, mesh, render3d.NewColorRGB(color[0], color[1], color[2]))
 	}
-	return res
-}
-
-func (c *ColorFunc) VertexColor(coord model3d.Coord3D) [3]float64 {
-	maxSDF := math.Inf(-1)
-	var bestColor [3]float64
-	for i, s := range c.sdfs {
-		dist := s.SDF(coord)
-		if dist > maxSDF {
-			maxSDF = dist
-			bestColor = c.colors[i]
-		}
-	}
-	return bestColor
-}
-
-func (c *ColorFunc) RenderFunc(coord model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
-	color := c.VertexColor(coord)
-	return render3d.NewColorRGB(color[0], color[1], color[2])
+	return toolbox3d.JoinedCoordColorFunc(args...)
 }
