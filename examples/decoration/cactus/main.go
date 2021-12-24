@@ -112,7 +112,7 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 	return toolbox3d.JoinedCoordColorFunc(
 		vase, VaseColor,
 		pebbles, PebbleColor,
-		body, toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
+		body, func(c model3d.Coord3D) render3d.Color {
 			bFace, _, _ := body.FaceSDF(c)
 			normal := bFace.Normal()
 			xz := normal.XZ().Norm()
@@ -125,6 +125,6 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 			} else {
 				return CactusColor2
 			}
-		}),
+		},
 	)
 }

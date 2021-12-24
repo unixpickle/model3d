@@ -64,6 +64,8 @@ func JoinedCoordColorFunc(sdfsAndColors ...interface{}) CoordColorFunc {
 		switch colorFn := sdfsAndColors[i+1].(type) {
 		case CoordColorFunc:
 			colorFns = append(colorFns, colorFn)
+		case func(c model3d.Coord3D) render3d.Color:
+			colorFns = append(colorFns, colorFn)
 		case render3d.Color:
 			colorFns = append(colorFns, ConstantCoordColorFunc(colorFn))
 		default:
