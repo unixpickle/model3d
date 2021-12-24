@@ -3,26 +3,18 @@ package model2d
 import (
 	"bytes"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/unixpickle/model3d/fileformats"
 )
 
 // EncodeCSV encodes the mesh as a CSV file.
 func EncodeCSV(m *Mesh) []byte {
-	var lines []string
+	buffer := bytes.NewBuffer(nil)
+	writer := fileformats.NewSegmentCSVWriter(buffer)
 	m.Iterate(func(s *Segment) {
-		line := ""
-		for i, x := range []float64{s[0].X, s[0].Y, s[1].X, s[1].Y} {
-			if i > 0 {
-				line += ","
-			}
-			line += strconv.FormatFloat(x, 'G', -1, 64)
-		}
-		lines = append(lines, line)
+		writer.Write([4]float64{s[0].X, s[0].Y, s[1].X, s[1].Y})
 	})
-	return []byte(strings.Join(lines, "\n"))
+	return buffer.Bytes()
 }
 
 // EncodeSVG encodes the mesh as an SVG file.

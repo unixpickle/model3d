@@ -1,37 +1,24 @@
 package model2d
 
 import (
-	"strconv"
-	"strings"
+	"bytes"
+	"io"
 
-	"github.com/pkg/errors"
+	"github.com/unixpickle/model3d/fileformats"
 )
 
 // DecodeCSV decodes the CSV format from EncodeCSV().
 func DecodeCSV(data []byte) ([]*Segment, error) {
-	lines := strings.Split(string(data), "\n")
+	r := fileformats.NewSegmentCSVReader(bytes.NewReader(data))
 	res := []*Segment{}
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if len(line) == 0 {
-			continue
+	for {
+		row, err := r.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
 		}
-		parts := strings.Split(line, ",")
-		if len(parts) != 4 {
-			return nil, errors.New("read csv: invalid number of columns")
-		}
-		var values [4]float64
-		for i, part := range parts {
-			value, err := strconv.ParseFloat(part, 64)
-			if err != nil {
-				return nil, errors.Wrap(err, "read csv")
-			}
-			values[i] = value
-		}
-		res = append(res, &Segment{
-			XY(values[0], values[1]),
-			XY(values[2], values[3]),
-		})
+		res = append(res, &Segment{XY(row[0], row[1]), XY(row[2], row[3])})
 	}
 	return res, nil
 }
