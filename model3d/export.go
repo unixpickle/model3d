@@ -4,12 +4,17 @@ import (
 	"archive/zip"
 	"bufio"
 	"bytes"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
+	"math"
 	"strconv"
 
 	"github.com/pkg/errors"
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/fileformats"
+	"github.com/unixpickle/model3d/numerical"
 )
 
 // EncodeSTL encodes a list of triangles in the binary STL
@@ -166,6 +171,49 @@ func writeMaterialOBJ(w io.Writer, triangles []*Triangle,
 	return zipFile.Close()
 }
 
+// WriteQuantizedMaterialOBJ is like WriteMaterialOBJ, but
+// uses a fixed-size texture image to store face colors.
+func WriteQuantizedMaterialOBJ(w io.Writer, ts []*Triangle, textureSize int,
+	colorFunc func(t *Triangle) [3]float64) error {
+	if err := writeQuantizedMaterialOBJ(w, ts, textureSize, colorFunc); err != nil {
+		return errors.Wrap(err, "write quantized material OBJ")
+	}
+	return nil
+}
+
+func writeQuantizedMaterialOBJ(w io.Writer, triangles []*Triangle, textureSize int,
+	colorFunc func(t *Triangle) [3]float64) error {
+	obj, mtl, texture := BuildQuantizedMaterialOBJ(triangles, textureSize, colorFunc)
+
+	zipFile := zip.NewWriter(w)
+
+	fw, err := zipFile.Create("object.obj")
+	if err != nil {
+		return err
+	}
+	if err := obj.Write(fw); err != nil {
+		return err
+	}
+
+	fw, err = zipFile.Create("material.mtl")
+	if err != nil {
+		return err
+	}
+	if err := mtl.Write(fw); err != nil {
+		return err
+	}
+
+	fw, err = zipFile.Create("texture.png")
+	if err != nil {
+		return err
+	}
+	if err := png.Encode(fw, texture); err != nil {
+		return err
+	}
+
+	return zipFile.Close()
+}
+
 // BuildMaterialOBJ constructs obj and mtl files from a
 // triangle mesh where each triangle's color is determined
 // by a function c.
@@ -222,6 +270,107 @@ func BuildMaterialOBJ(t []*Triangle, c func(t *Triangle) [3]float64) (o *filefor
 	}
 
 	return
+}
+
+// BuildQuantizedMaterialOBJ is like BuildMaterialOBJ, but
+// quantizes the triangle colors to fit in a single texture
+// image, where each pixel is a different color.
+//
+// Returns the texture image as well as the obj file.
+// The texture should be called "texture.png", and the
+// material "material.mtl".
+func BuildQuantizedMaterialOBJ(t []*Triangle, textureSize int,
+	c func(t *Triangle) [3]float64) (*fileformats.OBJFile, *fileformats.MTLFile, *image.RGBA) {
+	coords := [][3]float64{}
+	triIndices := [][3]int{}
+	coordToIndex := map[[3]float64]int{}
+	for _, tri := range t {
+		var inds [3]int
+		for i, c := range tri {
+			vec3 := c.Array()
+			if _, ok := coordToIndex[vec3]; !ok {
+				coordToIndex[vec3] = len(coords)
+				coords = append(coords, vec3)
+			}
+			inds[i] = coordToIndex[vec3] + 1
+		}
+		triIndices = append(triIndices, inds)
+	}
+
+	triColors := make([][3]float32, len(t))
+	essentials.ConcurrentMap(0, len(t), func(i int) {
+		tri := t[i]
+		color64 := c(tri)
+		triColors[i] = [3]float32{float32(color64[0]), float32(color64[1]), float32(color64[2])}
+	})
+	texture, uvs, texIndices := buildPaletteTexture(triColors, textureSize)
+
+	material := &fileformats.MTLFileMaterial{
+		Name:             "material",
+		Ambient:          [3]float32{0.0, 0.0, 0.0},
+		Diffuse:          [3]float32{1.0, 1.0, 1.0},
+		SpecularExponent: 1.0,
+		DiffuseMap:       &fileformats.MTLFileTextureMap{Filename: "texture.png"},
+	}
+	mtl := &fileformats.MTLFile{Materials: []*fileformats.MTLFileMaterial{material}}
+	group := &fileformats.OBJFileFaceGroup{Material: "material"}
+
+	for i, vertIndices := range triIndices {
+		texIndex := texIndices[i] + 1
+		group.Faces = append(group.Faces, [3][3]int{
+			{vertIndices[0], texIndex, 0},
+			{vertIndices[1], texIndex, 0},
+			{vertIndices[2], texIndex, 0},
+		})
+	}
+
+	obj := &fileformats.OBJFile{
+		MaterialFiles: []string{"material.mtl"},
+		Vertices:      coords,
+		UVs:           uvs,
+		FaceGroups:    []*fileformats.OBJFileFaceGroup{group},
+	}
+
+	return obj, mtl, texture
+}
+
+func buildPaletteTexture(colors [][3]float32, imageSize int) (*image.RGBA, [][2]float64, []int) {
+	allVecs := make([]numerical.Vec, len(colors))
+	for i, c := range colors {
+		allVecs[i] = numerical.Vec{float64(c[0]), float64(c[1]), float64(c[2])}
+	}
+	numCenters := imageSize * imageSize
+	clusters := numerical.NewKMeans(allVecs, numCenters)
+	loss := math.Inf(1)
+	for i := 0; i < 5; i++ {
+		loss1 := clusters.Iterate()
+		if loss1 >= loss {
+			break
+		}
+		loss = loss1
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, imageSize, imageSize))
+	uvs := make([][2]float64, len(clusters.Centers))
+	for i, c := range clusters.Centers {
+		y := i / imageSize
+		x := i % imageSize
+		rgba := color.RGBA{
+			R: uint8(0xff * c[0]),
+			G: uint8(0xff * c[1]),
+			B: uint8(0xff * c[2]),
+			A: 0xff,
+		}
+		img.SetRGBA(x, y, rgba)
+		uvs[i] = [2]float64{
+			(0.5 + float64(x)) / float64(imageSize),
+			(0.5 + float64(y)) / float64(imageSize),
+		}
+	}
+
+	assignments := clusters.Assign(allVecs)
+
+	return img, uvs, assignments
 }
 
 // VertexColorsToTriangle creates a per-triangle color

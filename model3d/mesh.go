@@ -605,6 +605,22 @@ func (m *Mesh) SaveMaterialOBJ(path string, colorFunc func(t *Triangle) [3]float
 	return nil
 }
 
+// SaveQuantizedMaterialOBJ is like SaveMaterialOBJ, but
+// a square texture is used to store face colors.
+func (m *Mesh) SaveQuantizedMaterialOBJ(path string, textureSize int,
+	colorFunc func(t *Triangle) [3]float64) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save quantized material OBJ")
+	}
+	defer f.Close()
+	err = WriteQuantizedMaterialOBJ(f, m.TriangleSlice(), textureSize, colorFunc)
+	if err != nil {
+		return errors.Wrap(err, "save quantized material OBJ")
+	}
+	return nil
+}
+
 // SaveGroupedSTL writes the mesh to an STL file with the
 // triangles grouped in such a way that the file can be
 // compressed efficiently.
