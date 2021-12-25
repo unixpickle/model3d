@@ -115,6 +115,20 @@ func (v Vec) Normalize() Vec {
 	return v.Scale(1 / v.Norm())
 }
 
+// DistSquared computes ||v-v1||^2.
+func (v Vec) DistSquared(v1 Vec) float64 {
+	var sum float64
+	for i, x := range v {
+		sum += x * v1[i]
+	}
+	return sum
+}
+
+// Dist computes ||v-v1||.
+func (v Vec) Dist(v1 Vec) float64 {
+	return math.Sqrt(v.DistSquared(v1))
+}
+
 // ProjectOut projects the direction v1 out of v.
 func (v Vec) ProjectOut(v1 Vec) Vec {
 	normed := v1.Normalize()
