@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"runtime"
 	"sync"
+
+	"github.com/unixpickle/essentials"
 )
 
 // KMeans runs K-means++ on a dataset.
@@ -38,7 +40,11 @@ func NewKMeans(data []Vec, numCenters int) *KMeans {
 // If the MSE loss does not decrease, then the process has
 // converged.
 func (k *KMeans) Iterate() float64 {
+	dim := len(k.Centers[0])
 	centerSum := make([]Vec, len(k.Centers))
+	for i := range centerSum {
+		centerSum[i] = make(Vec, dim)
+	}
 	centerCount := make([]int, len(k.Centers))
 	totalError := 0.0
 
@@ -50,6 +56,9 @@ func (k *KMeans) Iterate() float64 {
 		go func(idx int) {
 			defer wg.Done()
 			localCenterSum := make([]Vec, len(k.Centers))
+			for i := range localCenterSum {
+				localCenterSum[i] = make(Vec, dim)
+			}
 			localCenterCount := make([]int, len(k.Centers))
 			localTotalError := 0.0
 			for i := idx; i < len(k.Data); i += numProcs {
@@ -88,6 +97,25 @@ func (k *KMeans) Iterate() float64 {
 	}
 
 	return totalError / float64(len(k.Data))
+}
+
+// Assign gets the closest center index for every vector.
+func (k *KMeans) Assign(vecs []Vec) []int {
+	result := make([]int, len(vecs))
+	essentials.ConcurrentMap(0, len(result), func(i int) {
+		co := vecs[i]
+		closestDist := 0.0
+		closestIdx := 0
+		for i, center := range k.Centers {
+			d := co.DistSquared(center)
+			if d < closestDist || i == 0 {
+				closestDist = d
+				closestIdx = i
+			}
+		}
+		result[i] = closestIdx
+	})
+	return result
 }
 
 func kmeansPlusPlusInit(allColors []Vec, numCenters int) []Vec {
