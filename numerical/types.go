@@ -119,7 +119,8 @@ func (v Vec) Normalize() Vec {
 func (v Vec) DistSquared(v1 Vec) float64 {
 	var sum float64
 	for i, x := range v {
-		sum += x * v1[i]
+		diff := (x - v1[i])
+		sum += diff * diff
 	}
 	return sum
 }
