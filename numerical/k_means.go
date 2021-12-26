@@ -11,7 +11,13 @@ import (
 	"github.com/unixpickle/essentials"
 )
 
-// KMeans runs K-means++ on a dataset.
+// KMeans stores the (intermediate) results of K-means
+// clustering.
+//
+// This type can be created using NewKMeans() to create an
+// initial clustering using K-means++. Then, Iterate() can
+// be called repeatedly to refine the clustering as
+// desired.
 type KMeans struct {
 	// Centers is the K-means cluster centers.
 	Centers []Vec
