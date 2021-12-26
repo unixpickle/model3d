@@ -364,7 +364,7 @@ func buildPaletteTexture(colors [][3]float32, imageSize int) (*image.RGBA, [][2]
 		img.SetRGBA(x, y, rgba)
 		uvs[i] = [2]float64{
 			(0.5 + float64(x)) / float64(imageSize),
-			(0.5 + float64(y)) / float64(imageSize),
+			1 - (0.5+float64(y))/float64(imageSize),
 		}
 	}
 
