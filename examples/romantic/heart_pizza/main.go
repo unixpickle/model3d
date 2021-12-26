@@ -47,7 +47,7 @@ func main() {
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
 
 	log.Println("Saving mesh...")
-	mesh.SaveMaterialOBJ("pizza.zip", colorFunc.TriangleColor)
+	mesh.SaveQuantizedMaterialOBJ("pizza.zip", 16, colorFunc.TriangleColor)
 }
 
 func GetHeartRim() model3d.Solid {
@@ -114,9 +114,6 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 				cheeseDensity += d(c.XY())
 			}
 			cheeseFrac := cheeseDensity / float64(len(densities))
-
-			// Limit the number of unique colors.
-			cheeseFrac = math.Round(cheeseFrac*15.0) / 15.0
 
 			cheeseColor := render3d.NewColorRGB(1, 1, 0)
 			sauceColor := render3d.NewColorRGB(0.83, 0.35, 0.23)
