@@ -33,6 +33,16 @@ const (
 	Pillar1Y           = 1.5
 	Pillar2Y           = 5.0
 
+	// Configuration of base size.
+	BaseEdgeRadius = 0.25
+	BaseHeight     = 0.3
+
+	// Configuration of car size.
+	CarWidth      = 0.2
+	CarLength     = 0.4
+	CarHeight     = 0.2
+	CarTireRadius = 0.07
+
 	CableRadius = PillarWidth / 2
 )
 
@@ -41,11 +51,15 @@ func main() {
 		CreatePillars(),
 		CreateRoad(),
 		CreateCables(),
+		CreateBase(),
+		CreateCars(),
 	}
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(joined, MarchingDelta, 8)
 	log.Println("Creating color func...")
 	colorFn := ColorFunc()
+	log.Println("Saving mesh...")
+	mesh.SaveMaterialOBJ("car.zip", colorFn.TriangleColor)
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFn.RenderColor)
 }
@@ -164,28 +178,87 @@ func cableForCurve(x float64, c model2d.Curve) model3d.Solid {
 	return toolbox3d.LineJoin(CableRadius, segs...)
 }
 
+func CreateBase() model3d.Solid {
+	baseRect := model3d.BoundsRect(CreateRoad())
+	baseRect.MinVal.Z = -(PillarBelowRoad + BaseHeight)
+	baseRect.MaxVal.Z = -(PillarBelowRoad + BaseEdgeRadius) + 1e-5
+	return &model3d.IntersectedSolid{
+		model3d.NewColliderSolidInset(baseRect, -BaseEdgeRadius),
+		model3d.NewRect(
+			model3d.XYZ(math.Inf(-1), math.Inf(-1), baseRect.Min().Z),
+			model3d.Ones(math.Inf(1)),
+		),
+	}
+}
+
+func CreateCars() model3d.Solid {
+	var cars model3d.JoinedSolid
+	for _, pos := range carPositions() {
+		cars = append(cars, createCar(pos))
+	}
+	return cars
+}
+
+func carPositions() []model2d.Coord {
+	return []model2d.Coord{model2d.XY(0.2, 2.0)}
+}
+
+func carColors() []render3d.Color {
+	return []render3d.Color{render3d.NewColorRGB(0, 0.8, 0.2)}
+}
+
+func createCar(pos model2d.Coord) model3d.Solid {
+	baseSolid := model3d.JoinedSolid{
+		model3d.NewRect(
+			model3d.XYZ(-CarWidth/2, -CarLength/2, 0),
+			model3d.XYZ(CarWidth/2, CarLength/2, CarHeight/2),
+		),
+		model3d.NewRect(
+			model3d.XYZ(-CarWidth/2, -0.8*CarLength/2, CarHeight/2),
+			model3d.XYZ(CarWidth/2, 0.8*CarLength/2, CarHeight),
+		),
+		&model3d.Cylinder{
+			P1:     model3d.XYZ(-CarWidth/2, -(CarLength/2 - CarTireRadius), 0),
+			P2:     model3d.XYZ(CarWidth/2, -(CarLength/2 - CarTireRadius), 0),
+			Radius: CarTireRadius,
+		},
+		&model3d.Cylinder{
+			P1:     model3d.XYZ(-CarWidth/2, CarLength/2-CarTireRadius, 0),
+			P2:     model3d.XYZ(CarWidth/2, CarLength/2-CarTireRadius, 0),
+			Radius: CarTireRadius,
+		},
+	}
+	return model3d.TranslateSolid(
+		baseSolid,
+		model3d.XYZ(pos.X, pos.Y, RoadThickness/2+CarTireRadius/2),
+	)
+}
+
 func ColorFunc() toolbox3d.CoordColorFunc {
 	pillars1 := createPillarsAtY(Pillar1Y)
 	pillars2 := createPillarsAtY(Pillar2Y)
-	pillarColor := render3d.NewColorRGB(1.0, 0.62, 0)
+	pillarColor := render3d.NewColorRGB(1.0, 0.28*1.2, 0.1*1.2)
 
 	road := CreateRoad()
 	roadColor := func(c model3d.Coord3D) render3d.Color {
 		cx := math.Abs(c.X)
 		if cx >= RoadWidth/2-RoadSmoothRadius {
 			return pillarColor
-		} else if cx < RoadLineWidth {
+		} else if cx < RoadLineWidth && math.Mod(c.Y, 0.5) < 0.35 {
 			return render3d.NewColor(1.0)
 		} else {
 			return render3d.NewColor(0.2)
 		}
 	}
 
+	base := CreateBase()
+	baseColor := render3d.NewColorRGB(0, 0.5, 0.8)
+
 	cables1 := createCablesAtX(cableXs()[0])
 	cables2 := createCablesAtX(cableXs()[1])
 	cableColor := pillarColor
 
-	return toolbox3d.JoinedCoordColorFunc(
+	coloredObjs := []interface{}{
 		model3d.MarchingCubesSearch(pillars1, ColorMarchingDelta, 8),
 		pillarColor,
 		model3d.MarchingCubesSearch(pillars2, ColorMarchingDelta, 8),
@@ -196,5 +269,17 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 		cableColor,
 		model3d.MarchingCubesSearch(cables2, ColorMarchingDelta, 8),
 		cableColor,
-	)
+		model3d.MarchingCubesSearch(base, ColorMarchingDelta, 8),
+		baseColor,
+	}
+
+	for i, pos := range carPositions() {
+		coloredObjs = append(
+			coloredObjs,
+			model3d.MarchingCubesSearch(createCar(pos), ColorMarchingDelta, 8),
+			carColors()[i],
+		)
+	}
+
+	return toolbox3d.JoinedCoordColorFunc(coloredObjs...)
 }
