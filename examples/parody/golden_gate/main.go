@@ -4,6 +4,7 @@ import (
 	"log"
 	"math"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -58,8 +59,13 @@ func main() {
 	mesh := model3d.MarchingCubesSearch(joined, MarchingDelta, 8)
 	log.Println("Creating color func...")
 	colorFn := ColorFunc()
+	log.Println("Eliminating mesh...")
+	pre := len(mesh.TriangleSlice())
+	mesh = mesh.EliminateCoplanarFiltered(1e-8, VertexFilter(mesh, colorFn))
+	post := len(mesh.TriangleSlice())
+	log.Printf("Went from %d triangles to %d", pre, post)
 	log.Println("Saving mesh...")
-	mesh.SaveMaterialOBJ("car.zip", colorFn.TriangleColor)
+	mesh.SaveMaterialOBJ("bridge.zip", colorFn.TriangleColor)
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFn.RenderColor)
 }
@@ -200,11 +206,29 @@ func CreateCars() model3d.Solid {
 }
 
 func carPositions() []model2d.Coord {
-	return []model2d.Coord{model2d.XY(0.2, 2.0)}
+	return []model2d.Coord{
+		model2d.XY(0.25, 0.5),
+		model2d.XY(-0.25, 1.0),
+		model2d.XY(0.25, 2.0),
+		model2d.XY(-0.25, 3.0),
+		model2d.XY(0.25, 3.5),
+		model2d.XY(-0.25, 4.8),
+		model2d.XY(-0.25, 5.5),
+		model2d.XY(0.25, 6.0),
+	}
 }
 
 func carColors() []render3d.Color {
-	return []render3d.Color{render3d.NewColorRGB(0, 0.8, 0.2)}
+	return []render3d.Color{
+		render3d.NewColorRGB(0.2, 0.1, 0.8),
+		render3d.NewColorRGB(0.23, 0.62, 0.46),
+		render3d.NewColorRGB(0, 0.8, 0.2),
+		render3d.NewColorRGB(0.8, 0.1, 0.2),
+		render3d.NewColorRGB(0.7, 0.7, 0.1),
+		render3d.NewColorRGB(0.2, 0.1, 0.8),
+		render3d.NewColorRGB(0.5, 0.2, 0.2),
+		render3d.NewColorRGB(0.86, 0.42, 0.11),
+	}
 }
 
 func createCar(pos model2d.Coord) model3d.Solid {
@@ -230,7 +254,7 @@ func createCar(pos model2d.Coord) model3d.Solid {
 	}
 	return model3d.TranslateSolid(
 		baseSolid,
-		model3d.XYZ(pos.X, pos.Y, RoadThickness/2+CarTireRadius/2),
+		model3d.XYZ(pos.X, pos.Y, RoadThickness/2+CarTireRadius/2+RoadSmoothRadius),
 	)
 }
 
@@ -281,5 +305,37 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 		)
 	}
 
-	return toolbox3d.JoinedCoordColorFunc(coloredObjs...)
+	return toolbox3d.JoinedCoordColorFunc(coloredObjs...).Cached()
+}
+
+func VertexFilter(m *model3d.Mesh, f toolbox3d.CoordColorFunc) func(model3d.Coord3D) bool {
+	vertices := m.VertexSlice()
+	safeDelete := make([]bool, len(vertices))
+	essentials.ConcurrentMap(0, len(vertices), func(i int) {
+		safeDelete[i] = consistentColor(m, vertices[i], f)
+	})
+	deleteMap := map[model3d.Coord3D]bool{}
+	for i, flag := range safeDelete {
+		if flag {
+			deleteMap[vertices[i]] = true
+		}
+	}
+	return func(c model3d.Coord3D) bool {
+		return deleteMap[c]
+	}
+}
+
+func consistentColor(m *model3d.Mesh, c model3d.Coord3D, f toolbox3d.CoordColorFunc) bool {
+	centerColor := f(c)
+	for _, t := range m.Find(c) {
+		for _, c1 := range t {
+			if c1 != c {
+				otherColor := f(c1)
+				if otherColor != centerColor {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
