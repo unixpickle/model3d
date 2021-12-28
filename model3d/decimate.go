@@ -118,9 +118,13 @@ func (d *distanceDecCriterion) canRemoveVertex(v *decVertex) bool {
 
 type normalDecCriterion struct {
 	CosineEpsilon float64
+	FilterFunc    func(Coord3D) bool
 }
 
 func (n *normalDecCriterion) canRemoveVertex(v *decVertex) bool {
+	if n.FilterFunc != nil && !n.FilterFunc(v.Vertex.Coord3D) {
+		return false
+	}
 	if v.Simple() {
 		return true
 	} else if v.Edge() {

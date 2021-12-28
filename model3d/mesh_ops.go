@@ -511,8 +511,8 @@ func (m *Mesh) EliminateEdges(f func(tmp *Mesh, segment Segment) bool) *Mesh {
 	return result
 }
 
-// EliminateCoplanar eliminates vertices inside whose
-// neighboring triangles are all co-planar.
+// EliminateCoplanar eliminates vertices whose neigboring
+// triangles are all co-planar.
 //
 // The epsilon argument controls how close two normals
 // must be for the triangles to be considered coplanar.
@@ -523,6 +523,20 @@ func (m *Mesh) EliminateCoplanar(epsilon float64) *Mesh {
 		MinimumAspectRatio: 0.01,
 		Criterion: &normalDecCriterion{
 			CosineEpsilon: epsilon,
+		},
+	}
+	return dec.Decimate(m)
+}
+
+// EliminateCoplanarFiltered is like EliminateCoplanar,
+// but vertices are only removed if f(vertex) is true.
+func (m *Mesh) EliminateCoplanarFiltered(epsilon float64, f func(Coord3D) bool) *Mesh {
+	dec := &decimator{
+		FeatureAngle:       math.Acos(1 - epsilon),
+		MinimumAspectRatio: 0.01,
+		Criterion: &normalDecCriterion{
+			CosineEpsilon: epsilon,
+			FilterFunc:    f,
 		},
 	}
 	return dec.Decimate(m)
