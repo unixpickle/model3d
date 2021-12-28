@@ -67,7 +67,7 @@ func main() {
 	log.Println("Saving mesh...")
 	mesh.SaveMaterialOBJ("bridge.zip", colorFn.TriangleColor)
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFn.RenderColor)
+	render3d.SaveRendering("rendering.png", mesh, model3d.XYZ(8.0, -3.0, 2.5), 512, 512, colorFn.RenderColor)
 }
 
 func CreatePillars() model3d.Solid {
