@@ -3,6 +3,7 @@ package toolbox3d
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -29,6 +30,24 @@ func (c CoordColorFunc) TriangleColor(t *model3d.Triangle) [3]float64 {
 		sum[2] += b / 3
 	}
 	return sum
+}
+
+// Cached wraps c in another CoordColorFunc that caches
+// colors for coordinates.
+//
+// The cached function is safe to call concurrently from
+// multiple Goroutines at once.
+func (c CoordColorFunc) Cached() CoordColorFunc {
+	cache := &sync.Map{}
+	return func(coord model3d.Coord3D) render3d.Color {
+		value, ok := cache.Load(coord)
+		if ok {
+			return value.(render3d.Color)
+		}
+		actual := c(coord)
+		cache.Store(coord, actual)
+		return actual
+	}
 }
 
 // ConstantCoordColorFunc creates a CoordColorFunc that
