@@ -69,15 +69,7 @@ func (k *KMeans) Iterate() float64 {
 			localTotalError := 0.0
 			for i := idx; i < len(k.Data); i += numProcs {
 				co := k.Data[i]
-				closestDist := 0.0
-				closestIdx := 0
-				for i, center := range k.Centers {
-					d := float64(co.DistSquared(center))
-					if d < closestDist || i == 0 {
-						closestDist = d
-						closestIdx = i
-					}
-				}
+				closestDist, closestIdx := k.assign(co)
 				localCenterSum[closestIdx] = localCenterSum[closestIdx].Add(co)
 				localCenterCount[closestIdx]++
 				localTotalError += closestDist
@@ -109,19 +101,21 @@ func (k *KMeans) Iterate() float64 {
 func (k *KMeans) Assign(vecs []Vec) []int {
 	result := make([]int, len(vecs))
 	essentials.ConcurrentMap(0, len(result), func(i int) {
-		co := vecs[i]
-		closestDist := 0.0
-		closestIdx := 0
-		for i, center := range k.Centers {
-			d := co.DistSquared(center)
-			if d < closestDist || i == 0 {
-				closestDist = d
-				closestIdx = i
-			}
-		}
-		result[i] = closestIdx
+		_, result[i] = k.assign(vecs[i])
 	})
 	return result
+}
+
+func (k *KMeans) assign(v Vec) (dist float64, idx int) {
+
+	for i, center := range k.Centers {
+		d := float64(v.DistSquared(center))
+		if d < dist || i == 0 {
+			dist = d
+			idx = i
+		}
+	}
+	return
 }
 
 func kmeansPlusPlusInit(allColors []Vec, numCenters int) []Vec {
