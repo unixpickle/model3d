@@ -180,7 +180,7 @@ func TranslateSolid(solid Solid, offset Coord) Solid {
 
 // RotateSolid creates a new Solid by rotating a Solid by
 // a given angle (in radians).
-func RotateSolid(solid Solid, axis Coord, angle float64) Solid {
+func RotateSolid(solid Solid, angle float64) Solid {
 	return TransformSolid(Rotation(angle), solid)
 }
 
