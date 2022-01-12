@@ -24,6 +24,18 @@ func TestMeshSDFConsistency(t *testing.T) {
 	}
 }
 
+func TestMeshSDFVertices(t *testing.T) {
+	solid := sdfTestingSolid()
+	mesh := MarchingCubesSearch(solid, 0.02, 8)
+	sdf := MeshToSDF(mesh)
+
+	mesh.IterateVertices(func(c Coord3D) {
+		if val := sdf.SDF(c); math.Abs(val) > 1e-8 {
+			t.Fatalf("point %v should have SDF 0 but got %f", c, val)
+		}
+	})
+}
+
 func TestMeshPointSDF(t *testing.T) {
 	solid := sdfTestingSolid()
 	mesh := MarchingCubesSearch(solid, 0.02, 8)
