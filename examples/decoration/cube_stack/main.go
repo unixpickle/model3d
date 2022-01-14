@@ -38,7 +38,8 @@ func main() {
 
 	log.Println("Rendering...")
 	colorFn := CubeColorFunc(cubes)
-	render3d.SaveRendering("rendering.png", mesh, model3d.XYZ(2.0, -10.0, 7.0), 512, 512, colorFn.RenderColor)
+	render3d.SaveRendering("rendering.png", mesh, model3d.XYZ(2.0, -10.0, 7.0), 1024, 1024,
+		colorFn.RenderColor)
 	log.Println("Saving...")
 	mesh.SaveMaterialOBJ("cubes.zip", colorFn.TriangleColor)
 }
