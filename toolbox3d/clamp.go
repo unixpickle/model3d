@@ -8,7 +8,7 @@ import (
 
 // ClampAxis creates a solid which does not extend beyond
 // the range [min, max] along the given axis.
-func ClampAxis(s model3d.Solid, axis int, min, max float64) model3d.Solid {
+func ClampAxis(s model3d.Solid, axis Axis, min, max float64) model3d.Solid {
 	newMin := s.Min().Array()
 	newMax := s.Max().Array()
 	newMin[axis] = math.Max(min, newMin[axis])
@@ -32,4 +32,16 @@ func ClampAxis(s model3d.Solid, axis int, min, max float64) model3d.Solid {
 			return s.Contains(c)
 		},
 	)
+}
+
+// ClampAxisMax clamps the solid below a given maximum
+// value along a given axis.
+func ClampAxisMax(s model3d.Solid, axis Axis, max float64) model3d.Solid {
+	return ClampAxis(s, axis, math.Inf(-1), max)
+}
+
+// ClampAxisMin clamps the solid above a given minimum
+// value along a given axis.
+func ClampAxisMin(s model3d.Solid, axis Axis, min float64) model3d.Solid {
+	return ClampAxis(s, axis, min, math.Inf(1))
 }
