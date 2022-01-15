@@ -8,32 +8,26 @@ import (
 )
 
 func CreateTripod() model3d.Solid {
-	return model3d.IntersectedSolid{
+	return toolbox3d.ClampZMin(
 		model3d.JoinedSolid{
 			createLeg(0),
 			createLeg(2 * math.Pi / 3.0),
 			createLeg(4 * math.Pi / 3.0),
-
 			model3d.StackSolids(
 				&model3d.Cylinder{
 					P1:     model3d.Z(TripodHeadZ),
-					P2:     model3d.Coord3D{Z: TripodHeadZ + TripodHeadHeight},
+					P2:     model3d.Z(TripodHeadZ + TripodHeadHeight),
 					Radius: TripodHeadRadius,
 				},
 				&toolbox3d.ScrewSolid{
-					P2:         model3d.Coord3D{Z: CradleBottomThickness - ScrewSlack},
+					P2:         model3d.Z(CradleBottomThickness - ScrewSlack),
 					Radius:     ScrewRadius,
 					GrooveSize: ScrewGroove,
 				},
 			),
 		},
-
-		// Cut off bottom of leg cylinders.
-		&model3d.Rect{
-			MinVal: model3d.Coord3D{X: math.Inf(-1), Y: math.Inf(-1)},
-			MaxVal: model3d.XYZ(math.Inf(1), math.Inf(1), TripodHeight*2),
-		},
-	}
+		0,
+	)
 }
 
 func createLeg(theta float64) model3d.Solid {

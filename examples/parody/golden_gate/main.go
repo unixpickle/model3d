@@ -188,13 +188,10 @@ func CreateBase() model3d.Solid {
 	baseRect := model3d.BoundsRect(CreateRoad())
 	baseRect.MinVal.Z = -(PillarBelowRoad + BaseHeight)
 	baseRect.MaxVal.Z = -(PillarBelowRoad + BaseEdgeRadius) + 1e-5
-	return &model3d.IntersectedSolid{
+	return toolbox3d.ClampZMin(
 		model3d.NewColliderSolidInset(baseRect, -BaseEdgeRadius),
-		model3d.NewRect(
-			model3d.XYZ(math.Inf(-1), math.Inf(-1), baseRect.Min().Z),
-			model3d.Ones(math.Inf(1)),
-		),
-	}
+		baseRect.Min().Z,
+	)
 }
 
 func CreateCars() model3d.Solid {

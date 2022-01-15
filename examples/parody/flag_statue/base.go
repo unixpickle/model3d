@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 const (
@@ -15,18 +16,13 @@ const (
 )
 
 func GenerateBase() model3d.Solid {
-	extra := model3d.Coord3D{X: 1, Y: 1}.Scale(BaseChunkSize)
-	return model3d.IntersectedSolid{
-		&model3d.Rect{
-			MinVal: model3d.XYZ(-BaseLength/2, -BaseWidth/2, 0).Sub(extra),
-			MaxVal: model3d.Coord3D{X: BaseLength / 2, Y: BaseWidth / 2,
-				Z: BaseHeight + BaseChunkSize}.Add(extra),
-		},
+	return toolbox3d.ClampZMin(
 		model3d.JoinedSolid{
 			BaseSmoothSolid(),
 			GenerateChunkyFinish(),
 		},
-	}
+		0,
+	)
 }
 
 func GenerateChunkyFinish() model3d.Solid {
