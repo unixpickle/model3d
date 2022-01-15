@@ -45,3 +45,33 @@ func ClampAxisMax(s model3d.Solid, axis Axis, max float64) model3d.Solid {
 func ClampAxisMin(s model3d.Solid, axis Axis, min float64) model3d.Solid {
 	return ClampAxis(s, axis, min, math.Inf(1))
 }
+
+// ClampXMax is like ClampAxisMax for the X axis.
+func ClampXMax(s model3d.Solid, max float64) model3d.Solid {
+	return ClampAxisMax(s, AxisX, max)
+}
+
+// ClampXMin is like ClampAxisMin for the X axis.
+func ClampXMin(s model3d.Solid, max float64) model3d.Solid {
+	return ClampAxisMin(s, AxisX, max)
+}
+
+// ClampYMax is like ClampAxisMax for the Y axis.
+func ClampYMax(s model3d.Solid, max float64) model3d.Solid {
+	return ClampAxisMax(s, AxisY, max)
+}
+
+// ClampYMin is like ClampAxisMin for the Y axis.
+func ClampYMin(s model3d.Solid, max float64) model3d.Solid {
+	return ClampAxisMin(s, AxisY, max)
+}
+
+// ClampZMax is like ClampAxisMax for the Z axis.
+func ClampZMax(s model3d.Solid, max float64) model3d.Solid {
+	return ClampAxisMax(s, AxisZ, max)
+}
+
+// ClampZMin is like ClampAxisMin for the Z axis.
+func ClampZMin(s model3d.Solid, max float64) model3d.Solid {
+	return ClampAxisMin(s, AxisZ, max)
+}
