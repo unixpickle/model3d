@@ -2,6 +2,8 @@ package model3d
 
 import (
 	"math"
+
+	"github.com/unixpickle/essentials"
 )
 
 const (
@@ -60,6 +62,13 @@ type Decimator struct {
 	// is used.
 	MinimumAspectRatio float64
 
+	// SplitAttempts specifies the number of different
+	// separator lines the triangulation routine may try
+	// to achieve a minimum aspect ratio.
+	//
+	// By default, one attempt is made.
+	SplitAttempts int
+
 	// FilterFunc, if specified, can be used to prevent
 	// certain vertices from being removed.
 	// If FilterFunc returns false for a coordinate, it
@@ -77,6 +86,7 @@ func (d *Decimator) decimator() *decimator {
 	return &decimator{
 		FeatureAngle:       d.FeatureAngle,
 		MinimumAspectRatio: d.MinimumAspectRatio,
+		SplitAttempts:      d.SplitAttempts,
 		Criterion: &distanceDecCriterion{
 			PlaneDistance:      d.PlaneDistance,
 			BoundaryDistance:   d.BoundaryDistance,
@@ -142,6 +152,7 @@ func (n *normalDecCriterion) canRemoveVertex(v *decVertex) bool {
 type decimator struct {
 	FeatureAngle       float64
 	MinimumAspectRatio float64
+	SplitAttempts      int
 
 	Criterion decCriterion
 }
@@ -248,34 +259,59 @@ func (d *decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 		}
 	}
 
-	var bestAspectRatio float64
-	var bestLoop1, bestLoop2 *subloop
-	for i := range coords {
-		for j := i + 2; j < len(coords); j++ {
-			if i+len(coords)-j < 2 {
-				continue
-			}
-			loop1, loop2, aspectRatio := d.createSubloops(avgPlane, coords, i, j)
-			if aspectRatio > bestAspectRatio {
-				bestAspectRatio = aspectRatio
-				bestLoop1, bestLoop2 = loop1, loop2
-			}
-		}
-	}
-
-	if bestAspectRatio == 0 {
-		return nil
-	}
-
 	minRatio := d.MinimumAspectRatio
 	if minRatio == 0 {
 		minRatio = DefaultDecimatorMinAspectRatio
 	}
-	if bestAspectRatio < minRatio {
+
+	if d.SplitAttempts < 2 {
+		// Common case from paper: simply try the best
+		// split and recurse.
+		var bestAspectRatio float64
+		var bestLoop1, bestLoop2 *subloop
+		for i := range coords {
+			for j := i + 2; j < len(coords); j++ {
+				if i+len(coords)-j < 2 {
+					continue
+				}
+				loop1, loop2, aspectRatio := d.createSubloops(avgPlane, coords, i, j)
+				if aspectRatio > bestAspectRatio {
+					bestAspectRatio = aspectRatio
+					bestLoop1, bestLoop2 = loop1, loop2
+				}
+			}
+		}
+		if bestAspectRatio == 0 || bestAspectRatio < minRatio {
+			return nil
+		}
+		return d.fillLoops(avgPlane, bestLoop1, bestLoop2)
+	} else {
+		// Try every potential split.
+		var aspectRatios []float64
+		var loopPairs [][2]*subloop
+		for i := range coords {
+			for j := i + 2; j < len(coords); j++ {
+				if i+len(coords)-j < 2 {
+					continue
+				}
+				loop1, loop2, aspectRatio := d.createSubloops(avgPlane, coords, i, j)
+				if aspectRatio >= minRatio {
+					aspectRatios = append(aspectRatios, aspectRatio)
+					loopPairs = append(loopPairs, [2]*subloop{loop1, loop2})
+				}
+			}
+		}
+		essentials.VoodooSort(aspectRatios, func(i, j int) bool {
+			return aspectRatios[i] > aspectRatios[j]
+		}, loopPairs)
+		for _, loopPair := range loopPairs {
+			filled := d.fillLoops(avgPlane, loopPair[0], loopPair[1])
+			if filled != nil {
+				return filled
+			}
+		}
 		return nil
 	}
-
-	return d.fillLoops(avgPlane, bestLoop1, bestLoop2)
 }
 
 func (d *decimator) createSubloops(avgPlane *plane, coords []*ptrCoord, i, j int) (loop1,
