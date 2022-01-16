@@ -256,9 +256,6 @@ func (d *decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 				continue
 			}
 			loop1, loop2, aspectRatio := d.createSubloops(avgPlane, coords, i, j)
-			if aspectRatio == 0 {
-				continue
-			}
 			if aspectRatio > bestAspectRatio {
 				bestAspectRatio = aspectRatio
 				bestLoop1, bestLoop2 = loop1, loop2
