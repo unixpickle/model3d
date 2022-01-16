@@ -259,7 +259,7 @@ func (d *decimator) fillLoop(avgPlane *plane, coords []*ptrCoord) []*ptrTriangle
 			if aspectRatio == 0 {
 				continue
 			}
-			if bestAspectRatio == 0 || math.Abs(aspectRatio-1) < math.Abs(bestAspectRatio-1) {
+			if aspectRatio > bestAspectRatio {
 				bestAspectRatio = aspectRatio
 				bestLoop1, bestLoop2 = loop1, loop2
 			}
