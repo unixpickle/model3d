@@ -477,6 +477,11 @@ func (s Segment) Mid() Coord3D {
 	return s[0].Mid(s[1])
 }
 
+// Length gets the length of the segment.
+func (s Segment) Length() float64 {
+	return s[0].Dist(s[1])
+}
+
 // Dist gets the minimum distance from c to a point on the
 // line segment.
 func (s Segment) Dist(c Coord3D) float64 {

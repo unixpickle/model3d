@@ -50,6 +50,15 @@ func (c CoordColorFunc) Cached() CoordColorFunc {
 	}
 }
 
+// Transform wraps c in another CoordColorFunc that applies
+// the inverse of t to input points.
+func (c CoordColorFunc) Transform(t model3d.Transform) CoordColorFunc {
+	tInv := t.Inverse()
+	return func(coord model3d.Coord3D) render3d.Color {
+		return c(tInv.Apply(coord))
+	}
+}
+
 // ConstantCoordColorFunc creates a CoordColorFunc that
 // returns a constant value.
 func ConstantCoordColorFunc(c render3d.Color) CoordColorFunc {

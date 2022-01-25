@@ -182,6 +182,12 @@ func (s *Subdivider) AddFiltered(m *Mesh, f func(p1, p2 Coord3D) bool) {
 	})
 }
 
+// NumSegments returns the current number of segments
+// added to s.
+func (s *Subdivider) NumSegments() int {
+	return len(s.lines)
+}
+
 // Subdivide modifies the mesh by replacing triangles
 // whose sides are affected by subdivision.
 //
