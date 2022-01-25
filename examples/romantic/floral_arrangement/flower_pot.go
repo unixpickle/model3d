@@ -17,6 +17,10 @@ const (
 	PotTopRadius    = 2.4
 	PotBottomRadius = 2.2
 	PotHeight       = 2.0
+
+	// Used to allow the pot to be hollowed out after printing.
+	PotSideThickness    = 0.3
+	PotBottomHoleRadius = 0.25
 )
 
 func FlowerPot() model3d.Solid {
@@ -36,19 +40,37 @@ func FlowerPot() model3d.Solid {
 	vaseBody := toolbox3d.ClampZMin(
 		CurvyCone(
 			model3d.Z(rim.Min().Z),
-			model3d.Z(rim.Min().Z-PotHeight*PotTopRadius/(PotTopRadius-PotBottomRadius)),
-			PotTopRadius,
+			model3d.Z(rim.Min().Z-PotHeight*PotRimRadius/(PotRimRadius-PotBottomRadius)),
+			PotRimRadius,
+			PotRimRadius-PotTopRadius,
 		),
 		rim.Min().Z-PotHeight,
 	)
-	return model3d.JoinedSolid{
+	exterior := model3d.JoinedSolid{
 		letters,
 		rim,
 		vaseBody,
 	}
+	exteriorMesh := model3d.MarchingCubesSearch(exterior, 0.02, 8)
+	interior := model3d.NewColliderSolidInset(
+		model3d.MeshToCollider(exteriorMesh),
+		PotSideThickness,
+	)
+	bottomHole := &model3d.Cylinder{
+		P1:     model3d.Z(exterior.Min().Z - 1e-5),
+		P2:     model3d.Z(exterior.Min().Z + PotSideThickness + 0.03),
+		Radius: PotBottomHoleRadius,
+	}
+	return &model3d.SubtractedSolid{
+		Positive: exterior,
+		Negative: model3d.JoinedSolid{
+			interior,
+			bottomHole,
+		},
+	}
 }
 
-func CurvyCone(base, tip model3d.Coord3D, radius float64) model3d.Solid {
+func CurvyCone(base, tip model3d.Coord3D, radius, inset float64) model3d.Solid {
 	baseCone := &model3d.Cone{
 		Base:   base,
 		Tip:    tip,
@@ -60,7 +82,7 @@ func CurvyCone(base, tip model3d.Coord3D, radius float64) model3d.Solid {
 		func(c model3d.Coord3D) bool {
 			thetaOffset := (c.Z - base.Z)
 			theta := math.Atan2(c.Y, c.X)
-			r := radius * (1 - 0.05*math.Pow(math.Cos(theta*15+5*thetaOffset), 2))
+			r := radius - inset*math.Pow(math.Cos(theta*15+5*thetaOffset), 2)
 			cone := model3d.Cone{
 				Base:   base,
 				Tip:    tip,
