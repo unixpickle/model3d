@@ -1,6 +1,8 @@
 package model3d
 
 import (
+	"math"
+
 	"github.com/unixpickle/model3d/model2d"
 )
 
@@ -28,9 +30,18 @@ func TriangulateFace(polygon []Coord3D) []*Triangle {
 
 	basis1 := polygon[1].Sub(polygon[0])
 	basis1 = basis1.Normalize()
-	basis2 := polygon[2].Sub(polygon[0])
-	basis2 = basis2.Add(basis1.Scale(-basis1.Dot(basis2)))
-	basis2 = basis2.Normalize()
+
+	// Find a point that is not co-linear with the first two.
+	minDot := math.Inf(1)
+	basis2, _ := basis1.OrthoBasis()
+	for _, p := range polygon[2:] {
+		v := p.Sub(polygon[0]).ProjectOut(basis1).Normalize()
+		dot := math.Abs(v.Dot(basis1))
+		if !math.IsNaN(dot) && !math.IsInf(dot, 0) && dot < minDot {
+			minDot = dot
+			basis2 = v
+		}
+	}
 
 	coords2D := make([]Coord2D, len(polygon))
 	for i, p := range polygon {

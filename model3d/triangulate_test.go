@@ -32,3 +32,20 @@ func TestTriangulateFace(t *testing.T) {
 		}
 	}
 }
+
+func TestTriangulateFaceColinear(t *testing.T) {
+	corner1 := Coord3D{1, 2, 3}
+	side1 := Coord3D{-1, 1, 2}
+	side2 := Coord3D{0, -2, 1}
+	rect := []Coord3D{
+		corner1.Mid(corner1.Add(side1)),
+		corner1.Add(side1),
+		corner1.Add(side1).Add(side2),
+		corner1.Add(side2),
+		corner1,
+	}
+	triangles := TriangulateFace(rect)
+	if len(triangles) != 2 {
+		t.Fatalf("unexpected triangle count: %d", len(triangles))
+	}
+}
