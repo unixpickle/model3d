@@ -89,16 +89,7 @@ func JoinedCoordColorFunc(sdfsAndColors ...interface{}) CoordColorFunc {
 		default:
 			panic(fmt.Sprintf("unknown type for object: %T", obj))
 		}
-		switch colorFn := sdfsAndColors[i+1].(type) {
-		case CoordColorFunc:
-			colorFns = append(colorFns, colorFn)
-		case func(c model3d.Coord3D) render3d.Color:
-			colorFns = append(colorFns, colorFn)
-		case render3d.Color:
-			colorFns = append(colorFns, ConstantCoordColorFunc(colorFn))
-		default:
-			panic(fmt.Sprintf("unknown type for color: %T", colorFn))
-		}
+		colorFns = append(colorFns, colorFuncFromObj(sdfsAndColors[i+1]))
 	}
 	return func(c model3d.Coord3D) render3d.Color {
 		maxSDF := math.Inf(-1)
@@ -111,5 +102,48 @@ func JoinedCoordColorFunc(sdfsAndColors ...interface{}) CoordColorFunc {
 			}
 		}
 		return maxColorFn(c)
+	}
+}
+
+// JoinedMeshCoordColorFunc combines CoordColorFuncs for
+// different meshes, using the color function of the mesh
+// closest to a given point.
+//
+// This behaves similarly to JoinedCoordColorFunc, but will
+// choose the closest surface rather than the object with
+// the overall greatest SDF. This should only affect points
+// contained inside of the union of all of the objects.
+func JoinedMeshCoordColorFunc(meshToColorFunc map[*model3d.Mesh]interface{}) CoordColorFunc {
+	allMeshes := model3d.NewMesh()
+	triToColorFunc := map[*model3d.Triangle]CoordColorFunc{}
+	for mesh, colorObj := range meshToColorFunc {
+		colorFunc := colorFuncFromObj(colorObj)
+		mesh.Iterate(func(t *model3d.Triangle) {
+			// Note: if a triangle is present in multiple meshes,
+			// one mesh's color func will end up owning the triangle.
+			triToColorFunc[t] = colorFunc
+			allMeshes.Add(t)
+		})
+	}
+	// The mesh may not have a well-defined sign, since the different
+	// meshes may overlap and disobey the even-odd rule. The resulting
+	// SDF should still produce correct closest points and faces.
+	faceSDF := model3d.MeshToSDF(allMeshes)
+	return func(c model3d.Coord3D) render3d.Color {
+		face, _, _ := faceSDF.FaceSDF(c)
+		return triToColorFunc[face](c)
+	}
+}
+
+func colorFuncFromObj(obj interface{}) CoordColorFunc {
+	switch colorFn := obj.(type) {
+	case CoordColorFunc:
+		return colorFn
+	case func(c model3d.Coord3D) render3d.Color:
+		return colorFn
+	case render3d.Color:
+		return ConstantCoordColorFunc(colorFn)
+	default:
+		panic(fmt.Sprintf("unknown type for color: %T", colorFn))
 	}
 }
