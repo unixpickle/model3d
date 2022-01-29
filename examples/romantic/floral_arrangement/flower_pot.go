@@ -24,7 +24,7 @@ const (
 )
 
 func FlowerPot() model3d.Solid {
-	letters := WrappedLetters("♡ I LOVE YOU ♡", PotRimRadius, PotTextHeight, 0.1)
+	letters := WrappedLetters("♡ I LOVE YOU, NUGGIE ♡", PotRimRadius, PotTextHeight, 0.1)
 	rim := &model3d.SubtractedSolid{
 		Positive: &model3d.Cylinder{
 			P1:     model3d.Z(letters.Min().Z - PotTextBorder),

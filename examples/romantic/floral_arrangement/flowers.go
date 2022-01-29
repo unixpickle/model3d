@@ -11,7 +11,7 @@ import (
 
 type Flower struct {
 	Solid     model3d.Solid
-	ColorSDF  model3d.SDF
+	ColorMesh *model3d.Mesh
 	ColorFunc toolbox3d.CoordColorFunc
 	Tilt      float64
 }
@@ -30,13 +30,13 @@ func NewBermudaButtercup() *Flower {
 	r := func(th float64) float64 {
 		return math.Max(0.3, math.Abs(math.Cbrt(math.Sin(2.5*th))))
 	}
-	heightMesh := polarHeightMap(0.03, r, z)
+	heightMesh := polarHeightMap(0.03, r, z).Scale(0.9).Translate(model3d.Z(-0.05))
 	s := model3d.NewColliderSolidHollow(model3d.MeshToCollider(heightMesh), 0.1)
 	tilt := math.Pi / 4
 	tilted := model3d.RotateSolid(s, model3d.Y(1), tilt)
 	return &Flower{
 		Solid:     tilted,
-		ColorSDF:  ColorFuncSDF(tilted),
+		ColorMesh: ColorFuncMesh(tilted),
 		ColorFunc: toolbox3d.ConstantCoordColorFunc(render3d.NewColorRGB(1.0, 1.0, 0.0)),
 		Tilt:      tilt,
 	}
@@ -54,7 +54,7 @@ func NewRose() *Flower {
 				return -1
 			}
 			frac := (theta - thetaStart) / (thetaEnd - thetaStart)
-			return radius * (1 - math.Pow(frac, 6))
+			return radius * (1 - math.Pow(frac*2-1, 6))
 		}
 		z := func(curRad float64) float64 {
 			return math.Pow(curRad/radius, 6)
@@ -64,15 +64,15 @@ func NewRose() *Flower {
 	pedals := []*model3d.Mesh{
 		pedal(0.2, 0, 0.4),
 		pedal(0.25, 0.3, 0.4),
-		pedal(0.18, 0.65, 0.4),
-		pedal(0.4, 0.3, 0.5),
-		pedal(0.4, 0.6, 0.2),
-		pedal(0.4, 0.9, 0.2),
-		pedal(0.6, 0.15, 0.25),
-		pedal(0.65, 0.1, 0.5),
-		pedal(0.63, 0.4, 0.2),
-		pedal(0.65, 0.7, 0.2),
-		pedal(0.62, 0.95, 0.25),
+		pedal(0.2, 0.6, 0.45),
+		pedal(0.42, 0.05, 0.35),
+		pedal(0.4, 0.3, 0.35),
+		pedal(0.42, 0.5, 0.4),
+		pedal(0.4, 0.8, 0.33),
+		pedal(0.65, 0.1, 0.4),
+		pedal(0.62, 0.35, 0.5),
+		pedal(0.64, 0.7, 0.3),
+		pedal(0.62, 0.85, 0.4),
 	}
 	combined := model3d.NewMesh()
 	for _, m := range pedals {
@@ -83,7 +83,7 @@ func NewRose() *Flower {
 	tilted := model3d.RotateSolid(solid, model3d.Y(1), tilt)
 	return &Flower{
 		Solid:     tilted,
-		ColorSDF:  ColorFuncSDF(tilted),
+		ColorMesh: ColorFuncMesh(tilted),
 		ColorFunc: toolbox3d.ConstantCoordColorFunc(render3d.NewColorRGB(1.0, 0.0, 0.0)),
 		Tilt:      tilt,
 	}
@@ -124,13 +124,14 @@ func NewPurpleRowFlower() *Flower {
 		pedals.AddMesh(pedalMesh.Rotate(model3d.Z(1), theta))
 		pedals.AddMesh(pedalMesh.Rotate(model3d.Z(1), theta1).Translate(model3d.Z(0.1)))
 	}
+	pedals = pedals.Scale(0.8).Translate(model3d.Z(-0.1))
 
 	middleDiscCircle := &model3d.Cylinder{
-		P1:     model3d.Z(0.2),
-		P2:     model3d.Z(0.21),
-		Radius: 0.2,
+		P1:     model3d.Z(0.1),
+		P2:     model3d.Z(0.11),
+		Radius: 0.15,
 	}
-	middleDisc := model3d.NewColliderSolidInset(middleDiscCircle, -0.15)
+	middleDisc := model3d.NewColliderSolidInset(middleDiscCircle, -0.12)
 
 	solid := model3d.JoinedSolid{
 		middleDisc,
@@ -138,19 +139,19 @@ func NewPurpleRowFlower() *Flower {
 	}
 
 	colorFunc := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
-		if middleDiscCircle.SDF(c) > -(0.15 + 0.005) {
-			return render3d.NewColor(0.1)
+		if middleDiscCircle.SDF(c) > -(0.12 + 0.005) {
+			return render3d.NewColor(0.05)
 		} else {
 			return render3d.NewColorRGB(0xdd/255.0, 0x4d/255.0, 0xcd/255.0)
 		}
 	})
 
-	tilt := math.Pi / 3.5
+	tilt := math.Pi / 5.2
 	xform := model3d.Rotation(model3d.Y(1), tilt)
 	tilted := model3d.TransformSolid(xform, solid)
 	return &Flower{
 		Solid:     tilted,
-		ColorSDF:  ColorFuncSDF(tilted),
+		ColorMesh: ColorFuncMesh(tilted),
 		ColorFunc: colorFunc.Transform(xform),
 		Tilt:      tilt,
 	}
@@ -163,7 +164,7 @@ func (f *Flower) Place(pos model3d.Coord3D) *Flower {
 	}
 	return &Flower{
 		Solid:     model3d.TransformSolid(xform, f.Solid),
-		ColorSDF:  model3d.TransformSDF(xform, f.ColorSDF),
+		ColorMesh: f.ColorMesh.Transform(xform),
 		ColorFunc: f.ColorFunc.Transform(xform),
 		Tilt:      f.Tilt,
 	}
