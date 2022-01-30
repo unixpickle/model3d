@@ -18,7 +18,7 @@ func NewStem(baseCenter model3d.Coord3D, height, tilt float64) *Stem {
 	arcRadius := 0.5
 	offset := arcRadius * math.Sin(tilt)
 	segs := []model3d.Segment{}
-	segs = append(segs, model3d.NewSegment(model3d.Z(-StemThickness), model3d.Z(height-offset)))
+	segs = append(segs, model3d.NewSegment(model3d.Z(-(StemThickness+0.1)), model3d.Z(height-offset)))
 
 	pTheta := func(theta float64) model3d.Coord3D {
 		x := 1 + math.Cos(math.Pi-theta)
