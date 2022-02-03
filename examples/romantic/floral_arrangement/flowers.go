@@ -186,38 +186,22 @@ func polarHeightMap(delta float64, r func(theta float64) float64, z func(r float
 }
 
 func heightMap(mesh2d *model2d.Mesh, delta float64, z func(c model2d.Coord) float64) *model3d.Mesh {
-	// There may be some small artifacts/holes in the mesh, so
-	// we use the outermost ring only.
-	mesh2d = model2d.MeshToHierarchy(mesh2d)[0].Mesh
-
-	polygon := []model3d.Coord3D{}
-	c1 := mesh2d.VertexSlice()[0]
-	for {
-		segs := mesh2d.Find(c1)
-		if len(segs) == 0 {
-			break
-		}
-		var seg *model2d.Segment
-		for _, s := range segs {
-			if s[0] == c1 {
-				seg = s
-			}
-		}
-		if seg == nil {
-			panic("mesh not manifold")
-		}
-		mesh2d.Remove(seg)
-		polygon = append(polygon, model3d.XY(c1.X, c1.Y))
-		c1 = seg[1]
+	// Create an initial mesh that adds no extra vertices, so will
+	// be a poor approximation of the 3D surface.
+	mesh3d := model3d.NewMesh()
+	for _, t := range model2d.TriangulateMesh(mesh2d) {
+		mesh3d.Add(&model3d.Triangle{
+			model3d.XY(t[0].X, t[0].Y),
+			model3d.XY(t[1].X, t[1].Y),
+			model3d.XY(t[2].X, t[2].Y),
+		})
 	}
-	if len(mesh2d.VertexSlice()) != 0 {
-		panic("2d shape is not a single polygon")
-	}
-	mesh3d := model3d.NewMeshTriangles(model3d.TriangulateFace(polygon))
 	mesh3d = mesh3d.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
 		c.Z = z(c.XY())
 		return c
 	})
+
+	// Sub-divide the mesh until there are no long edges.
 	for {
 		subdiv := model3d.NewSubdivider()
 		subdiv.AddFiltered(mesh3d, func(p1, p2 model3d.Coord3D) bool {
