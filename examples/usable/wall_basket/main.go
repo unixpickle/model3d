@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 
+	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
@@ -18,6 +19,7 @@ const (
 	WallMountHeight        = 4.0
 
 	BinHeight       = 5.0
+	BinDepth        = 4.0
 	BinCornerRadius = 0.5
 	BinThickness    = 0.2
 )
@@ -82,7 +84,63 @@ func WallMountNegative() model3d.Solid {
 }
 
 func BinSolid() model3d.Solid {
-	negative := model3d.RotateSolid(WallMountNegative(), model3d.X(1), math.Pi/2)
-	// TODO: create bin itself
-	return negative
+	negative := model3d.RotateSolid(
+		model3d.RotateSolid(WallMountNegative(), model3d.Y(1), math.Pi),
+		model3d.X(1),
+		math.Pi/2,
+	)
+	negMin, negMax := negative.Min(), negative.Max()
+	minX := negMin.X + BinThickness/2
+	maxX := negMax.X - BinThickness/2
+	minY := negMax.Y + BinThickness/2 - GrooveEdge
+	maxY := minY + BinDepth
+	minZ := negMin.Z
+	maxZ := minZ + BinHeight - BinThickness/2
+
+	// The 2D shape of the center of the basket surface.
+	basketPath := model2d.JoinedCurve{
+		model2d.BezierCurve{
+			model2d.XY(minX, minY),
+			model2d.XY(maxX, minY),
+		},
+		model2d.BezierCurve{
+			model2d.XY(maxX, minY),
+			model2d.XY(maxX, maxY-BinCornerRadius),
+		},
+		model2d.BezierCurve{
+			model2d.XY(maxX, maxY-BinCornerRadius),
+			model2d.XY(maxX, maxY),
+			model2d.XY(maxX-BinCornerRadius, maxY),
+		},
+		model2d.BezierCurve{
+			model2d.XY(maxX-BinCornerRadius, maxY),
+			model2d.XY(minX+BinCornerRadius, maxY),
+		},
+		model2d.BezierCurve{
+			model2d.XY(minX+BinCornerRadius, maxY),
+			model2d.XY(minX, maxY),
+			model2d.XY(minX, maxY-BinCornerRadius),
+		},
+		model2d.BezierCurve{
+			model2d.XY(minX, maxY-BinCornerRadius),
+			model2d.XY(minX, minY),
+		},
+	}
+	basketMesh2d := model2d.CurveMesh(basketPath, 1000)
+	basketSolid2d := model2d.NewColliderSolidHollow(
+		model2d.MeshToCollider(basketMesh2d),
+		BinThickness/2,
+	)
+	basketSolid3d := model3d.ProfileSolid(basketSolid2d, minZ, maxZ)
+
+	var rimSegments []model3d.Segment
+	basketMesh2d.Iterate(func(s *model2d.Segment) {
+		rimSegments = append(rimSegments, model3d.NewSegment(
+			model3d.XYZ(s[0].X, s[0].Y, maxZ),
+			model3d.XYZ(s[1].X, s[1].Y, maxZ),
+		))
+	})
+	basketRim := toolbox3d.LineJoin(BinThickness/2, rimSegments...)
+
+	return model3d.JoinedSolid{negative, basketSolid3d, basketRim}
 }
