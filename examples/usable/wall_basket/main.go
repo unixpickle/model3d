@@ -5,6 +5,7 @@ import (
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -38,6 +39,7 @@ func main() {
 	bin := BinSolid()
 	binMesh := model3d.MarchingCubesSearch(bin, 0.02, 8)
 	binMesh.SaveGroupedSTL("bin.stl")
+	render3d.SaveRandomGrid("rendering_bin.png", binMesh, 3, 3, 300, nil)
 }
 
 func WallMountSolid() model3d.Solid {
@@ -127,10 +129,13 @@ func BinSolid() model3d.Solid {
 		},
 	}
 	basketMesh2d := model2d.CurveMesh(basketPath, 1000)
+	collider2d := model2d.MeshToCollider(basketMesh2d)
+	baseSolid2d := model2d.NewColliderSolid(collider2d)
 	basketSolid2d := model2d.NewColliderSolidHollow(
-		model2d.MeshToCollider(basketMesh2d),
+		collider2d,
 		BinThickness/2,
 	)
+	baseSolid3d := model3d.ProfileSolid(baseSolid2d, minZ, minZ+BinThickness)
 	basketSolid3d := model3d.ProfileSolid(basketSolid2d, minZ, maxZ)
 
 	var rimSegments []model3d.Segment
@@ -142,5 +147,5 @@ func BinSolid() model3d.Solid {
 	})
 	basketRim := toolbox3d.LineJoin(BinThickness/2, rimSegments...)
 
-	return model3d.JoinedSolid{negative, basketSolid3d, basketRim}
+	return model3d.JoinedSolid{negative, baseSolid3d, basketSolid3d, basketRim}
 }
