@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d/model2d"
@@ -23,6 +24,8 @@ const (
 	BinDepth        = 4.0
 	BinCornerRadius = 0.5
 	BinThickness    = 0.2
+
+	Epsilon = 0.01
 )
 
 func main() {
@@ -33,13 +36,34 @@ func main() {
 		Max:   WallMountHeight - 0.1,
 		Ratio: 0.1,
 	}
-	mountMesh := model3d.MarchingCubesConj(mount, 0.02, 8, ax)
+	log.Println("Creating mount mesh...")
+	mountMesh := model3d.MarchingCubesConj(mount, Epsilon, 8, ax)
+	log.Println("Simplifying mount mesh...")
+	mountMesh = SimplifyMesh(mountMesh)
+	log.Println("Saving mount mesh...")
 	mountMesh.SaveGroupedSTL("mount.stl")
 
 	bin := BinSolid()
-	binMesh := model3d.MarchingCubesSearch(bin, 0.02, 8)
+	ss := BinSqueeze()
+	log.Println("Creating bin mesh...")
+	binMesh := model3d.MarchingCubesConj(bin, Epsilon, 8, ss.Transform(bin))
+	log.Println("Simplifying bin mesh...")
+	binMesh = SimplifyMesh(binMesh)
+	log.Println("Saving bin mesh...")
 	binMesh.SaveGroupedSTL("bin.stl")
+
+	log.Println("Rendering mount...")
+	render3d.SaveRandomGrid("rendering_mount.png", mountMesh, 3, 3, 300, nil)
+
+	log.Println("Rendering bin...")
 	render3d.SaveRandomGrid("rendering_bin.png", binMesh, 3, 3, 300, nil)
+}
+
+func SimplifyMesh(m *model3d.Mesh) *model3d.Mesh {
+	oldCount := len(m.TriangleSlice())
+	m = m.EliminateCoplanar(1e-5)
+	log.Printf(" => went from %d to %d triangles", oldCount, len(m.TriangleSlice()))
+	return m
 }
 
 func WallMountSolid() model3d.Solid {
@@ -148,4 +172,29 @@ func BinSolid() model3d.Solid {
 	basketRim := toolbox3d.LineJoin(BinThickness/2, rimSegments...)
 
 	return model3d.JoinedSolid{negative, baseSolid3d, basketSolid3d, basketRim}
+}
+
+func BinSqueeze() *toolbox3d.SmartSqueeze {
+	bin := BinSolid()
+
+	ss := &toolbox3d.SmartSqueeze{
+		Axis:         toolbox3d.AxisZ,
+		SqueezeRatio: 0.1,
+		PinchRange:   0.03,
+		PinchPower:   0.25,
+	}
+
+	// Don't lower resolution of bottom of negative where
+	// a groove is, and don't mess with the Z of the bottom
+	// of the bin.
+	ss.AddUnsqueezable(bin.Min().Z, bin.Min().Z+math.Max(BinThickness, GrooveSize+GrooveSlack))
+
+	// Flatten out top of the mount negative.
+	neg := WallMountNegative()
+	ss.AddPinch(bin.Min().Z + neg.Max().Y - neg.Min().Y)
+
+	// Don't lower resolution of rounded rim.
+	ss.AddUnsqueezable(bin.Max().Z-BinThickness, bin.Max().Z+1e-5)
+
+	return ss
 }
