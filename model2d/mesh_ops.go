@@ -256,6 +256,11 @@ func (m *Mesh) Decimate(maxVertices int) *Mesh {
 		}
 		delete(areas, next)
 		n1, n2, _ := vertexNeighbors(res, next)
+		if len(res.Find(n1, n2)) > 0 {
+			// Deleting this vertex would create a duplicate segment.
+			// Simplest case: the mesh is a triangle.
+			continue
+		}
 		for _, s := range res.Find(next) {
 			res.Remove(s)
 		}

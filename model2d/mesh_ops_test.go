@@ -101,6 +101,29 @@ func TestMeshDecimate(t *testing.T) {
 
 		MustValidateMesh(t, mesh)
 	})
+	t.Run("ManifoldComplex", func(t *testing.T) {
+		var solid JoinedSolid
+		for i := 0; i < 100; i++ {
+			solid = append(solid, &Circle{Center: NewCoordRandUniform(), Radius: 0.03})
+		}
+		mesh := MarchingSquaresSearch(solid.Optimize(), 0.01, 8)
+		mesh = mesh.Decimate(2)
+		MustValidateMesh(t, mesh)
+	})
+	t.Run("Triangle", func(t *testing.T) {
+		mesh := NewMesh()
+		mesh.Add(&Segment{XY(1, 0), XY(0, 0)})
+		mesh.Add(&Segment{XY(1, 1), XY(1, 0)})
+		mesh.Add(&Segment{XY(0, 0), XY(1, 1)})
+		MustValidateMesh(t, mesh)
+
+		mesh = mesh.Decimate(2)
+		if n := len(mesh.VertexSlice()); n != 3 {
+			t.Errorf("mesh had unexpected vertex count: %d", n)
+		}
+
+		MustValidateMesh(t, mesh)
+	})
 	t.Run("Correct", func(t *testing.T) {
 		mesh := NewMesh()
 		mesh.Add(&Segment{XY(0, 0), XY(1, 0)})
