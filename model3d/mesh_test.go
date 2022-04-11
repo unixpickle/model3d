@@ -43,6 +43,21 @@ func TestNewMeshIcosahedron(t *testing.T) {
 	MustValidateMesh(t, mesh, true)
 }
 
+func TestMeshDuplicateVertices(t *testing.T) {
+	m := NewMesh()
+	for i := 0; i < 2; i++ {
+		tri := &Triangle{X(1), Y(1), X(1)}
+		m.Add(tri)
+		if n := len(m.Find(tri[0])); n != 1 {
+			t.Errorf("iter %d: expected 1 but got: %d", i, n)
+		}
+		m.Remove(tri)
+		if n := len(m.Find(tri[0])); n != 0 {
+			t.Errorf("iter %d: expected 0 but got: %d", i, n)
+		}
+	}
+}
+
 func TestProfileMesh(t *testing.T) {
 	mesh2d := model2d.NewMeshPolar(func(t float64) float64 {
 		return 2 + math.Cos(t*10)

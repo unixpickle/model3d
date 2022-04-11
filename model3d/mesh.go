@@ -343,9 +343,9 @@ func (m *Mesh) Add(f *Triangle) {
 		return
 	}
 
-	for _, p := range f {
+	uniqueVertices(f, func(p Coord3D) {
 		v2f.Append(p, f)
-	}
+	})
 	m.faces[f] = true
 }
 
@@ -399,9 +399,9 @@ func (m *Mesh) Remove(f *Triangle) {
 	delete(m.faces, f)
 	v2f := m.getVertexToFaceOrNil()
 	if v2f != nil {
-		for _, p := range f {
+		uniqueVertices(f, func(p Coord3D) {
 			m.removeFaceFromVertex(v2f, f, p)
-		}
+		})
 	}
 }
 
@@ -731,10 +731,10 @@ func (m *Mesh) getVertexToFace() *CoordToFaces {
 	}
 
 	v2f = NewCoordToFaces()
-	for t := range m.faces {
-		for _, p := range t {
-			v2f.Append(p, t)
-		}
+	for f := range m.faces {
+		uniqueVertices(f, func(p Coord3D) {
+			v2f.Append(p, f)
+		})
 	}
 	m.vertexToFace.Store(v2f)
 
@@ -747,4 +747,16 @@ func (m *Mesh) getVertexToFaceOrNil() *CoordToFaces {
 		return nil
 	}
 	return res.(*CoordToFaces)
+}
+
+func uniqueVertices(face *Triangle, f func(Coord3D)) {
+	f(face[0])
+	if face[1] != face[0] {
+		f(face[1])
+	}
+
+	if face[2] != face[0] && face[2] != face[1] {
+		f(face[2])
+	}
+
 }
