@@ -115,6 +115,9 @@ func BenchmarkMeshFind(b *testing.B) {
 	b.Run("Double", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			j := indices[i&0xfff]
+			if j+1 == len(vertices) {
+				j -= 1
+			}
 			mesh.Find(vertices[j], vertices[j+1])
 		}
 	})
