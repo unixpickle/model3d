@@ -49,7 +49,8 @@ func main() {
 	}
 
 	a := model3d.NewARAP(mesh)
-	df := a.SeqDeformer()
+	a.SetMaxIterations(3) // More iterations causes a weird squishing effect.
+	df := a.SeqDeformer(true)
 
 	var g gif.GIF
 	var frame int
@@ -154,9 +155,9 @@ func Constraints(mesh *model3d.Mesh, transform model3d.Transform) model3d.ARAPCo
 	min, max := mesh.Min(), mesh.Max()
 	control := model3d.ARAPConstraints{}
 	for _, v := range mesh.VertexSlice() {
-		if v.Z == min.Z {
+		if v.Z <= min.Z+1e-4 {
 			control[v] = v
-		} else if v.Z == max.Z {
+		} else if v.Z >= max.Z-1e-4 {
 			control[v] = transform.Apply(v)
 		}
 	}

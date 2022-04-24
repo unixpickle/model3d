@@ -226,13 +226,16 @@ func (a *ARAP) Deform(constraints ARAPConstraints) *Mesh {
 	return a.coordsToMesh(outSlice)
 }
 
-// SeqDeformer creates a function that deforms the mesh
-// using the previous deformed mesh as a starting point.
-// This is useful for animations and/or user interaction.
+// SeqDeformer creates a function that deforms the mesh,
+// potentially caching computations across calls.
+//
+// If coldStart is true, then the previous deformed mesh is
+// used as an initial guess for the next deformation. This
+// can reduce computation cost during animations.
 //
 // The returned function is not safe to call from multiple
 // Goroutines concurrently.
-func (a *ARAP) SeqDeformer() func(ARAPConstraints) *Mesh {
+func (a *ARAP) SeqDeformer(coldStart bool) func(ARAPConstraints) *Mesh {
 	var current []Coord3D
 	var l *arapOperator
 	return func(constraints ARAPConstraints) *Mesh {
@@ -241,7 +244,11 @@ func (a *ARAP) SeqDeformer() func(ARAPConstraints) *Mesh {
 		} else {
 			l.Update(a.indexConstraints(constraints))
 		}
-		current = a.deformMap(l, current)
+		if coldStart {
+			current = a.deformMap(l, nil)
+		} else {
+			current = a.deformMap(l, current)
+		}
 		return a.coordsToMesh(current)
 	}
 }
