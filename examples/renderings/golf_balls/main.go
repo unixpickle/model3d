@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"math/rand"
@@ -28,7 +27,7 @@ func main() {
 		obj := &render3d.ColliderObject{
 			Collider: baseCollider,
 			Material: &render3d.PhongMaterial{
-				Alpha:         10.0,
+				Alpha:         50.0,
 				SpecularColor: render3d.NewColor(0.1),
 				DiffuseColor:  colors[i].Scale(0.9),
 			},
@@ -37,14 +36,14 @@ func main() {
 	}
 
 	backdrop := &render3d.ColliderObject{
-		Collider: model3d.NewRect(model3d.XYZ(-100.0, 10.0, -100.0), model3d.XYZ(100.0, 10.1, 100.0)),
+		Collider: model3d.NewRect(model3d.XYZ(-100.0, 8.0, -100.0), model3d.XYZ(100.0, 10.1, 100.0)),
 		Material: &render3d.PhongMaterial{DiffuseColor: render3d.NewColor(0.5)},
 	}
 	fullObject = append(fullObject, backdrop)
 
 	lightObject := &render3d.ColliderObject{
-		Collider: model3d.NewRect(model3d.XYZ(-5.0, -20.0, -5.0), model3d.XYZ(5.0, -20+0.1, 5.0)),
-		Material: &render3d.PhongMaterial{EmissionColor: render3d.NewColor(30.0)},
+		Collider: model3d.NewRect(model3d.XYZ(-4.0, -20.0, -4.0), model3d.XYZ(4.0, -20+0.1, 4.0)),
+		Material: &render3d.PhongMaterial{EmissionColor: render3d.NewColor(20.0)},
 	}
 	fullObject = append(fullObject, lightObject)
 
@@ -53,14 +52,14 @@ func main() {
 		Camera: render3d.NewCameraAt(model3d.Y(-15), model3d.Coord3D{}, math.Pi/3.6),
 
 		MaxDepth:   5,
-		NumSamples: 256,
+		NumSamples: 4096,
 		Antialias:  1.0,
 		Cutoff:     1e-4,
 
 		FocusPoints: []render3d.FocusPoint{
 			&render3d.PhongFocusPoint{
 				Target: model3d.XYZ(0, -20, 0),
-				Alpha:  2.0,
+				Alpha:  4.0,
 				MaterialFilter: func(m render3d.Material) bool {
 					return true
 				},
@@ -69,10 +68,10 @@ func main() {
 		FocusPointProbs: []float64{0.3},
 
 		LogFunc: func(p, samples float64) {
-			fmt.Printf("\rRendering %.1f%%...", p*100)
+			log.Printf("Rendering %.1f%%...", p*100)
 		},
 	}
-	img := render3d.NewImage(128, 128)
+	img := render3d.NewImage(512, 512)
 	renderer.Render(img, fullObject)
 	img.Save("rendering.png")
 }
@@ -100,7 +99,7 @@ func CreateGolfBall() *model3d.Mesh {
 }
 
 func SortedCenterCoords() []model3d.Coord3D {
-	result := model3d.NewMeshIcosphere(model3d.Coord3D{}, 4.0, 2).VertexSlice()
+	result := model3d.NewMeshIcosphere(model3d.Coord3D{}, 3.5, 2).VertexSlice()
 	essentials.VoodooSort(result, func(i, j int) bool {
 		return model3d.NewSegment(result[i], result[j])[0] == result[i]
 	})
