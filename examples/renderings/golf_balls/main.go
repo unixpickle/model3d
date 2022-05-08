@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"math/rand"
@@ -35,8 +36,34 @@ func main() {
 		fullObject = append(fullObject, render3d.Translate(obj, center))
 	}
 
+	backdrop := &render3d.ColliderObject{
+		Collider: model3d.NewRect(model3d.XYZ(-100.0, 10.0, -100.0), model3d.XYZ(100.0, 10.1, 100.0)),
+		Material: &render3d.PhongMaterial{DiffuseColor: render3d.NewColor(0.5)},
+	}
+	fullObject = append(fullObject, backdrop)
+
+	lightObject := &render3d.ColliderObject{
+		Collider: model3d.NewRect(model3d.XYZ(-5.0, -20.0, -5.0), model3d.XYZ(5.0, -20+0.1, 5.0)),
+		Material: &render3d.PhongMaterial{EmissionColor: render3d.NewColor(30.0)},
+	}
+	fullObject = append(fullObject, lightObject)
+
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("test.png", fullObject, 3, 3, 300, nil)
+	renderer := &render3d.RecursiveRayTracer{
+		Camera: render3d.NewCameraAt(model3d.Y(-19), model3d.Coord3D{}, math.Pi/3.6),
+
+		MaxDepth:   5,
+		NumSamples: 256,
+		Antialias:  1.0,
+		Cutoff:     1e-4,
+
+		LogFunc: func(p, samples float64) {
+			fmt.Printf("\rRendering %.1f%%...", p*100)
+		},
+	}
+	img := render3d.NewImage(128, 128)
+	renderer.Render(img, fullObject)
+	img.Save("rendering.png")
 }
 
 func CreateGolfBall() *model3d.Mesh {
