@@ -1,15 +1,42 @@
 package main
 
 import (
+	"log"
 	"math"
+	"math/rand"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
 
 func main() {
-	mesh := CreateGolfBall()
-	render3d.SaveRandomGrid("test.png", mesh, 3, 3, 300, nil)
+	log.Println("Creating colors...")
+	centers := SortedCenterCoords()
+	colors := make([]render3d.Color, len(centers))
+	for i := range colors {
+		colors[i] = render3d.NewColorRGB(rand.Float64(), rand.Float64(), rand.Float64())
+	}
+
+	log.Println("Creating base mesh...")
+	baseMesh := CreateGolfBall()
+	baseCollider := model3d.MeshToCollider(baseMesh)
+	log.Println("Creating full object...")
+	fullObject := render3d.JoinedObject{}
+	for i, center := range centers {
+		obj := &render3d.ColliderObject{
+			Collider: baseCollider,
+			Material: &render3d.PhongMaterial{
+				Alpha:         10.0,
+				SpecularColor: render3d.NewColor(0.1),
+				DiffuseColor:  colors[i].Scale(0.9),
+			},
+		}
+		fullObject = append(fullObject, render3d.Translate(obj, center))
+	}
+
+	log.Println("Rendering...")
+	render3d.SaveRandomGrid("test.png", fullObject, 3, 3, 300, nil)
 }
 
 func CreateGolfBall() *model3d.Mesh {
@@ -31,5 +58,13 @@ func CreateGolfBall() *model3d.Mesh {
 		Positive: sphere,
 		Negative: dimples.Optimize(),
 	}
-	return model3d.MarchingCubesSearch(subtracted, 0.01, 8)
+	return model3d.MarchingCubesSearch(subtracted, 0.02, 8)
+}
+
+func SortedCenterCoords() []model3d.Coord3D {
+	result := model3d.NewMeshIcosphere(model3d.Coord3D{}, 4.0, 2).VertexSlice()
+	essentials.VoodooSort(result, func(i, j int) bool {
+		return model3d.NewSegment(result[i], result[j])[0] == result[i]
+	})
+	return result
 }
