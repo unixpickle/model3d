@@ -50,12 +50,23 @@ func main() {
 
 	log.Println("Rendering...")
 	renderer := &render3d.RecursiveRayTracer{
-		Camera: render3d.NewCameraAt(model3d.Y(-19), model3d.Coord3D{}, math.Pi/3.6),
+		Camera: render3d.NewCameraAt(model3d.Y(-15), model3d.Coord3D{}, math.Pi/3.6),
 
 		MaxDepth:   5,
 		NumSamples: 256,
 		Antialias:  1.0,
 		Cutoff:     1e-4,
+
+		FocusPoints: []render3d.FocusPoint{
+			&render3d.PhongFocusPoint{
+				Target: model3d.XYZ(0, -20, 0),
+				Alpha:  2.0,
+				MaterialFilter: func(m render3d.Material) bool {
+					return true
+				},
+			},
+		},
+		FocusPointProbs: []float64{0.3},
 
 		LogFunc: func(p, samples float64) {
 			fmt.Printf("\rRendering %.1f%%...", p*100)
