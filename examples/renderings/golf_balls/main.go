@@ -8,6 +8,7 @@ import (
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 func main() {
@@ -21,6 +22,8 @@ func main() {
 	log.Println("Creating base mesh...")
 	baseMesh := CreateGolfBall()
 	baseCollider := model3d.MeshToCollider(baseMesh)
+	log.Println("Saving textured model...")
+	SaveFullModel(baseMesh, centers, colors)
 	log.Println("Creating full object...")
 	fullObject := render3d.JoinedObject{}
 	for i, center := range centers {
@@ -104,4 +107,19 @@ func SortedCenterCoords() []model3d.Coord3D {
 		return model3d.NewSegment(result[i], result[j])[0] == result[i]
 	})
 	return result
+}
+
+func SaveFullModel(baseMesh *model3d.Mesh, centers []model3d.Coord3D, colors []render3d.Color) {
+	centerToColor := map[model3d.Coord3D]render3d.Color{}
+	fullMesh := model3d.NewMesh()
+	for i, center := range centers {
+		centerToColor[center] = colors[i]
+		fullMesh.AddMesh(baseMesh.Translate(center))
+	}
+	centerTree := model3d.NewCoordTree(centers)
+	cf := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
+		return centerToColor[centerTree.NearestNeighbor(c)]
+	})
+	fullMesh.SaveMaterialOBJ("golf_balls.zip", cf.Cached().TriangleColor)
+
 }
