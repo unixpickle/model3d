@@ -4,6 +4,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"os"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
@@ -113,13 +114,28 @@ func SaveFullModel(baseMesh *model3d.Mesh, centers []model3d.Coord3D, colors []r
 	centerToColor := map[model3d.Coord3D]render3d.Color{}
 	fullMesh := model3d.NewMesh()
 	for i, center := range centers {
-		centerToColor[center] = colors[i]
+		centerToColor[center] = colors[i].Scale(0.9)
 		fullMesh.AddMesh(baseMesh.Translate(center))
 	}
 	centerTree := model3d.NewCoordTree(centers)
 	cf := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
 		return centerToColor[centerTree.NearestNeighbor(c)]
 	})
-	fullMesh.SaveMaterialOBJ("golf_balls.zip", cf.Cached().TriangleColor)
 
+	obj, mtl := model3d.BuildMaterialOBJ(fullMesh.TriangleSlice(), cf.Cached().TriangleColor)
+	for _, mat := range mtl.Materials {
+		r, g, b := render3d.RGB(render3d.NewColor(0.1))
+		mat.Specular = [3]float32{float32(r), float32(g), float32(b)}
+		mat.SpecularExponent = 250.0
+	}
+
+	fw, err := os.Create("golf_balls.obj")
+	defer fw.Close()
+	essentials.Must(err)
+	essentials.Must(obj.Write(fw))
+
+	fw, err = os.Create("material.mtl")
+	defer fw.Close()
+	essentials.Must(err)
+	essentials.Must(mtl.Write(fw))
 }
