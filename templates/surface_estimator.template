@@ -75,7 +75,60 @@ func (s *SolidSurfaceEstimator) Bisect(p1, p2 {{.coordType}}) {{.coordType}} {
 // The point must be guaranteed to be on the boundary of
 // the surface, e.g. from Bisect().
 func (s *SolidSurfaceEstimator) Normal(c {{.coordType}}) {{.coordType}} {
-	// TODO: this.
+	if s.RandomSearchNormals {
+		return s.esNormal(c)
+	} else {
+		return s.bisectNormal(c)
+	}
+}
+
+func (s *SolidSurfaceEstimator) esNormal(c {{.coordType}}) {{.coordType}} {
+	eps := s.normalNoiseEpsilon()
+
+	var normalSum {{.coordType}}
+	for i := 0; i < count; i++ {
+		delta := New{{.coordType}}RandUnit()
+		c1 := c.Add(delta.Scale(eps))
+		if s.Solid.Contains(c1) {
+			normalSum = normalSum.Sub(delta)
+		} else {
+			normalSum = normalSum.Add(delta)
+		}
+	}
+	return normalSum.Normalize()
+}
+
+func (s *SolidSurfaceEstimator) bisectNormal(c {{.coordType}}) {{.coordType}} {
+	count := s.normalSamples()
+	eps := s.normalBisectEpsilon()
+	var planeAxes [2]{{.coordType}}
+	for i := 0; i < 2; i++ {
+		// Move two vectors towards each other until
+		// they are both tangent to the plane.
+		v1 := New{{.coordType}}RandUnit().Scale(eps)
+		v2 := New{{.coordType}}RandUnit().Scale(eps)
+		if !s.Solid.Contains(c.Add(v1)) {
+			v1 = v1.Scale(-1)
+		}
+		if s.Solid.Contains(c.Add(v2)) {
+			v2 = v2.Scale(-1)
+		}
+		for j := 2; j < (count-1)/2; j++ {
+			mp := v1.Add(v2).Normalize().Scale(eps)
+			if s.Solid.Contains(c.Add(mp)) {
+				v1 = mp
+			} else {
+				v2 = mp
+			}
+		}
+		planeAxes[i] = v1.Add(v2).Normalize()
+	}
+	res := planeAxes[0].Cross(planeAxes[1]).Normalize()
+	if s.Solid.Contains(c.Add(res.Scale(eps))) {
+		return res.Scale(-1)
+	} else {
+		return res
+	}
 }
 
 func (s *SolidSurfaceEstimator) bisectCount() int {
