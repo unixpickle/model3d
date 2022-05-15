@@ -1,0 +1,107 @@
+package {{.package}}
+
+const (
+	DefaultSurfaceEstimatorBisectCount = 32
+	DefaultSurfaceEstimatorNormalSamples = 40
+	DefaultSurfaceEstimatorNormalBisectEpsilon = 1e-4
+	DefaultSurfaceEstimatorNormalNoiseEpsilon = 1e-4
+)
+
+// SolidSurfaceEstimator estimates collision points and
+// normals on the surface of a solid using search.
+type SolidSurfaceEstimator struct {
+	// BisectCount, if non-zero, specifies the number of
+	// bisections to use in Bisect().
+	// Default is DefaultSurfaceEstimatorBisectCount.
+	BisectCount int
+
+	// NormalSamples, if non-zero, specifies how many
+	// samples to use to approximate normals.
+	// Default is DefaultSurfaceEstimatorNormalSamples.
+	NormalSamples int
+
+	// RandomSearchNormals can be set to true to disable
+	// the binary search to compute normals. Instead, an
+	// evolution strategy is performed to estimate the
+	// gradient by sampling random points at a distance
+	// of NormalNoiseEpsilon.
+	RandomSearchNormals bool
+
+	// NormalBisectEpsilon, if non-zero, specifies a small
+	// distance to use in a bisection-based method to
+	// compute approximate normals.
+	//
+	// The value must be larger than the distance between
+	// the surface and points passed to Normal().
+	//
+	// Default is DefaultSurfaceEstimatorNormalBisectionEpsilon.
+	NormalBisectEpsilon float64
+
+	// NormalNoiseEpsilon, if non-zero, specifies a small
+	// distance to use in an evolution strategy when
+	// RandomSearchNormals is true.
+	//
+	// The value must be larger than the distance between
+	// the surface and points passed to Normal().
+	//
+	// Default is DefaultSurfaceEstimatorNormalNoiseEpsilon.
+	NormalNoiseEpsilon float64
+}
+
+// BisectInterp returns alpha in [min, max] to minimize the
+// surface's distance to p1 + alpha * (p2 - p1).
+func (s *SolidSurfaceEstimator) BisectInterp(p1, p2 {{.coordType}}, min, max float64) float64 {
+	d := p2.Sub(p1)
+	count := s.bisectCount()
+	for i := 0; i < count; i++ {
+		f := (min + max) / 2
+		if s.Solid.Contains(p1.Add(d.Sale(f))) {
+			max = f
+		} else {
+			min = f
+		}
+	}
+	return (min + max) / 2
+}
+
+// Bisect finds the point between p1 and p2 closest to the
+// surface.
+func (s *SolidSurfaceEstimator) Bisect(p1, p2 {{.coordType}}) {{.coordType}} {
+	alpha := s.BisectInterp(p1, p2, 0, 1)
+	return p1.Add(p2.Sub(p1).Scale(alpha))
+}
+
+// Normal computes the normal at a point on the surface.
+// The point must be guaranteed to be on the boundary of
+// the surface, e.g. from Bisect().
+func (s *SolidSurfaceEstimator) Normal(c {{.coordType}}) {{.coordType}} {
+	// TODO: this.
+}
+
+func (s *SolidSurfaceEstimator) bisectCount() int {
+	if s.BisectCount == 0 {
+		return DefaultSurfaceEstimatorBisectCount
+	}
+	return s.BisectionCount
+}
+
+func (s *SolidSurfaceEstimator) normalSamples() int {
+	if s.NormalSamples == 0 {
+		return DefaultSurfaceEstimatorNormalSamples
+	}
+	return s.NormalSamples
+}
+
+func (s *SolidSurfaceEstimator) normalBisectEpsilon() float64 {
+	if s.NormalBisectEpsilon == 0 {
+		return DefaultSurfaceEstimatorNormalBisectEpsilon
+	}
+	return s.NormalBisectEpsilon
+}
+
+func (s *SolidSurfaceEstimator) normalNoiseEpsilon() float64 {
+	if s.NormalNoiseEpsilon == 0 {
+		return DefaultSurfaceEstimatorNormalNoiseEpsilon
+	}
+	return s.NormalNoiseEpsilon
+}
