@@ -40,10 +40,7 @@ func TestSurfaceEstimator(t *testing.T) {
 			expected := NewCoordRandUnit()
 			p := solid.Center.Add(expected)
 			actual := estimator.Normal(p)
-			// A more relaxed distance criterion because we try many
-			// points and will likely run into some randomly imprecise
-			// cases.
-			if actual.Dot(expected) < 0.5 {
+			if actual.Dist(expected) > 1e-3 {
 				t.Errorf("expected normal %v but got %v", expected, actual)
 			}
 		}
