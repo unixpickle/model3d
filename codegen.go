@@ -37,6 +37,8 @@ func main() {
 	Generate2d3dTemplate("fast_maps", checkNoChange)
 	Generate2d3dTemplate("fast_maps_test", checkNoChange)
 	Generate2d3dTemplate("shapes", checkNoChange)
+	Generate2d3dTemplate("surface_estimator", checkNoChange)
+	Generate2d3dTemplate("surface_estimator_test", checkNoChange)
 }
 
 func Generate2d3dTemplate(name string, checkNoChange bool) {

@@ -1,17 +1,19 @@
-package {{.package}}
+// Generated from templates/surface_estimator.template
+
+package model3d
 
 const (
-	DefaultSurfaceEstimatorBisectCount = 32
-	DefaultSurfaceEstimatorNormalSamples = 40
+	DefaultSurfaceEstimatorBisectCount         = 32
+	DefaultSurfaceEstimatorNormalSamples       = 40
 	DefaultSurfaceEstimatorNormalBisectEpsilon = 1e-4
-	DefaultSurfaceEstimatorNormalNoiseEpsilon = 1e-4
+	DefaultSurfaceEstimatorNormalNoiseEpsilon  = 1e-4
 )
 
 // SolidSurfaceEstimator estimates collision points and
 // normals on the surface of a solid using search.
 type SolidSurfaceEstimator struct {
 	// The Solid to estimate the surface of.
-	Solid Solid 
+	Solid Solid
 
 	// BisectCount, if non-zero, specifies the number of
 	// bisections to use in Bisect().
@@ -56,7 +58,7 @@ type SolidSurfaceEstimator struct {
 //
 // It is assumed that p1 is outside the surface and p2 is
 // inside, and that min < max.
-func (s *SolidSurfaceEstimator) BisectInterp(p1, p2 {{.coordType}}, min, max float64) float64 {
+func (s *SolidSurfaceEstimator) BisectInterp(p1, p2 Coord3D, min, max float64) float64 {
 	d := p2.Sub(p1)
 	count := s.bisectCount()
 	for i := 0; i < count; i++ {
@@ -72,7 +74,7 @@ func (s *SolidSurfaceEstimator) BisectInterp(p1, p2 {{.coordType}}, min, max flo
 
 // Bisect finds the point between p1 and p2 closest to the
 // surface, provided that p1 and p2 are on different sides.
-func (s *SolidSurfaceEstimator) Bisect(p1, p2 {{.coordType}}) {{.coordType}} {
+func (s *SolidSurfaceEstimator) Bisect(p1, p2 Coord3D) Coord3D {
 	var alpha float64
 	if s.Solid.Contains(p1) {
 		alpha = 1 - s.BisectInterp(p2, p1, 0, 1)
@@ -85,7 +87,7 @@ func (s *SolidSurfaceEstimator) Bisect(p1, p2 {{.coordType}}) {{.coordType}} {
 // Normal computes the normal at a point on the surface.
 // The point must be guaranteed to be on the boundary of
 // the surface, e.g. from Bisect().
-func (s *SolidSurfaceEstimator) Normal(c {{.coordType}}) {{.coordType}} {
+func (s *SolidSurfaceEstimator) Normal(c Coord3D) Coord3D {
 	if s.RandomSearchNormals {
 		return s.esNormal(c)
 	} else {
@@ -93,16 +95,16 @@ func (s *SolidSurfaceEstimator) Normal(c {{.coordType}}) {{.coordType}} {
 	}
 }
 
-func (s *SolidSurfaceEstimator) esNormal(c {{.coordType}}) {{.coordType}} {
+func (s *SolidSurfaceEstimator) esNormal(c Coord3D) Coord3D {
 	eps := s.normalNoiseEpsilon()
 	count := s.normalSamples()
 	if count < 1 {
 		panic("need at least one sample to estimate normal with random search")
 	}
 
-	var normalSum {{.coordType}}
+	var normalSum Coord3D
 	for i := 0; i < count; i++ {
-		delta := New{{.coordType}}RandUnit()
+		delta := NewCoord3DRandUnit()
 		c1 := c.Add(delta.Scale(eps))
 		if s.Solid.Contains(c1) {
 			normalSum = normalSum.Sub(delta)
@@ -113,39 +115,17 @@ func (s *SolidSurfaceEstimator) esNormal(c {{.coordType}}) {{.coordType}} {
 	return normalSum.Normalize()
 }
 
-func (s *SolidSurfaceEstimator) bisectNormal(c {{.coordType}}) {{.coordType}} {
+func (s *SolidSurfaceEstimator) bisectNormal(c Coord3D) Coord3D {
 	count := s.normalSamples()
 	eps := s.normalBisectEpsilon()
-	{{if .model2d}}
-	if count < 4 {
-		panic("require at least 4 samples to estimate normals with bisection")
-	}
-	v1 := New{{.coordType}}RandUnit().Scale(eps)
-	v2 := XY(v1.Y, -v1.X)
-	if !s.Solid.Contains(c.Add(v1)) {
-		v1 = v1.Scale(-1)
-	}
-	if s.Solid.Contains(c.Add(v2)) {
-		v2 = v2.Scale(-1)
-	}
-	for j := 2; j < count; j++ {
-		mp := v1.Add(v2).Normalize().Scale(eps)
-		if s.Solid.Contains(c.Add(mp)) {
-			v1 = mp
-		} else {
-			v2 = mp
-		}
-	}
-	tangent := v1.Add(v2).Normalize()
-	res := XY(tangent.Y, -tangent.X)
-	{{else}}
+
 	if count < 6 {
 		panic("require at least 6 samples to estimate normals with bisection")
 	}
-	var planeAxes [2]{{.coordType}}
-	axis1 := New{{.coordType}}RandUnit()
+	var planeAxes [2]Coord3D
+	axis1 := NewCoord3DRandUnit()
 	axis2, axis3 := axis1.OrthoBasis()
-	axes := [3]{{.coordType}}{
+	axes := [3]Coord3D{
 		axis1.Scale(eps),
 		axis2.Scale(eps),
 		axis3.Scale(eps),
@@ -176,7 +156,7 @@ func (s *SolidSurfaceEstimator) bisectNormal(c {{.coordType}}) {{.coordType}} {
 		planeAxes[i] = v1.Add(v2).Normalize()
 	}
 	res := planeAxes[0].Cross(planeAxes[1]).Normalize()
-	{{end}}
+
 	if s.Solid.Contains(c.Add(res.Scale(eps))) {
 		return res.Scale(-1)
 	} else {
