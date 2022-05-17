@@ -9,8 +9,6 @@ const (
 	DefaultSurfaceEstimatorNormalNoiseEpsilon  = 1e-4
 )
 
-const solidSurfaceEstimatorMaxNormalRetries = 10
-
 // SolidSurfaceEstimator estimates collision points and
 // normals on the surface of a solid using search.
 type SolidSurfaceEstimator struct {
@@ -53,14 +51,6 @@ type SolidSurfaceEstimator struct {
 	//
 	// Default is DefaultSurfaceEstimatorNormalNoiseEpsilon.
 	NormalNoiseEpsilon float64
-
-	// AllowNormalBisectFailure, if true, prevents a panic()
-	// if normal bisection cannot find directions that pass
-	// through the surface.
-	//
-	// If this is true and normal computation fails, an
-	// arbitrary normal direction is returned.
-	AllowNormalBisectFailure bool
 }
 
 // BisectInterp returns alpha in [min, max] to minimize the
@@ -101,7 +91,7 @@ func (s *SolidSurfaceEstimator) Normal(c Coord) Coord {
 	if s.RandomSearchNormals {
 		return s.esNormal(c)
 	} else {
-		return s.bisectNormal(c, 0)
+		return s.bisectNormal(c)
 	}
 }
 
@@ -125,14 +115,7 @@ func (s *SolidSurfaceEstimator) esNormal(c Coord) Coord {
 	return normalSum.Normalize()
 }
 
-func (s *SolidSurfaceEstimator) bisectNormal(c Coord, retries int) Coord {
-	if retries > solidSurfaceEstimatorMaxNormalRetries {
-		if s.AllowNormalBisectFailure {
-			return NewCoordRandUnit()
-		} else {
-			panic("could not estimate normal")
-		}
-	}
+func (s *SolidSurfaceEstimator) bisectNormal(c Coord) Coord {
 	count := s.normalSamples()
 	eps := s.normalBisectEpsilon()
 

@@ -11,8 +11,6 @@ const (
 	DefaultSurfaceEstimatorNormalNoiseEpsilon  = 1e-4
 )
 
-const solidSurfaceEstimatorMaxNormalRetries = 10
-
 // SolidSurfaceEstimator estimates collision points and
 // normals on the surface of a solid using search.
 type SolidSurfaceEstimator struct {
@@ -55,14 +53,6 @@ type SolidSurfaceEstimator struct {
 	//
 	// Default is DefaultSurfaceEstimatorNormalNoiseEpsilon.
 	NormalNoiseEpsilon float64
-
-	// AllowNormalBisectFailure, if true, prevents a panic()
-	// if normal bisection cannot find directions that pass
-	// through the surface.
-	//
-	// If this is true and normal computation fails, an
-	// arbitrary normal direction is returned.
-	AllowNormalBisectFailure bool
 }
 
 // BisectInterp returns alpha in [min, max] to minimize the
@@ -103,7 +93,7 @@ func (s *SolidSurfaceEstimator) Normal(c Coord3D) Coord3D {
 	if s.RandomSearchNormals {
 		return s.esNormal(c)
 	} else {
-		return s.bisectNormal(c, 0)
+		return s.bisectNormal(c)
 	}
 }
 
@@ -127,14 +117,7 @@ func (s *SolidSurfaceEstimator) esNormal(c Coord3D) Coord3D {
 	return normalSum.Normalize()
 }
 
-func (s *SolidSurfaceEstimator) bisectNormal(c Coord3D, retries int) Coord3D {
-	if retries > solidSurfaceEstimatorMaxNormalRetries {
-		if s.AllowNormalBisectFailure {
-			return NewCoord3DRandUnit()
-		} else {
-			panic("could not estimate normal")
-		}
-	}
+func (s *SolidSurfaceEstimator) bisectNormal(c Coord3D) Coord3D {
 	count := s.normalSamples()
 	eps := s.normalBisectEpsilon()
 
@@ -173,9 +156,12 @@ func (s *SolidSurfaceEstimator) bisectNormal(c Coord3D, retries int) Coord3D {
 			}
 		}
 		planeAxes[i] = v1.Add(v2).Normalize()
-	}
-	if math.Abs(planeAxes[0].Dot(planeAxes[1])) > 0.99 {
-		return s.bisectNormal(c, retries+1)
+		if i == 0 && math.Abs(planeAxes[0].Dot(axes[1])) > math.Abs(planeAxes[0].Dot(axes[0])) {
+			// Fix numerical issues when axes[1] is nearly
+			// tangent to the surface.
+			axes[0], axes[1] = axes[1], axes[0]
+			contains[0], contains[1] = contains[1], contains[0]
+		}
 	}
 	res := planeAxes[0].Cross(planeAxes[1]).Normalize()
 
