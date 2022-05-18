@@ -124,8 +124,9 @@ func (s *SolidSurfaceEstimator) bisectNormal(c {{.coordType}}) {{.coordType}} {
 	if count < 4 {
 		panic("require at least 4 samples to estimate normals with bisection")
 	}
-	v1 := New{{.coordType}}RandUnit().Scale(eps)
-	v2 := XY(v1.Y, -v1.X)
+	// Randomly chosen orthogonal vectors.
+	v1 := XY(0.9206495581734144, -0.39039004986692083).Scale(eps)
+	v2 := XY(0.39039004986692083, 0.9206495581734144).Scale(eps)
 	if !s.Solid.Contains(c.Add(v1)) {
 		v1 = v1.Scale(-1)
 	}
@@ -147,8 +148,10 @@ func (s *SolidSurfaceEstimator) bisectNormal(c {{.coordType}}) {{.coordType}} {
 		panic("require at least 6 samples to estimate normals with bisection")
 	}
 	var planeAxes [2]{{.coordType}}
-	axis1 := New{{.coordType}}RandUnit()
-	axis2, axis3 := axis1.OrthoBasis()
+	// Three randomly chosen orthogonal vectors.
+	axis1 := XYZ(-0.7107294727984605, -0.12934902142019175, 0.6914712193238857)
+	axis2 := XYZ(0.09870891687574183, -0.9915624053549226, -0.08402705526185106)
+	axis3 := XYZ(0.696505682837434, 0.008533870423146774, 0.7175005274080017)
 	axes := [3]{{.coordType}}{
 		axis1.Scale(eps),
 		axis2.Scale(eps),

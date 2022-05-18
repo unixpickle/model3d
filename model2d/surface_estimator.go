@@ -122,8 +122,9 @@ func (s *SolidSurfaceEstimator) bisectNormal(c Coord) Coord {
 	if count < 4 {
 		panic("require at least 4 samples to estimate normals with bisection")
 	}
-	v1 := NewCoordRandUnit().Scale(eps)
-	v2 := XY(v1.Y, -v1.X)
+	// Randomly chosen orthogonal vectors.
+	v1 := XY(0.9206495581734144, -0.39039004986692083).Scale(eps)
+	v2 := XY(0.39039004986692083, 0.9206495581734144).Scale(eps)
 	if !s.Solid.Contains(c.Add(v1)) {
 		v1 = v1.Scale(-1)
 	}

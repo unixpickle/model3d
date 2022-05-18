@@ -125,8 +125,10 @@ func (s *SolidSurfaceEstimator) bisectNormal(c Coord3D) Coord3D {
 		panic("require at least 6 samples to estimate normals with bisection")
 	}
 	var planeAxes [2]Coord3D
-	axis1 := NewCoord3DRandUnit()
-	axis2, axis3 := axis1.OrthoBasis()
+	// Three randomly chosen orthogonal vectors.
+	axis1 := XYZ(-0.7107294727984605, -0.12934902142019175, 0.6914712193238857)
+	axis2 := XYZ(0.09870891687574183, -0.9915624053549226, -0.08402705526185106)
+	axis3 := XYZ(0.696505682837434, 0.008533870423146774, 0.7175005274080017)
 	axes := [3]Coord3D{
 		axis1.Scale(eps),
 		axis2.Scale(eps),
