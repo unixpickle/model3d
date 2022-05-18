@@ -18,3 +18,41 @@ func TestMatrix4Mul(t *testing.T) {
 		}
 	}
 }
+
+func TestMatrix4CharPoly(t *testing.T) {
+	check := func(t *testing.T, actual, expected Polynomial) {
+		if len(actual) != len(expected) {
+			t.Fatalf("expected len %d but got %d", len(expected), len(actual))
+		}
+		for i, x := range expected {
+			a := actual[i]
+			if math.Abs(a-x) > 1e-3 {
+				t.Errorf("term %d should be %f but got %f", i, x, a)
+			}
+		}
+	}
+
+	t.Run("NoThirdDegree", func(t *testing.T) {
+		mat := &Matrix4{
+			1.0, 3.0, 2.0, -7.0,
+			5.0, -6.0, 3.0, -2.0,
+			-4.0, 3.0, 2.0, 3.0,
+			9.0, 1.0, 2.0, 3.0,
+		}
+		actual := mat.CharPoly()
+		expected := Polynomial{-2420.0, 399.0, 18.0, 0.0, 1.0}
+		check(t, actual, expected)
+	})
+
+	t.Run("Full", func(t *testing.T) {
+		mat := &Matrix4{
+			1.0, 3.0, 2.0, -7.0,
+			5.0, -6.0, 3.0, -2.0,
+			-4.0, 3.0, 2.0, 3.0,
+			9.0, 1.0, 2.0, 4.0,
+		}
+		actual := mat.CharPoly()
+		expected := Polynomial{-2525.0, 431.0, 15.0, -1.0, 1.0}
+		check(t, actual, expected)
+	})
+}
