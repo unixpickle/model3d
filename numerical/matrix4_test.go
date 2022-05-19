@@ -56,3 +56,57 @@ func TestMatrix4CharPoly(t *testing.T) {
 		check(t, actual, expected)
 	})
 }
+
+func TestMatrix4SVD(t *testing.T) {
+	testSVD := func(t *testing.T, prec float64, mat *Matrix4) {
+		var u, s, v Matrix4
+		mat.SVD(&u, &s, &v)
+		checkOrthogonal4(t, &u)
+		checkOrthogonal4(t, &v)
+
+		product := u.Mul(&s).Mul(v.Transpose())
+		for i, x := range mat {
+			a := product[i]
+			if math.Abs(a-x) > prec {
+				t.Errorf("expected matrix %v but got U*S*V^T = %v (diff=%v)", *mat, *product, product.Sub(mat))
+				break
+			}
+		}
+	}
+	t.Run("Basic", func(t *testing.T) {
+		testSVD(t, 1e-8, &Matrix4{
+			1.0, 3.0, 2.0, -7.0,
+			5.0, -6.0, 3.0, -2.0,
+			-4.0, 3.0, 2.0, 3.0,
+			9.0, 1.0, 2.0, 4.0,
+		})
+	})
+	t.Run("Zeros", func(t *testing.T) {
+		testSVD(t, 1e-8, &Matrix4{})
+	})
+	t.Run("SingleSV", func(t *testing.T) {
+		// All singular values are 2.
+		// The precision we use is lower than normal, because the characteristic
+		// polynomial is essentially (x-4)^4, so finding the root is very poorly
+		// conditioned.
+		testSVD(t, 1e-4, &Matrix4{
+			0.21466134858214758, -1.5439761178918934, 1.1357222139082424, 0.5293328873589178,
+			0.18422399983270635, 0.7634112609593281, 0.14852742239738262, 1.833358767214458,
+			0.4830940705809065, -0.9578566217750428, -1.6178405574598163, 0.48137588403386594,
+			-1.9200526404971558, -0.3403699254365289, -0.2658318797086999, 0.35620160486551505,
+		})
+	})
+}
+
+func BenchmarkMatrix4SVD(b *testing.B) {
+	mat := &Matrix4{
+		1.0, 3.0, 2.0, -7.0,
+		5.0, -6.0, 3.0, -2.0,
+		-4.0, 3.0, 2.0, 3.0,
+		9.0, 1.0, 2.0, 4.0,
+	}
+	for i := 0; i < b.N; i++ {
+		var u, s, v Matrix4
+		mat.SVD(&u, &s, &v)
+	}
+}
