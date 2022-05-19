@@ -270,6 +270,54 @@ func (v Vec4) ProjectOut(v1 Vec4) Vec4 {
 	return v.Add(normed.Scale(-normed.Dot(v)))
 }
 
+// OrthoBasis creates three unit vectors which are
+// orthogonal to v and to each other.
+//
+// If v is axis-aligned, the other vectors will be as
+// well.
+//
+// The behavior of this method is undefined if v is zero.
+func (v Vec4) OrthoBasis() (Vec4, Vec4, Vec4) {
+	// Use the axis-aligned vectors with the lowest dot prod
+	// with v. This automatically adresses numerical issues
+	// when v is close to some axis.
+	highestAbsVal := math.Abs(v[0])
+	highestAbsIdx := 0
+	for i, x := range v[1:] {
+		if a := math.Abs(x); a > highestAbsVal {
+			highestAbsVal = a
+			highestAbsIdx = i + 1
+		}
+	}
+	var otherVecs [3]Vec4
+	outIdx := 0
+	for i := 0; i < 4; i++ {
+		if i != highestAbsIdx {
+			otherVecs[outIdx][i] = 1.0
+			outIdx++
+		}
+	}
+
+	// Perform Gram-Schmidt on the three vectors.
+	normed := v.Normalize()
+	for i := 0; i < 3; i++ {
+		v1 := otherVecs[i]
+		v1 = v1.Add(normed.Scale(-normed.Dot(v1)))
+		for j := 0; j < i; j++ {
+			v2 := otherVecs[j]
+			v1 = v1.Add(v2.Scale(-v2.Dot(v1)))
+		}
+		otherVecs[i] = v1.Normalize()
+	}
+
+	// Ensure positive determinant of [v, v1, v2, v3].
+	if (highestAbsIdx%2 == 1) == (v[highestAbsIdx] > 0) {
+		otherVecs[1] = otherVecs[1].Scale(-1)
+	}
+
+	return otherVecs[0], otherVecs[1], otherVecs[2]
+}
+
 // Vec is a vector of arbitrary dimension.
 type Vec []float64
 
