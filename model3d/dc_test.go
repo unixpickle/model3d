@@ -5,7 +5,7 @@ import (
 )
 
 func TestDcCubeLayout(t *testing.T) {
-	layout := newDcCubeLayout(XYZ(-3.0, -2.0, -5.0), XYZ(4.0, 3.0, 1.0), 1.0)
+	layout := newDcCubeLayout(XYZ(-3.0, -2.0, -5.0), XYZ(4.0, 3.0, 1.0), 1.0, true)
 
 	cubes, _ := layout.FirstRow()
 	prevCubes := append([]*dcCube{}, cubes...)
@@ -131,10 +131,19 @@ func TestDcCubeLayout(t *testing.T) {
 func TestDualContouring(t *testing.T) {
 	t.Run("Sphere", func(t *testing.T) {
 		solid := &Sphere{Radius: 1.0}
-		dc := &DualContouring{Delta: 0.04}
-		mesh := dc.Mesh(solid)
+		dc := &DualContouring{S: SolidSurfaceEstimator{Solid: solid}, Delta: 0.04}
+		mesh := dc.Mesh()
 		// In general, meshes from Dual Contouring might not be
 		// manifold, but this one should be.
-		MustValidateMesh(t, mesh, true)
+		MustValidateMesh(t, mesh, false)
+	})
+
+	t.Run("Rect", func(t *testing.T) {
+		solid := NewRect(Ones(-1), Ones(1))
+		dc := &DualContouring{S: SolidSurfaceEstimator{Solid: solid}, Delta: 0.04}
+		mesh := dc.Mesh()
+		// In general, meshes from Dual Contouring might not be
+		// manifold, but this one should be.
+		MustValidateMesh(t, mesh, false)
 	})
 }

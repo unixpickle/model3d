@@ -35,6 +35,20 @@ func NewMatrix3Rotation(axis Vec3, angle float64) *Matrix3 {
 	return basis.Mul(rotation).Mul(basis.Transpose())
 }
 
+// Cols returns the columns of the matrix as Vec4.
+func (m *Matrix3) Cols() [3]Vec3 {
+	return m.Transpose().Rows()
+}
+
+// Rows returns the rows of the matrix as Vec3.
+func (m *Matrix3) Rows() [3]Vec3 {
+	return [3]Vec3{
+		{m[0], m[1], m[2]},
+		{m[3], m[4], m[5]},
+		{m[6], m[7], m[8]},
+	}
+}
+
 // Det computes the determinant of the matrix.
 func (m *Matrix3) Det() float64 {
 	return m[0]*(m[4]*m[8]-m[5]*m[7]) - m[1]*(m[3]*m[8]-m[5]*m[6]) + m[2]*(m[3]*m[7]-m[4]*m[6])
@@ -242,6 +256,48 @@ func (m *Matrix3) SVD(u, s, v *Matrix3) {
 	}
 	if s[0] < s[4] {
 		s[0] = s[4]
+	}
+}
+
+// symEigDecomp computes the eigendecomposition of the
+// symmetric matrix.
+//
+// It populates matrices v and s such that
+//
+//     m = v*s*v.Transpose()
+//
+func (m *Matrix3) symEigDecomp(s, v *Matrix3) {
+	eigVals := m.Eigenvalues()
+	largestEig := math.Max(real(eigVals[0]), math.Max(real(eigVals[1]), real(eigVals[2])))
+	inVector := m.symEigVector(largestEig)
+
+	// Find other two singular components using a 2x2
+	// matrix in a different basis.
+	inBasis1, inBasis2 := inVector.OrthoBasis()
+	out1 := m.MulColumn(inBasis1)
+	out2 := m.MulColumn(inBasis2)
+
+	// Not gonna lie: I didn't know this order would be right.
+	mat2x2 := Matrix2{
+		out1.Dot(inBasis1), out2.Dot(inBasis1),
+		out1.Dot(inBasis2), out2.Dot(inBasis2),
+	}
+
+	var subV, subS Matrix2
+	mat2x2.symEigDecomp(&subS, &subV)
+
+	// Both of these work and I honestly have no idea why.
+	//
+	// subV1 := inBasis1.Scale(subV[0]).Add(inBasis2.Scale(subV[2]))
+	// subV2 := inBasis1.Scale(subV[1]).Add(inBasis2.Scale(subV[3]))
+	subV1 := inBasis1.Scale(subV[0]).Add(inBasis2.Scale(subV[1]))
+	subV2 := inBasis1.Scale(subV[2]).Add(inBasis2.Scale(subV[3]))
+
+	*v = *NewMatrix3Columns(inVector, subV1, subV2)
+	*s = Matrix3{
+		real(eigVals[0]), 0, 0,
+		0, subS[0], 0,
+		0, 0, subS[3],
 	}
 }
 

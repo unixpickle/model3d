@@ -172,6 +172,23 @@ func (m *Matrix2) SVD(u, s, v *Matrix2) {
 	}
 }
 
+// symEigDecomp computes the eigendecomposition of the
+// symmetric matrix.
+//
+// It populates matrices v and s such that
+//
+//     m = v*s*v.Transpose()
+//
+func (m *Matrix2) symEigDecomp(s, v *Matrix2) {
+	eigVals := m.Eigenvalues()
+	if real(eigVals[0]) < real(eigVals[1]) {
+		eigVals[0], eigVals[1] = eigVals[1], eigVals[0]
+	}
+	v1, v2 := m.symEigs(eigVals)
+	*v = *NewMatrix2Columns(v1, v2)
+	*s = Matrix2{real(eigVals[0]), 0, 0, real(eigVals[1])}
+}
+
 // symEigs computes the eigenvectors for the eigenvalues
 // of a symmetric matrix.
 func (m *Matrix2) symEigs(vals [2]complex128) (v1, v2 Vec2) {

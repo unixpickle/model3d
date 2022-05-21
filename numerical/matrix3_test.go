@@ -165,6 +165,58 @@ func TestMatrix3SVD(t *testing.T) {
 	})
 }
 
+func TestMatrix3SymEigDecomp(t *testing.T) {
+	matrix := &Matrix3{18, 13, 9, 13, 14, 14, 9, 14, 17}
+	expectedEigs := []float64{40.33886832, 8.58897527, 0.07215641}
+
+	var s, v Matrix3
+	matrix.symEigDecomp(&s, &v)
+
+	for i, x := range expectedEigs {
+		a := s[i*4]
+		if math.Abs(a-x) > 1e-4 {
+			t.Errorf("expected eigenvalue %d to be %f but got %f", i, x, a)
+		}
+	}
+
+	testEquivalent := func(matrix *Matrix3) {
+		var s, v Matrix3
+		matrix.symEigDecomp(&s, &v)
+		product := v.Mul(s.Mul(v.Transpose()))
+		for i, x := range matrix {
+			a := product[i]
+			if math.Abs(a-x) > 1e-4 {
+				t.Errorf("expected entry %d to be %f but got %f", i, x, a)
+			}
+		}
+	}
+	testEquivalent(matrix)
+
+	// Randomly generated positive definite.
+	testEquivalent(&Matrix3{
+		3.52262922, 3.46358736, 2.85937811, 3.46358736, 4.83930523,
+		2.95558449, 2.85937811, 2.95558449, 2.84897598,
+	})
+	testEquivalent(&Matrix3{
+		3.25572161, 0.58485646, 0.55781699, 0.58485646, 2.93323824,
+		0.23630776, 0.55781699, 0.23630776, 0.57796781,
+	})
+	testEquivalent(&Matrix3{
+		10.08859077, 0.27557785, 6.08485816, 0.27557785, 2.14838461,
+		-0.20111911, 6.08485816, -0.20111911, 3.73788934,
+	})
+
+	// Randomly generated negative eigenvalues.
+	testEquivalent(&Matrix3{
+		-4.60804473, -3.50402888, 0.56751734, -3.50402888, -1.77185477,
+		-0.41722716, 0.56751734, -0.41722716, 0.84882731,
+	})
+	testEquivalent(&Matrix3{
+		4.60804473, 3.50402888, -0.56751734, 3.50402888, 1.77185477,
+		0.41722716, -0.56751734, 0.41722716, -0.84882731,
+	})
+}
+
 func BenchmarkMatrix3SVD(b *testing.B) {
 	mat := &Matrix3{1, 2, 3, 4, 5, 6, 7, 8, 10}
 	for i := 0; i < b.N; i++ {

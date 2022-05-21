@@ -1,22 +1,33 @@
 package model3d
 
-import "math"
+import (
+	"math"
+
+	"github.com/unixpickle/model3d/numerical"
+)
 
 // DualContouring is a configurable but simplified version
 // of Dual Contouring, a technique for turning a field into
 // a mesh.
 type DualContouring struct {
-	// SurfaceEstimator is used to compute hermite data on
-	// line segments.
-	SurfaceEstimator SolidSurfaceEstimator
+	// S specifies the Solid and is used to compute hermite
+	// data on line segments.
+	S SolidSurfaceEstimator
 
 	// Delta specifies the grid size of the algorithm.
 	Delta float64
+
+	// NoJitter, if true, disables a small jitter applied to
+	// coordinates. This jitter is enabled by default to
+	// avoid common error cases when attempting to estimate
+	// normals exactly on the edges of boxy objects.
+	NoJitter bool
 }
 
-// Mesh computes a mesh for the solid s.
-func (d *DualContouring) Mesh(s Solid) *Mesh {
-	layout := newDcCubeLayout(s.Min(), s.Max(), d.Delta)
+// Mesh computes a mesh for the surface.
+func (d *DualContouring) Mesh() *Mesh {
+	s := d.S.Solid
+	layout := newDcCubeLayout(s.Min(), s.Max(), d.Delta, d.NoJitter)
 	if len(layout.Zs) < 3 {
 		panic("invalid number of z values")
 	}
@@ -81,11 +92,7 @@ func (d *DualContouring) Mesh(s Solid) *Mesh {
 			edge.Cubes[3].VertexPosition,
 		}
 		t1, t2 := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
-		normalAxis := edge.Corners[1].Coord.Sub(edge.Corners[0].Coord)
-		if edge.Corners[1].Value {
-			normalAxis = normalAxis.Scale(-1)
-		}
-		if t1.Normal().Dot(normalAxis) < 0 {
+		if t1.Normal().Dot(edge.Normal) < 0 {
 			t1[0], t1[1] = t1[1], t1[0]
 			t2[0], t2[1] = t2[1], t2[0]
 		}
@@ -97,12 +104,36 @@ func (d *DualContouring) Mesh(s Solid) *Mesh {
 }
 
 func (d *DualContouring) computeHermite(edge *dcEdge) {
-	// TODO: implement this using least squares.
+	edge.Coord = d.S.Bisect(edge.Corners[0].Coord, edge.Corners[1].Coord)
+	edge.Normal = d.S.Normal(edge.Coord)
 }
 
 func (d *DualContouring) computeVertexPosition(cube *dcCube) {
-	// TODO: implement this using edge hermite data.
-	cube.VertexPosition = cube.Corners[0].Coord.Mid(cube.Corners[7].Coord)
+	// Based on Dual Contouring: "The Secret Sauce"
+	// https://people.eecs.berkeley.edu/~jrs/meshpapers/SchaeferWarren2.pdf
+	var massPoint Coord3D
+	var count float64
+	for _, edge := range cube.Edges {
+		if edge.Active() {
+			massPoint = massPoint.Add(edge.Coord)
+			count++
+		}
+	}
+	massPoint = massPoint.Scale(1 / count)
+
+	var matA []numerical.Vec3
+	var matB []float64
+	for _, edge := range cube.Edges {
+		if edge.Active() {
+			v := edge.Coord.Sub(massPoint)
+			matA = append(matA, edge.Normal.Array())
+			matB = append(matB, v.Dot(edge.Normal))
+		}
+	}
+	solution := numerical.LeastSquares3(matA, matB, 0.1)
+	minPoint := cube.Corners[0].Coord
+	maxPoint := cube.Corners[7].Coord
+	cube.VertexPosition = NewCoord3DArray(solution).Add(massPoint).Max(minPoint).Min(maxPoint)
 }
 
 // a dcCube represents a cube in Dual Contouring.
@@ -203,7 +234,12 @@ type dcCubeLayout struct {
 	Zs []float64
 }
 
-func newDcCubeLayout(min, max Coord3D, delta float64) *dcCubeLayout {
+func newDcCubeLayout(min, max Coord3D, delta float64, noJitter bool) *dcCubeLayout {
+	jitter := delta * 0.012923982
+	if noJitter {
+		jitter = 0
+	}
+
 	min = min.AddScalar(-delta)
 	max = max.AddScalar(delta)
 	count := max.Sub(min).Scale(1 / delta)
@@ -217,13 +253,13 @@ func newDcCubeLayout(min, max Coord3D, delta float64) *dcCubeLayout {
 		Zs: make([]float64, countZ),
 	}
 	for i := 0; i < countX; i++ {
-		res.Xs[i] = min.X + float64(i)*delta
+		res.Xs[i] = min.X + float64(i)*delta + jitter
 	}
 	for i := 0; i < countY; i++ {
-		res.Ys[i] = min.Y + float64(i)*delta
+		res.Ys[i] = min.Y + float64(i)*delta + jitter
 	}
 	for i := 0; i < countZ; i++ {
-		res.Zs[i] = min.Z + float64(i)*delta
+		res.Zs[i] = min.Z + float64(i)*delta + jitter
 	}
 	return res
 }
