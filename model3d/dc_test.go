@@ -1,6 +1,7 @@
 package model3d
 
 import (
+	"math"
 	"testing"
 )
 
@@ -129,21 +130,64 @@ func TestDcCubeLayout(t *testing.T) {
 }
 
 func TestDualContouring(t *testing.T) {
-	t.Run("Sphere", func(t *testing.T) {
-		solid := &Sphere{Radius: 1.0}
-		dc := &DualContouring{S: SolidSurfaceEstimator{Solid: solid}, Delta: 0.04}
-		mesh := dc.Mesh()
-		// In general, meshes from Dual Contouring might not be
-		// manifold, but this one should be.
-		MustValidateMesh(t, mesh, false)
-	})
+	runTests := func(t *testing.T, gos int) {
+		t.Run("Sphere", func(t *testing.T) {
+			solid := &Sphere{Radius: 1.0}
+			dc := &DualContouring{S: SolidSurfaceEstimator{Solid: solid}, Delta: 0.04, MaxGos: gos}
+			mesh := dc.Mesh()
+			// In general, meshes from Dual Contouring might not be
+			// manifold, but this one should be.
+			MustValidateMesh(t, mesh, false)
 
-	t.Run("Rect", func(t *testing.T) {
-		solid := NewRect(Ones(-1), Ones(1))
-		dc := &DualContouring{S: SolidSurfaceEstimator{Solid: solid}, Delta: 0.04}
-		mesh := dc.Mesh()
-		// In general, meshes from Dual Contouring might not be
-		// manifold, but this one should be.
-		MustValidateMesh(t, mesh, false)
+			volume := mesh.Volume()
+			expected := 4.0 / 3.0 * math.Pi
+			if math.Abs(volume-expected) > 5e-2 {
+				t.Errorf("expected volume %f but got %f", expected, volume)
+			}
+		})
+
+		t.Run("Rect", func(t *testing.T) {
+			solid := NewRect(Ones(-1), Ones(1))
+			dc := &DualContouring{S: SolidSurfaceEstimator{Solid: solid}, Delta: 0.04, MaxGos: gos}
+			mesh := dc.Mesh()
+			// In general, meshes from Dual Contouring might not be
+			// manifold, but this one should be.
+			MustValidateMesh(t, mesh, false)
+
+			volume := mesh.Volume()
+			expected := 2.0 * 2.0 * 2.0
+			if math.Abs(volume-expected) > 1e-2 {
+				t.Errorf("expected volume %f but got %f", expected, volume)
+			}
+		})
+	}
+	t.Run("MaxGos1", func(t *testing.T) {
+		runTests(t, 1)
+	})
+	t.Run("MaxGos8", func(t *testing.T) {
+		runTests(t, 8)
+	})
+	t.Run("MaxGos0", func(t *testing.T) {
+		runTests(t, 0)
+	})
+}
+
+func BenchmarkDualContouring(b *testing.B) {
+	runBench := func(b *testing.B, gos int) {
+		solid := &CylinderSolid{
+			P1:     XYZ(1, 2, 3),
+			P2:     XYZ(3, 1, 4),
+			Radius: 0.5,
+		}
+		dc := &DualContouring{S: SolidSurfaceEstimator{Solid: solid}, Delta: 0.025, MaxGos: gos}
+		for i := 0; i < b.N; i++ {
+			dc.Mesh()
+		}
+	}
+	b.Run("MaxGos1", func(b *testing.B) {
+		runBench(b, 1)
+	})
+	b.Run("MaxGos0", func(b *testing.B) {
+		runBench(b, 0)
 	})
 }

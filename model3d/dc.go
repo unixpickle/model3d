@@ -2,7 +2,9 @@ package model3d
 
 import (
 	"math"
+	"runtime"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/numerical"
 )
 
@@ -22,6 +24,10 @@ type DualContouring struct {
 	// avoid common error cases when attempting to estimate
 	// normals exactly on the edges of boxy objects.
 	NoJitter bool
+
+	// MaxGos, if specified, limits the number of Goroutines
+	// for parallel processing. If 0, GOMAXPROCS is used.
+	MaxGos int
 }
 
 // Mesh computes a mesh for the surface.
@@ -32,36 +38,11 @@ func (d *DualContouring) Mesh() *Mesh {
 		panic("invalid number of z values")
 	}
 
-	populateCorners := func(corners []*dcCorner) {
-		for _, corner := range corners {
-			corner.Value = s.Contains(corner.Coord)
-		}
+	numWorkers := d.MaxGos
+	if numWorkers == 0 {
+		numWorkers = runtime.GOMAXPROCS(0)
 	}
-
-	var activeCubes []*dcCube
-	processCubes := func(cubes []*dcCube) {
-		for _, cube := range cubes {
-			if cube.Active() {
-				activeCubes = append(activeCubes, cube)
-			} else {
-				cube.Unlink()
-			}
-		}
-	}
-
-	previous, corners := layout.FirstRow()
-	populateCorners(corners)
-	corners = nil
-
-	for i := 0; i < len(layout.Zs)-2; i++ {
-		next, corners := layout.NextRow(previous, i)
-		populateCorners(corners)
-		// We only process a row of cubes once we will never
-		// add more references to those cubes with NextRow().
-		processCubes(previous)
-		previous = next
-	}
-	processCubes(previous)
+	activeCubes := dcScanSolid(numWorkers, layout, d.S.Solid)
 
 	activeEdges := map[*dcEdge]struct{}{}
 	for _, cube := range activeCubes {
@@ -71,13 +52,17 @@ func (d *DualContouring) Mesh() *Mesh {
 			}
 		}
 	}
-
+	activeEdgeSlice := make([]*dcEdge, 0, len(activeEdges))
 	for edge := range activeEdges {
-		d.computeHermite(edge)
+		activeEdgeSlice = append(activeEdgeSlice, edge)
 	}
-	for _, cube := range activeCubes {
-		d.computeVertexPosition(cube)
-	}
+
+	essentials.ConcurrentMap(d.MaxGos, len(activeEdgeSlice), func(i int) {
+		d.computeHermite(activeEdgeSlice[i])
+	})
+	essentials.ConcurrentMap(d.MaxGos, len(activeCubes), func(i int) {
+		d.computeVertexPosition(activeCubes[i])
+	})
 
 	mesh := NewMesh()
 	for edge := range activeEdges {
@@ -134,6 +119,80 @@ func (d *DualContouring) computeVertexPosition(cube *dcCube) {
 	minPoint := cube.Corners[0].Coord
 	maxPoint := cube.Corners[7].Coord
 	cube.VertexPosition = NewCoord3DArray(solution).Add(massPoint).Max(minPoint).Min(maxPoint)
+}
+
+type dcCornerRequest struct {
+	Index   int
+	Corners []*dcCorner
+}
+
+func dcScanSolid(maxProcs int, layout *dcCubeLayout, s Solid) []*dcCube {
+	maxProcs = essentials.MinInt(maxProcs, len(layout.Zs))
+
+	requests := make(chan *dcCornerRequest, maxProcs)
+	results := make(chan int, maxProcs)
+	defer close(requests)
+	for i := 0; i < maxProcs; i++ {
+		go func() {
+			for req := range requests {
+				for _, corner := range req.Corners {
+					corner.Value = s.Contains(corner.Coord)
+				}
+				results <- req.Index
+			}
+		}()
+	}
+
+	pending := map[int][]*dcCube{}
+	completed := map[int]struct{}{}
+	var firstIncomplete int
+	var firstUnqueued int
+	var activeCubes []*dcCube
+
+	var handleResponse func(idx int)
+	handleResponse = func(idx int) {
+		completed[idx] = struct{}{}
+		for idx == firstIncomplete {
+			if idx > 0 {
+				for _, cube := range pending[idx-1] {
+					if cube.Active() {
+						activeCubes = append(activeCubes, cube)
+					} else {
+						cube.Unlink()
+					}
+				}
+				pending[idx-1] = nil
+			}
+			firstIncomplete++
+			// If rows were completed out of order, we can now
+			// process all of the results.
+			if _, ok := completed[firstIncomplete]; ok {
+				handleResponse(idx + 1)
+			}
+		}
+	}
+
+	previous, corners := layout.FirstRow()
+	pending[0] = previous
+
+	requests <- &dcCornerRequest{Corners: corners, Index: 0}
+	firstUnqueued = 1
+
+	for firstUnqueued < len(layout.Zs)-1 {
+		if firstUnqueued-firstIncomplete < maxProcs {
+			previous, corners = layout.NextRow(previous, firstUnqueued-1)
+			pending[firstUnqueued] = previous
+			requests <- &dcCornerRequest{Corners: corners, Index: firstUnqueued}
+			firstUnqueued++
+		} else {
+			handleResponse(<-results)
+		}
+	}
+	for firstIncomplete < len(layout.Zs)-1 {
+		handleResponse(<-results)
+	}
+
+	return activeCubes
 }
 
 // a dcCube represents a cube in Dual Contouring.
