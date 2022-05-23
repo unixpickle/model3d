@@ -32,6 +32,9 @@ type DualContouring struct {
 
 // Mesh computes a mesh for the surface.
 func (d *DualContouring) Mesh() *Mesh {
+	if !BoundsValid(d.S.Solid) {
+		panic("invalid bounds for solid")
+	}
 	s := d.S.Solid
 	layout := newDcCubeLayout(s.Min(), s.Max(), d.Delta, d.NoJitter)
 	if len(layout.Zs) < 3 {
@@ -42,39 +45,45 @@ func (d *DualContouring) Mesh() *Mesh {
 	if numWorkers == 0 {
 		numWorkers = runtime.GOMAXPROCS(0)
 	}
-	activeCubes := dcScanSolid(numWorkers, layout, d.S.Solid)
+	heap := &dcHeap{}
+	activeCubes := dcScanSolid(numWorkers, layout, heap, d.S.Solid)
 
-	activeEdges := map[*dcEdge]struct{}{}
+	activeEdges := map[dcEdgeIdx]struct{}{}
 	for _, cube := range activeCubes {
-		for _, edge := range cube.Edges {
-			if edge.Active() {
+		for _, edge := range heap.Cube(cube).Edges {
+			if heap.Edge(edge).Active(heap) {
 				activeEdges[edge] = struct{}{}
 			}
 		}
 	}
-	activeEdgeSlice := make([]*dcEdge, 0, len(activeEdges))
+	activeEdgeSlice := make([]dcEdgeIdx, 0, len(activeEdges))
 	for edge := range activeEdges {
 		activeEdgeSlice = append(activeEdgeSlice, edge)
 	}
 
 	essentials.ConcurrentMap(d.MaxGos, len(activeEdgeSlice), func(i int) {
-		d.computeHermite(activeEdgeSlice[i])
+		d.computeHermite(heap, activeEdgeSlice[i])
 	})
 	essentials.ConcurrentMap(d.MaxGos, len(activeCubes), func(i int) {
-		d.computeVertexPosition(activeCubes[i])
+		d.computeVertexPosition(heap, activeCubes[i])
 	})
 
 	mesh := NewMesh()
-	for edge := range activeEdges {
-		if edge.Cubes[0] == nil || edge.Cubes[1] == nil || edge.Cubes[2] == nil ||
-			edge.Cubes[3] == nil {
-			panic("missing cube for edge; this likely means the Solid is true outside of bounds")
+	for edgeIdx := range activeEdges {
+		edge := heap.Edge(edgeIdx)
+
+		var cubes [4]*dcCube
+		for i, cubeIdx := range edge.Cubes {
+			if cubeIdx < 0 {
+				panic("missing cube for edge; this likely means the Solid is true outside of bounds")
+			}
+			cubes[i] = heap.Cube(cubeIdx)
 		}
 		vs := [4]Coord3D{
-			edge.Cubes[0].VertexPosition,
-			edge.Cubes[1].VertexPosition,
-			edge.Cubes[2].VertexPosition,
-			edge.Cubes[3].VertexPosition,
+			cubes[0].VertexPosition,
+			cubes[1].VertexPosition,
+			cubes[2].VertexPosition,
+			cubes[3].VertexPosition,
 		}
 		t1, t2 := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
 		if t1.Normal().Dot(edge.Normal) < 0 {
@@ -88,18 +97,27 @@ func (d *DualContouring) Mesh() *Mesh {
 	return mesh
 }
 
-func (d *DualContouring) computeHermite(edge *dcEdge) {
-	edge.Coord = d.S.Bisect(edge.Corners[0].Coord, edge.Corners[1].Coord)
+func (d *DualContouring) computeHermite(heap *dcHeap, edgeIdx dcEdgeIdx) {
+	edge := heap.Edge(edgeIdx)
+	edge.Coord = d.S.Bisect(heap.Corner(edge.Corners[0]).Coord, heap.Corner(edge.Corners[1]).Coord)
 	edge.Normal = d.S.Normal(edge.Coord)
 }
 
-func (d *DualContouring) computeVertexPosition(cube *dcCube) {
+func (d *DualContouring) computeVertexPosition(heap *dcHeap, cubeIdx dcCubeIdx) {
+	cube := heap.Cube(cubeIdx)
+
 	// Based on Dual Contouring: "The Secret Sauce"
 	// https://people.eecs.berkeley.edu/~jrs/meshpapers/SchaeferWarren2.pdf
 	var massPoint Coord3D
 	var count float64
-	for _, edge := range cube.Edges {
-		if edge.Active() {
+	var active [12]*dcEdge
+	for i, edgeIdx := range cube.Edges {
+		if edgeIdx < 0 {
+			panic("edge not available for active cube; this likely means the Solid is true outside of bounds")
+		}
+		edge := heap.Edge(edgeIdx)
+		if edge.Active(heap) {
+			active[i] = edge
 			massPoint = massPoint.Add(edge.Coord)
 			count++
 		}
@@ -108,81 +126,99 @@ func (d *DualContouring) computeVertexPosition(cube *dcCube) {
 
 	var matA []numerical.Vec3
 	var matB []float64
-	for _, edge := range cube.Edges {
-		if edge.Active() {
+	for _, edge := range active {
+		if edge != nil {
 			v := edge.Coord.Sub(massPoint)
 			matA = append(matA, edge.Normal.Array())
 			matB = append(matB, v.Dot(edge.Normal))
 		}
 	}
 	solution := numerical.LeastSquares3(matA, matB, 0.1)
-	minPoint := cube.Corners[0].Coord
-	maxPoint := cube.Corners[7].Coord
+	minPoint := heap.Corner(cube.Corners[0]).Coord
+	maxPoint := heap.Corner(cube.Corners[7]).Coord
 	cube.VertexPosition = NewCoord3DArray(solution).Add(massPoint).Max(minPoint).Min(maxPoint)
 }
 
 type dcCornerRequest struct {
 	Index   int
-	Corners []*dcCorner
+	Coords  []Coord3D
+	Corners []dcCornerIdx
+	Cubes   []dcCubeIdx
+	Values  []bool
 }
 
-func dcScanSolid(maxProcs int, layout *dcCubeLayout, s Solid) []*dcCube {
+func dcScanSolid(maxProcs int, layout *dcCubeLayout, heap *dcHeap, s Solid) []dcCubeIdx {
 	maxProcs = essentials.MinInt(maxProcs, len(layout.Zs))
 
 	requests := make(chan *dcCornerRequest, maxProcs)
-	results := make(chan int, maxProcs)
+	results := make(chan *dcCornerRequest, maxProcs)
 	defer close(requests)
 	for i := 0; i < maxProcs; i++ {
 		go func() {
 			for req := range requests {
-				for _, corner := range req.Corners {
-					corner.Value = s.Contains(corner.Coord)
+				req.Values = make([]bool, len(req.Coords))
+				for i, c := range req.Coords {
+					req.Values[i] = s.Contains(c)
 				}
-				results <- req.Index
+				results <- req
 			}
 		}()
 	}
 
-	pending := map[int][]*dcCube{}
 	completed := map[int]struct{}{}
+	pending := map[int]*dcCornerRequest{}
 	var firstIncomplete int
 	var firstUnqueued int
-	var activeCubes []*dcCube
+	var activeCubes []dcCubeIdx
 
-	var handleResponse func(idx int)
-	handleResponse = func(idx int) {
-		completed[idx] = struct{}{}
+	handleResponse := func(resp *dcCornerRequest) {
+		for i, c := range resp.Corners {
+			heap.Corner(c).Value = resp.Values[i]
+		}
+		completed[resp.Index] = struct{}{}
+		idx := resp.Index
 		for idx == firstIncomplete {
 			if idx > 0 {
-				for _, cube := range pending[idx-1] {
-					if cube.Active() {
+				for _, cube := range pending[idx-1].Cubes {
+					if heap.Cube(cube).Active(heap) {
 						activeCubes = append(activeCubes, cube)
 					} else {
-						cube.Unlink()
+						heap.UnlinkCube(cube)
 					}
 				}
-				pending[idx-1] = nil
+				delete(pending, idx-1)
 			}
 			firstIncomplete++
 			// If rows were completed out of order, we can now
 			// process all of the results.
 			if _, ok := completed[firstIncomplete]; ok {
-				handleResponse(idx + 1)
+				idx++
 			}
 		}
 	}
 
-	previous, corners := layout.FirstRow()
-	pending[0] = previous
-
-	requests <- &dcCornerRequest{Corners: corners, Index: 0}
+	previous, corners := layout.FirstRow(heap)
+	req := &dcCornerRequest{
+		Index:   0,
+		Coords:  heap.CornerCoords(corners),
+		Corners: corners,
+		Cubes:   previous,
+	}
+	pending[0] = req
+	requests <- req
 	firstUnqueued = 1
 
 	for firstUnqueued < len(layout.Zs)-1 {
 		if firstUnqueued-firstIncomplete < maxProcs {
-			previous, corners = layout.NextRow(previous, firstUnqueued-1)
-			pending[firstUnqueued] = previous
-			requests <- &dcCornerRequest{Corners: corners, Index: firstUnqueued}
+			previous, corners = layout.NextRow(heap, previous, firstUnqueued-1)
+			req = &dcCornerRequest{
+				Index:   firstUnqueued,
+				Coords:  heap.CornerCoords(corners),
+				Corners: corners,
+				Cubes:   previous,
+			}
+			pending[firstUnqueued] = req
+			requests <- req
 			firstUnqueued++
 		} else {
 			handleResponse(<-results)
@@ -193,6 +229,102 @@ func dcScanSolid(maxProcs int, layout *dcCubeLayout, s Solid) []*dcCube {
 	}
 
 	return activeCubes
+}
+
+type dcCubeIdx int
+type dcCornerIdx int
+type dcEdgeIdx int
+
+type dcHeap struct {
+	freeCubes   []int
+	freeCorners []int
+	freeEdges   []int
+
+	cubes   []dcCube
+	corners []dcCorner
+	edges   []dcEdge
+}
+
+func (d *dcHeap) UnlinkCube(idx dcCubeIdx) {
+	for _, eIdx := range d.cubes[idx].Edges {
+		e := &d.edges[eIdx]
+		var remainingCubes int
+		for i, c := range e.Cubes {
+			if c == idx {
+				e.Cubes[i] = -1
+			} else if c >= 0 {
+				remainingCubes++
+			}
+		}
+		if remainingCubes == 0 {
+			d.freeEdges = append(d.freeEdges, int(eIdx))
+		}
+	}
+	for _, cIdx := range d.cubes[idx].Corners {
+		c := &d.corners[cIdx]
+		c.Refs--
+		if c.Refs == 0 {
+			d.freeCorners = append(d.freeCorners, int(cIdx))
+		}
+	}
+	d.freeCubes = append(d.freeCubes, int(idx))
+}
+
+func (d *dcHeap) AllocateCube(value dcCube) dcCubeIdx {
+	idx := d.allocate(&d.freeCubes, func() int {
+		d.cubes = append(d.cubes, dcCube{})
+		return len(d.cubes) - 1
+	})
+	d.cubes[idx] = value
+	return dcCubeIdx(idx)
+}
+
+func (d *dcHeap) AllocateEdge(value dcEdge) dcEdgeIdx {
+	idx := d.allocate(&d.freeEdges, func() int {
+		d.edges = append(d.edges, dcEdge{})
+		return len(d.edges) - 1
+	})
+	d.edges[idx] = value
+	return dcEdgeIdx(idx)
+}
+
+func (d *dcHeap) AllocateCorner(value dcCorner) dcCornerIdx {
+	idx := d.allocate(&d.freeCorners, func() int {
+		d.corners = append(d.corners, dcCorner{})
+		return len(d.corners) - 1
+	})
+	d.corners[idx] = value
+	return dcCornerIdx(idx)
+}
+
+func (d *dcHeap) Cube(idx dcCubeIdx) *dcCube {
+	return &d.cubes[idx]
+}
+
+func (d *dcHeap) Edge(idx dcEdgeIdx) *dcEdge {
+	return &d.edges[idx]
+}
+
+func (d *dcHeap) Corner(idx dcCornerIdx) *dcCorner {
+	return &d.corners[idx]
+}
+
+func (d *dcHeap) CornerCoords(corners []dcCornerIdx) []Coord3D {
+	res := make([]Coord3D, len(corners))
+	for i, c := range corners {
+		res[i] = d.corners[c].Coord
+	}
+	return res
+}
+
+func (d *dcHeap) allocate(free *[]int, create func() int) int {
+	if len(*free) > 0 {
+		idx := (*free)[len(*free)-1]
+		*free = (*free)[:len(*free)-1]
+		return idx
+	} else {
+		return create()
+	}
 }
 
 // a dcCube represents a cube in Dual Contouring.
@@ -228,47 +360,36 @@ func dcScanSolid(maxProcs int, layout *dcCubeLayout, s Solid) []*dcCube {
 // equal to the top 4 edges moved down one cube.
 // This makes it easier to generate new rows of cubes.
 type dcCube struct {
-	Corners [8]*dcCorner
-	Edges   [12]*dcEdge
+	Corners [8]dcCornerIdx
+	Edges   [12]dcEdgeIdx
 
 	VertexPosition Coord3D
 }
 
 // Active returns true if the corners do not all share the
 // same solid value.
-func (d *dcCube) Active() bool {
-	first := d.Corners[0].Value
+func (d *dcCube) Active(heap *dcHeap) bool {
+	first := heap.Corner(d.Corners[0]).Value
 	for _, x := range d.Corners[1:] {
-		if x.Value != first {
+		if heap.Corner(x).Value != first {
 			return true
 		}
 	}
 	return false
 }
 
-// Unlink removes this cube's references to its edges and
-// corners and removes the edges' references to itself.
-func (d *dcCube) Unlink() {
-	for _, e := range d.Edges {
-		for i, c := range e.Cubes {
-			if c == d {
-				e.Cubes[i] = nil
-				break
-			}
-		}
-	}
-	d.Edges = [12]*dcEdge{}
-	d.Corners = [8]*dcCorner{}
-}
-
 type dcCorner struct {
 	Value bool
 	Coord Coord3D
+
+	// Refs counts the number of allocated cubes this
+	// corner still belongs to.
+	Refs int
 }
 
 type dcEdge struct {
-	Corners [2]*dcCorner
-	Cubes   [4]*dcCube
+	Corners [2]dcCornerIdx
+	Cubes   [4]dcCubeIdx
 
 	// Hermite data
 	Coord  Coord3D
@@ -277,8 +398,8 @@ type dcEdge struct {
 
 // Active returns true if the solid value changes across
 // the edge.
-func (d *dcEdge) Active() bool {
-	return d.Corners[0].Value != d.Corners[1].Value
+func (d *dcEdge) Active(heap *dcHeap) bool {
+	return heap.Corner(d.Corners[0]).Value != heap.Corner(d.Corners[1]).Value
 }
 
 // dcCubeLayout helps locate cubes in space and arrange
@@ -325,25 +446,28 @@ func newDcCubeLayout(min, max Coord3D, delta float64, noJitter bool) *dcCubeLayo
 
 // FirstRow creates a row of cubes, returning the cubes and
 // all of the created corners.
-func (d *dcCubeLayout) FirstRow() ([]*dcCube, []*dcCorner) {
-	cubes := make([]*dcCube, (len(d.Xs)-1)*(len(d.Ys)-1))
-	corners := make([]*dcCorner, len(d.Xs)*len(d.Ys)*2)
-	edgeX := make([]*dcEdge, 0, (len(d.Xs)-1)*len(d.Ys)*2)
-	edgeY := make([]*dcEdge, 0, (len(d.Ys)-1)*len(d.Xs)*2)
-	edgeZ := make([]*dcEdge, 0, len(d.Xs)*len(d.Ys))
+func (d *dcCubeLayout) FirstRow(heap *dcHeap) (cubes []dcCubeIdx, corners []dcCornerIdx) {
+	cubes = make([]dcCubeIdx, (len(d.Xs)-1)*(len(d.Ys)-1))
+	corners = make([]dcCornerIdx, len(d.Xs)*len(d.Ys)*2)
+	edgeX := make([]dcEdgeIdx, 0, (len(d.Xs)-1)*len(d.Ys)*2)
+	edgeY := make([]dcEdgeIdx, 0, (len(d.Ys)-1)*len(d.Xs)*2)
+	edgeZ := make([]dcEdgeIdx, 0, len(d.Xs)*len(d.Ys))
 
-	cornerAt := func(x, y, z int) *dcCorner {
+	cornerAt := func(x, y, z int) dcCornerIdx {
 		return corners[x+y*len(d.Xs)+z*(len(corners)/2)]
 	}
-	cubeAt := func(x, y, z int) *dcCube {
+	cubeAt := func(x, y, z int) dcCubeIdx {
 		if z != 0 || x < 0 || y < 0 || x >= len(d.Xs)-1 || y >= len(d.Ys)-1 {
-			return nil
+			return -1
 		}
 		return cubes[x+y*(len(d.Xs)-1)]
 	}
 
 	for i := range cubes {
-		cubes[i] = &dcCube{}
+		cubes[i] = heap.AllocateCube(dcCube{})
+	}
+	for i := range corners {
+		corners[i] = heap.AllocateCorner(dcCorner{})
 	}
 
 	// Create corners and z edges.
@@ -351,17 +475,17 @@ func (d *dcCubeLayout) FirstRow() ([]*dcCube, []*dcCorner) {
 		for j, x := range d.Xs {
 			idx1 := i*len(d.Xs) + j
 			idx2 := i*len(d.Xs) + j + len(corners)/2
-			corners[idx1] = &dcCorner{Coord: XYZ(x, y, d.Zs[0])}
-			corners[idx2] = &dcCorner{Coord: XYZ(x, y, d.Zs[1])}
-			edgeZ = append(edgeZ, &dcEdge{
-				Corners: [2]*dcCorner{corners[idx1], corners[idx2]},
-				Cubes: [4]*dcCube{
+			heap.Corner(corners[idx1]).Coord = XYZ(x, y, d.Zs[0])
+			heap.Corner(corners[idx2]).Coord = XYZ(x, y, d.Zs[1])
+			edgeZ = append(edgeZ, heap.AllocateEdge(dcEdge{
+				Corners: [2]dcCornerIdx{corners[idx1], corners[idx2]},
+				Cubes: [4]dcCubeIdx{
 					cubeAt(j-1, i-1, 0),
 					cubeAt(j, i-1, 0),
 					cubeAt(j-1, i, 0),
 					cubeAt(j, i, 0),
 				},
-			})
+			}))
 		}
 	}
 
@@ -369,34 +493,34 @@ func (d *dcCubeLayout) FirstRow() ([]*dcCube, []*dcCorner) {
 	for z := 0; z < 2; z++ {
 		for y := 0; y < len(d.Ys); y++ {
 			for x := 0; x < len(d.Xs)-1; x++ {
-				edgeX = append(edgeX, &dcEdge{
-					Corners: [2]*dcCorner{
+				edgeX = append(edgeX, heap.AllocateEdge(dcEdge{
+					Corners: [2]dcCornerIdx{
 						cornerAt(x, y, z),
 						cornerAt(x+1, y, z),
 					},
-					Cubes: [4]*dcCube{
+					Cubes: [4]dcCubeIdx{
 						cubeAt(x, y-1, z-1),
 						cubeAt(x, y, z-1),
 						cubeAt(x, y-1, z),
 						cubeAt(x, y, z),
 					},
-				})
+				}))
 			}
 		}
 		for y := 0; y < len(d.Ys)-1; y++ {
 			for x := 0; x < len(d.Xs); x++ {
-				edgeY = append(edgeY, &dcEdge{
-					Corners: [2]*dcCorner{
+				edgeY = append(edgeY, heap.AllocateEdge(dcEdge{
+					Corners: [2]dcCornerIdx{
 						cornerAt(x, y, z),
 						cornerAt(x, y+1, z),
 					},
-					Cubes: [4]*dcCube{
+					Cubes: [4]dcCubeIdx{
 						cubeAt(x-1, y, z-1),
 						cubeAt(x, y, z-1),
 						cubeAt(x-1, y, z),
 						cubeAt(x, y, z),
 					},
-				})
+				}))
 			}
 		}
 	}
@@ -404,17 +528,19 @@ func (d *dcCubeLayout) FirstRow() ([]*dcCube, []*dcCorner) {
 	// Link cubes to corners and edges.
 	for y := 0; y < len(d.Ys)-1; y++ {
 		for x := 0; x < len(d.Xs)-1; x++ {
-			cube := cubeAt(x, y, 0)
-			cornerIdx := 0
+			cube := heap.Cube(cubeAt(x, y, 0))
+			dcCornerIdx := 0
 			for i := 0; i < 2; i++ {
 				for j := 0; j < 2; j++ {
 					for k := 0; k < 2; k++ {
-						cube.Corners[cornerIdx] = cornerAt(x+k, y+j, i)
-						cornerIdx++
+						c := cornerAt(x+k, y+j, i)
+						cube.Corners[dcCornerIdx] = c
+						heap.Corner(c).Refs++
+						dcCornerIdx++
 					}
 				}
 			}
-			cube.Edges = [12]*dcEdge{
+			cube.Edges = [12]dcEdgeIdx{
 				// Top edges.
 				edgeX[x+y*(len(d.Xs)-1)],
 				edgeY[x+y*len(d.Xs)],
@@ -444,18 +570,23 @@ func (d *dcCubeLayout) FirstRow() ([]*dcCube, []*dcCorner) {
 //
 // Returns the newly created cubes and newly created row of
 // corners.
-func (d *dcCubeLayout) NextRow(previous []*dcCube, prevIdx int) ([]*dcCube, []*dcCorner) {
-	cubes := make([]*dcCube, (len(d.Xs)-1)*(len(d.Ys)-1))
-	corners := make([]*dcCorner, len(d.Xs)*len(d.Ys))
-	edgeX := make([]*dcEdge, 0, (len(d.Xs)-1)*len(d.Ys))
-	edgeY := make([]*dcEdge, 0, (len(d.Ys)-1)*len(d.Xs))
-	edgeZ := make([]*dcEdge, 0, len(d.Xs)*len(d.Ys))
+func (d *dcCubeLayout) NextRow(heap *dcHeap, previous []dcCubeIdx,
+	prevIdx int) (cubes []dcCubeIdx, corners []dcCornerIdx) {
+	cubes = make([]dcCubeIdx, (len(d.Xs)-1)*(len(d.Ys)-1))
+	corners = make([]dcCornerIdx, len(d.Xs)*len(d.Ys))
+	edgeX := make([]dcEdgeIdx, 0, (len(d.Xs)-1)*len(d.Ys))
+	edgeY := make([]dcEdgeIdx, 0, (len(d.Ys)-1)*len(d.Xs))
+	edgeZ := make([]dcEdgeIdx, 0, len(d.Xs)*len(d.Ys))
+
+	for i := range cubes {
+		cubes[i] = heap.AllocateCube(dcCube{})
+	}
 
 	// Reconstruct previous corners in the correct order.
-	previousCorners := make([]*dcCorner, len(d.Xs)*len(d.Ys))
+	previousCorners := make([]dcCornerIdx, len(d.Xs)*len(d.Ys))
 	for y := 0; y < len(d.Ys)-1; y++ {
 		for x := 0; x < len(d.Xs)-1; x++ {
-			cube := previous[x+y*(len(d.Xs)-1)]
+			cube := heap.Cube(previous[x+y*(len(d.Xs)-1)])
 			previousCorners[x+y*(len(d.Xs))] = cube.Corners[4]
 			if x+1 == len(d.Xs)-1 || y+1 == len(d.Ys)-1 {
 				previousCorners[1+x+y*(len(d.Xs))] = cube.Corners[5]
@@ -465,7 +596,7 @@ func (d *dcCubeLayout) NextRow(previous []*dcCube, prevIdx int) ([]*dcCube, []*d
 		}
 	}
 
-	cornerAt := func(x, y, z int) *dcCorner {
+	cornerAt := func(x, y, z int) dcCornerIdx {
 		if z < 0 || z > 1 {
 			panic("z out of bounds")
 		}
@@ -476,9 +607,9 @@ func (d *dcCubeLayout) NextRow(previous []*dcCube, prevIdx int) ([]*dcCube, []*d
 			return corners[idx]
 		}
 	}
-	cubeAt := func(x, y, z int) *dcCube {
+	cubeAt := func(x, y, z int) dcCubeIdx {
 		if z > 0 || x < 0 || y < 0 || x >= len(d.Xs)-1 || y >= len(d.Ys)-1 {
-			return nil
+			return -1
 		}
 		idx := x + y*(len(d.Xs)-1)
 		if z == -1 {
@@ -486,27 +617,23 @@ func (d *dcCubeLayout) NextRow(previous []*dcCube, prevIdx int) ([]*dcCube, []*d
 		} else if z == 0 {
 			return cubes[idx]
 		}
-		return nil
-	}
-
-	for i := range cubes {
-		cubes[i] = &dcCube{}
+		return -1
 	}
 
 	// Create corners and z edges.
 	for i, y := range d.Ys {
 		for j, x := range d.Xs {
 			idx := i*len(d.Xs) + j
-			corners[idx] = &dcCorner{Coord: XYZ(x, y, d.Zs[prevIdx+2])}
-			edgeZ = append(edgeZ, &dcEdge{
-				Corners: [2]*dcCorner{previousCorners[idx], corners[idx]},
-				Cubes: [4]*dcCube{
+			corners[idx] = heap.AllocateCorner(dcCorner{Coord: XYZ(x, y, d.Zs[prevIdx+2])})
+			edgeZ = append(edgeZ, heap.AllocateEdge(dcEdge{
+				Corners: [2]dcCornerIdx{previousCorners[idx], corners[idx]},
+				Cubes: [4]dcCubeIdx{
 					cubeAt(j-1, i-1, 0),
 					cubeAt(j, i-1, 0),
 					cubeAt(j-1, i, 0),
 					cubeAt(j, i, 0),
 				},
-			})
+			}))
 		}
 	}
 
@@ -514,63 +641,65 @@ func (d *dcCubeLayout) NextRow(previous []*dcCube, prevIdx int) ([]*dcCube, []*d
 	// cubes.
 	for y := 0; y < len(d.Ys); y++ {
 		for x := 0; x < len(d.Xs)-1; x++ {
-			edgeX = append(edgeX, &dcEdge{
-				Corners: [2]*dcCorner{
+			edgeX = append(edgeX, heap.AllocateEdge(dcEdge{
+				Corners: [2]dcCornerIdx{
 					cornerAt(x, y, 1),
 					cornerAt(x+1, y, 1),
 				},
-				Cubes: [4]*dcCube{
+				Cubes: [4]dcCubeIdx{
 					cubeAt(x, y-1, 0),
 					cubeAt(x, y, 0),
 					cubeAt(x, y-1, 1),
 					cubeAt(x, y, 1),
 				},
-			})
+			}))
 		}
 	}
 	for y := 0; y < len(d.Ys)-1; y++ {
 		for x := 0; x < len(d.Xs); x++ {
-			edgeY = append(edgeY, &dcEdge{
-				Corners: [2]*dcCorner{
+			edgeY = append(edgeY, heap.AllocateEdge(dcEdge{
+				Corners: [2]dcCornerIdx{
 					cornerAt(x, y, 1),
 					cornerAt(x, y+1, 1),
 				},
-				Cubes: [4]*dcCube{
+				Cubes: [4]dcCubeIdx{
 					cubeAt(x-1, y, 0),
 					cubeAt(x, y, 0),
 					cubeAt(x-1, y, 1),
 					cubeAt(x, y, 1),
 				},
-			})
+			}))
 		}
 	}
 
 	// Link cubes to corners and edges.
 	for y := 0; y < len(d.Ys)-1; y++ {
 		for x := 0; x < len(d.Xs)-1; x++ {
-			above := cubeAt(x, y, -1)
+			above := heap.Cube(cubeAt(x, y, -1))
 			// Link above cube's bottom edges to the new row of cubes.
-			above.Edges[8].Cubes[2] = cubeAt(x, y-1, 0)
-			above.Edges[8].Cubes[3] = cubeAt(x, y, 0)
-			above.Edges[9].Cubes[2] = cubeAt(x-1, y, 0)
-			above.Edges[9].Cubes[3] = cubeAt(x, y, 0)
-			above.Edges[10].Cubes[2] = cubeAt(x, y, 0)
-			above.Edges[10].Cubes[3] = cubeAt(x+1, y, 0)
-			above.Edges[11].Cubes[2] = cubeAt(x, y, 0)
-			above.Edges[11].Cubes[3] = cubeAt(x, y+1, 0)
+			heap.Edge(above.Edges[8]).Cubes[2] = cubeAt(x, y-1, 0)
+			heap.Edge(above.Edges[8]).Cubes[3] = cubeAt(x, y, 0)
+			heap.Edge(above.Edges[9]).Cubes[2] = cubeAt(x-1, y, 0)
+			heap.Edge(above.Edges[9]).Cubes[3] = cubeAt(x, y, 0)
+			heap.Edge(above.Edges[10]).Cubes[2] = cubeAt(x, y, 0)
+			heap.Edge(above.Edges[10]).Cubes[3] = cubeAt(x+1, y, 0)
+			heap.Edge(above.Edges[11]).Cubes[2] = cubeAt(x, y, 0)
+			heap.Edge(above.Edges[11]).Cubes[3] = cubeAt(x, y+1, 0)
 
 			// Link new cube to its edges and corners.
-			cube := cubeAt(x, y, 0)
-			cornerIdx := 0
+			cube := heap.Cube(cubeAt(x, y, 0))
+			dcCornerIdx := 0
 			for i := 0; i < 2; i++ {
 				for j := 0; j < 2; j++ {
 					for k := 0; k < 2; k++ {
-						cube.Corners[cornerIdx] = cornerAt(x+k, y+j, i)
-						cornerIdx++
+						c := cornerAt(x+k, y+j, i)
+						cube.Corners[dcCornerIdx] = c
+						heap.Corner(c).Refs++
+						dcCornerIdx++
 					}
 				}
 			}
-			cube.Edges = [12]*dcEdge{
+			cube.Edges = [12]dcEdgeIdx{
 				// Top edges.
 				above.Edges[8],
 				above.Edges[9],
