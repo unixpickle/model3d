@@ -1163,3 +1163,183 @@ func hashForEdgeToInt(c [2]Coord) uint64 {
 	h2 := c[1].fastHash()
 	return uint64(h1) | (uint64(h2) << 32)
 }
+
+// EdgeToFaces implements a map-like interface for
+// mapping [2]Coord to []*Segment.
+//
+// This can be more efficient than using a map directly,
+// since it uses a special hash function for coordinates.
+// The speed-up is variable, but was ~2x as of mid-2021.
+type EdgeToFaces struct {
+	slowMap map[[2]Coord][]*Segment
+	fastMap map[uint64]cellForEdgeToFaces
+}
+
+// NewEdgeToFaces creates an empty map.
+func NewEdgeToFaces() *EdgeToFaces {
+	return &EdgeToFaces{fastMap: map[uint64]cellForEdgeToFaces{}}
+}
+
+// Len gets the number of elements in the map.
+func (m *EdgeToFaces) Len() int {
+	if m.fastMap != nil {
+		return len(m.fastMap)
+	} else {
+		return len(m.slowMap)
+	}
+}
+
+// Value is like Load(), but without a second return
+// value.
+func (m *EdgeToFaces) Value(key [2]Coord) []*Segment {
+	res, _ := m.Load(key)
+	return res
+}
+
+// Load gets the value for the given key.
+//
+// If no value is present, the first return argument is a
+// zero value, and the second is false. Otherwise, the
+// second return value is true.
+func (m *EdgeToFaces) Load(key [2]Coord) ([]*Segment, bool) {
+	if m.fastMap != nil {
+		cell, ok := m.fastMap[hashForEdgeToFaces(key)]
+		if !ok || cell.Key != key {
+			return nil, false
+		}
+		return cell.Value, true
+	} else {
+		x, y := m.slowMap[key]
+		return x, y
+	}
+}
+
+// Delete removes the key from the map if it exists, and
+// does nothing otherwise.
+func (m *EdgeToFaces) Delete(key [2]Coord) {
+	if m.fastMap != nil {
+		hash := hashForEdgeToFaces(key)
+		if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
+			delete(m.fastMap, hash)
+		}
+	} else {
+		delete(m.slowMap, key)
+	}
+}
+
+// Store assigns the value to the given key, overwriting
+// the previous value for the key if necessary.
+func (m *EdgeToFaces) Store(key [2]Coord, value []*Segment) {
+	if m.fastMap != nil {
+		hash := hashForEdgeToFaces(key)
+		cell, ok := m.fastMap[hash]
+		if ok && cell.Key != key {
+			// We must switch to a slow map to store colliding values.
+			m.fastToSlow()
+			m.slowMap[key] = value
+		} else {
+			m.fastMap[hash] = cellForEdgeToFaces{Key: key, Value: value}
+		}
+	} else {
+		m.slowMap[key] = value
+	}
+}
+
+// Append appends x to the value stored for the given key
+// and returns the new value.
+func (m *EdgeToFaces) Append(key [2]Coord, x *Segment) []*Segment {
+	if m.fastMap != nil {
+		hash := hashForEdgeToFaces(key)
+		cell, ok := m.fastMap[hash]
+		if ok && cell.Key != key {
+			// We must switch to a slow map to store colliding values.
+			m.fastToSlow()
+			return m.Append(key, x)
+		} else {
+			value := append(cell.Value, x)
+			m.fastMap[hash] = cellForEdgeToFaces{Key: key, Value: value}
+			return value
+		}
+	} else {
+		value := append(m.slowMap[key], x)
+		m.slowMap[key] = value
+		return value
+	}
+}
+
+// KeyRange is like Range, but only iterates over
+// keys, not values.
+func (m *EdgeToFaces) KeyRange(f func(key [2]Coord) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key) {
+				return
+			}
+		}
+	} else {
+		for k := range m.slowMap {
+			if !f(k) {
+				return
+			}
+		}
+	}
+}
+
+// ValueRange is like Range, but only iterates over
+// values only.
+func (m *EdgeToFaces) ValueRange(f func(value []*Segment) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Value) {
+				return
+			}
+		}
+	} else {
+		for _, v := range m.slowMap {
+			if !f(v) {
+				return
+			}
+		}
+	}
+}
+
+// Range iterates over the map, calling f successively for
+// each value until it returns false, or all entries are
+// enumerated.
+//
+// It is not safe to modify the map with Store or Delete
+// during enumeration.
+func (m *EdgeToFaces) Range(f func(key [2]Coord, value []*Segment) bool) {
+	if m.fastMap != nil {
+		for _, cell := range m.fastMap {
+			if !f(cell.Key, cell.Value) {
+				return
+			}
+		}
+	} else {
+		for k, v := range m.slowMap {
+			if !f(k, v) {
+				return
+			}
+		}
+	}
+}
+
+func (m *EdgeToFaces) fastToSlow() {
+	m.slowMap = map[[2]Coord][]*Segment{}
+	for _, cell := range m.fastMap {
+		m.slowMap[cell.Key] = cell.Value
+	}
+	m.fastMap = nil
+}
+
+type cellForEdgeToFaces struct {
+	Key   [2]Coord
+	Value []*Segment
+}
+
+func hashForEdgeToFaces(c [2]Coord) uint64 {
+	h1 := c[0].fastHash()
+	h2 := c[1].fastHash()
+	return uint64(h1) | (uint64(h2) << 32)
+}

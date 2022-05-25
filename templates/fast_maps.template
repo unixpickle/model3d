@@ -219,3 +219,4 @@ func hashFor{{.mapType}}(c {{.keyType}}) uint64 {
 {{- template "fastMap" mkargs . "mapType" "EdgeMap" "keyType" (cat "[2]" .coordType) "elemType" "interface{}" "zeroVal" "nil" -}}
 {{- template "fastMap" mkargs . "mapType" "EdgeToBool" "keyType" (cat "[2]" .coordType) "elemType" "bool" "zeroVal" "false" -}}
 {{- template "fastMap" mkargs . "mapType" "EdgeToInt" "keyType" (cat "[2]" .coordType) "elemType" "int" "zeroVal" "0" -}}
+{{- template "fastMap" mkargs . "mapType" "EdgeToFaces" "keyType" (cat "[2]" .coordType) "elemType" (cat "[]*" .faceType) "zeroVal" "nil" -}}
