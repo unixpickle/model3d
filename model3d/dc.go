@@ -186,6 +186,11 @@ func (d *DualContouring) Mesh() *Mesh {
 				}
 				vs[i] = layout.Cube(c).VertexPosition
 			}
+			if vs[1].Dist(vs[2]) > vs[0].Dist(vs[3]) {
+				// Put the diagonal on the shorter side, to make
+				// closer to Delaunay triangulations.
+				vs[0], vs[1], vs[3], vs[2] = vs[1], vs[3], vs[2], vs[0]
+			}
 			t1, t2 := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
 			if t1.Normal().Dot(e.Normal) < 0 {
 				t1[0], t1[1] = t1[1], t1[0]
