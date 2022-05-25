@@ -2,16 +2,26 @@ package model3d
 
 import (
 	"math"
+	"sort"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/numerical"
 )
 
-const DefaultDualContouringBufferSize = 1000000
+const (
+	DefaultDualContouringBufferSize    = 1000000
+	DefaultDualContouringRepairEpsilon = 0.01
+	DefaultDualContouringCubeMargin    = 0.001
+)
 
 // DualContouring is a configurable but simplified version
 // of Dual Contouring, a technique for turning a field into
 // a mesh.
+//
+// By default, DualContouring attempts to produce manifold
+// meshes. This can result in ugly edge artifacts, reducing
+// the primary benefit of DC. To prevent this behavior, set
+// NoRepair to true.
 type DualContouring struct {
 	// S specifies the Solid and is used to compute hermite
 	// data on line segments.
@@ -34,6 +44,37 @@ type DualContouring struct {
 	// vertices that are stored in memory at once.
 	// Defaults to DefaultDualContouringBufferSize.
 	BufferSize int
+
+	// Repair, if true, attempts to make non-manifold
+	// meshes manifold. It is not guaranteed to work unless
+	// Clip is also true.
+	Repair bool
+
+	// Clip, if true, clips vertices to their cubes.
+	// The CubeMargin is used to add a small buffer to the
+	// edge of the cubes.
+	// When paired with Repair, this can guarantee manifold
+	// meshes at the cost of some rougher edges.
+	Clip bool
+
+	// CubeMargin is space around the edges of each cube
+	// that a vertex is not allowed to fall into. This can
+	// prevent various types of non-manifold geometry.
+	//
+	// This size is relative to Delta.
+	//
+	// Defaults to DefaultDualContouringCubeMargin.
+	// Only is used if CLip is true.
+	CubeMargin float64
+
+	// RepairEpsilon is a small value indicating the amount
+	// to move vertices when fixing singularities.
+	// It will be scaled relative to Delta to prevent large
+	// changes relative to the grid size.
+	//
+	// Defaults to DefaultDualContouringRepairEpsilon.
+	// Only is used if Repair is true.
+	RepairEpsilon float64
 }
 
 // Mesh computes a mesh for the surface.
@@ -114,8 +155,19 @@ func (d *DualContouring) Mesh() *Mesh {
 			}
 			solution := numerical.LeastSquares3(matA, matB, 0.1)
 			p := NewCoord3DArray(solution).Add(massPoint)
-			minPoint, maxPoint := layout.CubeMinMax(dcCubeIdx(i))
-			cube.VertexPosition = p.Max(minPoint).Min(maxPoint)
+			if d.Clip {
+				minPoint, maxPoint := layout.CubeMinMax(dcCubeIdx(i))
+				margin := d.CubeMargin
+				if margin == 0 {
+					margin = DefaultDualContouringCubeMargin
+				}
+				margin = margin * d.Delta
+				minPoint = minPoint.AddScalar(margin)
+				maxPoint = maxPoint.AddScalar(-margin)
+				p = p.Max(minPoint).Min(maxPoint)
+			}
+
+			cube.VertexPosition = p
 		})
 	}
 
@@ -155,7 +207,83 @@ func (d *DualContouring) Mesh() *Mesh {
 		layout.Shift()
 	}
 
+	if d.Repair {
+		d.repairSingularEdges(mesh, layout)
+		d.repairSingularVertices(mesh, layout)
+		mesh.clearVertexToFace()
+	}
+
 	return mesh
+}
+
+func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) {
+	groups := singularEdgeGroups(m)
+	if len(groups) == 0 {
+		return
+	}
+	epsilon := d.repairEpsilon() * 0.49
+
+	if d.Clip {
+		// Constrain vertices to be within a margin of the cube
+		// so that moving/creating vertices will not cause
+		// self-intersections.
+		mapping := NewCoordToCoord()
+		for _, group := range groups {
+			group.Constrain(m, epsilon, layout).Range(func(k, v Coord3D) bool {
+				mapping.Store(k, v)
+				return true
+			})
+		}
+		mapInPlace(m, mapping)
+		for _, group := range groups {
+			group.Map(mapping)
+		}
+	}
+	for _, group := range groups {
+		group.Repair(m, epsilon)
+	}
+}
+
+func (d *DualContouring) repairSingularVertices(m *Mesh, layout *dcCubeLayout) {
+	groups := singularVertexGroups(m)
+	if len(groups) == 0 {
+		return
+	}
+	epsilon := d.repairEpsilon() * 0.49
+
+	if d.Clip {
+		// Constrain vertices to be within a margin of the cube
+		// so that moving singular vertices will not cause
+		// self-intersections.
+		//
+		// Note that the previous step of repairing singular
+		// edges might have caused vertices to become singular,
+		// but all of these now-singular vertices were originally
+		// generated within a cube. The extra vertices added to
+		// the topology by singular edge repair will never be
+		// singular themselves.
+		mapping := NewCoordToCoord()
+		for _, group := range groups {
+			group.Constrain(m, epsilon, layout).Range(func(k, v Coord3D) bool {
+				mapping.Store(k, v)
+				return true
+			})
+		}
+		mapInPlace(m, mapping)
+		for _, group := range groups {
+			group.Map(mapping)
+		}
+	}
+	for _, group := range groups {
+		group.Repair(m, epsilon)
+	}
+}
+
+func (d *DualContouring) repairEpsilon() float64 {
+	if d.RepairEpsilon == 0 {
+		return DefaultDualContouringRepairEpsilon * d.Delta
+	}
+	return d.RepairEpsilon * d.Delta
 }
 
 type dcCubeIdx int
@@ -342,6 +470,24 @@ func (d *dcCubeLayout) Edge(e dcEdgeIdx) *dcEdge {
 	return &d.Edges[int(e)]
 }
 
+func (d *dcCubeLayout) PointCubeMinMax(c Coord3D) (min, max Coord3D) {
+	arrs := [3][]float64{d.Xs, d.Ys, d.Zs}
+	var result [3]int
+	for i, axisValue := range c.Array() {
+		arr := arrs[i]
+		idx := sort.SearchFloat64s(arr, axisValue)
+		if idx <= 0 {
+			idx = 1
+		} else if idx == len(arr) {
+			idx -= 1
+		}
+		result[i] = idx - 1
+	}
+	min = XYZ(d.Xs[result[0]], d.Ys[result[1]], d.Zs[result[2]])
+	max = XYZ(d.Xs[result[0]+1], d.Ys[result[1]+1], d.Zs[result[2]+1])
+	return
+}
+
 func (d *dcCubeLayout) UsableEdges(f func(dcEdgeIdx)) {
 	atBottom := d.ZOffset+d.BufRows == len(d.Zs)
 	xCount, yCount, _ := d.edgeCounts()
@@ -516,4 +662,208 @@ func (d *dcCubeLayout) yEdgeIdx(x, y, z int) dcEdgeIdx {
 func (d *dcCubeLayout) zEdgeIdx(x, y, z int) dcEdgeIdx {
 	xCount, yCount, zCount := d.edgeCounts()
 	return dcEdgeIdx(z*(xCount+yCount+zCount) + xCount + yCount + len(d.Xs)*y + x)
+}
+
+type singularEdgeGroup struct {
+	Groups [][2]*Triangle
+	Edge   Segment
+}
+
+func newSingularEdgeGroup(m *Mesh, s Segment, tris []*Triangle) *singularEdgeGroup {
+	if len(tris)%2 != 0 {
+		panic("invalid triangle count")
+	}
+	axis := s[0].Sub(s[1]).Normalize()
+	b1, b2 := axis.OrthoBasis()
+	mp := s.Mid()
+	thetas := make([]float64, len(tris))
+	for i, t := range tris {
+		triVec := s.Other(t).Sub(mp).Normalize()
+		triTheta := math.Atan2(b1.Dot(triVec), b2.Dot(triVec))
+		thetas[i] = triTheta
+	}
+	essentials.VoodooSort(thetas, func(i, j int) bool {
+		return thetas[i] < thetas[j]
+	}, tris)
+
+	groups := make([][2]*Triangle, 0, len(tris)/2)
+	for i := 0; i < len(tris); i += 2 {
+		groups = append(groups, [2]*Triangle{tris[i], tris[i+1]})
+	}
+	return &singularEdgeGroup{
+		Groups: groups,
+		Edge:   s,
+	}
+}
+
+func (s *singularEdgeGroup) Constrain(m *Mesh, epsilon float64, layout *dcCubeLayout) *CoordToCoord {
+	points := NewCoordToCoord()
+	for _, g := range s.Groups {
+		for _, t := range g {
+			for _, c := range t {
+				if _, ok := points.Load(c); !ok {
+					min, max := layout.PointCubeMinMax(c)
+					min = min.AddScalar(epsilon)
+					max = max.AddScalar(-epsilon)
+					points.Store(c, c.Min(max).Max(min))
+				}
+			}
+		}
+	}
+	return points
+}
+
+func (s *singularEdgeGroup) Map(mapping *CoordToCoord) {
+	s.Edge[0] = mapping.Value(s.Edge[0])
+	s.Edge[1] = mapping.Value(s.Edge[1])
+}
+
+func (s *singularEdgeGroup) RecomputeGroups(m *Mesh) {
+	*s = *newSingularEdgeGroup(m, s.Edge, m.Find(s.Edge[0], s.Edge[1]))
+}
+
+func (s *singularEdgeGroup) Repair(m *Mesh, epsilon float64) {
+	// Might be necessary if one of our triangles was
+	// removed and replaced by a previous repair.
+	s.RecomputeGroups(m)
+
+	mp := s.Edge.Mid()
+	for _, group := range s.Groups {
+		d := s.Edge.Other(group[0]).Mid(s.Edge.Other(group[1])).Sub(mp).Normalize()
+		newMp := mp.Add(d.Scale(epsilon))
+		if len(m.Find(newMp)) > 0 {
+			panic("exists")
+		}
+		for _, t := range group {
+			other := s.Edge.Other(t)
+			t1 := &Triangle{other, s.Edge[0], newMp}
+			t2 := &Triangle{other, newMp, s.Edge[1]}
+			sharedSeg := NewSegment(other, s.Edge[0])
+			if segmentOrientation(t1, sharedSeg) != segmentOrientation(t, sharedSeg) {
+				t1[0], t1[1] = t1[1], t1[0]
+				t2[0], t2[1] = t2[1], t2[0]
+			}
+			m.Remove(t)
+			m.Add(t1)
+			m.Add(t2)
+		}
+	}
+}
+
+func singularEdgeGroups(m *Mesh) []*singularEdgeGroup {
+	counts := NewEdgeToFaces()
+	var results []*singularEdgeGroup
+	m.Iterate(func(t *Triangle) {
+		for _, s := range t.Segments() {
+			counts.Append(s, t)
+		}
+	})
+	counts.Range(func(key [2]Coord3D, tris []*Triangle) bool {
+		if len(tris) > 2 {
+			results = append(results, newSingularEdgeGroup(m, Segment(key), tris))
+		}
+		return true
+	})
+	return results
+}
+
+func segmentOrientation(t *Triangle, s Segment) bool {
+	for i, x := range t {
+		if x == s[0] {
+			return t[(i+3)%3] == s[1]
+		}
+	}
+	panic("first segment point not in triangle")
+}
+
+type singularVertexGroup struct {
+	Groups [][]*Triangle
+	Vertex Coord3D
+}
+
+func (s *singularVertexGroup) Constrain(m *Mesh, epsilon float64, layout *dcCubeLayout) *CoordToCoord {
+	points := NewCoordToCoord()
+	for _, g := range s.Groups {
+		for _, t := range g {
+			for _, c := range t {
+				if _, ok := points.Load(c); !ok {
+					min, max := layout.PointCubeMinMax(c)
+					min = min.AddScalar(epsilon)
+					max = max.AddScalar(-epsilon)
+					points.Store(c, c.Min(max).Max(min))
+				}
+			}
+		}
+	}
+	return points
+}
+
+func (s *singularVertexGroup) Map(mapping *CoordToCoord) {
+	s.Vertex = mapping.Value(s.Vertex)
+}
+
+func (s *singularVertexGroup) Repair(m *Mesh, epsilon float64) {
+	for _, group := range s.Groups {
+		var d Coord3D
+		for _, t := range group {
+			for _, c := range t {
+				if c != s.Vertex {
+					d = d.Add(c.Sub(s.Vertex))
+				}
+			}
+		}
+		d = d.Normalize().Scale(epsilon)
+		newPoint := s.Vertex.Add(d)
+		for _, t := range group {
+			m.Remove(t)
+			for i, c := range t {
+				if c == s.Vertex {
+					t[i] = newPoint
+				}
+			}
+			m.Add(t)
+		}
+	}
+}
+
+func singularVertexGroups(m *Mesh) []*singularVertexGroup {
+	p := newPtrMeshMesh(m)
+	var results []*singularVertexGroup
+	p.IterateCoords(func(c *ptrCoord) {
+		clusters := c.Clusters()
+		if len(clusters) > 1 {
+			group := &singularVertexGroup{
+				Groups: make([][]*Triangle, len(clusters)),
+				Vertex: c.Coord3D,
+			}
+			for i, cluster := range clusters {
+				for _, t := range cluster {
+					orig := m.Find(t.Coords[0].Coord3D, t.Coords[1].Coord3D, t.Coords[2].Coord3D)[0]
+					group.Groups[i] = append(group.Groups[i], orig)
+				}
+			}
+			results = append(results, group)
+		}
+	})
+	return results
+}
+
+func mapInPlace(m *Mesh, mapping *CoordToCoord) {
+	m.Iterate(func(t *Triangle) {
+		var changed bool
+		for _, c := range t {
+			if _, ok := mapping.Load(c); ok {
+				changed = true
+			}
+		}
+		if changed {
+			m.Remove(t)
+			for i, c := range t {
+				if c1, ok := mapping.Load(c); ok {
+					t[i] = c1
+				}
+			}
+			m.Add(t)
+		}
+	})
 }

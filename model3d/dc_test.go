@@ -3,10 +3,11 @@ package model3d
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 )
 
-func TestDualContouring(t *testing.T) {
+func TestDualContouringBasic(t *testing.T) {
 	runTests := func(t *testing.T, gos, bufSize int) {
 		t.Run("Sphere", func(t *testing.T) {
 			solid := &Sphere{Radius: 1.0}
@@ -57,23 +58,96 @@ func TestDualContouring(t *testing.T) {
 	}
 }
 
+func TestDualContouringSingular(t *testing.T) {
+	runTransform := func(t *testing.T, transform Transform) {
+		var solid Solid
+		solid = JoinedSolid{
+			NewRect(XYZ(0, 0, 0), XYZ(1, 1, 1)),
+			NewRect(XYZ(1, 0, 1), XYZ(2, 1, 2)),
+			NewRect(XYZ(-1, -1, -1), XYZ(0, 0, 0)),
+		}
+		if transform != nil {
+			solid = TransformSolid(transform, solid)
+		}
+		dc := &DualContouring{
+			S:      SolidSurfaceEstimator{Solid: solid},
+			Delta:  0.04,
+			Repair: false,
+		}
+		badMesh := dc.Mesh()
+		if !badMesh.NeedsRepair() {
+			t.Fatal("bad mesh should have singular edges")
+		}
+		if len(badMesh.SingularVertices()) == 0 {
+			t.Fatal("bad mesh should have singular vertices")
+		}
+		dc.Repair = true
+		goodMesh := dc.Mesh()
+		if goodMesh.NeedsRepair() {
+			t.Error("good mesh should have no singular edges")
+		}
+		if len(goodMesh.SingularVertices()) != 0 {
+			t.Error("good mesh should have no singular vertices")
+		}
+	}
+	t.Run("Basic", func(t *testing.T) {
+		runTransform(t, nil)
+	})
+	t.Run("Rotated", func(t *testing.T) {
+		runTransform(t, Rotation(XYZ(1.0, 2.0, 3.0).Normalize(), 123.0))
+	})
+	t.Run("Random", func(t *testing.T) {
+		rand.Seed(1337)
+		dc := &DualContouring{
+			S: SolidSurfaceEstimator{
+				Solid: randomSolid{},
+			},
+			Delta: 0.04,
+			// Both of these are necessary to guarantee
+			// manifold meshes in the general case.
+			Repair: true,
+			Clip:   true,
+		}
+		mesh := dc.Mesh()
+		if mesh.NeedsRepair() {
+			t.Error("mesh has singular edges")
+		}
+		if len(mesh.SingularVertices()) > 0 {
+			t.Error("mesh has singular vertices")
+		}
+	})
+}
+
 func BenchmarkDualContouring(b *testing.B) {
-	runBench := func(b *testing.B, gos int) {
+	runBench := func(b *testing.B, gos int, repair bool) {
 		solid := &CylinderSolid{
 			P1:     XYZ(1, 2, 3),
 			P2:     XYZ(3, 1, 4),
 			Radius: 0.5,
 		}
-		dc := &DualContouring{S: SolidSurfaceEstimator{Solid: solid}, Delta: 0.025, MaxGos: gos}
+		dc := &DualContouring{
+			S:      SolidSurfaceEstimator{Solid: solid},
+			Delta:  0.025,
+			MaxGos: gos,
+			Repair: repair,
+		}
 		for i := 0; i < b.N; i++ {
 			dc.Mesh()
 		}
 	}
-	b.Run("MaxGos1", func(b *testing.B) {
-		runBench(b, 1)
+	runRepair := func(b *testing.B, repair bool) {
+		b.Run("MaxGos1", func(b *testing.B) {
+			runBench(b, 1, repair)
+		})
+		b.Run("MaxGos0", func(b *testing.B) {
+			runBench(b, 0, repair)
+		})
+	}
+	b.Run("NoRepair", func(b *testing.B) {
+		runRepair(b, false)
 	})
-	b.Run("MaxGos0", func(b *testing.B) {
-		runBench(b, 0)
+	b.Run("Repair", func(b *testing.B) {
+		runRepair(b, true)
 	})
 }
 
