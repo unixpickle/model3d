@@ -450,6 +450,10 @@ func (m *Mesh) getVertexToFaceOrNil() *CoordToFaces {
 	return res.(*CoordToFaces)
 }
 
+func (m *Mesh) clearVertexToFace() {
+	m.vertexToFace = atomic.Value{}
+}
+
 func uniqueVertices(face *Segment, f func(Coord)) {
 	f(face[0])
 	if face[1] != face[0] {

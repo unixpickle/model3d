@@ -749,6 +749,10 @@ func (m *Mesh) getVertexToFaceOrNil() *CoordToFaces {
 	return res.(*CoordToFaces)
 }
 
+func (m *Mesh) clearVertexToFace() {
+	m.vertexToFace = atomic.Value{}
+}
+
 func uniqueVertices(face *Triangle, f func(Coord3D)) {
 	f(face[0])
 	if face[1] != face[0] {
