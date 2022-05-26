@@ -173,31 +173,47 @@ func (d *DualContouring) Mesh() *Mesh {
 
 	mesh := NewMesh()
 	appendMesh := func() {
-		layout.UsableEdges(func(i dcEdgeIdx) {
-			e := layout.Edge(i)
-			if e.Triangulated || !e.Active {
-				return
-			}
-			e.Triangulated = true
-			var vs [4]Coord3D
-			for i, c := range layout.EdgeCubes(i) {
-				if c < 0 {
-					panic("solid is true outside of bounds")
+		numEdges := layout.UsableEdges()
+		essentials.ReduceConcurrentMap(d.MaxGos, numEdges, func() (func(i int), func()) {
+			subMesh := NewMesh()
+			addEdge := func(idx int) {
+				i := dcEdgeIdx(idx)
+				e := layout.Edge(i)
+				if e.Triangulated || !e.Active {
+					return
 				}
-				vs[i] = layout.Cube(c).VertexPosition
-			}
-			if vs[1].Dist(vs[2]) > vs[0].Dist(vs[3]) {
-				// Put the diagonal on the shorter side, to make
-				// closer to Delaunay triangulations.
+				e.Triangulated = true
+				var vs [4]Coord3D
+				for i, c := range layout.EdgeCubes(i) {
+					if c < 0 {
+						panic("solid is true outside of bounds")
+					}
+					vs[i] = layout.Cube(c).VertexPosition
+				}
+				// Use the triangulation with the sharper angle
+				// between the two triangles to preserve edges.
+				t1a, t2a := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
 				vs[0], vs[1], vs[3], vs[2] = vs[1], vs[3], vs[2], vs[0]
+				t1b, t2b := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
+				dotA := t1a.Normal().Dot(t2a.Normal())
+				dotB := t1b.Normal().Dot(t2b.Normal())
+				t1, t2 := t1a, t2a
+				if dotA > dotB {
+					t1, t2 = t1b, t2b
+				}
+
+				// Flip normals to match edge intersection normal.
+				if t1.Normal().Dot(e.Normal) < 0 {
+					t1[0], t1[1] = t1[1], t1[0]
+					t2[0], t2[1] = t2[1], t2[0]
+				}
+				subMesh.Add(t1)
+				subMesh.Add(t2)
 			}
-			t1, t2 := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
-			if t1.Normal().Dot(e.Normal) < 0 {
-				t1[0], t1[1] = t1[1], t1[0]
-				t2[0], t2[1] = t2[1], t2[0]
+			reduce := func() {
+				mesh.AddMesh(subMesh)
 			}
-			mesh.Add(t1)
-			mesh.Add(t2)
+			return addEdge, reduce
 		})
 	}
 
@@ -493,16 +509,14 @@ func (d *dcCubeLayout) PointCubeMinMax(c Coord3D) (min, max Coord3D) {
 	return
 }
 
-func (d *dcCubeLayout) UsableEdges(f func(dcEdgeIdx)) {
+func (d *dcCubeLayout) UsableEdges() int {
 	atBottom := d.ZOffset+d.BufRows == len(d.Zs)
 	xCount, yCount, _ := d.edgeCounts()
 	endIdx := len(d.Edges)
 	if !atBottom {
 		endIdx -= xCount + yCount
 	}
-	for i := 0; i < endIdx; i++ {
-		f(dcEdgeIdx(i))
-	}
+	return endIdx
 }
 
 func (d *dcCubeLayout) CubeActive(c dcCubeIdx) bool {
