@@ -229,18 +229,22 @@ func (d *DualContouring) Mesh() *Mesh {
 	}
 
 	if d.Repair {
-		d.repairSingularEdges(mesh, layout)
-		d.repairSingularVertices(mesh, layout)
+		orig := d.repairSingularEdges(mesh, layout)
+		d.repairSingularVertices(mesh, layout, orig)
 		mesh.clearVertexToFace()
 	}
 
 	return mesh
 }
 
-func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) {
+func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) *CoordToBool {
 	groups := singularEdgeGroups(m)
 	if len(groups) == 0 {
-		return
+		origPoints := NewCoordToBool()
+		m.IterateVertices(func(c Coord3D) {
+			origPoints.Store(c, true)
+		})
+		return origPoints
 	}
 	epsilon := d.repairEpsilon() * 0.49
 
@@ -260,12 +264,17 @@ func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) {
 			group.Map(mapping)
 		}
 	}
+	origPoints := NewCoordToBool()
+	m.IterateVertices(func(c Coord3D) {
+		origPoints.Store(c, true)
+	})
 	for _, group := range groups {
 		group.Repair(m, epsilon)
 	}
+	return origPoints
 }
 
-func (d *DualContouring) repairSingularVertices(m *Mesh, layout *dcCubeLayout) {
+func (d *DualContouring) repairSingularVertices(m *Mesh, layout *dcCubeLayout, orig *CoordToBool) {
 	groups := singularVertexGroups(m)
 	if len(groups) == 0 {
 		return
@@ -285,7 +294,7 @@ func (d *DualContouring) repairSingularVertices(m *Mesh, layout *dcCubeLayout) {
 		// singular themselves.
 		mapping := NewCoordToCoord()
 		for _, group := range groups {
-			group.Constrain(m, epsilon, layout).Range(func(k, v Coord3D) bool {
+			group.Constrain(m, epsilon, layout, orig).Range(func(k, v Coord3D) bool {
 				mapping.Store(k, v)
 				return true
 			})
@@ -800,12 +809,16 @@ type singularVertexGroup struct {
 	Vertex Coord3D
 }
 
-func (s *singularVertexGroup) Constrain(m *Mesh, epsilon float64, layout *dcCubeLayout) *CoordToCoord {
+func (s *singularVertexGroup) Constrain(m *Mesh, epsilon float64, layout *dcCubeLayout,
+	origPoints *CoordToBool) *CoordToCoord {
 	points := NewCoordToCoord()
 	for _, g := range s.Groups {
 		for _, t := range g {
 			for _, c := range t {
 				if _, ok := points.Load(c); !ok {
+					if _, mask := origPoints.Load(c); !mask {
+						continue
+					}
 					min, max := layout.PointCubeMinMax(c)
 					min = min.AddScalar(epsilon)
 					max = max.AddScalar(-epsilon)
