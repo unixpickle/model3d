@@ -9,10 +9,33 @@ import (
 )
 
 const (
-	DefaultDualContouringBufferSize    = 1000000
-	DefaultDualContouringRepairEpsilon = 0.01
-	DefaultDualContouringCubeMargin    = 0.001
+	DefaultDualContouringBufferSize           = 1000000
+	DefaultDualContouringRepairEpsilon        = 0.01
+	DefaultDualContouringCubeMargin           = 0.001
+	DefaultDualContouringSingularValueEpsilon = 0.1
 )
+
+type DualContouringTriangleMode int
+
+const (
+	DualContouringTriangleModeMaxMinArea DualContouringTriangleMode = iota
+	DualContouringTriangleModeSharpest
+	DualContouringTriangleModeFlattest
+)
+
+// DualContour is a shortcut for creating a DualContouring
+// instance and calling Mesh() on it.
+func DualContour(s Solid, delta float64, repair, clip bool) *Mesh {
+	dc := &DualContouring{
+		S: SolidSurfaceEstimator{
+			Solid: s,
+		},
+		Delta:  delta,
+		Repair: repair,
+		Clip:   clip,
+	}
+	return dc.Mesh()
+}
 
 // DualContouring is a configurable but simplified version
 // of Dual Contouring, a technique for turning a field into
@@ -75,6 +98,15 @@ type DualContouring struct {
 	// Defaults to DefaultDualContouringRepairEpsilon.
 	// Only is used if Repair is true.
 	RepairEpsilon float64
+
+	// SingularValueEpsilon is the smallest singular value
+	// to allow for pseudoinverse calculations.
+	//
+	// Defaults to DefaultDualContouringSingularValueEpsilon.
+	SingularValueEpsilon float64
+
+	// TriangleMode controls how quads are triangulated.
+	TriangleMode DualContouringTriangleMode
 }
 
 // Mesh computes a mesh for the surface.
@@ -88,140 +120,12 @@ func (d *DualContouring) Mesh() *Mesh {
 		panic("invalid number of z values")
 	}
 
-	populateCorners := func() {
-		essentials.ConcurrentMap(d.MaxGos, len(layout.Corners), func(i int) {
-			corner := layout.Corner(dcCornerIdx(i))
-			if !corner.Populated {
-				corner.Populated = true
-				corner.Value = d.S.Solid.Contains(corner.Coord)
-			}
-		})
-	}
-
-	populateEdges := func() {
-		essentials.ConcurrentMap(d.MaxGos, len(layout.Edges), func(i int) {
-			edge := layout.Edge(dcEdgeIdx(i))
-			if !edge.Populated {
-				edge.Populated = true
-				corners := layout.EdgeCorners(dcEdgeIdx(i))
-				c1 := layout.Corner(corners[0])
-				c2 := layout.Corner(corners[1])
-				edge.Active = (c1.Value != c2.Value)
-				if edge.Active {
-					edge.Coord = d.S.Bisect(c1.Coord, c2.Coord)
-					edge.Normal = d.S.Normal(edge.Coord)
-				}
-			}
-		})
-	}
-
-	populateCubes := func() {
-		essentials.ConcurrentMap(d.MaxGos, len(layout.Cubes), func(i int) {
-			cube := layout.Cube(dcCubeIdx(i))
-			if cube.Populated {
-				return
-			}
-			cube.Populated = true
-			if !layout.CubeActive(dcCubeIdx(i)) {
-				return
-			}
-			var massPoint Coord3D
-			var count float64
-			var active [12]*dcEdge
-			for i, edgeIdx := range layout.CubeEdges(dcCubeIdx(i)) {
-				if edgeIdx < 0 {
-					panic("edge not available for active cube; this likely means the Solid is true outside of bounds")
-				}
-				edge := layout.Edge(edgeIdx)
-				if edge.Active {
-					active[i] = edge
-					massPoint = massPoint.Add(edge.Coord)
-					count++
-				}
-			}
-			if count == 0 {
-				panic("no acive edges found")
-			}
-			massPoint = massPoint.Scale(1 / count)
-
-			var matA []numerical.Vec3
-			var matB []float64
-			for _, edge := range active {
-				if edge != nil {
-					v := edge.Coord.Sub(massPoint)
-					matA = append(matA, edge.Normal.Array())
-					matB = append(matB, v.Dot(edge.Normal))
-				}
-			}
-			solution := numerical.LeastSquares3(matA, matB, 0.1)
-			p := NewCoord3DArray(solution).Add(massPoint)
-			if d.Clip {
-				minPoint, maxPoint := layout.CubeMinMax(dcCubeIdx(i))
-				margin := d.CubeMargin
-				if margin == 0 {
-					margin = DefaultDualContouringCubeMargin
-				}
-				margin = margin * d.Delta
-				minPoint = minPoint.AddScalar(margin)
-				maxPoint = maxPoint.AddScalar(-margin)
-				p = p.Max(minPoint).Min(maxPoint)
-			}
-
-			cube.VertexPosition = p
-		})
-	}
-
 	mesh := NewMesh()
-	appendMesh := func() {
-		numEdges := layout.UsableEdges()
-		essentials.ReduceConcurrentMap(d.MaxGos, numEdges, func() (func(i int), func()) {
-			subMesh := NewMesh()
-			addEdge := func(idx int) {
-				i := dcEdgeIdx(idx)
-				e := layout.Edge(i)
-				if e.Triangulated || !e.Active {
-					return
-				}
-				e.Triangulated = true
-				var vs [4]Coord3D
-				for i, c := range layout.EdgeCubes(i) {
-					if c < 0 {
-						panic("solid is true outside of bounds")
-					}
-					vs[i] = layout.Cube(c).VertexPosition
-				}
-				// Use the triangulation with the sharper angle
-				// between the two triangles to preserve edges.
-				t1a, t2a := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
-				vs[0], vs[1], vs[3], vs[2] = vs[1], vs[3], vs[2], vs[0]
-				t1b, t2b := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
-				dotA := t1a.Normal().Dot(t2a.Normal())
-				dotB := t1b.Normal().Dot(t2b.Normal())
-				t1, t2 := t1a, t2a
-				if dotA > dotB {
-					t1, t2 = t1b, t2b
-				}
-
-				// Flip normals to match edge intersection normal.
-				if t1.Normal().Dot(e.Normal) < 0 {
-					t1[0], t1[1] = t1[1], t1[0]
-					t2[0], t2[1] = t2[1], t2[0]
-				}
-				subMesh.Add(t1)
-				subMesh.Add(t2)
-			}
-			reduce := func() {
-				mesh.AddMesh(subMesh)
-			}
-			return addEdge, reduce
-		})
-	}
-
 	for {
-		populateCorners()
-		populateEdges()
-		populateCubes()
-		appendMesh()
+		d.populateCorners(layout)
+		d.populateEdges(layout)
+		d.populateCubes(layout)
+		d.appendMesh(layout, mesh)
 		if layout.Remaining() == 0 {
 			break
 		}
@@ -235,6 +139,155 @@ func (d *DualContouring) Mesh() *Mesh {
 	}
 
 	return mesh
+}
+
+func (d *DualContouring) populateCorners(layout *dcCubeLayout) {
+	essentials.ConcurrentMap(d.MaxGos, len(layout.Corners), func(i int) {
+		corner := layout.Corner(dcCornerIdx(i))
+		if !corner.Populated {
+			corner.Populated = true
+			corner.Value = d.S.Solid.Contains(corner.Coord)
+		}
+	})
+}
+
+func (d *DualContouring) populateEdges(layout *dcCubeLayout) {
+	essentials.ConcurrentMap(d.MaxGos, len(layout.Edges), func(i int) {
+		edge := layout.Edge(dcEdgeIdx(i))
+		if edge.Populated {
+			return
+		}
+		edge.Populated = true
+		corners := layout.EdgeCorners(dcEdgeIdx(i))
+		c1 := layout.Corner(corners[0])
+		c2 := layout.Corner(corners[1])
+		edge.Active = (c1.Value != c2.Value)
+		if edge.Active {
+			edge.Coord = d.S.Bisect(c1.Coord, c2.Coord)
+			edge.Normal = d.S.Normal(edge.Coord)
+		}
+	})
+}
+
+func (d *DualContouring) populateCubes(layout *dcCubeLayout) {
+	essentials.ConcurrentMap(d.MaxGos, len(layout.Cubes), func(i int) {
+		cube := layout.Cube(dcCubeIdx(i))
+		if cube.Populated {
+			return
+		}
+		cube.Populated = true
+		if !layout.CubeActive(dcCubeIdx(i)) {
+			return
+		}
+		var massPoint Coord3D
+		var count float64
+		var active [12]*dcEdge
+		for i, edgeIdx := range layout.CubeEdges(dcCubeIdx(i)) {
+			if edgeIdx < 0 {
+				panic("edge not available for active cube; this likely means the Solid is true outside of bounds")
+			}
+			edge := layout.Edge(edgeIdx)
+			if edge.Active {
+				active[i] = edge
+				massPoint = massPoint.Add(edge.Coord)
+				count++
+			}
+		}
+		if count == 0 {
+			panic("no acive edges found")
+		}
+		massPoint = massPoint.Scale(1 / count)
+
+		var matA []numerical.Vec3
+		var matB []float64
+		for _, edge := range active {
+			if edge != nil {
+				v := edge.Coord.Sub(massPoint)
+				matA = append(matA, edge.Normal.Array())
+				matB = append(matB, v.Dot(edge.Normal))
+			}
+		}
+		solution := numerical.LeastSquares3(matA, matB, d.singularValueEpsilon())
+		p := NewCoord3DArray(solution).Add(massPoint)
+		if d.Clip {
+			minPoint, maxPoint := layout.CubeMinMax(dcCubeIdx(i))
+			margin := d.CubeMargin
+			if margin == 0 {
+				margin = DefaultDualContouringCubeMargin
+			}
+			margin = margin * d.Delta
+			minPoint = minPoint.AddScalar(margin)
+			maxPoint = maxPoint.AddScalar(-margin)
+			p = p.Max(minPoint).Min(maxPoint)
+		}
+
+		cube.VertexPosition = p
+	})
+}
+
+func (d *DualContouring) appendMesh(layout *dcCubeLayout, mesh *Mesh) {
+	numEdges := layout.UsableEdges()
+	essentials.ReduceConcurrentMap(d.MaxGos, numEdges, func() (func(i int), func()) {
+		subMesh := NewMesh()
+		addEdge := func(idx int) {
+			i := dcEdgeIdx(idx)
+			e := layout.Edge(i)
+			if e.Triangulated || !e.Active {
+				return
+			}
+			e.Triangulated = true
+			var vs [4]Coord3D
+			for i, c := range layout.EdgeCubes(i) {
+				if c < 0 {
+					panic("solid is true outside of bounds")
+				}
+				vs[i] = layout.Cube(c).VertexPosition
+			}
+			t1, t2 := d.triangulateQuad(vs)
+
+			// Flip normals to match edge intersection normal.
+			if t1.Normal().Dot(e.Normal) < 0 {
+				t1[0], t1[1] = t1[1], t1[0]
+				t2[0], t2[1] = t2[1], t2[0]
+			}
+			subMesh.Add(t1)
+			subMesh.Add(t2)
+		}
+		reduce := func() {
+			mesh.AddMesh(subMesh)
+		}
+		return addEdge, reduce
+	})
+}
+
+func (d *DualContouring) triangulateQuad(vs [4]Coord3D) (t1, t2 *Triangle) {
+	t1a, t2a := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
+	vs[0], vs[1], vs[3], vs[2] = vs[1], vs[3], vs[2], vs[0]
+	t1b, t2b := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
+
+	if d.TriangleMode == DualContouringTriangleModeSharpest ||
+		d.TriangleMode == DualContouringTriangleModeFlattest {
+		dotA := t1a.Normal().Dot(t2a.Normal())
+		dotB := t1b.Normal().Dot(t2b.Normal())
+		if d.TriangleMode == DualContouringTriangleModeFlattest {
+			dotA, dotB = dotB, dotA
+		}
+		if dotA < dotB {
+			t1, t2 = t1a, t2a
+		} else {
+			t1, t2 = t1b, t2b
+		}
+	} else if d.TriangleMode == DualContouringTriangleModeMaxMinArea {
+		areaA := math.Min(t1a.Area(), t2a.Area())
+		areaB := math.Min(t1b.Area(), t2b.Area())
+		if areaA > areaB {
+			t1, t2 = t1a, t2a
+		} else {
+			t1, t2 = t1b, t2b
+		}
+	}
+
+	return
 }
 
 func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) *CoordToBool {
@@ -314,6 +367,13 @@ func (d *DualContouring) repairEpsilon() float64 {
 		return DefaultDualContouringRepairEpsilon * d.Delta
 	}
 	return d.RepairEpsilon * d.Delta
+}
+
+func (d *DualContouring) singularValueEpsilon() float64 {
+	if d.SingularValueEpsilon != 0 {
+		return d.SingularValueEpsilon
+	}
+	return DefaultDualContouringSingularValueEpsilon
 }
 
 type dcCubeIdx int
