@@ -105,6 +105,10 @@ type DualContouring struct {
 	// Defaults to DefaultDualContouringSingularValueEpsilon.
 	SingularValueEpsilon float64
 
+	// L2Penalty is the regularization coefficient imposed
+	// on solutions to the QEF.
+	L2Penalty float64
+
 	// TriangleMode controls how quads are triangulated.
 	TriangleMode DualContouringTriangleMode
 }
@@ -207,7 +211,7 @@ func (d *DualContouring) populateCubes(layout *dcCubeLayout) {
 				matB = append(matB, v.Dot(edge.Normal))
 			}
 		}
-		solution := numerical.LeastSquares3(matA, matB, d.singularValueEpsilon())
+		solution := numerical.LeastSquaresReg3(matA, matB, d.L2Penalty, d.singularValueEpsilon())
 		p := NewCoord3DArray(solution).Add(massPoint)
 		if d.Clip {
 			minPoint, maxPoint := layout.CubeMinMax(dcCubeIdx(i))

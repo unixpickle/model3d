@@ -7,6 +7,12 @@ package numerical
 // The epsilon argument is a lower bound for singular values
 // in the psuedoinverse.
 func LeastSquares3(a []Vec3, b []float64, epsilon float64) Vec3 {
+	return LeastSquaresReg3(a, b, 0, epsilon)
+}
+
+// LeastSquaresReg3 is like LeastSquares3, but uses ridge
+// regression with a penalty equal to lambda.
+func LeastSquaresReg3(a []Vec3, b []float64, lambda, epsilon float64) Vec3 {
 	// A^T * A = A^T * b
 	var leftSide Matrix3
 	var rightSide Vec3
@@ -21,6 +27,10 @@ func LeastSquares3(a []Vec3, b []float64, epsilon float64) Vec3 {
 		}
 	}
 
+	leftSide[0] += lambda
+	leftSide[4] += lambda
+	leftSide[8] += lambda
+
 	var s, v Matrix3
 	leftSide.symEigDecomp(&s, &v)
 
@@ -29,6 +39,8 @@ func LeastSquares3(a []Vec3, b []float64, epsilon float64) Vec3 {
 	for i := 0; i < 3; i++ {
 		if s[i*4] > epsilon {
 			s[i*4] = 1 / s[i*4]
+		} else {
+			s[i*4] = 0
 		}
 	}
 	return v.Mul(&s).Mul(v.Transpose()).MulColumn(rightSide)
