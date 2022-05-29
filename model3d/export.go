@@ -93,7 +93,7 @@ func WritePLY(w io.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3]uin
 		}
 	}
 
-	p, err := fileformats.NewPLYWriter(w, len(coords), len(triangles))
+	p, err := fileformats.NewPLYMeshWriter(w, len(coords), len(triangles))
 	if err != nil {
 		return err
 	}
