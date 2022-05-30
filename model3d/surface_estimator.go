@@ -150,14 +150,15 @@ func (s *SolidSurfaceEstimator) bisectNormal(c Coord3D) Coord3D {
 			v2 = v2.Scale(-1)
 		}
 		for j := 0; j < (count-4)/2; j++ {
-			mp := v1.Add(v2).Normalize().Scale(eps)
+			mp := v1.Add(v2)
+			mp = mp.Scale(eps / mp.Norm())
 			if s.Solid.Contains(c.Add(mp)) {
 				v1 = mp
 			} else {
 				v2 = mp
 			}
 		}
-		planeAxes[i] = v1.Add(v2).Normalize()
+		planeAxes[i] = v1.Add(v2)
 		if i == 0 && math.Abs(planeAxes[0].Dot(axes[1])) > math.Abs(planeAxes[0].Dot(axes[0])) {
 			// Fix numerical issues when axes[1] is nearly
 			// tangent to the surface.

@@ -58,3 +58,30 @@ func TestSurfaceEstimator(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkSurfaceEstimator(b *testing.B) {
+	solid := &Circle{
+		// Randomly chosen.
+		Center: XY(0.5, 0.8),
+		Radius: 1.0,
+	}
+	// Randomly chosen.
+	dir := XY(-1.0, -3.0).Normalize()
+
+	estimator := SolidSurfaceEstimator{Solid: solid}
+
+	b.Run("Bisect", func(b *testing.B) {
+		p1 := solid.Center.Add(dir.Scale(0.3))
+		p2 := solid.Center.Add(dir.Scale(1.1))
+		for i := 0; i < b.N; i++ {
+			estimator.Bisect(p1, p2)
+		}
+	})
+
+	b.Run("Normal", func(b *testing.B) {
+		p := solid.Center.Add(dir)
+		for i := 0; i < b.N; i++ {
+			estimator.Normal(p)
+		}
+	})
+}
