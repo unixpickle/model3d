@@ -109,6 +109,10 @@ func (m *orthoMatrix3Transform) ApplyDistance(c float64) float64 {
 	return c
 }
 
+func (m *orthoMatrix3Transform) Inverse() Transform {
+	return &orthoMatrix3Transform{*m.Matrix3Transform.Inverse().(*Matrix3Transform)}
+}
+
 // A JoinedTransform composes transformations from left to
 // right.
 type JoinedTransform []Transform

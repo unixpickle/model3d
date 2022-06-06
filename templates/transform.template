@@ -124,6 +124,10 @@ func (m *ortho{{.matrixType}}Transform) ApplyDistance(c float64) float64 {
 	return c
 }
 
+func (m *ortho{{.matrixType}}Transform) Inverse() Transform {
+	return &ortho{{.matrixType}}Transform{*m.{{.matrixType}}Transform.Inverse().(*{{.matrixType}}Transform)}
+}
+
 // A JoinedTransform composes transformations from left to
 // right.
 type JoinedTransform []Transform
