@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 
@@ -70,24 +71,88 @@ func (p PLYPropertyType) Size() int {
 	}
 }
 
-func (p PLYPropertyType) Format(value interface{}) string {
+func (p PLYPropertyType) Parse(s string) (PLYValue, error) {
 	switch p {
 	case PLYPropertyTypeChar, PLYPropertyTypeInt8:
-		return strconv.FormatInt(int64(value.(int8)), 10)
+		x, err := strconv.ParseInt(s, 10, 8)
+		if err != nil {
+			return nil, err
+		}
+		return PLYValueInt8{Value: int8(x)}, nil
 	case PLYPropertyTypeUchar, PLYPropertyTypeUint8:
-		return strconv.FormatUint(uint64(value.(uint8)), 10)
+		x, err := strconv.ParseUint(s, 10, 8)
+		if err != nil {
+			return nil, err
+		}
+		return PLYValueUint8{Value: uint8(x)}, nil
 	case PLYPropertyTypeShort, PLYPropertyTypeInt16:
-		return strconv.FormatInt(int64(value.(int16)), 10)
+		x, err := strconv.ParseInt(s, 10, 16)
+		if err != nil {
+			return nil, err
+		}
+		return PLYValueInt16{Value: int16(x)}, nil
 	case PLYPropertyTypeUshort, PLYPropertyTypeUint16:
-		return strconv.FormatUint(uint64(value.(uint16)), 10)
+		x, err := strconv.ParseUint(s, 10, 16)
+		if err != nil {
+			return nil, err
+		}
+		return PLYValueUint16{Value: uint16(x)}, nil
 	case PLYPropertyTypeInt, PLYPropertyTypeInt32:
-		return strconv.FormatInt(int64(value.(int32)), 10)
+		x, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		return PLYValueInt32{Value: int32(x)}, nil
 	case PLYPropertyTypeUint, PLYPropertyTypeUint32:
-		return strconv.FormatUint(uint64(value.(uint32)), 10)
+		x, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		return PLYValueUint32{Value: uint32(x)}, nil
 	case PLYPropertyTypeFloat, PLYPropertyTypeFloat32:
-		return strconv.FormatFloat(float64(value.(float32)), 'f', -1, 32)
+		x, err := strconv.ParseFloat(s, 32)
+		if err != nil {
+			return nil, err
+		}
+		return PLYValueFloat32{Value: float32(x)}, nil
 	case PLYPropertyTypeDouble, PLYPropertyTypeFloat64:
-		return strconv.FormatFloat(value.(float64), 'f', -1, 64)
+		x, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return nil, err
+		}
+		return PLYValueFloat64{Value: float64(x)}, nil
+	default:
+		panic("unknown property type: " + p)
+	}
+}
+
+func (p PLYPropertyType) DecodeBinary(b binary.ByteOrder, data []byte) (PLYValue, error) {
+	if len(data) != p.Size() {
+		return nil, fmt.Errorf("expected %d bytes for type %v but got %d", p.Size(), p, len(data))
+	}
+	switch p {
+	case PLYPropertyTypeChar, PLYPropertyTypeInt8:
+		return PLYValueInt8{Value: int8(data[0])}, nil
+	case PLYPropertyTypeUchar, PLYPropertyTypeUint8:
+		return PLYValueUint8{Value: uint8(data[0])}, nil
+	case PLYPropertyTypeShort, PLYPropertyTypeInt16:
+		val := b.Uint16(data)
+		return PLYValueInt16{Value: int16(val)}, nil
+	case PLYPropertyTypeUshort, PLYPropertyTypeUint16:
+		val := b.Uint16(data)
+		return PLYValueUint16{Value: val}, nil
+	case PLYPropertyTypeInt, PLYPropertyTypeInt32:
+		val := b.Uint32(data)
+		return PLYValueInt32{Value: int32(val)}, nil
+	case PLYPropertyTypeUint, PLYPropertyTypeUint32:
+		val := b.Uint32(data)
+		return PLYValueUint32{Value: val}, nil
+	case PLYPropertyTypeFloat, PLYPropertyTypeFloat32:
+		val := b.Uint32(data)
+		return PLYValueFloat32{Value: math.Float32frombits(val)}, nil
+	case PLYPropertyTypeDouble, PLYPropertyTypeFloat64:
+		val := b.Uint64(data)
+		return PLYValueFloat64{Value: math.Float64frombits(val)}, nil
 	default:
 		panic("unknown property type: " + p)
 	}
@@ -177,6 +242,66 @@ func (p *PLYElement) Encode() string {
 		}
 	}
 	return header.String()
+}
+
+func (p *PLYElement) DecodeInstanceString(line string) ([]PLYValue, error) {
+	parts := strings.Fields(line)
+	res, err := p.decodeInstance(func(t PLYPropertyType) (PLYValue, error) {
+		if len(parts) == 0 {
+			return nil, errors.New("not enough tokens on line")
+		}
+		res, err := t.Parse(parts[0])
+		parts = parts[1:]
+		return res, err
+	})
+	if err == nil && len(parts) > 0 {
+		return nil, errors.New("extra tokens on line")
+	}
+	return res, err
+}
+
+func (p *PLYElement) DecodeInstanceBinary(b binary.ByteOrder, r io.Reader) ([]PLYValue, error) {
+	return p.decodeInstance(func(t PLYPropertyType) (PLYValue, error) {
+		data := make([]byte, t.Size())
+		if _, err := io.ReadFull(r, data); err != nil {
+			return nil, err
+		}
+		return t.DecodeBinary(b, data)
+	})
+}
+
+func (p *PLYElement) decodeInstance(readValue func(t PLYPropertyType) (PLYValue, error)) ([]PLYValue, error) {
+	result := make([]PLYValue, len(p.Properties))
+	for i, prop := range p.Properties {
+		if prop.LenType == PLYPropertyTypeNone {
+			val, err := readValue(prop.ElemType)
+			if err != nil {
+				return nil, err
+			}
+			result[i] = val
+		} else {
+			lenVal, err := readValue(prop.LenType)
+			if err != nil {
+				return nil, err
+			}
+			intLen, err := lenVal.LengthValue()
+			if err != nil {
+				return nil, err
+			} else if intLen < 0 {
+				return nil, errors.New("negative length value (possible overflow)")
+			}
+			subValues := make([]PLYValue, intLen)
+			for j := 0; j < intLen; j++ {
+				subValue, err := readValue(prop.ElemType)
+				if err != nil {
+					return nil, err
+				}
+				subValues[j] = subValue
+			}
+			result[i] = PLYValueList{Length: lenVal, Values: subValues}
+		}
+	}
+	return result, nil
 }
 
 type PLYHeader struct {
@@ -443,4 +568,76 @@ func (p *PLYMeshWriter) WriteTriangle(coords [3]int) (err error) {
 			},
 		},
 	})
+}
+
+// A PLYReader reads arbitrary PLY files.
+type PLYReader struct {
+	r      *bufio.Reader
+	header PLYHeader
+
+	curElement     int
+	curElementRead int64
+}
+
+func NewPLYReader(r io.Reader) (*PLYReader, error) {
+	p := &PLYReader{
+		r: bufio.NewReader(r),
+	}
+	header, err := NewPLYHeaderRead(p.r)
+	if err != nil {
+		return nil, err
+	}
+	p.header = *header
+	return p, nil
+}
+
+// Read reads the next element row from the file.
+//
+// If all element rows have been read, io.EOF is returned.
+// If reading fails for some other reason, a different
+// error is returned, such as io.UnexpectedEOF.
+func (p *PLYReader) Read() ([]PLYValue, *PLYElement, error) {
+	if p.curElement == len(p.header.Elements) {
+		return nil, nil, io.EOF
+	}
+	curElem := p.header.Elements[p.curElement]
+	var values []PLYValue
+	if p.header.Format == PLYFormatASCII {
+		line, err := p.r.ReadString('\n')
+		line = strings.TrimSpace(line)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				if line == "" {
+					return nil, nil, errors.Wrap(io.ErrUnexpectedEOF, "decode PLY row")
+				}
+			} else {
+				return nil, nil, errors.Wrap(err, "decode PLY row")
+			}
+		}
+		if len(line) > 0 && strings.Fields(line)[0] == "comment" {
+			return p.Read()
+		}
+		values, err = curElem.DecodeInstanceString(line)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "decode PLY row")
+		}
+	} else {
+		var encoding binary.ByteOrder
+		if p.header.Format == PLYFormatBinaryLittle {
+			encoding = binary.LittleEndian
+		} else {
+			encoding = binary.BigEndian
+		}
+		var err error
+		values, err = curElem.DecodeInstanceBinary(encoding, p.r)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "decode PLY row")
+		}
+	}
+	p.curElementRead += 1
+	if p.curElementRead == curElem.Count {
+		p.curElementRead = 0
+		p.curElement++
+	}
+	return values, curElem, nil
 }

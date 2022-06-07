@@ -63,3 +63,85 @@ func TestPLYHeaderDecode(t *testing.T) {
 		t.Errorf("unexpected re-encoded header: %#v", actual)
 	}
 }
+
+func TestPLYReader(t *testing.T) {
+	testFormat := func(t *testing.T, f PLYFormat) {
+		var buf bytes.Buffer
+		header := PLYHeader{
+			Format: f,
+			Elements: []*PLYElement{
+				NewPLYElementColoredVertex(4),
+				NewPLYElementFace(2),
+			},
+		}
+		w, err := NewPLYWriter(&buf, &header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c := PLYValueUint8{0x13}
+		values := [][]PLYValue{
+			{PLYValueFloat32{0}, PLYValueFloat32{0}, PLYValueFloat32{0}, c, c, c},
+			{PLYValueFloat32{1}, PLYValueFloat32{0}, PLYValueFloat32{0}, c, c, c},
+			{PLYValueFloat32{1}, PLYValueFloat32{1}, PLYValueFloat32{0}, c, c, c},
+			{PLYValueFloat32{0}, PLYValueFloat32{1}, PLYValueFloat32{0}, c, c, c},
+			{
+				PLYValueList{
+					Length: PLYValueUint8{uint8(3)},
+					Values: []PLYValue{
+						PLYValueInt32{int32(0)},
+						PLYValueInt32{int32(1)},
+						PLYValueInt32{int32(2)},
+					},
+				},
+			},
+			{
+				PLYValueList{
+					Length: PLYValueUint8{uint8(3)},
+					Values: []PLYValue{
+						PLYValueInt32{int32(0)},
+						PLYValueInt32{int32(2)},
+						PLYValueInt32{int32(3)},
+					},
+				},
+			},
+		}
+		for _, row := range values {
+			err := w.Write(row)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		r, err := NewPLYReader(&buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, expectedValue := range values {
+			actualValue, _, err := r.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(expectedValue) != len(actualValue) {
+				t.Fatalf("row %d: expected %#v but got %#v", i, expectedValue, actualValue)
+			}
+			for j, x := range expectedValue {
+				a := actualValue[j]
+				xString := x.EncodeString()
+				aString := a.EncodeString()
+				if xString != aString {
+					t.Fatalf("row %d index %d: expected %#v but got %#v", i, j, xString, aString)
+				}
+			}
+		}
+	}
+	t.Run("ASCII", func(t *testing.T) {
+		testFormat(t, PLYFormatASCII)
+	})
+	t.Run("Little", func(t *testing.T) {
+		testFormat(t, PLYFormatBinaryLittle)
+	})
+	t.Run("Big", func(t *testing.T) {
+		testFormat(t, PLYFormatBinaryBig)
+	})
+
+}
