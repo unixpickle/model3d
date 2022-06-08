@@ -131,6 +131,43 @@ func (m *Mesh) SmoothAreas(stepSize float64, iters int) *Mesh {
 	return smoother.Smooth(m)
 }
 
+// VertexNormals approximates normals for every vertex on
+// the mesh. The normals are returned in a mapping from
+// vertex coordinates to normals (always of unit length).
+//
+// If the mesh has self-intersections, degenerate geometry,
+// or is non-manifold, the resulting normals may include
+// inf or NaN values due to divisions by zero.
+//
+// This employs the "Mean Weighted by Angle" approach as
+// described in
+// "A Comparison of Algorithms for Vertex Normal Computations"
+// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.99.2846&rep=rep1&type=pdf.
+func (m *Mesh) VertexNormals() *CoordToCoord {
+	sums := NewCoordToCoord()
+	m.Iterate(func(t *Triangle) {
+		edges := [3]Coord3D{
+			t[0].Sub(t[1]).Normalize(),
+			t[1].Sub(t[2]).Normalize(),
+			t[2].Sub(t[0]).Normalize(),
+		}
+		normal := t.Normal()
+		for i, c := range t {
+			e1 := edges[(i+2)%3]
+			e2 := edges[i]
+			theta := math.Asin(e1.Cross(e2).Norm())
+			cur, _ := sums.Load(c)
+			sums.Store(c, cur.Add(normal.Scale(theta)))
+		}
+	})
+	normalized := NewCoordToCoord()
+	sums.Range(func(k, v Coord3D) bool {
+		normalized.Store(k, v.Normalize())
+		return true
+	})
+	return normalized
+}
+
 // FlattenBase flattens out the bases of objects for
 // printing on an FDM 3D printer. It is intended to be
 // used for meshes based on flat-based solids, where the

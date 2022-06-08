@@ -6,6 +6,19 @@ import (
 	"testing"
 )
 
+func TestMeshVertexNormals(t *testing.T) {
+	center := XYZ(1.0, 2.0, 3.0)
+	mesh := NewMeshIcosphere(center, 1.5, 6)
+	mesh.VertexNormals().Range(func(k, actual Coord3D) bool {
+		expected := k.Sub(center).Normalize()
+		if actual.Dist(expected) > 2e-2 {
+			t.Errorf("normal %v should be %v but got %v", k, expected, actual)
+			return false
+		}
+		return true
+	})
+}
+
 func TestMeshSingularVertices(t *testing.T) {
 	mesh1 := NewMeshRect(XYZ(-1, -1, -1), XYZ(1, 2, 3))
 	mesh2 := NewMeshRect(XYZ(1, 2, 3), XYZ(2, 3, 4))
