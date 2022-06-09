@@ -155,7 +155,7 @@ func (m *Mesh) VertexNormals() *CoordToCoord {
 		for i, c := range t {
 			e1 := edges[(i+2)%3]
 			e2 := edges[i]
-			theta := math.Asin(e1.Cross(e2).Norm())
+			theta := math.Asin(math.Min(1.0, e1.Cross(e2).Norm()))
 			cur, _ := sums.Load(c)
 			sums.Store(c, cur.Add(normal.Scale(theta)))
 		}
