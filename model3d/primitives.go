@@ -1,6 +1,8 @@
 package model3d
 
-import "math"
+import (
+	"math"
+)
 
 // A Triangle is a triangle in 3D Euclidean space.
 type Triangle [3]Coord3D
@@ -453,6 +455,48 @@ func (t *Triangle) RectCollision(rect *Rect) bool {
 		}
 	}
 	return false
+}
+
+// A InterpNormalTriangle is a Triangle which returns
+// smoothed normals for ray collisions.
+type InterpNormalTriangle struct {
+	Triangle
+
+	VertexNormals [3]Coord3D
+}
+
+// InterpNormal returns the interpolated normal for the
+// barycentric coordinates within the triangle.
+func (i *InterpNormalTriangle) InterpNormal(barycentric [3]float64) Coord3D {
+	var normal Coord3D
+	for j, vn := range i.VertexNormals {
+		normal = normal.Add(vn.Scale(barycentric[j]))
+	}
+	return normal.Normalize()
+}
+
+func (i *InterpNormalTriangle) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	info, scale := i.Triangle.rayCollision(r)
+	if info != nil && scale >= 0 {
+		return RayCollision{
+			Scale:  scale,
+			Normal: i.InterpNormal(info.Barycentric),
+			Extra:  info,
+		}, true
+	} else {
+		return RayCollision{}, false
+	}
+}
+
+func (i *InterpNormalTriangle) RayCollisions(r *Ray, f func(RayCollision)) int {
+	info, scale := i.Triangle.rayCollision(r)
+	if info == nil || scale < 0 {
+		return 0
+	}
+	if f != nil {
+		f(RayCollision{Scale: scale, Normal: i.InterpNormal(info.Barycentric), Extra: info})
+	}
+	return 1
 }
 
 // A Segment is a line segment in a canonical ordering,

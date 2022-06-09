@@ -141,6 +141,26 @@ func MeshToCollider(m *Mesh) MultiCollider {
 	return GroupedTrianglesToCollider(tris)
 }
 
+// MeshToInterpNormalCollider creates an efficient
+// MultiCollider for the mesh that computes collision
+// normals using Phong shading rather than flat shading.
+func MeshToInterpNormalCollider(m *Mesh) MultiCollider {
+	tris := m.TriangleSlice()
+	GroupTriangles(tris)
+
+	vertexNormals := m.VertexNormals()
+	interpTris := make([]Collider, len(tris))
+	for i, tri := range tris {
+		interpTri := &InterpNormalTriangle{Triangle: *tri}
+		for j, c := range tri {
+			interpTri.VertexNormals[j] = vertexNormals.Value(c)
+		}
+		interpTris[i] = interpTri
+	}
+
+	return GroupedCollidersToCollider(interpTris).(MultiCollider)
+}
+
 // GroupedTrianglesToCollider converts a mesh of triangles
 // into a MultiCollider.
 //
@@ -155,6 +175,26 @@ func GroupedTrianglesToCollider(tris []*Triangle) MultiCollider {
 	midIdx := len(tris) / 2
 	c1 := GroupedTrianglesToCollider(tris[:midIdx])
 	c2 := GroupedTrianglesToCollider(tris[midIdx:])
+	return joinedMultiCollider{NewJoinedCollider([]Collider{c1, c2})}
+}
+
+// GroupedCollidersToCollider creates a joined collider
+// similarly to GroupedTrianglesToCollider, but operates on
+// a sequence of grouped colliders instead of triangles.
+//
+// To group the colliders, see GroupBounders().
+// Alternatively, if the colliders are wrappers around
+// triangles, such as *InterpTriangle, then you may simply
+// use GroupTriangles() before wrapping the triangles.
+func GroupedCollidersToCollider(colliders []Collider) Collider {
+	if len(colliders) == 1 {
+		return colliders[0]
+	} else if len(colliders) == 0 {
+		return nullCollider{}
+	}
+	midIdx := len(colliders) / 2
+	c1 := GroupedCollidersToCollider(colliders[:midIdx])
+	c2 := GroupedCollidersToCollider(colliders[midIdx:])
 	return joinedMultiCollider{NewJoinedCollider([]Collider{c1, c2})}
 }
 
