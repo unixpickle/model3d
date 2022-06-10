@@ -155,20 +155,7 @@ func RenderView(obj, ropes *model3d.Mesh) *render3d.Image {
 	}
 	full := render3d.NewImage(Resolution*Antialias, Resolution*Antialias)
 	renderer.Render(full, render3d.JoinedObject{mainObj, ropeObj})
-	out := render3d.NewImage(Resolution, Resolution)
-	for i := 0; i < out.Height; i++ {
-		for j := 0; j < out.Width; j++ {
-			var sum render3d.Color
-			for k := 0; k < Antialias; k++ {
-				for l := 0; l < Antialias; l++ {
-					offset := full.Width*(i*Antialias+k) + j*Antialias + l
-					sum = sum.Add(full.Data[offset])
-				}
-			}
-			out.Data[i*out.Width+j] = sum.Scale(1.0 / (Antialias * Antialias))
-		}
-	}
-	return out
+	return full.Downsample(Antialias)
 }
 
 func Softplus(x float64) float64 {

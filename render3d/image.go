@@ -69,6 +69,34 @@ func (i *Image) Scale(s float64) {
 	}
 }
 
+// Downsample returns a new image by downsampling i by an
+// integer scale factor. The factor must evenly divide the
+// width and height.
+//
+// New colors are computed by averaging squares of colors
+// in linear RGB space.
+func (i *Image) Downsample(factor int) *Image {
+	if i.Width%factor != 0 || i.Height%factor != 0 {
+		panic(fmt.Sprintf("image size %d x %d cannot be divided evenly by factor %d",
+			i.Width, i.Height, factor))
+	}
+	weight := 1.0 / float64(factor*factor)
+	out := NewImage(i.Width/factor, i.Height/factor)
+	for i1 := 0; i1 < out.Height; i1++ {
+		for j := 0; j < out.Width; j++ {
+			var sum Color
+			for k := 0; k < factor; k++ {
+				for l := 0; l < factor; l++ {
+					offset := i.Width*(i1*factor+k) + (j*factor + l)
+					sum = sum.Add(i.Data[offset])
+				}
+			}
+			out.Data[i1*out.Width+j] = sum.Scale(weight)
+		}
+	}
+	return out
+}
+
 // RGBA creates a standard library RGBA image from i.
 //
 // Values outside the range of [0, 1] are clamped.
