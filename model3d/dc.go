@@ -41,10 +41,10 @@ func DualContour(s Solid, delta float64, repair, clip bool) *Mesh {
 // of Dual Contouring, a technique for turning a field into
 // a mesh.
 //
-// By default, DualContouring attempts to produce manifold
-// meshes. This can result in ugly edge artifacts, reducing
-// the primary benefit of DC. To prevent this behavior, set
-// NoRepair to true.
+// By default, DualContouring does not attempt to produce
+// manifold meshes, since doing so can result in ugly edge
+// artifacts, reducing the primary benefit of DC. To enable
+// manifold meshes, set Clip and Repair to true.
 type DualContouring struct {
 	// S specifies the Solid and is used to compute hermite
 	// data on line segments.
