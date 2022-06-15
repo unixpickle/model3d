@@ -1,9 +1,12 @@
 package main
 
 import (
+	"math"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
 type LampLight struct {
@@ -13,6 +16,7 @@ type LampLight struct {
 	Samples     int
 	SmoothIters int
 	Amplify     float64
+	Ambient     float64
 }
 
 func NewLampLight() *LampLight {
@@ -49,6 +53,21 @@ func NewLampLight() *LampLight {
 		Samples:     100,
 		SmoothIters: 5,
 		Amplify:     5.0,
+		Ambient:     0.3,
+	}
+}
+
+func (l *LampLight) Recolor(s model3d.Solid, f toolbox3d.CoordColorFunc) toolbox3d.CoordColorFunc {
+	size := s.Max().Sub(s.Min())
+	delta := math.Max(math.Max(size.X, size.Y), size.Z) / 100.0
+	mesh := model3d.MarchingCubesSearch(s, delta, 8)
+	vertexColors := l.Cast(mesh)
+	tree := model3d.NewCoordTree(mesh.VertexSlice())
+
+	return func(c model3d.Coord3D) render3d.Color {
+		nearest := tree.NearestNeighbor(c)
+		vc := vertexColors[nearest]
+		return c.Scale(1 - l.Ambient).Mul(vc).Add(c.Scale(l.Ambient))
 	}
 }
 
