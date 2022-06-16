@@ -12,6 +12,7 @@ import (
 type LampLight struct {
 	Mesh        *model3d.Mesh
 	Object      model3d.Collider
+	Solid       model3d.Solid
 	Color       render3d.Color
 	Samples     int
 	SmoothIters int
@@ -20,7 +21,7 @@ type LampLight struct {
 }
 
 func NewLampLight() *LampLight {
-	lampMesh := (model3d.ConvexPolytope{
+	polytope := model3d.ConvexPolytope{
 		&model3d.LinearConstraint{
 			Normal: model3d.YZ(-2.0, 1.0).Normalize(),
 			Max:    model3d.YZ(-2.0, 1.0).Normalize().Dot(model3d.Y(-0.5)),
@@ -45,14 +46,17 @@ func NewLampLight() *LampLight {
 			Normal: model3d.Z(-1),
 			Max:    0.0,
 		},
-	}).Mesh()
+	}
+	offset := model3d.Z(2)
+	lampMesh := polytope.Mesh().Translate(offset)
 	return &LampLight{
 		Mesh:        lampMesh,
 		Object:      model3d.MeshToCollider(lampMesh),
-		Color:       render3d.NewColorRGB(1.0, 1.0, 0.85),
-		Samples:     100,
+		Solid:       model3d.TranslateSolid(polytope.Solid(), offset),
+		Color:       render3d.NewColorRGB(1.0, 1.0, 0.95),
+		Samples:     200,
 		SmoothIters: 5,
-		Amplify:     5.0,
+		Amplify:     10.0,
 		Ambient:     0.3,
 	}
 }
@@ -64,10 +68,16 @@ func (l *LampLight) Recolor(s model3d.Solid, f toolbox3d.CoordColorFunc) toolbox
 	vertexColors := l.Cast(mesh)
 	tree := model3d.NewCoordTree(mesh.VertexSlice())
 
+	lampSDF := model3d.MeshToSDF(l.Mesh)
+
 	return func(c model3d.Coord3D) render3d.Color {
+		if lampSDF.SDF(c) > -0.02 {
+			return l.Color
+		}
 		nearest := tree.NearestNeighbor(c)
 		vc := vertexColors[nearest]
-		return c.Scale(1 - l.Ambient).Mul(vc).Add(c.Scale(l.Ambient))
+		origColor := f(c)
+		return origColor.Scale(1 - l.Ambient).Mul(vc).Add(origColor.Scale(l.Ambient))
 	}
 }
 
