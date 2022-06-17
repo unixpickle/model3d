@@ -42,11 +42,8 @@ func DiamondRing() (model3d.Solid, toolbox3d.CoordColorFunc) {
 			return math.Abs(c.Z-maxDepth/2) < depth/2
 		},
 	)
-	roughMesh := model3d.DualContour(roughBody, 0.01, false, false)
-	smoothBody := model3d.JoinedSolid{
-		model3d.NewColliderSolidHollow(model3d.MeshToCollider(roughMesh), rounding),
-		roughBody,
-	}
+	roughSDF := model3d.DualContourSDF(roughBody, 0.01)
+	smoothBody := model3d.SDFToSolid(roughSDF, rounding)
 
 	var diamonds model3d.JoinedSolid
 	addDiamond := func(theta, z float64) {
@@ -66,9 +63,8 @@ func DiamondRing() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	addDiamond(4.0*0.45/3.0, maxDepth/2+0.035)
 	// addDiamond(5.0*0.45/3.0, maxDepth/2)
 
-	roughSurface := model3d.MeshToCollider(roughMesh)
 	colorFn := func(c model3d.Coord3D) render3d.Color {
-		if roughBody.Contains(c) || roughSurface.SphereCollision(c, rounding+0.01) {
+		if roughBody.Contains(c) || roughSDF.SDF(c) > -(rounding+0.01) {
 			return render3d.NewColor(0.8)
 		} else {
 			return render3d.NewColorRGB(0.6, 0.8, 1.0)

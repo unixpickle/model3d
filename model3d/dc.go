@@ -37,6 +37,16 @@ func DualContour(s Solid, delta float64, repair, clip bool) *Mesh {
 	return dc.Mesh()
 }
 
+// DualContourSDF constructs an SDF of a Solid using dual
+// contouring. This approach accounts for the fact that
+// dual contouring produces self-intersecting meshes and
+// will therefore not obey the even-odd rule.
+func DualContourSDF(s Solid, delta float64) FaceSDF {
+	res := MeshToSDF(DualContour(s, delta, false, false)).(*meshSDF)
+	res.Solid = s
+	return res
+}
+
 // DualContouring is a configurable but simplified version
 // of Dual Contouring, a technique for turning a field into
 // a mesh.
