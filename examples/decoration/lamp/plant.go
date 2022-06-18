@@ -31,19 +31,45 @@ func CreatePlant() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	branch := CreateBranch()
 	leaves := model3d.TranslateSolid(model3d.JoinedSolid{
 		branch,
-		model3d.TranslateSolid(model3d.RotateSolid(branch, model3d.Y(1), -0.4), model3d.XYZ(-0.3, 0.15, -0.1)),
-		model3d.TranslateSolid(model3d.RotateSolid(branch, model3d.Y(1), 0.4), model3d.XYZ(0.3, 0.15, -0.05)),
-		model3d.TranslateSolid(model3d.RotateSolid(branch, model3d.Y(1), -0.2), model3d.XYZ(-0.2, -0.15, -0.3)),
-		model3d.TranslateSolid(model3d.RotateSolid(branch, model3d.Y(1), 0.2), model3d.XYZ(0.2, -0.15, -0.3)),
+		model3d.TranslateSolid(model3d.RotateSolid(branch, model3d.Y(1), -0.4), model3d.XYZ(-0.3, 0.12, -0.1)),
+		model3d.TranslateSolid(model3d.RotateSolid(branch, model3d.Y(1), 0.4), model3d.XYZ(0.3, 0.12, -0.05)),
+		model3d.TranslateSolid(model3d.RotateSolid(branch, model3d.YZ(1, 0.1).Normalize(), -0.2),
+			model3d.XYZ(-0.2, -0.12, -0.3)),
+		model3d.TranslateSolid(model3d.RotateSolid(branch, model3d.YZ(1, -0.1).Normalize(), 0.2),
+			model3d.XYZ(0.2, -0.12, -0.3)),
 	}, model3d.XZ(-2.2, 1.0))
 	leafSDF := model3d.MeshToSDF(model3d.MarchingCubesSearch(leaves, 0.02, 8))
+	vaseSDF := model3d.MeshToSDF(model3d.MarchingCubesSearch(vase, 0.04, 8))
+
+	// Create a smooth intersection between the vase
+	// and the leaves to make snapping/breaking less
+	// likely.
+	r := 0.1
+	s := model3d.CheckedFuncSolid(
+		leafSDF.Min().AddScalar(-0.1),
+		leafSDF.Max().AddScalar(0.1),
+		func(c model3d.Coord3D) bool {
+			s1 := leafSDF.SDF(c)
+			s2 := vaseSDF.SDF(c)
+			if s1 > 0.01 || s2 > 0.01 {
+				return false
+			}
+			d1 := math.Max(s1+r, 0)
+			d2 := math.Max(s2+r, 0)
+			return d1*d1+d2*d2 > r*r
+		},
+	)
+	// Recompute the bounds to avoid most overhead.
+	m := model3d.DualContour(s, 0.04, false, false)
+	smoothLeaves := model3d.ForceSolidBounds(s, m.Min().AddScalar(-0.04), m.Max().AddScalar(0.04))
+
 	colorFn := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
 		if leafSDF.SDF(c) > -0.01 {
 			return render3d.NewColorRGB(0.0, 1.0, 0.0)
 		}
 		return render3d.NewColorRGB(0.85, 0.46, 0.24)
 	})
-	return model3d.JoinedSolid{vase, leaves}, colorFn
+	return model3d.JoinedSolid{vase, leaves, smoothLeaves}, colorFn
 }
 
 func CreateBranch() model3d.Solid {
