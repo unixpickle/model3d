@@ -60,7 +60,7 @@ func CreatePlant() (model3d.Solid, toolbox3d.CoordColorFunc) {
 		},
 	)
 	// Recompute the bounds to avoid most overhead.
-	m := model3d.DualContour(s, 0.04, false, false)
+	m := model3d.MarchingCubesSearch(s, 0.04, 8)
 	smoothLeaves := model3d.ForceSolidBounds(s, m.Min().AddScalar(-0.04), m.Max().AddScalar(0.04))
 
 	colorFn := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {

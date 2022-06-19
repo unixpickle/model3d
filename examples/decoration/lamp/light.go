@@ -1,8 +1,6 @@
 package main
 
 import (
-	"math"
-
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -61,12 +59,9 @@ func NewLampLight() *LampLight {
 	}
 }
 
-func (l *LampLight) Recolor(s model3d.Solid, f toolbox3d.CoordColorFunc) toolbox3d.CoordColorFunc {
-	size := s.Max().Sub(s.Min())
-	delta := math.Max(math.Max(size.X, size.Y), size.Z) / 100.0
-	mesh := model3d.MarchingCubesSearch(s, delta, 8)
-	vertexColors := l.Cast(mesh)
-	tree := model3d.NewCoordTree(mesh.VertexSlice())
+func (l *LampLight) Recolor(fullMesh *model3d.Mesh, f toolbox3d.CoordColorFunc) toolbox3d.CoordColorFunc {
+	vertexColors := l.Cast(fullMesh)
+	tree := model3d.NewCoordTree(fullMesh.VertexSlice())
 
 	lampSDF := model3d.MeshToSDF(l.Mesh)
 
@@ -103,7 +98,7 @@ func (l *LampLight) Cast(m *model3d.Mesh) map[model3d.Coord3D]render3d.Color {
 			if ok {
 				// See if something else is in the way of the light.
 				rc1, ok1 := collider.FirstRayCollision(ray)
-				if ok1 && rc1.Scale < rc.Scale {
+				if ok1 && rc1.Scale+0.01 < rc.Scale {
 					ok = false
 				}
 			}

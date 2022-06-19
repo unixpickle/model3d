@@ -8,15 +8,14 @@ import (
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
+const Production = false
+
 func main() {
 	log.Println("Creating lamp...")
 	light := NewLampLight()
 
 	log.Println("Creating scene...")
 	solid, colorFunc := CreateScene()
-
-	log.Println("Recoloring scene...")
-	colorFunc = light.Recolor(solid, colorFunc)
 
 	log.Println("Creating final solid...")
 	hollowLight := &model3d.SubtractedSolid{
@@ -32,7 +31,14 @@ func main() {
 	}
 
 	log.Println("Creating final mesh...")
-	fullMesh := model3d.MarchingCubesSearch(solid, 0.01, 8)
+	delta := 0.02
+	if Production {
+		delta = 0.01
+	}
+	fullMesh := model3d.MarchingCubesSearch(solid, delta, 8)
+
+	log.Println("Recoloring scene...")
+	colorFunc = light.Recolor(fullMesh, colorFunc)
 
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", fullMesh, 3, 3, 300, colorFunc.RenderColor)
