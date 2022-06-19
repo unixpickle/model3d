@@ -47,12 +47,16 @@ func NewLampLight() *LampLight {
 	}
 	offset := model3d.Z(2)
 	lampMesh := polytope.Mesh().Translate(offset)
+	samples := 200
+	if Production {
+		samples = 2000
+	}
 	return &LampLight{
 		Mesh:        lampMesh,
 		Object:      model3d.MeshToCollider(lampMesh),
 		Solid:       model3d.TranslateSolid(polytope.Solid(), offset),
 		Color:       render3d.NewColorRGB(1.0, 1.0, 0.95),
-		Samples:     200,
+		Samples:     samples,
 		SmoothIters: 5,
 		Amplify:     10.0,
 		Ambient:     0.3,
