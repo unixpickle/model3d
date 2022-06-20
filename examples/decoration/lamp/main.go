@@ -41,7 +41,11 @@ func main() {
 	colorFunc = light.Recolor(fullMesh, colorFunc)
 
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", fullMesh, 3, 3, 300, colorFunc.RenderColor)
+	obj := &diffuseObject{
+		Object:    &render3d.ColliderObject{Collider: model3d.MeshToCollider(fullMesh)},
+		ColorFunc: colorFunc.RenderColor,
+	}
+	render3d.SaveRendering("rendering.png", obj, model3d.XYZ(-1.0, -8.0, 3.0), 512, 512, nil)
 
 	log.Println("Saving...")
 	fullMesh.SaveQuantizedMaterialOBJ("lamp.zip", 32, colorFunc.Cached().TriangleColor)
@@ -62,4 +66,22 @@ func CreateScene() (model3d.Solid, toolbox3d.CoordColorFunc) {
 		model3d.MeshToSDF(model3d.NewMeshRect(base.MinVal, base.MaxVal)),
 		render3d.NewColor(1.0),
 	)
+}
+
+type diffuseObject struct {
+	render3d.Object
+	ColorFunc render3d.ColorFunc
+}
+
+func (c *diffuseObject) Cast(r *model3d.Ray) (model3d.RayCollision, render3d.Material, bool) {
+	rc, mat, ok := c.Object.Cast(r)
+	if ok && c.ColorFunc != nil {
+		p := r.Origin.Add(r.Direction.Scale(rc.Scale))
+		color := c.ColorFunc(p, rc)
+		mat = &render3d.LambertMaterial{
+			DiffuseColor: color.Scale(0.9),
+			AmbientColor: color.Scale(0.1),
+		}
+	}
+	return rc, mat, ok
 }
