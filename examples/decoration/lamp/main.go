@@ -8,7 +8,10 @@ import (
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
-const Production = false
+const (
+	Production = false
+	AttachLamp = false
+)
 
 func main() {
 	log.Println("Creating lamp...")
@@ -18,13 +21,19 @@ func main() {
 	solid, colorFunc := CreateScene()
 
 	log.Println("Creating final solid...")
-	hollowLight := &model3d.SubtractedSolid{
-		Positive: light.Solid,
-		Negative: model3d.JoinedSolid{
-			model3d.NewColliderSolidInset(light.Object, 0.15),
-			&model3d.Cylinder{P1: model3d.Z(1.0), P2: model3d.Z(2.21), Radius: 0.2},
-		},
+	var hollowLight model3d.Solid
+	if AttachLamp {
+		hollowLight = light.Solid
+	} else {
+		hollowLight = &model3d.SubtractedSolid{
+			Positive: light.Solid,
+			Negative: model3d.JoinedSolid{
+				model3d.NewColliderSolidInset(light.Object, 0.15),
+				&model3d.Cylinder{P1: model3d.Z(2.3), P2: model3d.YZ(2, 2.3), Radius: 0.15},
+			},
+		}
 	}
+
 	solid = model3d.JoinedSolid{
 		hollowLight,
 		solid,
@@ -58,6 +67,9 @@ func CreateScene() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	}
 	plant, plantColor := CreatePlant()
 	base := model3d.NewRect(model3d.XYZ(-3.0, -1.5, -0.2), model3d.XYZ(1.0, 1.5, 0.001))
+	if AttachLamp {
+		lampBase[0].(*model3d.Rect).MaxVal.Z = 2.0
+	}
 	return model3d.JoinedSolid{lampBase, plant, base}, toolbox3d.JoinedCoordColorFunc(
 		model3d.MeshToSDF(model3d.MarchingCubesSearch(lampBase, 0.02, 8)),
 		render3d.NewColor(1.0),
