@@ -59,6 +59,34 @@ func (c CoordColorFunc) Transform(t model3d.Transform) CoordColorFunc {
 	}
 }
 
+// ChangeFilterFunc creates a filter for mesh decimation
+// that avoids decimating vertices near color changes.
+//
+// In particular, it returns a function that returns true
+// for points further than epsilon distance of a mesh
+// vertex that is part of a segment that changes color.
+func (c CoordColorFunc) ChangeFilterFunc(m *model3d.Mesh,
+	epsilon float64) func(c model3d.Coord3D) bool {
+	changed := model3d.NewCoordToBool()
+	m.Iterate(func(t *model3d.Triangle) {
+		for _, seg := range t.Segments() {
+			if c(seg[0]) != c(seg[1]) {
+				changed.Store(seg[0], true)
+				changed.Store(seg[1], true)
+			}
+		}
+	})
+	points := make([]model3d.Coord3D, 0, changed.Len())
+	changed.KeyRange(func(k model3d.Coord3D) bool {
+		points = append(points, k)
+		return true
+	})
+	tree := model3d.NewCoordTree(points)
+	return func(c model3d.Coord3D) bool {
+		return !tree.SphereCollision(c, epsilon)
+	}
+}
+
 // ConstantCoordColorFunc creates a CoordColorFunc that
 // returns a constant value.
 func ConstantCoordColorFunc(c render3d.Color) CoordColorFunc {

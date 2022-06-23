@@ -16,8 +16,8 @@ func CreateMugContents() model3d.Solid {
 		model2d.XY(-1.0, 0.0),
 	}
 	return model3d.CheckedFuncSolid(
-		model3d.XYZ(-1.0, -1.0, -0.91),
-		model3d.XYZ(1.0, 1.0, 0.3),
+		model3d.XYZ(-1.0, -1.0, -0.95),
+		model3d.XYZ(1.0, 1.0, 0.35),
 		func(c model3d.Coord3D) bool {
 			return c.XY().Norm() < radiusFunc.EvalX(c.Z)-(Thickness/2-0.01)
 		},
@@ -64,7 +64,7 @@ func createMugBody() model3d.Solid {
 
 func createHandle() model3d.Solid {
 	torus := &model3d.Torus{
-		Center:      model3d.XYZ(-1.1, 0.0, 0.2),
+		Center:      model3d.XYZ(-1.05, 0.0, 0.2),
 		Axis:        model3d.Y(1),
 		InnerRadius: 0.1,
 		OuterRadius: 0.4,

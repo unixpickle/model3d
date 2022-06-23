@@ -69,13 +69,13 @@ func NewHoleRandomized(center, axis model3d.Coord3D, radius, thickness float64) 
 	}
 	h.basis1, h.basis2 = h.axis.OrthoBasis()
 
+	h.liningInnerRadius = math.Min(radius-0.03, radius*(0.7+rand.Float64()*0.2))
 	h.liningCurve = model2d.BezierCurve{
 		model2d.XY(0, 0),
 		model2d.XY(0, thickness/2*(1+rand.Float64())),
 		model2d.XY(0.3+rand.Float64()*0.6, thickness/2),
 		model2d.XY(1, thickness/2),
 	}
-	h.liningInnerRadius = radius * (0.7 + rand.Float64()*0.2)
 
 	h.liningMaxY = thickness
 

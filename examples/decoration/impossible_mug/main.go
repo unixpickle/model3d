@@ -12,14 +12,14 @@ const Thickness = 0.1
 
 func main() {
 	log.Println("Creating objects...")
-	mug := CreateMug()
-	coffee := CreateMugContents()
+	mug := model3d.ScaleSolid(CreateMug(), 1.5)
+	coffee := model3d.ScaleSolid(CreateMugContents(), 1.5)
 
 	log.Println("Creating color func...")
 	onlyContents := &model3d.SubtractedSolid{Positive: coffee, Negative: mug}
-	contentsSDF := model3d.MeshToSDF(model3d.MarchingCubesSearch(onlyContents, 0.02, 8))
+	contentsColl := model3d.MeshToCollider(model3d.MarchingCubesSearch(onlyContents, 0.015, 8))
 	colorFunc := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
-		if contentsSDF.SDF(c) > -0.01 {
+		if onlyContents.Contains(c) || contentsColl.SphereCollision(c, 0.015) {
 			return render3d.NewColorRGB(0.29, 0.15, 0.02)
 		} else {
 			return render3d.NewColor(1.0)
@@ -28,7 +28,20 @@ func main() {
 
 	log.Println("Creating mesh...")
 	combined := model3d.JoinedSolid{mug, coffee}
-	mesh := model3d.MarchingCubesSearch(combined, 0.008, 8)
+	mesh := model3d.MarchingCubesSearch(combined, 0.0075, 8)
+
+	log.Println("Decimating mesh...")
+	colorFunc = colorFunc.Cached()
+	d := &model3d.Decimator{
+		FeatureAngle:     0.03,
+		BoundaryDistance: 1e-5,
+		PlaneDistance:    1e-4,
+		FilterFunc:       colorFunc.ChangeFilterFunc(mesh, 0.03),
+	}
+	prev := len(mesh.TriangleSlice())
+	mesh = d.Decimate(mesh)
+	post := len(mesh.TriangleSlice())
+	log.Printf("went from %d -> %d triangles", prev, post)
 
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
