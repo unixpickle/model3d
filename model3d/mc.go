@@ -46,8 +46,19 @@ func MarchingCubes(s Solid, delta float64) *Mesh {
 // every iteration.
 func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 	mesh := MarchingCubes(s, delta)
-	mcSearch(s, delta, iters, mesh)
+	mcSearch(s, delta, iters, mesh, nil)
 	return mesh
+}
+
+// MarchingCubesInterior is like MarchingCubesSearch, but
+// in addition to a mesh, it returns a mapping from each
+// vertex to a nearby point which is known to be contained
+// within the solid.
+func MarchingCubesInterior(s Solid, delta float64, iters int) (*Mesh, *CoordToCoord) {
+	mesh := MarchingCubes(s, delta)
+	interior := NewCoordToCoord()
+	mcSearch(s, delta, iters, mesh, interior)
+	return mesh, interior
 }
 
 // MarchingCubesConj is like MarchingCubesSearch, but in a
@@ -143,7 +154,7 @@ func MarchingCubesFilter(s Solid, f func(*Rect) bool, delta float64) *Mesh {
 // MarchingCubesFilter.
 func MarchingCubesSearchFilter(s Solid, f func(*Rect) bool, delta float64, iters int) *Mesh {
 	mesh := MarchingCubesFilter(s, f, delta)
-	mcSearch(s, delta, iters, mesh)
+	mcSearch(s, delta, iters, mesh, nil)
 	return mesh
 }
 
@@ -172,8 +183,8 @@ func MarchingCubesC2F(s Solid, bigDelta, smallDelta, extraSpace float64, iters i
 	return MarchingCubesSearchFilter(s, filter, smallDelta, iters)
 }
 
-func mcSearch(s Solid, delta float64, iters int, mesh *Mesh) {
-	if iters == 0 {
+func mcSearch(s Solid, delta float64, iters int, mesh *Mesh, interior *CoordToCoord) {
+	if iters == 0 && interior == nil {
 		return
 	}
 
@@ -181,9 +192,20 @@ func mcSearch(s Solid, delta float64, iters int, mesh *Mesh) {
 	inVertices := mesh.VertexSlice()
 	outVertices := make([]Coord3D, len(inVertices))
 
-	essentials.ConcurrentMap(0, len(inVertices), func(i int) {
-		outVertices[i] = mcSearchPoint(s, delta, iters, mesh, spacer, inVertices[i])
-	})
+	if interior != nil {
+		interiorVertices := make([]Coord3D, len(inVertices))
+		essentials.ConcurrentMap(0, len(inVertices), func(i int) {
+			outVertices[i] = mcSearchPoint(s, delta, iters, mesh, spacer, inVertices[i],
+				&interiorVertices[i])
+		})
+		for i, c := range outVertices {
+			interior.Store(c, interiorVertices[i])
+		}
+	} else {
+		essentials.ConcurrentMap(0, len(inVertices), func(i int) {
+			outVertices[i] = mcSearchPoint(s, delta, iters, mesh, spacer, inVertices[i], nil)
+		})
+	}
 
 	v2t := mesh.getVertexToFace()
 	for i, original := range inVertices {
@@ -204,7 +226,7 @@ func mcSearch(s Solid, delta float64, iters int, mesh *Mesh) {
 }
 
 func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, spacer *squareSpacer,
-	c Coord3D) Coord3D {
+	c Coord3D, interiorPoint *Coord3D) Coord3D {
 	axis, falsePoint, truePoint := spacer.LookupEdgePoint(c)
 
 	arr := c.Array()
@@ -225,7 +247,14 @@ func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, spacer *squareSpa
 	}
 
 	arr[axis] = (falsePoint + truePoint) / 2
-	return NewCoord3DArray(arr)
+	result := NewCoord3DArray(arr)
+
+	if interiorPoint != nil {
+		arr[axis] = truePoint
+		*interiorPoint = NewCoord3DArray(arr)
+	}
+
+	return result
 }
 
 // mcCorner is a corner index on a cube used for marching

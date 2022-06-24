@@ -15,20 +15,24 @@ func main() {
 	mug := model3d.ScaleSolid(CreateMug(), 1.5)
 	coffee := model3d.ScaleSolid(CreateMugContents(), 1.5)
 
+	log.Println("Creating mesh...")
+	combined := model3d.JoinedSolid{mug, coffee}
+	mesh, interior := model3d.MarchingCubesInterior(combined, 0.0075, 8)
+
 	log.Println("Creating color func...")
-	onlyContents := &model3d.SubtractedSolid{Positive: coffee, Negative: mug}
-	contentsColl := model3d.MeshToCollider(model3d.MarchingCubesSearch(onlyContents, 0.015, 8))
+	interiorPoints := make([]model3d.Coord3D, 0, interior.Len())
+	interior.ValueRange(func(c model3d.Coord3D) bool {
+		interiorPoints = append(interiorPoints, c)
+		return true
+	})
+	interiorTree := model3d.NewCoordTree(interiorPoints)
 	colorFunc := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
-		if onlyContents.Contains(c) || contentsColl.SphereCollision(c, 0.015) {
+		if coffee.Contains(interiorTree.NearestNeighbor(c)) {
 			return render3d.NewColorRGB(0.29, 0.15, 0.02)
 		} else {
 			return render3d.NewColor(1.0)
 		}
 	})
-
-	log.Println("Creating mesh...")
-	combined := model3d.JoinedSolid{mug, coffee}
-	mesh := model3d.MarchingCubesSearch(combined, 0.0075, 8)
 
 	log.Println("Decimating mesh...")
 	colorFunc = colorFunc.Cached()
