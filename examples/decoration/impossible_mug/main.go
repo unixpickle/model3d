@@ -20,19 +20,11 @@ func main() {
 	mesh, interior := model3d.MarchingCubesInterior(combined, 0.0075, 8)
 
 	log.Println("Creating color func...")
-	interiorPoints := make([]model3d.Coord3D, 0, interior.Len())
-	interior.ValueRange(func(c model3d.Coord3D) bool {
-		interiorPoints = append(interiorPoints, c)
-		return true
-	})
-	interiorTree := model3d.NewCoordTree(interiorPoints)
-	colorFunc := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
-		if coffee.Contains(interiorTree.NearestNeighbor(c)) {
-			return render3d.NewColorRGB(0.29, 0.15, 0.02)
-		} else {
-			return render3d.NewColor(1.0)
-		}
-	})
+	colorFunc := toolbox3d.JoinedSolidCoordColorFunc(
+		interior,
+		coffee, render3d.NewColorRGB(0.29, 0.15, 0.02),
+		mug, render3d.NewColor(1.0),
+	)
 
 	log.Println("Decimating mesh...")
 	colorFunc = colorFunc.Cached()

@@ -163,6 +163,81 @@ func JoinedMeshCoordColorFunc(meshToColorFunc map[*model3d.Mesh]interface{}) Coo
 	}
 }
 
+// JoinedSolidCoordColorFunc creates a CoordColorFunc that
+// returns colors for different solids depending on which
+// solid contains a point. If multiple solids contain a
+// point, the average of the solids' colors are used.
+//
+// The points argument is a collection of points that are
+// known to be within some solid. It may either be a slice
+// of points, a *CoordTree, or a *CoordToCoord returned by
+// model3d.MarchingCubesInterior.
+// It can also be nil, in which case no nearest neighbor
+// lookups are performed. Note that the color function will
+// panic() if no solid contains a given point or its
+// nearest neighbor.
+//
+// Since the color func must work on all points, not just
+// points contained within one of the solids, a separate
+// set of interior points should be provided to use for
+// nearest neighbor lookup. This is the points argument.
+func JoinedSolidCoordColorFunc(points interface{}, solidsAndColors ...interface{}) CoordColorFunc {
+	var coordTree *model3d.CoordTree
+	if points != nil {
+		switch points := points.(type) {
+		case *model3d.CoordTree:
+			coordTree = points
+		case []model3d.Coord3D:
+			coordTree = model3d.NewCoordTree(points)
+		case *model3d.CoordToCoord:
+			cs := make([]model3d.Coord3D, 0, points.Len())
+			points.ValueRange(func(c model3d.Coord3D) bool {
+				cs = append(cs, c)
+				return true
+			})
+			coordTree = model3d.NewCoordTree(cs)
+		default:
+			panic(fmt.Sprintf("unknown type for points: %T", points))
+		}
+	}
+
+	if len(solidsAndColors) == 0 || len(solidsAndColors)%2 != 0 {
+		panic("must provide an even, positive number of arguments")
+	}
+	solids := make([]model3d.Solid, 0, len(solidsAndColors)/2)
+	cfs := make([]CoordColorFunc, 0, len(solidsAndColors)/2)
+	for i := 0; i < len(solidsAndColors); i += 2 {
+		solids = append(solids, solidsAndColors[i].(model3d.Solid))
+		cfs = append(cfs, colorFuncFromObj(solidsAndColors[i+1]))
+	}
+
+	return func(c model3d.Coord3D) render3d.Color {
+		// Try without and then with the nearest neighbor to c.
+		for try := 0; try < 2; try++ {
+			var colorSum render3d.Color
+			var colorCount int
+			for i, solid := range solids {
+				if solid.Contains(c) {
+					colorSum = colorSum.Add(cfs[i](c))
+					colorCount++
+				}
+			}
+			if colorCount > 0 {
+				return colorSum.Scale(1.0 / float64(colorCount))
+			}
+			if coordTree == nil {
+				break
+			}
+			c = coordTree.NearestNeighbor(c)
+		}
+		if coordTree != nil {
+			panic("coordinate (or its nearest neighbor) is not within any solid")
+		} else {
+			panic("coordinate is not within any solid")
+		}
+	}
+}
+
 func colorFuncFromObj(obj interface{}) CoordColorFunc {
 	switch colorFn := obj.(type) {
 	case CoordColorFunc:
