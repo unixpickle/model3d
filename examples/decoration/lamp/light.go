@@ -1,6 +1,9 @@
 package main
 
 import (
+	"math"
+	"math/rand"
+
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -58,8 +61,8 @@ func NewLampLight() *LampLight {
 		Color:       render3d.NewColorRGB(1.0, 1.0, 0.95),
 		Samples:     samples,
 		SmoothIters: 5,
-		Amplify:     10.0,
-		Ambient:     0.3,
+		Amplify:     70.0,
+		Ambient:     0.2,
 	}
 }
 
@@ -86,31 +89,37 @@ func (l *LampLight) Cast(m *model3d.Mesh) map[model3d.Coord3D]render3d.Color {
 	normals := m.VertexNormals()
 	colors := make([]render3d.Color, len(vertices))
 
-	essentials.ConcurrentMap(0, len(vertices), func(i int) {
-		v := vertices[i]
-		normal := normals.Value(v)
+	essentials.StatefulConcurrentMap(0, len(vertices), func() func(int) {
+		rng := rand.New(rand.NewSource(rand.Int63()))
+		mat := render3d.LambertMaterial{}
+		dest := model3d.Coord3D{} // unused by material
+		return func(i int) {
+			v := vertices[i]
+			normal := normals.Value(v)
 
-		var colorSum render3d.Color
-		for i := 0; i < l.Samples; i++ {
-			dir := model3d.NewCoord3DRandUnit()
-			if dir.Dot(normal) < 0 {
+			var colorSum render3d.Color
+			for j := 0; j < l.Samples; j++ {
+				// Importance sample a direction according to Lambert shading rule.
+				dir := mat.SampleSource(rng, normal, dest)
+				scale := math.Abs(dir.Dot(normal)) / mat.SourceDensity(normal, dir, dest)
 				dir = dir.Scale(-1)
-			}
-			origin := v.Add(normal.Scale(1e-8))
-			ray := &model3d.Ray{Origin: origin, Direction: dir}
-			rc, ok := l.Object.FirstRayCollision(ray)
-			if ok {
-				// See if something else is in the way of the light.
-				rc1, ok1 := collider.FirstRayCollision(ray)
-				if ok1 && rc1.Scale+0.01 < rc.Scale {
-					ok = false
+
+				origin := v.Add(normal.Scale(1e-8))
+				ray := &model3d.Ray{Origin: origin, Direction: dir}
+				rc, ok := l.Object.FirstRayCollision(ray)
+				if ok {
+					// See if something else is in the way of the light.
+					rc1, ok1 := collider.FirstRayCollision(ray)
+					if ok1 && rc1.Scale+0.01 < rc.Scale {
+						ok = false
+					}
+				}
+				if ok {
+					colorSum = colorSum.Add(l.Color.Scale(scale))
 				}
 			}
-			if ok {
-				colorSum = colorSum.Add(l.Color)
-			}
+			colors[i] = colorSum.Scale(l.Amplify / float64(l.Samples))
 		}
-		colors[i] = colorSum.Scale(l.Amplify / float64(l.Samples))
 	})
 
 	res := map[model3d.Coord3D]render3d.Color{}
