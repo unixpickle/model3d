@@ -99,23 +99,7 @@ func TestTriangulateMeshComplex(t *testing.T) {
 }
 
 func TestTriangulateMeshErrorCase(t *testing.T) {
-	data, err := ioutil.ReadFile("test_data/triangulate_breaker.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	parts := strings.Split(strings.TrimSpace(string(data)), " ")
-	mesh := NewMesh()
-	for _, part := range parts {
-		coordStrs := strings.Split(part, ",")
-		coords := [4]float64{}
-		for i, s := range coordStrs {
-			coords[i], err = strconv.ParseFloat(s, 64)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-		mesh.Add(&Segment{XY(coords[0], coords[1]), XY(coords[2], coords[3])})
-	}
+	mesh := readTestMesh(t, "test_data/triangulate_breaker.txt")
 
 	// The interior mesh is the one with issues.
 	mesh = MeshToHierarchy(mesh)[0].Children[0].FullMesh()
@@ -133,6 +117,27 @@ func TestTriangulateMeshErrorCase(t *testing.T) {
 	testTriangulatedContainment(t, tris, mesh, 100)
 }
 
+func readTestMesh(t *testing.T, name string) *Mesh {
+	data, err := ioutil.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := strings.Split(strings.TrimSpace(string(data)), " ")
+	mesh := NewMesh()
+	for _, part := range parts {
+		coordStrs := strings.Split(part, ",")
+		coords := [4]float64{}
+		for i, s := range coordStrs {
+			coords[i], err = strconv.ParseFloat(s, 64)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		mesh.Add(&Segment{XY(coords[0], coords[1]), XY(coords[2], coords[3])})
+	}
+	return mesh
+}
+
 func TestTriangulateMeshErrorCase2(t *testing.T) {
 	// This error case used to trigger a NaN when
 	// computing angles between segments.
@@ -142,6 +147,25 @@ func TestTriangulateMeshErrorCase2(t *testing.T) {
 	})
 	mesh := bitmap.Mesh()
 	tris := TriangulateMesh(mesh)
+	testTriangulatedEdgeCounts(t, tris, mesh)
+	testTriangulatedContainment(t, tris, mesh, 100)
+}
+
+func TestTriangulateMeshErrorCase3(t *testing.T) {
+	// This error case used to trigger self-overlapping
+	// triangulations of monotone polygons.
+	// The "_simple" version is just one offending polygon,
+	// whereas removing "_simple" tests the whole original
+	// failure case.
+
+	// mesh := readTestMesh(t, "test_data/triangulate_breaker_2_simple.txt")
+	mesh := readTestMesh(t, "test_data/triangulate_breaker_2.txt")
+
+	tris := TriangulateMesh(mesh)
+	if len(tris) == 0 {
+		panic("no triangles")
+	}
+
 	testTriangulatedEdgeCounts(t, tris, mesh)
 	testTriangulatedContainment(t, tris, mesh, 100)
 }

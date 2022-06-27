@@ -235,25 +235,24 @@ func triangulateMonotoneMesh(m *ptrMesh) [][3]Coord {
 			}
 			stack = []*ptrCoord{stack[len(stack)-1], c}
 			stackType = vType
-		} else if stackType == triangulateVertexLowerChain &&
-			c.Coord.Y > stack[len(stack)-1].Coord.Y {
+		} else if stackType == triangulateVertexUpperChain ||
+			stackType == triangulateVertexLowerChain {
 			for len(stack) > 1 {
 				i := len(stack) - 2
-				if stack[i].Coord.Y <= stack[i+1].Coord.Y {
+				interiorAngle := clockwiseAngle(stack[i].Coord, stack[i+1].Coord, c.Coord)
+				if stackType == triangulateVertexLowerChain {
+					interiorAngle = math.Pi*2 - interiorAngle
+				}
+				if interiorAngle >= math.Pi {
+					// Once we hit a reflex vertex, we cannot
+					// create any more interior triangles.
 					break
 				}
-				triangles = append(triangles, [3]Coord{stack[i+1].Coord, stack[i].Coord, c.Coord})
-				stack = stack[:i+1]
-			}
-			stack = append(stack, c)
-		} else if stackType == triangulateVertexUpperChain &&
-			c.Coord.Y < stack[len(stack)-1].Coord.Y {
-			for len(stack) > 1 {
-				i := len(stack) - 2
-				if stack[i].Coord.Y >= stack[i+1].Coord.Y {
-					break
+				if stackType == triangulateVertexUpperChain {
+					triangles = append(triangles, [3]Coord{stack[i].Coord, stack[i+1].Coord, c.Coord})
+				} else {
+					triangles = append(triangles, [3]Coord{stack[i+1].Coord, stack[i].Coord, c.Coord})
 				}
-				triangles = append(triangles, [3]Coord{stack[i].Coord, stack[i+1].Coord, c.Coord})
 				stack = stack[:i+1]
 			}
 			stack = append(stack, c)
