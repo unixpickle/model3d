@@ -10,19 +10,12 @@ import (
 )
 
 func PenguinBody() (obj model3d.Solid, colors []interface{}) {
-	torso := PenguinTorso()
+	torso, torsoColor := PenguinTorso()
 	arms := PenguinArms()
-	eyes := PenguinEyes()
+	eyes, eyesColor := PenguinEyes()
 	beak := PenguinBeak()
 	feet := PenguinFeet()
 
-	// We color the inside of the penguin body with white.
-	// If we use a uniform inset, then there is not enough
-	// white in the face, so we reduce the inset as we get
-	// closer to the head.
-	profile := PenguinProfile()
-	profileCollider := model2d.MeshToCollider(profile)
-	profileSolid := model2d.NewColliderSolid(profileCollider)
 	xf := &model3d.Scale{Scale: 2.0}
 	torso = model3d.TransformSolid(xf, torso)
 	arms = model3d.TransformSolid(xf, arms)
@@ -31,22 +24,15 @@ func PenguinBody() (obj model3d.Solid, colors []interface{}) {
 	feet = model3d.TransformSolid(xf, feet)
 	fullSolid := (model3d.JoinedSolid{torso, arms, eyes, beak, feet}).Optimize()
 	return fullSolid, []interface{}{
-		torso, toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
-			inset := 0.2 - 0.1*c.Z/2.1
-			if c.Y > 0 || !profileSolid.Contains(c.XZ()) || profileCollider.CircleCollision(c.XZ(), inset) {
-				return render3d.NewColor(0.1)
-			} else {
-				return render3d.NewColor(1.0)
-			}
-		}).Transform(xf),
-		eyes, toolbox3d.ConstantCoordColorFunc(render3d.NewColor(0.0)),
+		torso, torsoColor.Transform(xf),
+		eyes, eyesColor.Transform(xf),
 		arms, toolbox3d.ConstantCoordColorFunc(render3d.NewColor(0.1)),
 		beak, toolbox3d.ConstantCoordColorFunc(render3d.NewColorRGB(1.0, 0.5, 0.0)),
 		feet, toolbox3d.ConstantCoordColorFunc(render3d.NewColorRGB(1.0, 0.5, 0.0)),
 	}
 }
 
-func PenguinTorso() model3d.Solid {
+func PenguinTorso() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	profile := PenguinProfile()
 	shape := model3d.RevolveSolid(model2d.NewColliderSolid(model2d.MeshToCollider(profile)),
 		model3d.Z(1))
@@ -57,17 +43,30 @@ func PenguinTorso() model3d.Solid {
 		model2d.XY(0.5, 0.5),
 		model2d.XY(0.7, 1.0),
 	}
-	return model3d.CheckedFuncSolid(shape.Min(), shape.Max(), func(c model3d.Coord3D) bool {
+	solid := model3d.CheckedFuncSolid(shape.Min(), shape.Max(), func(c model3d.Coord3D) bool {
 		newY := depthMapping.EvalX(math.Abs(c.Y))
 		if c.Y < 0 {
 			newY *= -1
 		}
 		return shape.Contains(model3d.XYZ(c.X, newY, c.Z))
 	})
+
+	bellyProfile := PenguinBellyProfile()
+	bellyCollider := model2d.MeshToCollider(bellyProfile)
+	bellySolid := model2d.NewColliderSolid(bellyCollider)
+	colorFunc := func(c model3d.Coord3D) render3d.Color {
+		if c.Y > 0 || !bellySolid.Contains(c.XZ()) || bellyCollider.CircleCollision(c.XZ(), 0.15) {
+			return render3d.NewColor(0.1)
+		} else {
+			return render3d.NewColor(1.0)
+		}
+	}
+
+	return solid, colorFunc
 }
 
 func PenguinProfile() *model2d.Mesh {
-	points := [][2]float64{
+	return ProfileForPoints([][2]float64{
 		{0, -0.1},
 		{0.2, -0.05},
 		{0.3, 0.1},
@@ -78,7 +77,22 @@ func PenguinProfile() *model2d.Mesh {
 		{0.7, 1.6},
 		{0.5, 2.1},
 		{0.0, 2.1},
-	}
+	})
+}
+
+func PenguinBellyProfile() *model2d.Mesh {
+	return ProfileForPoints([][2]float64{
+		{0.0, 0.5},
+		{0.25, 0.6},
+		{0.5, 0.95},
+		{0.6, 1.2},
+		{0.7, 1.6},
+		{0.5, 2.1},
+		{0.0, 2.1},
+	})
+}
+
+func ProfileForPoints(points [][2]float64) *model2d.Mesh {
 	var segs []*model2d.Segment
 	for i := 1; i < len(points); i++ {
 		segs = append(segs, &model2d.Segment{
@@ -121,42 +135,77 @@ func PenguinArms() model3d.Solid {
 	return model3d.JoinedSolid{baseSolid, mirrored}
 }
 
-func PenguinEyes() model3d.Solid {
-	return model3d.JoinedSolid{
-		&model3d.Sphere{
-			Center: model3d.XYZ(-0.068, -0.22, 1.9),
-			Radius: 0.06,
-		},
-		&model3d.Sphere{
-			Center: model3d.XYZ(0.068, -0.22, 1.9),
-			Radius: 0.06,
-		},
+func PenguinEyes() (model3d.Solid, toolbox3d.CoordColorFunc) {
+	const pupilRad = 0.07
+	s1 := model3d.Sphere{
+		Center: model3d.XYZ(-0.1, -0.17, 1.88),
+		Radius: 0.12,
 	}
+	s2 := s1
+	s2.Center.X *= -1
+
+	var solid model3d.JoinedSolid
+	for _, sphere := range []model3d.Sphere{s1, s2} {
+		c := sphere.Center
+		sphere.Center = model3d.Origin
+		t := &model3d.Matrix3Transform{Matrix: &model3d.Matrix3{1, 0, 0, 0, 1, 0, 0, 0, 1.2}}
+		solid = append(solid, model3d.TranslateSolid(model3d.TransformSolid(t, &sphere), c))
+	}
+
+	// Point pupils in a particular direction.
+	axis1, axis2 := model3d.XY(s1.Center.X*0.4, s1.Center.Y).OrthoBasis()
+	pupilCenter := s1.Center
+	pupilCenter.Z -= 0.05
+
+	colorFunc := func(c model3d.Coord3D) render3d.Color {
+		// Symmetry across x-axis.
+		if c.X > 0 {
+			c.X *= -1
+		}
+		c = c.Sub(pupilCenter)
+		projDist := model2d.XY(axis1.Dot(c), axis2.Dot(c)).Norm()
+		if projDist < pupilRad {
+			return render3d.NewColor(0.0)
+		} else {
+			return render3d.NewColor(1.0)
+		}
+	}
+	return solid, colorFunc
 }
 
 func PenguinBeak() model3d.Solid {
 	beekProfile := model2d.BezierCurve{
-		model2d.XY(-0.15, 0.0),
+		model2d.XY(-0.2, 0.0),
 		model2d.XY(-0.1, 0.1),
 		model2d.XY(0.1, 0.1),
-		model2d.XY(0.15, 0.0),
+		model2d.XY(0.2, 0.0),
 	}
-	return model3d.TranslateSolid(
+	radiusCurve := model2d.BezierCurve{
+		model2d.XY(1.0, 1.0),
+		model2d.XY(0.0, 0.5),
+		model2d.XY(0.0, 0.0),
+	}
+	sharpBeek := model3d.TranslateSolid(
 		model3d.CheckedFuncSolid(
-			model3d.XYZ(-0.15, -0.34, -0.1),
-			model3d.XYZ(0.15, -0.24, 0.1),
+			model3d.XYZ(-0.2, 0, -0.15),
+			model3d.XYZ(0.2, 0.2, 0.15),
 			func(c model3d.Coord3D) bool {
-				radiusScale := 1 / math.Max(1e-5, (0.34+c.Y)/0.1)
+				radiusScale := 1 / math.Max(radiusCurve.EvalX(c.Y/0.2), 1e-5)
 				tx := c.X * radiusScale
-				if tx < -0.15 || tx > 0.15 {
+				if tx < -0.2 || tx > 0.2 {
 					return false
 				}
 				z := beekProfile.EvalX(tx) / radiusScale
 				return math.Abs(c.Z) < z
 			},
 		),
-		model3d.Z(1.7),
+		model3d.YZ(-0.33, 1.65),
 	)
+
+	// Right now, the beek is very sharp. We can
+	// make it dull using an SDF.
+	sharpMesh := model3d.DualContourSDF(sharpBeek, 0.02)
+	return model3d.SDFToSolid(sharpMesh, 0.03)
 }
 
 func PenguinFeet() model3d.Solid {
