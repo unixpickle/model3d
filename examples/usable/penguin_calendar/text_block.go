@@ -9,6 +9,59 @@ import (
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
+func CreateBlocks() {
+	joinedMesh := model3d.NewMesh()
+	colorMap := model3d.NewCoordToCoord()
+
+	curX := 0.0
+	addBlock := func(block *model3d.Mesh, colorFunc toolbox3d.CoordColorFunc) {
+		offset := block.Min().Scale(-1).Add(model3d.X(curX))
+		block = block.Translate(offset)
+		colorFunc = colorFunc.Transform(&model3d.Translate{Offset: offset})
+
+		joinedMesh.AddMesh(block)
+		block.IterateVertices(func(c model3d.Coord3D) {
+			colorMap.Store(c, colorFunc(c))
+		})
+
+		curX = block.Max().X + 0.1
+	}
+
+	addBlock(TextBlock(model3d.XYZ(0.8, 0.8, 0.8), 0.05, 1.0/100.0, [6]string{
+		"numbers/0.png",
+		"numbers/1.png",
+		"numbers/2.png",
+		"numbers/3.png",
+		"numbers/4.png",
+		"numbers/5.png",
+	}))
+	addBlock(TextBlock(model3d.XYZ(0.8, 0.8, 0.8), 0.05, 1.0/100.0, [6]string{
+		"numbers/0.png",
+		"numbers/1.png",
+		"numbers/6.png",
+		"numbers/7.png",
+		"numbers/8.png",
+		"numbers/9.png",
+	}))
+	for i := 1; i < 12; i += 4 {
+		addBlock(TextBlock(model3d.XYZ(1.6, 0.3, 0.3), 0.02, 1.0/300.0, [6]string{
+			"",
+			"",
+			fmt.Sprintf("dates/%d.png", i),
+			fmt.Sprintf("dates/%d.png", i+2),
+			fmt.Sprintf("dates/%d.png", i+1),
+			fmt.Sprintf("dates/%d.png", i+3),
+		}))
+	}
+
+	coords := model3d.NewCoordTree(joinedMesh.VertexSlice())
+	colorFunc := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
+		return colorMap.Value(coords.NearestNeighbor(c))
+	})
+
+	joinedMesh.SaveMaterialOBJ("blocks.zip", colorFunc.Cached().TriangleColor)
+}
+
 func TextBlock(size model3d.Coord3D, inset float64, imgScale float64,
 	faces [6]string) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
 	resMesh := model3d.NewMesh()
@@ -36,16 +89,20 @@ func TextBlock(size model3d.Coord3D, inset float64, imgScale float64,
 
 		for side := 0; side < 2; side++ {
 			boundsMax := model2d.XY(side1.Norm(), side2.Norm())
-
-			img := model2d.MustReadBitmap("labels/"+faces[side+axis*2], nil).Mesh().SmoothSq(20)
-			img = img.Scale(imgScale)
-			img = img.Translate(img.Min().Mid(img.Max()).Scale(-1).Add(boundsMax.Scale(0.5)))
-
-			if img.Max().X >= boundsMax.X || img.Max().Y >= boundsMax.Y {
-				panic(fmt.Sprintf("image out of bounds for axis %d and side %d", axis, side))
-			}
-
 			boundsMesh := model2d.NewMeshRect(model2d.XY(0, 0), boundsMax)
+
+			var img *model2d.Mesh
+			if faces[side+axis*2] == "" {
+				img = model2d.NewMesh()
+			} else {
+				img = model2d.MustReadBitmap("labels/"+faces[side+axis*2], nil).Mesh().SmoothSq(20)
+				img = img.Scale(imgScale)
+				img = img.Translate(img.Min().Mid(img.Max()).Scale(-1).Add(boundsMax.Scale(0.5)))
+
+				if img.Max().X >= boundsMax.X || img.Max().Y >= boundsMax.Y {
+					panic(fmt.Sprintf("image out of bounds for axis %d and side %d", axis, side))
+				}
+			}
 
 			invertedImg := model2d.NewMesh()
 			img.Iterate(func(s *model2d.Segment) {

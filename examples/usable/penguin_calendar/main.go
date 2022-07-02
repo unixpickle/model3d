@@ -7,6 +7,8 @@ import (
 )
 
 func main() {
+	CreateBlocks()
+
 	body, bodyColorFuncs := PenguinBody()
 	base := model3d.NewRect(
 		model3d.XYZ(-1.5, -1.5, -0.1),
