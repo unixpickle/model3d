@@ -3,8 +3,9 @@
 package model3d
 
 import (
-	"github.com/unixpickle/model3d/model2d"
 	"math"
+
+	"github.com/unixpickle/model3d/model2d"
 )
 
 // A Solid is a boolean function where a value of true
