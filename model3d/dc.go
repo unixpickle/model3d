@@ -42,8 +42,13 @@ func DualContour(s Solid, delta float64, repair, clip bool) *Mesh {
 // dual contouring produces self-intersecting meshes and
 // will therefore not obey the even-odd rule.
 func DualContourSDF(s Solid, delta float64) FaceSDF {
-	res := MeshToSDF(DualContour(s, delta, false, false)).(*meshSDF)
-	res.Solid = s
+	mesh := DualContour(s, delta, false, false)
+	res := MeshToSDF(mesh).(*meshSDF)
+
+	// The mesh might have a larger bounding box than the
+	// original solid due to sharp edges.
+	res.Solid = ForceSolidBounds(s, s.Min().Min(mesh.Min()), s.Max().Max(mesh.Max()))
+
 	return res
 }
 
