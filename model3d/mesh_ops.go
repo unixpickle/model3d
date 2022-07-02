@@ -1,8 +1,6 @@
 package model3d
 
-import (
-	"math"
-)
+import "math"
 
 // Blur creates a new mesh by moving every vertex closer
 // to its connected vertices.
