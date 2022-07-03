@@ -1,12 +1,14 @@
 package {{.package}}
 
+{{- if .model2d}}
+import "math"
+{{- else}}
 import (
 	"math"
 
-    {{- if not .model2d}}
 	"github.com/unixpickle/model3d/model2d"
-    {{- end}}
 )
+{{- end}}
 
 // A Solid is a boolean function where a value of true
 // indicates that a point is part of the solid, and false

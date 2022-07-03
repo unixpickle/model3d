@@ -2,9 +2,7 @@
 
 package model2d
 
-import (
-	"math"
-)
+import "math"
 
 // A Solid is a boolean function where a value of true
 // indicates that a point is part of the solid, and false
