@@ -424,6 +424,114 @@ func (m *Mesh) SelfIntersections() int {
 	return res
 }
 
+// InconsistentEdges finds edges which are ordered the same
+// way for at least two triangles, indicating an
+// inconsistent mesh orientation.
+//
+// For properly connected (i.e. manifold) meshes, this can
+// determine if the surface normals are consistent.
+func (m *Mesh) InconsistentEdges() [][2]Coord3D {
+	edges := map[[2]Coord3D]int{}
+	m.Iterate(func(t *Triangle) {
+		for _, edge := range triangleEdges(t) {
+			edges[edge]++
+		}
+	})
+	var res [][2]Coord3D
+	for edge, count := range edges {
+		if count > 1 {
+			res = append(res, edge)
+		}
+	}
+	return res
+}
+
+// FaceOrientations returns, for each group of connected
+// faces, the relative orientation of every face.
+// For meshes with correct normals, all faces of each group
+// should have the same orientation. The values can be
+// thought of as flags indicating whether or not each
+// triangle should be flipped.
+//
+// This method should only be called for manifold meshes.
+// One intended use case is to re-orient faces to repair
+// surfaces with incorrect normals.
+func (m *Mesh) FaceOrientations() []map[*Triangle]bool {
+	remaining := map[*Triangle]bool{}
+	m.Iterate(func(t *Triangle) {
+		remaining[t] = true
+	})
+
+	var groups []map[*Triangle]bool
+	for len(remaining) > 0 {
+		var startTri *Triangle
+		for t := range remaining {
+			startTri = t
+			break
+		}
+		delete(remaining, startTri)
+
+		group := map[*Triangle]bool{startTri: false}
+		seenEdges := map[[2]Coord3D]bool{}
+		for _, edge := range triangleEdges(startTri) {
+			seenEdges[edge] = true
+		}
+
+		queue := m.Neighbors(startTri)
+		for _, t := range queue {
+			delete(remaining, t)
+		}
+		for len(queue) > 0 {
+			next := queue[0]
+			queue = queue[1:]
+
+			foundFlipped := false
+			foundUnflipped := false
+			for _, edge := range triangleEdges(next) {
+				if seenEdges[edge] {
+					foundUnflipped = true
+				}
+				if seenEdges[[2]Coord3D{edge[1], edge[0]}] {
+					foundFlipped = true
+				}
+			}
+			if !foundFlipped && !foundUnflipped {
+				panic("impossible case detected")
+			} else if foundFlipped && foundUnflipped {
+				panic("the provided mesh is non-manifold")
+			}
+			group[next] = foundUnflipped
+			// The triangle will be flipped, so we register the
+			// flipped version of all its edges.
+			for _, edge := range triangleEdges(next) {
+				if foundUnflipped {
+					edge[0], edge[1] = edge[1], edge[0]
+				}
+				if seenEdges[edge] {
+					panic("the provided mesh is non-manifold")
+				}
+				seenEdges[edge] = true
+			}
+			for _, neighbor := range m.Neighbors(next) {
+				if remaining[neighbor] {
+					delete(remaining, neighbor)
+					queue = append(queue, neighbor)
+				}
+			}
+		}
+		groups = append(groups, group)
+	}
+	return groups
+}
+
+func triangleEdges(t *Triangle) [3][2]Coord3D {
+	return [3][2]Coord3D{
+		{t[0], t[1]},
+		{t[1], t[2]},
+		{t[2], t[0]},
+	}
+}
+
 // RepairNormals flips normals when they point within the
 // solid defined by the mesh, as determined by the
 // even-odd rule.
