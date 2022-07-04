@@ -325,6 +325,18 @@ func (m *Mesh) Transform(t Transform) *Mesh {
 	return m.MapCoords(t.Apply)
 }
 
+// InvertNormals returns a new mesh with every
+// segment oriented in the opposite way.
+func (m *Mesh) InvertNormals() *Mesh {
+	m1 := NewMesh()
+	m1.Iterate(func(f *Segment) {
+		f1 := *f
+		f1[0], f1[1] = f1[1], f1[0]
+		m1.Add(&f1)
+	})
+	return m1
+}
+
 // SaveSVG encodes the mesh to an SVG file.
 func (m *Mesh) SaveSVG(path string) error {
 	data := EncodeSVG(m)

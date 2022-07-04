@@ -574,6 +574,18 @@ func (m *Mesh) Transform(t Transform) *Mesh {
 	return m.MapCoords(t.Apply)
 }
 
+// InvertNormals returns a new mesh with every
+// triangle oriented in the opposite way.
+func (m *Mesh) InvertNormals() *Mesh {
+	m1 := NewMesh()
+	m1.Iterate(func(f *Triangle) {
+		f1 := *f
+		f1[0], f1[1] = f1[1], f1[0]
+		m1.Add(&f1)
+	})
+	return m1
+}
+
 // EncodeSTL encodes the mesh as STL data.
 func (m *Mesh) EncodeSTL() []byte {
 	return EncodeSTL(m.TriangleSlice())
