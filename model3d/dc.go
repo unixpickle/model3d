@@ -58,8 +58,10 @@ func DualContourSDF(s Solid, delta float64) FaceSDF {
 //
 // By default, DualContouring does not attempt to produce
 // manifold meshes, since doing so can result in ugly edge
-// artifacts, reducing the primary benefit of DC. To enable
+// artifacts, reducing the primary benefit of DC. To attempt
 // manifold meshes, set Clip and Repair to true.
+// Unfortunately, even with these settings, the resulting
+// meshes might still be un-orientable.
 type DualContouring struct {
 	// S specifies the Solid and is used to compute hermite
 	// data on line segments.
@@ -84,15 +86,16 @@ type DualContouring struct {
 	BufferSize int
 
 	// Repair, if true, attempts to make non-manifold
-	// meshes manifold. It is not guaranteed to work unless
-	// Clip is also true.
+	// meshes manifold. It is not guaranteed to work, even
+	// if Clip is true.
 	Repair bool
 
 	// Clip, if true, clips vertices to their cubes.
 	// The CubeMargin is used to add a small buffer to the
 	// edge of the cubes.
-	// When paired with Repair, this can guarantee manifold
-	// meshes at the cost of some rougher edges.
+	// When paired with Repair, this can helps meshes be
+	// manifold, although it still will not guarantee
+	// orientability.
 	Clip bool
 
 	// CubeMargin is space around the edges of each cube
