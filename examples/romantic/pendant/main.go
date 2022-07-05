@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"math"
 
 	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
@@ -147,7 +146,7 @@ func RawPendantSolid(f *Flags) model3d.Solid {
 	engraving = engraving.Translate(min.Mid(max).Scale(-1))
 
 	size := max.Sub(min)
-	scale := f.Size / math.Max(size.X, size.Y)
+	scale := f.Size / size.MaxCoord()
 	image = image.Scale(scale)
 	engraving = engraving.Scale(scale)
 
@@ -166,7 +165,7 @@ func RawPendantSolid(f *Flags) model3d.Solid {
 
 func InsetShape(shape *model2d.Mesh, amount float64) *model2d.Mesh {
 	size := shape.Max().Sub(shape.Min())
-	delta := math.Max(size.X, size.Y) / 1000.0
+	delta := size.MaxCoord() / 1000.0
 	solid := model2d.NewColliderSolidInset(model2d.MeshToCollider(shape), amount)
 	mesh := model2d.MarchingSquaresSearch(solid, delta, 8)
 	return mesh

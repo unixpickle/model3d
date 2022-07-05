@@ -100,8 +100,7 @@ func (r *RidgeSolid) Min() model3d.Coord3D {
 }
 
 func (r *RidgeSolid) Max() model3d.Coord3D {
-	return model3d.Coord3D{X: math.Max(r.X1, r.X2), Y: DrawerDepth + FrameThickness,
-		Z: r.Z + RidgeDepth}
+	return model3d.XYZ(math.Max(r.X1, r.X2), DrawerDepth+FrameThickness, r.Z+RidgeDepth)
 }
 
 func (r *RidgeSolid) Contains(c model3d.Coord3D) bool {

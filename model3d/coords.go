@@ -326,6 +326,28 @@ func (c Coord3D) Max(c1 Coord3D) Coord3D {
 	return Coord3D{math.Max(c.X, c1.X), math.Max(c.Y, c1.Y), math.Max(c.Z, c1.Z)}
 }
 
+// Abs computes the per-coordinate absolute value of c.
+func (c Coord3D) Abs() Coord3D {
+	return Coord3D{math.Abs(c.X), math.Abs(c.Y), math.Abs(c.Z)}
+}
+
+// MaxCoord gets the maximum of c.X, c.Y, and c.Z.
+func (c Coord3D) MaxCoord() float64 {
+	if c.X > c.Y {
+		if c.X > c.Z {
+			return c.X
+		} else {
+			return c.Z
+		}
+	} else {
+		if c.Y > c.Z {
+			return c.Y
+		} else {
+			return c.Z
+		}
+	}
+}
+
 // Sum sums the elements of c.
 func (c Coord3D) Sum() float64 {
 	return c.X + c.Y + c.Z

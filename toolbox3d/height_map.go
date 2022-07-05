@@ -44,7 +44,7 @@ type HeightMap struct {
 // in the data grid.
 func NewHeightMap(min, max model2d.Coord, maxSize int) *HeightMap {
 	size := max.Sub(min)
-	delta := math.Max(size.X, size.Y) / float64(maxSize-1)
+	delta := size.MaxCoord() / float64(maxSize-1)
 	numRows := int(math.Round(size.Y/delta) + 1)
 	numCols := int(math.Round(size.X/delta) + 1)
 	return &HeightMap{

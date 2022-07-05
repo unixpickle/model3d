@@ -132,7 +132,7 @@ func (b *BidirPathTracer) rayColor(g *goInfo, obj Object, ray *model3d.Ray) Colo
 			if p1 != p2 {
 				// Roulette sampling only when a collision
 				// check is needed.
-				brightness := math.Max(color.X, math.Max(color.Y, color.Z))
+				brightness := color.MaxCoord()
 				if b.RouletteDelta > 0 && brightness < b.RouletteDelta {
 					keepProb := brightness / b.RouletteDelta
 					if g.Gen.Float64() > keepProb {

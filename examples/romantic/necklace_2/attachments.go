@@ -52,7 +52,7 @@ func readAttachmentMeshes(files string) (mesh *model2d.Mesh, engraving *model2d.
 		engraving = model2d.MustReadBitmap(engravingPath, nil).Mesh().SmoothSq(50)
 	}
 	size := mesh.Max().Sub(mesh.Min())
-	scale := 0.5 / math.Max(size.X, size.Y)
+	scale := 0.5 / size.MaxCoord()
 	mesh = mesh.Scale(scale)
 	if engraving != nil {
 		engraving = engraving.Scale(scale)

@@ -6,7 +6,6 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,7 +51,7 @@ func (i *Image) FillRange() {
 	for _, c := range i.Data {
 		max = max.Max(c)
 	}
-	maximum := math.Max(math.Max(max.X, max.Y), max.Z)
+	maximum := max.MaxCoord()
 	if maximum <= 0 {
 		return
 	}

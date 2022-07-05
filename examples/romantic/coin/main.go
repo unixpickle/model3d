@@ -6,7 +6,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"log"
-	"math"
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
@@ -164,7 +163,7 @@ func ReadTemplateIntoMesh(filename string, msResolution float64, smoothIters int
 	}).FlipY()
 	m := bmp.Mesh().SmoothSq(smoothIters)
 	m = m.MapCoords(m.Min().Mid(m.Max()).Sub)
-	m = m.Scale(radius / math.Max(m.Max().X, m.Max().Y))
+	m = m.Scale(radius / m.Max().MaxCoord())
 
 	// Re-mesh this to be constrained to a circle.
 	solid := model2d.IntersectedSolid{

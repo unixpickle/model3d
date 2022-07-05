@@ -174,6 +174,16 @@ func (c Coord) Max(c1 Coord) Coord {
 	return Coord{math.Max(c.X, c1.X), math.Max(c.Y, c1.Y)}
 }
 
+// Abs computes the per-coordinate absolute value of c.
+func (c Coord) Abs() Coord {
+	return Coord{math.Abs(c.X), math.Abs(c.Y)}
+}
+
+// MaxCoord gets the maximum of c.X and c.Y.
+func (c Coord) MaxCoord() float64 {
+	return math.Max(c.X, c.Y)
+}
+
 // Sum sums the elements of c.
 func (c Coord) Sum() float64 {
 	return c.X + c.Y
