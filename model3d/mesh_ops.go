@@ -1,6 +1,8 @@
 package model3d
 
-import "math"
+import (
+	"math"
+)
 
 // Blur creates a new mesh by moving every vertex closer
 // to its connected vertices.
@@ -424,6 +426,13 @@ func (m *Mesh) SelfIntersections() int {
 	return res
 }
 
+// Orientable checks if the mesh is orientable.
+// This will return true for closed, manifold meshes, and
+// false for shapes like Mobius strips.
+func (m *Mesh) Orientable() bool {
+	return m.maybeFaceOrientations() != nil
+}
+
 // InconsistentEdges finds edges which are ordered the same
 // way for at least two triangles, indicating an
 // inconsistent mesh orientation.
@@ -453,16 +462,25 @@ func (m *Mesh) InconsistentEdges() [][2]Coord3D {
 // thought of as flags indicating whether or not each
 // triangle should be flipped.
 //
-// This method should only be called for manifold meshes.
+// This method should only be called on orientable,
+// manifold meshes. If not, it may panic().
 // One intended use case is to re-orient faces to repair
 // surfaces with incorrect normals.
 func (m *Mesh) FaceOrientations() []map[*Triangle]bool {
+	orientations := m.maybeFaceOrientations()
+	if orientations == nil {
+		panic("mesh is not orientable")
+	}
+	return orientations
+}
+
+func (m *Mesh) maybeFaceOrientations() []map[*Triangle]bool {
 	remaining := map[*Triangle]bool{}
 	m.Iterate(func(t *Triangle) {
 		remaining[t] = true
 	})
 
-	var groups []map[*Triangle]bool
+	groups := []map[*Triangle]bool{}
 	for len(remaining) > 0 {
 		var startTri *Triangle
 		for t := range remaining {
@@ -498,7 +516,7 @@ func (m *Mesh) FaceOrientations() []map[*Triangle]bool {
 			if !foundFlipped && !foundUnflipped {
 				panic("impossible case detected")
 			} else if foundFlipped && foundUnflipped {
-				panic("the provided mesh is non-manifold")
+				return nil
 			}
 			group[next] = foundUnflipped
 			// The triangle will be flipped, so we register the
@@ -508,7 +526,7 @@ func (m *Mesh) FaceOrientations() []map[*Triangle]bool {
 					edge[0], edge[1] = edge[1], edge[0]
 				}
 				if seenEdges[edge] {
-					panic("the provided mesh is non-manifold")
+					return nil
 				}
 				seenEdges[edge] = true
 			}
@@ -522,6 +540,45 @@ func (m *Mesh) FaceOrientations() []map[*Triangle]bool {
 		groups = append(groups, group)
 	}
 	return groups
+}
+
+// RepairNormalsMajority leverages FaceOrientations to flip
+// the fewest faces so that every connected group of faces
+// is oriented consistently.
+//
+// Like FaceOrientations(), this should only be called for
+// orientable, manifold meshes.
+//
+// Note that this makes no guarantees about correctness,
+// and will give exactly opposite results when more than
+// half of all faces are flipped incorrectly.
+// For global correctness, see RepairNormals().
+func (m *Mesh) RepairNormalsMajority() (*Mesh, int) {
+	orientations := m.FaceOrientations()
+	flipFlags := map[*Triangle]bool{}
+	for _, group := range orientations {
+		numTrue := 0
+		for _, value := range group {
+			if value {
+				numTrue++
+			}
+		}
+		invert := numTrue > len(group)/2
+		for k, v := range group {
+			flipFlags[k] = v == !invert
+		}
+	}
+	res := NewMesh()
+	var count int
+	m.Iterate(func(t *Triangle) {
+		t1 := *t
+		if flipFlags[t] {
+			count++
+			t1[0], t1[1] = t1[1], t1[0]
+		}
+		res.Add(&t1)
+	})
+	return res, count
 }
 
 func triangleEdges(t *Triangle) [3][2]Coord3D {

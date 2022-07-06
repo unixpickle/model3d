@@ -158,6 +158,48 @@ func TestMeshRepair(t *testing.T) {
 	})
 }
 
+func TestMeshRepairNormalsMajority(t *testing.T) {
+	outer := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1 + math.Sin(g.Lat*4)*0.1 + math.Cos(g.Lon*4)*0.13
+	}, 30)
+	inner := NewMeshPolar(func(g GeoCoord) float64 {
+		return 0.5 + math.Sin(g.Lat*4)*0.1 + math.Cos(g.Lon*4)*0.13
+	}, 30)
+	mesh := NewMesh()
+	mesh.AddMesh(outer)
+	mesh.AddMesh(inner.InvertNormals())
+
+	mesh1, numRepairs := mesh.RepairNormalsMajority()
+	if numRepairs > 0 {
+		t.Errorf("expected 0 repairs but got: %d", numRepairs)
+	}
+	if !meshesEqual(mesh, mesh1) {
+		t.Error("meshes are not equal")
+	}
+
+	flipped := NewMesh()
+	tris := mesh.TriangleSlice()
+	expectedFlipped := 0
+	for _, i := range rand.Perm(len(tris)) {
+		t1 := *tris[i]
+		// Make sure we flip minority of both inner
+		// and outer shape.
+		if i < len(tris)/6 {
+			expectedFlipped++
+			t1[0], t1[1] = t1[1], t1[0]
+		}
+		flipped.Add(&t1)
+	}
+
+	mesh1, numRepairs = flipped.RepairNormalsMajority()
+	if numRepairs != expectedFlipped {
+		t.Errorf("expected %d repairs but got %d", expectedFlipped, numRepairs)
+	}
+	if !meshesEqual(mesh, mesh1) {
+		t.Error("meshes are not equal")
+	}
+}
+
 func TestMeshRepairNormals(t *testing.T) {
 	mesh := NewMeshPolar(func(g GeoCoord) float64 {
 		return 1 + math.Sin(g.Lat*4)*0.1 + math.Cos(g.Lon*4)*0.13
