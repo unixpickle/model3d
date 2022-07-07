@@ -265,13 +265,18 @@ func (d *DualContouring) appendMesh(layout *dcCubeLayout, mesh *Mesh) {
 				}
 				vs[i] = layout.Cube(c).VertexPosition
 			}
+
+			// Flip the normals based on the topology.
+			// The return value of EdgeCubes is ordered in a
+			// consistent way so that normals can be computed
+			// like this.
+			cs := layout.EdgeCorners(i)
+			if layout.Corner(cs[0]).Value {
+				vs[0], vs[1], vs[2], vs[3] = vs[3], vs[2], vs[1], vs[0]
+			}
+
 			t1, t2 := d.triangulateQuad(vs)
 
-			// Flip normals to match edge intersection normal.
-			if t1.Normal().Dot(e.Normal) < 0 {
-				t1[0], t1[1] = t1[1], t1[0]
-				t2[0], t2[1] = t2[1], t2[0]
-			}
 			subMesh.Add(t1)
 			subMesh.Add(t2)
 		}
@@ -283,9 +288,9 @@ func (d *DualContouring) appendMesh(layout *dcCubeLayout, mesh *Mesh) {
 }
 
 func (d *DualContouring) triangulateQuad(vs [4]Coord3D) (t1, t2 *Triangle) {
-	t1a, t2a := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
-	vs[0], vs[1], vs[3], vs[2] = vs[1], vs[3], vs[2], vs[0]
-	t1b, t2b := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[1], vs[3], vs[2]}
+	t1a, t2a := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[0], vs[2], vs[3]}
+	vs[0], vs[1], vs[2], vs[3] = vs[1], vs[2], vs[3], vs[0]
+	t1b, t2b := &Triangle{vs[0], vs[1], vs[2]}, &Triangle{vs[0], vs[2], vs[3]}
 
 	if d.TriangleMode == DualContouringTriangleModeSharpest ||
 		d.TriangleMode == DualContouringTriangleModeFlattest {
@@ -710,8 +715,8 @@ func (d *dcCubeLayout) EdgeCubes(e dcEdgeIdx) [4]dcCubeIdx {
 		x := edgeIdx % (len(d.Xs) - 1)
 		y := edgeIdx / (len(d.Xs) - 1)
 		return [4]dcCubeIdx{
-			cubeAt(x, y-1, z-1),
 			cubeAt(x, y, z-1),
+			cubeAt(x, y-1, z-1),
 			cubeAt(x, y-1, z),
 			cubeAt(x, y, z),
 		}
@@ -720,9 +725,9 @@ func (d *dcCubeLayout) EdgeCubes(e dcEdgeIdx) [4]dcCubeIdx {
 		x := edgeIdx % len(d.Xs)
 		y := edgeIdx / len(d.Xs)
 		return [4]dcCubeIdx{
+			cubeAt(x-1, y, z),
 			cubeAt(x-1, y, z-1),
 			cubeAt(x, y, z-1),
-			cubeAt(x-1, y, z),
 			cubeAt(x, y, z),
 		}
 	} else {
@@ -730,8 +735,8 @@ func (d *dcCubeLayout) EdgeCubes(e dcEdgeIdx) [4]dcCubeIdx {
 		x := edgeIdx % len(d.Xs)
 		y := edgeIdx / len(d.Xs)
 		return [4]dcCubeIdx{
-			cubeAt(x-1, y-1, z),
 			cubeAt(x, y-1, z),
+			cubeAt(x-1, y-1, z),
 			cubeAt(x-1, y, z),
 			cubeAt(x, y, z),
 		}
