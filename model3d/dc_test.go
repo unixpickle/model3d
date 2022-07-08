@@ -89,6 +89,9 @@ func TestDualContouringSingular(t *testing.T) {
 		if len(goodMesh.SingularVertices()) != 0 {
 			t.Error("good mesh should have no singular vertices")
 		}
+		if !goodMesh.Orientable() || len(goodMesh.InconsistentEdges()) > 0 {
+			t.Error("mesh is incorrectly oriented")
+		}
 	}
 	t.Run("Basic", func(t *testing.T) {
 		runTransform(t, nil)
@@ -114,6 +117,9 @@ func TestDualContouringSingular(t *testing.T) {
 		}
 		if len(mesh.SingularVertices()) > 0 {
 			t.Error("mesh has singular vertices")
+		}
+		if !mesh.Orientable() || len(mesh.InconsistentEdges()) > 0 {
+			t.Error("mesh is incorrectly oriented")
 		}
 	})
 }

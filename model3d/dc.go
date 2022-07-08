@@ -60,8 +60,6 @@ func DualContourSDF(s Solid, delta float64) FaceSDF {
 // manifold meshes, since doing so can result in ugly edge
 // artifacts, reducing the primary benefit of DC. To attempt
 // manifold meshes, set Clip and Repair to true.
-// Unfortunately, even with these settings, the resulting
-// meshes might still be un-orientable.
 type DualContouring struct {
 	// S specifies the Solid and is used to compute hermite
 	// data on line segments.
@@ -780,8 +778,9 @@ func (d *dcCubeLayout) zEdgeIdx(x, y, z int) dcEdgeIdx {
 }
 
 type singularEdgeGroup struct {
-	Groups [][2]*Triangle
-	Edge   Segment
+	Groups     [][2]*Triangle
+	InwardDirs []Coord3D
+	Edge       Segment
 }
 
 func newSingularEdgeGroup(m *Mesh, s Segment, tris []*Triangle) *singularEdgeGroup {
@@ -792,22 +791,69 @@ func newSingularEdgeGroup(m *Mesh, s Segment, tris []*Triangle) *singularEdgeGro
 	b1, b2 := axis.OrthoBasis()
 	mp := s.Mid()
 	thetas := make([]float64, len(tris))
+	normalDirs := make([]bool, len(tris))
 	for i, t := range tris {
 		triVec := s.Other(t).Sub(mp).Normalize()
-		triTheta := math.Atan2(b1.Dot(triVec), b2.Dot(triVec))
-		thetas[i] = triTheta
+		x, y := b1.Dot(triVec), b2.Dot(triVec)
+		thetas[i] = math.Atan2(y, x)
+
+		// The normal should be tangent to the circle,
+		// and we record whether it is facing clockwise
+		// or counterclockwise, since this indicates
+		// containment.
+		normal := t.Normal()
+		nx, ny := b1.Dot(normal), b2.Dot(normal)
+		normalDirs[i] = (nx*y - ny*x) > 0
 	}
 	essentials.VoodooSort(thetas, func(i, j int) bool {
 		return thetas[i] < thetas[j]
-	}, tris)
+	}, tris, normalDirs)
+
+	if len(tris) > 2 && normalDirs[0] {
+		// To be consistent across edges, we always move points
+		// away from the solid to create volume where there was
+		// previously none.
+		t := tris[0]
+		copy(tris, tris[1:])
+		tris[len(tris)-1] = t
+
+		backup := thetas[0] + math.Pi*2
+		copy(thetas, thetas[1:])
+		thetas[len(thetas)-1] = backup
+	}
+
+	// Pair every triangle with the next triangle that has the
+	// opposite orientation. This is only necessary if the mesh
+	// is self-intersecting; otherwise, the pairs should
+	// already be correctly oriented.
+	for i := 0; i < len(tris); i += 2 {
+		t1 := tris[i]
+		for j := i + 1; j < len(tris); j++ {
+			t2 := tris[j]
+			if segmentOrientation(t1, s) != segmentOrientation(t2, s) {
+				if j != i+1 {
+					tris[i+1], tris[j] = tris[j], tris[i+1]
+					thetas[i+1], thetas[j] = thetas[j], thetas[i+1]
+				}
+				break
+			}
+		}
+	}
 
 	groups := make([][2]*Triangle, 0, len(tris)/2)
+	dirs := make([]Coord3D, 0, len(tris)/2)
 	for i := 0; i < len(tris); i += 2 {
 		groups = append(groups, [2]*Triangle{tris[i], tris[i+1]})
+
+		// Store the direction facing towards the middle of the
+		// triangle pair.
+		theta := (thetas[i] + thetas[i+1]) / 2
+		dirs = append(dirs, b1.Scale(math.Cos(theta)).Add(b2.Scale(math.Sin(theta))))
 	}
 	return &singularEdgeGroup{
-		Groups: groups,
-		Edge:   s,
+		Groups:     groups,
+		InwardDirs: dirs,
+		Edge:       s,
 	}
 }
 
@@ -843,11 +889,11 @@ func (s *singularEdgeGroup) Repair(m *Mesh, epsilon float64) {
 	s.RecomputeGroups(m)
 
 	mp := s.Edge.Mid()
-	for _, group := range s.Groups {
-		d := s.Edge.Other(group[0]).Mid(s.Edge.Other(group[1])).Sub(mp).Normalize()
-		newMp := mp.Add(d.Scale(epsilon))
+	for i, group := range s.Groups {
+		inwardDir := s.InwardDirs[i]
+		newMp := mp.Add(inwardDir.Scale(epsilon))
 		if len(m.Find(newMp)) > 0 {
-			panic("exists")
+			panic("repair point already exists; this should have very low probability.")
 		}
 		for _, t := range group {
 			other := s.Edge.Other(t)
@@ -885,7 +931,7 @@ func singularEdgeGroups(m *Mesh) []*singularEdgeGroup {
 func segmentOrientation(t *Triangle, s Segment) bool {
 	for i, x := range t {
 		if x == s[0] {
-			return t[(i+3)%3] == s[1]
+			return t[(i+2)%3] == s[1]
 		}
 	}
 	panic("first segment point not in triangle")
@@ -923,15 +969,22 @@ func (s *singularVertexGroup) Map(mapping *CoordToCoord) {
 
 func (s *singularVertexGroup) Repair(m *Mesh, epsilon float64) {
 	for _, group := range s.Groups {
+		// Move point inwards according to the approximate
+		// vertex normal, as computed using MWA:
+		// "A Comparison of Algorithms for Vertex Normal Computations"
+		// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.99.2846&rep=rep1&type=pdf.
 		var d Coord3D
 		for _, t := range group {
-			for _, c := range t {
-				if c != s.Vertex {
-					d = d.Add(c.Sub(s.Vertex))
-				}
-			}
+			seg := t.otherSegment(s.Vertex)
+			dot := seg[0].Sub(s.Vertex).Normalize().Dot(seg[1].Sub(s.Vertex).Normalize())
+			theta := math.Acos(math.Max(-1.0, math.Min(1.0, dot)))
+			d = d.Add(t.Normal().Scale(-theta))
 		}
-		d = d.Normalize().Scale(epsilon)
+		norm := d.Norm()
+		if norm == 0 {
+			panic("vertex normal is unknown at singular vertex")
+		}
+		d = d.Scale(epsilon / norm)
 		newPoint := s.Vertex.Add(d)
 		for _, t := range group {
 			m.Remove(t)
