@@ -57,6 +57,65 @@ func (t *Translate) ApplyDistance(d float64) float64 {
 	return d
 }
 
+// TranslateSolid creates a new Solid by translating a
+// Solid by a given offset.
+func TranslateSolid(solid Solid, offset Coord) Solid {
+	return TransformSolid(&Translate{Offset: offset}, solid)
+}
+
+// Scale is a transform that scales an object.
+type Scale struct {
+	Scale float64
+}
+
+func (s *Scale) Apply(c Coord) Coord {
+	return c.Scale(s.Scale)
+}
+
+func (s *Scale) ApplyBounds(min Coord, max Coord) (Coord, Coord) {
+	return min.Scale(s.Scale), max.Scale(s.Scale)
+}
+
+func (s *Scale) Inverse() Transform {
+	return &Scale{Scale: 1 / s.Scale}
+}
+
+func (s *Scale) ApplyDistance(d float64) float64 {
+	return d * s.Scale
+}
+
+// ScaleSolid creates a new Solid that scales incoming
+// coordinates c by 1/s.
+// Thus, the new solid is s times larger.
+func ScaleSolid(solid Solid, s float64) Solid {
+	return TransformSolid(&Scale{Scale: s}, solid)
+}
+
+// VecScale is a transform that scales an object
+// coordinatewise.
+type VecScale struct {
+	Scale Coord
+}
+
+func (v *VecScale) Apply(c Coord) Coord {
+	return c.Mul(v.Scale)
+}
+
+func (v *VecScale) ApplyBounds(min Coord, max Coord) (Coord, Coord) {
+	return min.Mul(v.Scale), max.Mul(v.Scale)
+}
+
+func (v *VecScale) Inverse() Transform {
+	return &VecScale{Scale: v.Scale.Recip()}
+}
+
+// VecScaleSolid creates a new Solid that scales incoming
+// coordinates c by 1/v, thus resizing the solid a variable
+// amount along each axis.
+func VecScaleSolid(solid Solid, v Coord) Solid {
+	return TransformSolid(&VecScale{Scale: v}, solid)
+}
+
 // Matrix2Transform is a Transform that applies a matrix
 // to coordinates.
 type Matrix2Transform struct {
@@ -148,40 +207,6 @@ func (j JoinedTransform) ApplyDistance(d float64) float64 {
 	return d
 }
 
-// Scale is a transform that scales an object.
-type Scale struct {
-	Scale float64
-}
-
-func (s *Scale) Apply(c Coord) Coord {
-	return c.Scale(s.Scale)
-}
-
-func (s *Scale) ApplyBounds(min Coord, max Coord) (Coord, Coord) {
-	return min.Scale(s.Scale), max.Scale(s.Scale)
-}
-
-func (s *Scale) Inverse() Transform {
-	return &Scale{Scale: 1 / s.Scale}
-}
-
-func (s *Scale) ApplyDistance(d float64) float64 {
-	return d * s.Scale
-}
-
-// ScaleSolid creates a new Solid that scales incoming
-// coordinates c by 1/s.
-// Thus, the new solid is s times larger.
-func ScaleSolid(solid Solid, s float64) Solid {
-	return TransformSolid(&Scale{Scale: s}, solid)
-}
-
-// TranslateSolid creates a new Solid by translating a
-// Solid by a given offset.
-func TranslateSolid(solid Solid, offset Coord) Solid {
-	return TransformSolid(&Translate{Offset: offset}, solid)
-}
-
 // RotateSolid creates a new Solid by rotating a Solid by
 // a given angle (in radians).
 func RotateSolid(solid Solid, angle float64) Solid {
@@ -264,5 +289,106 @@ func (t *transformedCollider) outerCollision(rc RayCollision) RayCollision {
 		Scale:  t.t.ApplyDistance(rc.Scale),
 		Normal: t.t.Apply(rc.Normal),
 		Extra:  rc.Extra,
+	}
+}
+
+type transformedMetaball struct {
+	min          Coord
+	max          Coord
+	invTransform DistTransform
+	transform    Transform
+	wrapped      Metaball
+}
+
+func (t *transformedMetaball) Min() Coord {
+	return t.min
+}
+
+func (t *transformedMetaball) Max() Coord {
+	return t.max
+}
+
+func (t *transformedMetaball) MetaballField(c Coord) float64 {
+	return t.wrapped.MetaballField(t.invTransform.Apply(c))
+}
+
+func (t *transformedMetaball) MetaballDistBound(d float64) float64 {
+	return t.wrapped.MetaballDistBound(t.invTransform.ApplyDistance(d))
+}
+
+// TransformMetaball applies t to the metaball m to produce
+// a new, transformed metaball.
+//
+// The inverse transform must also implement DistTransform.
+func TransformMetaball(t DistTransform, m Metaball) Metaball {
+	inv := t.Inverse().(DistTransform)
+	min, max := t.ApplyBounds(m.Min(), m.Max())
+	return &transformedMetaball{
+		min:          min,
+		max:          max,
+		invTransform: inv,
+		transform:    t,
+		wrapped:      m,
+	}
+}
+
+// ScaleMetaball creates a new Metaball by scaling m by the
+// factor s.
+func ScaleMetaball(m Metaball, s float64) Metaball {
+	return TransformMetaball(&Scale{Scale: s}, m)
+}
+
+// TranslateMetaball creates a new Metaball by translating
+// a Metaball by a given offset.
+func TranslateMetaball(m Metaball, offset Coord) Metaball {
+	return TransformMetaball(&Translate{Offset: offset}, m)
+}
+
+// RotateMetaball creates a new Metaball by rotating a
+// Metaball by a given angle (in radians).
+func RotateMetaball(m Metaball, angle float64) Metaball {
+	return TransformMetaball(Rotation(angle), m)
+}
+
+type vecScaleMetaball struct {
+	min         Coord
+	max         Coord
+	scale       Coord
+	invScale    Coord
+	invMaxScale float64
+	wrapped     Metaball
+}
+
+func (v *vecScaleMetaball) Min() Coord {
+	return v.min
+}
+
+func (v *vecScaleMetaball) Max() Coord {
+	return v.max
+}
+
+func (v *vecScaleMetaball) MetaballField(c Coord) float64 {
+	return v.wrapped.MetaballField(c.Mul(v.invScale))
+}
+
+func (v *vecScaleMetaball) MetaballDistBound(d float64) float64 {
+	return v.wrapped.MetaballDistBound(d * v.invMaxScale)
+}
+
+// VecScaleMetaball transforms the metaball m by scaling
+// each axis by a different factor.
+func VecScaleMetaball(m Metaball, scale Coord) Metaball {
+	min, max := m.Min().Mul(scale), m.Max().Mul(scale)
+
+	// Handle negative scales.
+	min, max = min.Min(max), max.Max(min)
+
+	return &vecScaleMetaball{
+		min:         min,
+		max:         max,
+		scale:       scale,
+		invScale:    scale.Recip(),
+		invMaxScale: 1 / scale.Abs().MaxCoord(),
+		wrapped:     m,
 	}
 }

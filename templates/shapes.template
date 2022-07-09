@@ -9,6 +9,23 @@ import (
 	{{end}}
 )
 
+
+{{define "sdfToMetaball" -}}
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func ({{.typeLetter}} *{{.typeName}}) MetaballField(coord {{.coordType}}) float64 {
+	return -{{.typeLetter}}.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func ({{.typeLetter}} *{{.typeName}}) MetaballDistBound(d float64) float64 {
+	return d
+}
+{{- end}}
+
 {{if .model2d}}
 // A {{.circleType}} is a 2D perfect circle.
 {{- else}}
@@ -129,6 +146,8 @@ func ({{.circleLetter}} *{{.circleType}}) NormalSDF(coord {{.coordType}}) ({{.co
 		return direction.Scale(1 / norm), {{.circleLetter}}.SDF(coord)
 	}
 }
+
+{{template "sdfToMetaball" mkargs . "typeLetter" .circleLetter "typeName" .circleType}}
 
 // A Rect is a {{.numDims}}D primitive that fills an axis-aligned
 // rectangular space.
@@ -306,6 +325,8 @@ func (r *Rect) genericSDF(c {{.coordType}}, normalOut, pointOut *{{.coordType}})
 	}
 	return dist
 }
+
+{{template "sdfToMetaball" mkargs . "typeLetter" "r" "typeName" "Rect"}}
 
 // Expand returns a new Rect that is delta units further
 // along in every direction, making it a total of 2*delta
@@ -501,6 +522,8 @@ func (c *Capsule) genericSDF(coord {{.coordType}}, normalOut, pointOut *{{.coord
 	return sdf
 }
 
+{{template "sdfToMetaball" mkargs . "typeLetter" "c" "typeName" "Capsule"}}
+
 {{if not .model2d}}
 // A Cylinder is a cylindrical 3D primitive.
 //
@@ -694,6 +717,8 @@ func (c *Cylinder) NormalSDF(coord Coord3D) (Coord3D, float64) {
 	sdf := c.genericSDF(coord, &n, nil)
 	return n, sdf
 }
+
+{{template "sdfToMetaball" mkargs . "typeLetter" "c" "typeName" "Cylinder"}}
 
 func (c *Cylinder) genericSDF(coord Coord3D, normalOut, pointOut *Coord3D) float64 {
 	axis := c.P2.Sub(c.P1)
@@ -971,6 +996,8 @@ func (c *Cone) genericSDF(p Coord3D, normalOut, pointOut *Coord3D) float64 {
 	}
 }
 
+{{template "sdfToMetaball" mkargs . "typeLetter" "c" "typeName" "Cone"}}
+
 // A Torus is a 3D primitive that represents a torus.
 //
 // The torus is defined by revolving a sphere of radius
@@ -1133,6 +1160,8 @@ func (t *Torus) genericSDF(c Coord3D, normal, closest *Coord3D) float64 {
 
 	return t.InnerRadius - ringPoint.Dist(centered)
 }
+
+{{template "sdfToMetaball" mkargs . "typeLetter" "t" "typeName" "Torus"}}
 {{end}}
 
 func safeNormal(direction, fallbackDirection, invalidDirection {{.coordType}}) {{.coordType}} {

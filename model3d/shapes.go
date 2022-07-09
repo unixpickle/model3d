@@ -126,6 +126,20 @@ func (s *Sphere) NormalSDF(coord Coord3D) (Coord3D, float64) {
 	}
 }
 
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (s *Sphere) MetaballField(coord Coord3D) float64 {
+	return -s.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (s *Sphere) MetaballDistBound(d float64) float64 {
+	return d
+}
+
 // A Rect is a 3D primitive that fills an axis-aligned
 // rectangular space.
 type Rect struct {
@@ -301,6 +315,20 @@ func (r *Rect) genericSDF(c Coord3D, normalOut, pointOut *Coord3D) float64 {
 		}
 	}
 	return dist
+}
+
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (r *Rect) MetaballField(coord Coord3D) float64 {
+	return -r.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (r *Rect) MetaballDistBound(d float64) float64 {
+	return d
 }
 
 // Expand returns a new Rect that is delta units further
@@ -487,6 +515,20 @@ func (c *Capsule) genericSDF(coord Coord3D, normalOut, pointOut *Coord3D) float6
 		}
 	}
 	return sdf
+}
+
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (c *Capsule) MetaballField(coord Coord3D) float64 {
+	return -c.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (c *Capsule) MetaballDistBound(d float64) float64 {
+	return d
 }
 
 // A Cylinder is a cylindrical 3D primitive.
@@ -680,6 +722,20 @@ func (c *Cylinder) NormalSDF(coord Coord3D) (Coord3D, float64) {
 	var n Coord3D
 	sdf := c.genericSDF(coord, &n, nil)
 	return n, sdf
+}
+
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (c *Cylinder) MetaballField(coord Coord3D) float64 {
+	return -c.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (c *Cylinder) MetaballDistBound(d float64) float64 {
+	return d
 }
 
 func (c *Cylinder) genericSDF(coord Coord3D, normalOut, pointOut *Coord3D) float64 {
@@ -958,6 +1014,20 @@ func (c *Cone) genericSDF(p Coord3D, normalOut, pointOut *Coord3D) float64 {
 	}
 }
 
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (c *Cone) MetaballField(coord Coord3D) float64 {
+	return -c.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (c *Cone) MetaballDistBound(d float64) float64 {
+	return d
+}
+
 // A Torus is a 3D primitive that represents a torus.
 //
 // The torus is defined by revolving a sphere of radius
@@ -1119,6 +1189,20 @@ func (t *Torus) genericSDF(c Coord3D, normal, closest *Coord3D) float64 {
 	}
 
 	return t.InnerRadius - ringPoint.Dist(centered)
+}
+
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (t *Torus) MetaballField(coord Coord3D) float64 {
+	return -t.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (t *Torus) MetaballDistBound(d float64) float64 {
+	return d
 }
 
 func safeNormal(direction, fallbackDirection, invalidDirection Coord3D) Coord3D {

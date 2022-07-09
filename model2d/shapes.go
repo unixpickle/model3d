@@ -124,6 +124,20 @@ func (c *Circle) NormalSDF(coord Coord) (Coord, float64) {
 	}
 }
 
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (c *Circle) MetaballField(coord Coord) float64 {
+	return -c.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (c *Circle) MetaballDistBound(d float64) float64 {
+	return d
+}
+
 // A Rect is a 2D primitive that fills an axis-aligned
 // rectangular space.
 type Rect struct {
@@ -299,6 +313,20 @@ func (r *Rect) genericSDF(c Coord, normalOut, pointOut *Coord) float64 {
 		}
 	}
 	return dist
+}
+
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (r *Rect) MetaballField(coord Coord) float64 {
+	return -r.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (r *Rect) MetaballDistBound(d float64) float64 {
+	return d
 }
 
 // Expand returns a new Rect that is delta units further
@@ -486,6 +514,20 @@ func (c *Capsule) genericSDF(coord Coord, normalOut, pointOut *Coord) float64 {
 		}
 	}
 	return sdf
+}
+
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (c *Capsule) MetaballField(coord Coord) float64 {
+	return -c.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (c *Capsule) MetaballDistBound(d float64) float64 {
+	return d
 }
 
 func safeNormal(direction, fallbackDirection, invalidDirection Coord) Coord {
