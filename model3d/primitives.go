@@ -61,6 +61,15 @@ func (t *Triangle) inCommon(t1 *Triangle) int {
 	return inCommon
 }
 
+func (t *Triangle) otherSegment(v Coord3D) Segment {
+	for i, c := range t {
+		if c == v {
+			return NewSegment(t[(i+1)%3], t[(i+2)%3])
+		}
+	}
+	panic("triangle does not contain point")
+}
+
 // AreaGradient computes the gradient of the triangle's
 // area with respect to every coordinate.
 func (t *Triangle) AreaGradient() *Triangle {
