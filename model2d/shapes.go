@@ -81,7 +81,7 @@ func (c *Circle) RayCollisions(r *Ray, f func(RayCollision)) int {
 		if f != nil {
 			point := r.Origin.Add(r.Direction.Scale(t))
 			normal := point.Sub(c.Center).Normalize()
-			f(RayCollision{Normal: normal, Scale: t})
+			f(RayCollision{Normal: normal, Scale: t, Extra: c})
 		}
 	}
 
@@ -186,6 +186,7 @@ func (r *Rect) FirstRayCollision(ray *Ray) (RayCollision, bool) {
 	return RayCollision{
 		Scale:  t,
 		Normal: r.normalAt(ray.Origin.Add(ray.Direction.Scale(t))),
+		Extra:  r,
 	}, true
 }
 
@@ -208,6 +209,7 @@ func (r *Rect) RayCollisions(ray *Ray, f func(RayCollision)) int {
 			f(RayCollision{
 				Scale:  t,
 				Normal: r.normalAt(ray.Origin.Add(ray.Direction.Scale(t))),
+				Extra:  r,
 			})
 		}
 	}
@@ -416,6 +418,7 @@ func (c *Capsule) RayCollisions(r *Ray, f func(RayCollision)) int {
 				colls = append(colls, RayCollision{
 					Scale:  t,
 					Normal: p.Sub(v.Scale(frac)).Normalize(),
+					Extra:  c,
 				})
 			}
 		}

@@ -83,7 +83,7 @@ func (s *Sphere) RayCollisions(r *Ray, f func(RayCollision)) int {
 		if f != nil {
 			point := r.Origin.Add(r.Direction.Scale(t))
 			normal := point.Sub(s.Center).Normalize()
-			f(RayCollision{Normal: normal, Scale: t})
+			f(RayCollision{Normal: normal, Scale: t, Extra: s})
 		}
 	}
 
@@ -188,6 +188,7 @@ func (r *Rect) FirstRayCollision(ray *Ray) (RayCollision, bool) {
 	return RayCollision{
 		Scale:  t,
 		Normal: r.normalAt(ray.Origin.Add(ray.Direction.Scale(t))),
+		Extra:  r,
 	}, true
 }
 
@@ -210,6 +211,7 @@ func (r *Rect) RayCollisions(ray *Ray, f func(RayCollision)) int {
 			f(RayCollision{
 				Scale:  t,
 				Normal: r.normalAt(ray.Origin.Add(ray.Direction.Scale(t))),
+				Extra:  r,
 			})
 		}
 	}
@@ -418,6 +420,7 @@ func (c *Capsule) RayCollisions(r *Ray, f func(RayCollision)) int {
 				colls = append(colls, RayCollision{
 					Scale:  t,
 					Normal: p.Sub(v.Scale(frac)).Normalize(),
+					Extra:  c,
 				})
 			}
 		}
@@ -673,6 +676,7 @@ func (c *Cylinder) RayCollisions(r *Ray, f func(RayCollision)) int {
 					f(RayCollision{
 						Scale:  t,
 						Normal: p.Sub(v.Scale(frac)).Normalize(),
+						Extra:  c,
 					})
 				}
 			}
@@ -689,6 +693,7 @@ func (c *Cylinder) RayCollisions(r *Ray, f func(RayCollision)) int {
 		if ok {
 			count++
 			if f != nil {
+				coll.Extra = c
 				f(coll)
 			}
 		}
@@ -938,6 +943,7 @@ func (c *Cone) RayCollisions(r *Ray, f func(RayCollision)) int {
 					f(RayCollision{
 						Scale:  t,
 						Normal: normal,
+						Extra:  c,
 					})
 				}
 				n++
@@ -951,6 +957,7 @@ func (c *Cone) RayCollisions(r *Ray, f func(RayCollision)) int {
 	if ok {
 		n++
 		if f != nil {
+			coll.Extra = c
 			f(coll)
 		}
 	}
@@ -1120,7 +1127,7 @@ func (t *Torus) RayCollisions(ray *Ray, f func(RayCollision)) int {
 			p := ray.Origin.Add(ray.Direction.Scale(x))
 			normal, _ := t.NormalSDF(p)
 			if f != nil {
-				f(RayCollision{Scale: x, Normal: normal})
+				f(RayCollision{Scale: x, Normal: normal, Extra: t})
 			}
 		}
 		return true
