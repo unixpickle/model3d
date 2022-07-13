@@ -362,3 +362,103 @@ func BitmapToSolid(b *Bitmap) Solid {
 		return b.Get(int(c.X), int(c.Y))
 	})
 }
+
+// A SolidMux computes many solid values in parallel and
+// returns a bitmap of containment for each solid.
+//
+// This uses a BVH to efficiently check the containment of
+// many solids without explicitly having to check every
+// single solid's Contains() methods.
+type SolidMux struct {
+	bbox        Rect
+	totalSolids int
+	leaf        Solid
+	leafIndex   int
+	children    [2]*SolidMux
+}
+
+// NewSolidMux creates a SolidMux using the ordered list of
+// solids provided as arguments.
+func NewSolidMux(solids []Solid) *SolidMux {
+	if len(solids) == 0 {
+		return &SolidMux{}
+	}
+	bounders := make([]Bounder, len(solids))
+	bounderToIndex := map[Bounder]int{}
+	for i, s := range solids {
+		bounders[i] = BoundsRect(s)
+		bounderToIndex[bounders[i]] = i
+	}
+	GroupBounders(bounders)
+	groupedSolids := make([]Solid, len(solids))
+	indices := make([]int, len(solids))
+	for i, b := range bounders {
+		idx := bounderToIndex[b]
+		groupedSolids[i] = solids[idx]
+		indices[i] = idx
+	}
+	return groupedSolidsToSolidMux(groupedSolids, indices)
+}
+
+func groupedSolidsToSolidMux(solids []Solid, indices []int) *SolidMux {
+	if len(solids) == 1 {
+		return &SolidMux{
+			bbox:        *BoundsRect(solids[0]),
+			totalSolids: 1,
+			leaf:        solids[0],
+			leafIndex:   indices[0],
+		}
+	}
+	splitIdx := len(solids) / 2
+	return &SolidMux{
+		bbox:        *BoundsRect(JoinedSolid(solids)),
+		totalSolids: len(solids),
+		children: [2]*SolidMux{
+			groupedSolidsToSolidMux(solids[:splitIdx], indices[:splitIdx]),
+			groupedSolidsToSolidMux(solids[splitIdx:], indices[splitIdx:]),
+		},
+	}
+}
+
+func (s *SolidMux) Min() Coord {
+	return s.bbox.MinVal
+}
+
+func (s *SolidMux) Max() Coord {
+	return s.bbox.MaxVal
+}
+
+func (s *SolidMux) Contains(c Coord) bool {
+	if !s.bbox.Contains(c) || s.totalSolids == 0 {
+		return false
+	}
+	if s.totalSolids == 1 {
+		return s.leaf.Contains(c)
+	} else {
+		for _, ch := range s.children {
+			if ch.Contains(c) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func (s *SolidMux) AllContains(c Coord) []bool {
+	res := make([]bool, s.totalSolids)
+	s.allContains(c, res)
+	return res
+}
+
+func (s *SolidMux) allContains(c Coord, out []bool) {
+	if !s.bbox.Contains(c) || s.totalSolids == 0 {
+		return
+	}
+	if s.totalSolids == 1 {
+		out[s.leafIndex] = s.leaf.Contains(c)
+	} else {
+		for _, ch := range s.children {
+			ch.allContains(c, out)
+		}
+	}
+}
