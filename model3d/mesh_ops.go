@@ -143,8 +143,8 @@ func (m *Mesh) SmoothAreas(stepSize float64, iters int) *Mesh {
 // described in
 // "A Comparison of Algorithms for Vertex Normal Computations"
 // http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.99.2846&rep=rep1&type=pdf.
-func (m *Mesh) VertexNormals() *CoordToCoord {
-	sums := NewCoordToCoord()
+func (m *Mesh) VertexNormals() *CoordMap[Coord3D] {
+	sums := NewCoordMap[Coord3D]()
 	m.Iterate(func(t *Triangle) {
 		edges := [3]Coord3D{
 			t[0].Sub(t[1]).Normalize(),
@@ -160,7 +160,7 @@ func (m *Mesh) VertexNormals() *CoordToCoord {
 			sums.Store(c, cur.Add(normal.Scale(theta)))
 		}
 	})
-	normalized := NewCoordToCoord()
+	normalized := NewCoordMap[Coord3D]()
 	sums.Range(func(k, v Coord3D) bool {
 		normalized.Store(k, v.Normalize())
 		return true
@@ -341,7 +341,7 @@ type equivalenceClass struct {
 // NeedsRepair checks if every edge touches exactly two
 // triangles. If not, NeedsRepair returns true.
 func (m *Mesh) NeedsRepair() bool {
-	counts := NewEdgeToInt()
+	counts := NewEdgeToNumber[int]()
 	for face := range m.faces {
 		for i := 0; i < 3; i++ {
 			seg := NewSegment(face[i], face[(i+1)%3])

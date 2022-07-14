@@ -115,7 +115,7 @@ func ConcurrentMapCoords(m *model3d.Mesh, f func(model3d.Coord3D) model3d.Coord3
 		newVertices[i] = f(vertices[i])
 	})
 
-	mapping := model3d.NewCoordToCoord()
+	mapping := model3d.NewCoordMap[model3d.Coord3D]()
 	for i, old := range vertices {
 		mapping.Store(old, newVertices[i])
 	}

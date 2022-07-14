@@ -90,23 +90,20 @@ func (j JoinedSolid) Contains(c Coord) bool {
 // Optimize creates a version of the solid that is faster
 // when joining a large number of smaller solids.
 func (j JoinedSolid) Optimize() Solid {
-	bounders := make([]Bounder, len(j))
-	for i, s := range j {
-		bounders[i] = s
-	}
-	GroupBounders(bounders)
-	return groupedBoundersToSolid(bounders)
+	grouped := append([]Solid{}, j...)
+	GroupBounders(grouped)
+	return groupedSolidsToSolid(grouped)
 }
 
-func groupedBoundersToSolid(bs []Bounder) Solid {
-	if len(bs) == 1 {
-		return CacheSolidBounds(bs[0].(Solid))
+func groupedSolidsToSolid(s []Solid) Solid {
+	if len(s) == 1 {
+		return CacheSolidBounds(s[0].(Solid))
 	}
-	firstHalf := bs[:len(bs)/2]
-	secondHalf := bs[len(bs)/2:]
+	firstHalf := s[:len(s)/2]
+	secondHalf := s[len(s)/2:]
 	return CacheSolidBounds(JoinedSolid{
-		groupedBoundersToSolid(firstHalf),
-		groupedBoundersToSolid(secondHalf),
+		groupedSolidsToSolid(firstHalf),
+		groupedSolidsToSolid(secondHalf),
 	})
 }
 
@@ -383,8 +380,11 @@ func NewSolidMux(solids []Solid) *SolidMux {
 	if len(solids) == 0 {
 		return &SolidMux{}
 	}
-	bounders := make([]Bounder, len(solids))
-	bounderToIndex := map[Bounder]int{}
+	// Group Rects instead of Solids so that we know
+	// we can use the bounder as a key in a map to
+	// track the index.
+	bounders := make([]*Rect, len(solids))
+	bounderToIndex := map[*Rect]int{}
 	for i, s := range solids {
 		bounders[i] = BoundsRect(s)
 		bounderToIndex[bounders[i]] = i

@@ -279,7 +279,7 @@ func ColorFunc() toolbox3d.CoordColorFunc {
 	cables2 := createCablesAtX(cableXs()[1])
 	cableColor := pillarColor
 
-	coloredObjs := []interface{}{
+	coloredObjs := []any{
 		model3d.MarchingCubesSearch(pillars1, ColorMarchingDelta, 8),
 		pillarColor,
 		model3d.MarchingCubesSearch(pillars2, ColorMarchingDelta, 8),

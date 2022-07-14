@@ -31,7 +31,7 @@ const (
 // This uses the default rasterization settings, such as
 // the default line width and anti-aliasing settings.
 // To change this, use a Rasterizer object directly.
-func Rasterize(path string, obj interface{}, scale float64) error {
+func Rasterize(path string, obj any, scale float64) error {
 	rast := Rasterizer{Scale: scale}
 	img := rast.Rasterize(obj)
 	if err := SaveImage(path, img); err != nil {
@@ -42,7 +42,7 @@ func Rasterize(path string, obj interface{}, scale float64) error {
 
 // RasterizeColor is like Rasterize, but it renders
 // multiple objects in different colors.
-func RasterizeColor(path string, objs []interface{}, colors []color.Color, scale float64) error {
+func RasterizeColor(path string, objs []any, colors []color.Color, scale float64) error {
 	b0 := objs[0].(Bounder)
 	min, max := b0.Min(), b0.Max()
 	for _, obj := range objs {
@@ -172,7 +172,7 @@ type Rasterizer struct {
 }
 
 // Rasterize rasterizes a Solid, Mesh, or Collider.
-func (r *Rasterizer) Rasterize(obj interface{}) *image.Gray {
+func (r *Rasterizer) Rasterize(obj any) *image.Gray {
 	switch obj := obj.(type) {
 	case Solid:
 		return r.RasterizeSolid(obj)

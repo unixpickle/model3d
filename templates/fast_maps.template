@@ -1,5 +1,11 @@
 package {{ .package }}
 
+type Adder interface {
+    ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+        ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr |
+        ~float32 | ~float64 | ~complex64 | ~complex128
+}
+
 {{define "fastMap" -}}
 // {{.mapType}} implements a map-like interface for
 // mapping {{.keyType}} to {{.elemType}}.
@@ -7,18 +13,18 @@ package {{ .package }}
 // This can be more efficient than using a map directly,
 // since it uses a special hash function for coordinates.
 // The speed-up is variable, but was ~2x as of mid-2021.
-type {{.mapType}} struct {
+type {{.mapType}}[T {{.constraint}}] struct {
     slowMap    map[{{.keyType}}]{{.elemType}}
-    fastMap    map[uint64]cellFor{{.mapType}}
+    fastMap    map[uint64]cellFor{{.mapType}}[T]
 }
 
 // New{{.mapType}} creates an empty map.
-func New{{.mapType}}() *{{.mapType}} {
-    return &{{.mapType}}{fastMap: map[uint64]cellFor{{.mapType}}{}}
+func New{{.mapType}}[T {{.constraint}}]() *{{.mapType}}[T] {
+    return &{{.mapType}}[T]{fastMap: map[uint64]cellFor{{.mapType}}[T]{}}
 }
 
 // Len gets the number of elements in the map.
-func (m *{{.mapType}}) Len() int {
+func (m *{{.mapType}}[T]) Len() int {
     if m.fastMap != nil {
         return len(m.fastMap)
     } else {
@@ -28,7 +34,7 @@ func (m *{{.mapType}}) Len() int {
 
 // Value is like Load(), but without a second return
 // value.
-func (m *{{.mapType}}) Value(key {{.keyType}}) {{.elemType}} {
+func (m *{{.mapType}}[T]) Value(key {{.keyType}}) {{.elemType}} {
     res, _ := m.Load(key)
     return res
 }
@@ -38,11 +44,11 @@ func (m *{{.mapType}}) Value(key {{.keyType}}) {{.elemType}} {
 // If no value is present, the first return argument is a
 // zero value, and the second is false. Otherwise, the
 // second return value is true.
-func (m *{{.mapType}}) Load(key {{.keyType}}) ({{.elemType}}, bool) {
+func (m *{{.mapType}}[T]) Load(key {{.keyType}}) ({{.elemType}}, bool) {
     if m.fastMap != nil {
         cell, ok := m.fastMap[hashFor{{.mapType}}(key)]
         if !ok || cell.Key != key {
-            return {{.zeroVal}}, false
+            return zeroFor{{.mapType}}[T](), false
         }
         return cell.Value, true
     } else {
@@ -53,7 +59,7 @@ func (m *{{.mapType}}) Load(key {{.keyType}}) ({{.elemType}}, bool) {
 
 // Delete removes the key from the map if it exists, and
 // does nothing otherwise.
-func (m *{{.mapType}}) Delete(key {{.keyType}}) {
+func (m *{{.mapType}}[T]) Delete(key {{.keyType}}) {
     if m.fastMap != nil {
         hash := hashFor{{.mapType}}(key)
         if cell, ok := m.fastMap[hash]; ok && cell.Key == key {
@@ -66,7 +72,7 @@ func (m *{{.mapType}}) Delete(key {{.keyType}}) {
 
 // Store assigns the value to the given key, overwriting
 // the previous value for the key if necessary.
-func (m *{{.mapType}}) Store(key {{.keyType}}, value {{.elemType}}) {
+func (m *{{.mapType}}[T]) Store(key {{.keyType}}, value {{.elemType}}) {
     if m.fastMap != nil {
         hash := hashFor{{.mapType}}(key)
         cell, ok := m.fastMap[hash]
@@ -75,17 +81,17 @@ func (m *{{.mapType}}) Store(key {{.keyType}}, value {{.elemType}}) {
             m.fastToSlow()
             m.slowMap[key] = value
         } else {
-            m.fastMap[hash] = cellFor{{.mapType}}{Key: key, Value: value}
+            m.fastMap[hash] = cellFor{{.mapType}}[T]{Key: key, Value: value}
         }
     } else {
         m.slowMap[key] = value
     }
 }
 
-{{if eq .elemType "int" -}}
+{{if eq .constraint "Adder" -}}
 // Add adds x to the value stored for the given key and
 // returns the new value.
-func (m *{{.mapType}}) Add(key {{.keyType}}, x {{.elemType}}) int {
+func (m *{{.mapType}}[T]) Add(key {{.keyType}}, x {{.elemType}}) {{.elemType}} {
     if m.fastMap != nil {
         hash := hashFor{{.mapType}}(key)
         cell, ok := m.fastMap[hash]
@@ -94,7 +100,7 @@ func (m *{{.mapType}}) Add(key {{.keyType}}, x {{.elemType}}) int {
             m.fastToSlow()
             return m.Add(key, x)
         } else {
-            m.fastMap[hash] = cellFor{{.mapType}}{Key: key, Value: cell.Value + x}
+            m.fastMap[hash] = cellFor{{.mapType}}[T]{Key: key, Value: cell.Value + x}
             return cell.Value + x
         }
     } else {
@@ -106,7 +112,7 @@ func (m *{{.mapType}}) Add(key {{.keyType}}, x {{.elemType}}) int {
 {{- else if hasprefix .elemType "[]" -}}
 // Append appends x to the value stored for the given key
 // and returns the new value.
-func (m *{{.mapType}}) Append(key {{.keyType}}, x {{slice .elemType 2}}) {{.elemType}} {
+func (m *{{.mapType}}[T]) Append(key {{.keyType}}, x {{slice .elemType 2}}) {{.elemType}} {
     if m.fastMap != nil {
         hash := hashFor{{.mapType}}(key)
         cell, ok := m.fastMap[hash]
@@ -116,7 +122,7 @@ func (m *{{.mapType}}) Append(key {{.keyType}}, x {{slice .elemType 2}}) {{.elem
             return m.Append(key, x)
         } else {
             value := append(cell.Value, x)
-            m.fastMap[hash] = cellFor{{.mapType}}{Key: key, Value: value}
+            m.fastMap[hash] = cellFor{{.mapType}}[T]{Key: key, Value: value}
             return value
         }
     } else {
@@ -129,7 +135,7 @@ func (m *{{.mapType}}) Append(key {{.keyType}}, x {{slice .elemType 2}}) {{.elem
 
 // KeyRange is like Range, but only iterates over
 // keys, not values.
-func (m *{{.mapType}}) KeyRange(f func(key {{.keyType}}) bool) {
+func (m *{{.mapType}}[T]) KeyRange(f func(key {{.keyType}}) bool) {
     if m.fastMap != nil {
         for _, cell := range m.fastMap {
             if !f(cell.Key) {
@@ -147,7 +153,7 @@ func (m *{{.mapType}}) KeyRange(f func(key {{.keyType}}) bool) {
 
 // ValueRange is like Range, but only iterates over
 // values only.
-func (m *{{.mapType}}) ValueRange(f func(value {{.elemType}}) bool) {
+func (m *{{.mapType}}[T]) ValueRange(f func(value {{.elemType}}) bool) {
     if m.fastMap != nil {
         for _, cell := range m.fastMap {
             if !f(cell.Value) {
@@ -169,7 +175,7 @@ func (m *{{.mapType}}) ValueRange(f func(value {{.elemType}}) bool) {
 //
 // It is not safe to modify the map with Store or Delete
 // during enumeration.
-func (m *{{.mapType}}) Range(f func(key {{.keyType}}, value {{.elemType}}) bool) {
+func (m *{{.mapType}}[T]) Range(f func(key {{.keyType}}, value {{.elemType}}) bool) {
     if m.fastMap != nil {
         for _, cell := range m.fastMap {
             if !f(cell.Key, cell.Value) {
@@ -185,7 +191,7 @@ func (m *{{.mapType}}) Range(f func(key {{.keyType}}, value {{.elemType}}) bool)
     }
 }
 
-func (m *{{.mapType}}) fastToSlow() {
+func (m *{{.mapType}}[T]) fastToSlow() {
     m.slowMap = map[{{.keyType}}]{{.elemType}}{}
     for _, cell := range m.fastMap {
         m.slowMap[cell.Key] = cell.Value
@@ -193,7 +199,7 @@ func (m *{{.mapType}}) fastToSlow() {
     m.fastMap = nil
 }
 
-type cellFor{{.mapType}} struct {
+type cellFor{{.mapType}}[T {{.constraint}}] struct {
     Key   {{.keyType}}
     Value {{.elemType}}
 }
@@ -209,15 +215,17 @@ func hashFor{{.mapType}}(c {{.keyType}}) uint64 {
     return uint64(h1) | (uint64(h2) << 32)
 }
 {{- end}}
+
+func zeroFor{{.mapType}}[T any]() {{.elemType}} {
+    var e {{.elemType}}
+    return e
+}
 {{end -}}
 
-{{- template "fastMap" mkargs . "mapType" "CoordMap" "keyType" .coordType "elemType" "interface{}" "zeroVal" "nil" -}}
-{{- template "fastMap" mkargs . "mapType" "CoordToFaces" "keyType" .coordType "elemType" (cat "[]*" .faceType) "zeroVal" "nil" -}}
-{{- template "fastMap" mkargs . "mapType" "CoordToCoord" "keyType" .coordType "elemType" .coordType "zeroVal" (cat .coordType "{}") -}}
-{{- template "fastMap" mkargs . "mapType" "CoordToInt" "keyType" .coordType "elemType" "int" "zeroVal" "0" -}}
-{{- template "fastMap" mkargs . "mapType" "CoordToBool" "keyType" .coordType "elemType" "bool" "zeroVal" "false" -}}
+{{- template "fastMap" mkargs . "mapType" "CoordMap" "keyType" .coordType "elemType" "T" "constraint" "any" -}}
+{{- template "fastMap" mkargs . "mapType" "CoordToSlice" "keyType" .coordType "elemType" "[]T" "constraint" "any" -}}
+{{- template "fastMap" mkargs . "mapType" "CoordToNumber" "keyType" .coordType "elemType" "T" "constraint" "Adder" -}}
 
-{{- template "fastMap" mkargs . "mapType" "EdgeMap" "keyType" (cat "[2]" .coordType) "elemType" "interface{}" "zeroVal" "nil" -}}
-{{- template "fastMap" mkargs . "mapType" "EdgeToBool" "keyType" (cat "[2]" .coordType) "elemType" "bool" "zeroVal" "false" -}}
-{{- template "fastMap" mkargs . "mapType" "EdgeToInt" "keyType" (cat "[2]" .coordType) "elemType" "int" "zeroVal" "0" -}}
-{{- template "fastMap" mkargs . "mapType" "EdgeToFaces" "keyType" (cat "[2]" .coordType) "elemType" (cat "[]*" .faceType) "zeroVal" "nil" -}}
+{{- template "fastMap" mkargs . "mapType" "EdgeMap" "keyType" (cat "[2]" .coordType) "elemType" "T" "constraint" "any" -}}
+{{- template "fastMap" mkargs . "mapType" "EdgeToSlice" "keyType" (cat "[2]" .coordType) "elemType" "[]T" "constraint" "any" -}}
+{{- template "fastMap" mkargs . "mapType" "EdgeToNumber" "keyType" (cat "[2]" .coordType) "elemType" "T" "constraint" "Adder" -}}

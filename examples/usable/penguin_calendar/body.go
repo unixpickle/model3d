@@ -9,7 +9,7 @@ import (
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
-func PenguinBody() (obj model3d.Solid, colors []interface{}) {
+func PenguinBody() (obj model3d.Solid, colors []any) {
 	torso, torsoColor := PenguinTorso()
 	arms := PenguinArms()
 	eyes, eyesColor := PenguinEyes()
@@ -23,7 +23,7 @@ func PenguinBody() (obj model3d.Solid, colors []interface{}) {
 	beak = model3d.TransformSolid(xf, beak)
 	feet = model3d.TransformSolid(xf, feet)
 	fullSolid := (model3d.JoinedSolid{torso, arms, eyes, beak, feet}).Optimize()
-	return fullSolid, []interface{}{
+	return fullSolid, []any{
 		torso, torsoColor.Transform(xf),
 		eyes, eyesColor.Transform(xf),
 		arms, toolbox3d.ConstantCoordColorFunc(render3d.NewColor(0.1)),

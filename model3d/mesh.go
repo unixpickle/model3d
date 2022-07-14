@@ -33,7 +33,7 @@ import (
 type Mesh struct {
 	faces map[*Triangle]bool
 
-	// Stores a *CoordToFaces
+	// Stores a *CoordToSlice[*Triangle]
 	vertexToFace  atomic.Value
 	v2fCreateLock sync.Mutex
 }
@@ -405,7 +405,7 @@ func (m *Mesh) Remove(f *Triangle) {
 	}
 }
 
-func (m *Mesh) removeFaceFromVertex(v2f *CoordToFaces, f *Triangle, p Coord3D) {
+func (m *Mesh) removeFaceFromVertex(v2f *CoordToSlice[*Triangle], f *Triangle, p Coord3D) {
 	s := v2f.Value(p)
 	for i, f1 := range s {
 		if f1 == f {
@@ -543,7 +543,7 @@ func (m *Mesh) Rotate(axis Coord3D, angle float64) *Mesh {
 // MapCoords creates a new mesh by transforming all of the
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord3D) Coord3D) *Mesh {
-	mapping := NewCoordToCoord()
+	mapping := NewCoordMap[Coord3D]()
 	if v2f := m.getVertexToFaceOrNil(); v2f != nil {
 		v2f.KeyRange(func(c Coord3D) bool {
 			mapping.Store(c, f(c))
@@ -724,7 +724,7 @@ func (m *Mesh) Max() Coord3D {
 	return result
 }
 
-func (m *Mesh) getVertexToFace() *CoordToFaces {
+func (m *Mesh) getVertexToFace() *CoordToSlice[*Triangle] {
 	v2f := m.getVertexToFaceOrNil()
 	if v2f != nil {
 		return v2f
@@ -742,7 +742,7 @@ func (m *Mesh) getVertexToFace() *CoordToFaces {
 		return v2f
 	}
 
-	v2f = NewCoordToFaces()
+	v2f = NewCoordToSlice[*Triangle]()
 	for f := range m.faces {
 		uniqueVertices(f, func(p Coord3D) {
 			v2f.Append(p, f)
@@ -753,12 +753,12 @@ func (m *Mesh) getVertexToFace() *CoordToFaces {
 	return v2f
 }
 
-func (m *Mesh) getVertexToFaceOrNil() *CoordToFaces {
+func (m *Mesh) getVertexToFaceOrNil() *CoordToSlice[*Triangle] {
 	res := m.vertexToFace.Load()
 	if res == nil {
 		return nil
 	}
-	return res.(*CoordToFaces)
+	return res.(*CoordToSlice[*Triangle])
 }
 
 func (m *Mesh) clearVertexToFace() {

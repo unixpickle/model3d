@@ -22,7 +22,7 @@ type RayCollision struct {
 
 	// Extra contains additional, implementation-specific
 	// information about the collision.
-	Extra interface{}
+	Extra any
 }
 
 // A Collider is the outline of a 2-dimensional shape.
@@ -120,6 +120,19 @@ func GroupedSegmentsToCollider(segs []*Segment) MultiCollider {
 		c2 := GroupedSegmentsToCollider(segs[mid:])
 		return &joinedMultiCollider{NewJoinedCollider([]Collider{c1, c2})}
 	}
+}
+
+// BVHToCollider converts a BVH into a MultiCollider in a
+// hierarchical way.
+func BVHToCollider(b *BVH[*Segment]) MultiCollider {
+	if b.Leaf != nil {
+		return b.Leaf
+	}
+	other := make([]Collider, len(b.Branch))
+	for i, b1 := range b.Branch {
+		other[i] = BVHToCollider(b1)
+	}
+	return joinedMultiCollider{NewJoinedCollider(other)}
 }
 
 ////////////////////////////////////////////////////////////

@@ -91,7 +91,7 @@ func LoadLetter(filename string, x float64) model3d.Solid {
 }
 
 func NewColorFunc(colors map[model3d.Solid][3]float64) toolbox3d.CoordColorFunc {
-	var args []interface{}
+	var args []any
 	for solid, color := range colors {
 		mesh := model3d.MarchingCubesSearch(solid, MarchingDelta, 8)
 		args = append(args, mesh, render3d.NewColorRGB(color[0], color[1], color[2]))

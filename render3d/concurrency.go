@@ -8,7 +8,7 @@ import (
 
 type goInfo struct {
 	Gen   *rand.Rand
-	Extra interface{}
+	Extra any
 }
 
 // mapCoordinates calls f with every coordinate in an

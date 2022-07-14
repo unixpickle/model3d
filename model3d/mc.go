@@ -54,9 +54,9 @@ func MarchingCubesSearch(s Solid, delta float64, iters int) *Mesh {
 // in addition to a mesh, it returns a mapping from each
 // vertex to a nearby point which is known to be contained
 // within the solid.
-func MarchingCubesInterior(s Solid, delta float64, iters int) (*Mesh, *CoordToCoord) {
+func MarchingCubesInterior(s Solid, delta float64, iters int) (*Mesh, *CoordMap[Coord3D]) {
 	mesh := MarchingCubes(s, delta)
-	interior := NewCoordToCoord()
+	interior := NewCoordMap[Coord3D]()
 	mcSearch(s, delta, iters, mesh, interior)
 	return mesh, interior
 }
@@ -183,7 +183,7 @@ func MarchingCubesC2F(s Solid, bigDelta, smallDelta, extraSpace float64, iters i
 	return MarchingCubesSearchFilter(s, filter, smallDelta, iters)
 }
 
-func mcSearch(s Solid, delta float64, iters int, mesh *Mesh, interior *CoordToCoord) {
+func mcSearch(s Solid, delta float64, iters int, mesh *Mesh, interior *CoordMap[Coord3D]) {
 	if iters == 0 && interior == nil {
 		return
 	}

@@ -67,7 +67,7 @@ func (c CoordColorFunc) Transform(t model3d.Transform) CoordColorFunc {
 // vertex that is part of a segment that changes color.
 func (c CoordColorFunc) ChangeFilterFunc(m *model3d.Mesh,
 	epsilon float64) func(c model3d.Coord3D) bool {
-	changed := model3d.NewCoordToBool()
+	changed := model3d.NewCoordMap[bool]()
 	m.Iterate(func(t *model3d.Triangle) {
 		for _, seg := range t.Segments() {
 			if c(seg[0]) != c(seg[1]) {
@@ -102,7 +102,7 @@ func ConstantCoordColorFunc(c render3d.Color) CoordColorFunc {
 // Pass a sequence of object, color, object, color, ...
 // where objects are *model3d.Mesh or model3d.SDF, and
 // colors are render3d.Color or CoordColorFunc.
-func JoinedCoordColorFunc(sdfsAndColors ...interface{}) CoordColorFunc {
+func JoinedCoordColorFunc(sdfsAndColors ...any) CoordColorFunc {
 	if len(sdfsAndColors)%2 != 0 {
 		panic("must pass an even number of arguments")
 	}
@@ -141,7 +141,7 @@ func JoinedCoordColorFunc(sdfsAndColors ...interface{}) CoordColorFunc {
 // choose the closest surface rather than the object with
 // the overall greatest SDF. This should only affect points
 // contained inside of the union of all of the objects.
-func JoinedMeshCoordColorFunc(meshToColorFunc map[*model3d.Mesh]interface{}) CoordColorFunc {
+func JoinedMeshCoordColorFunc(meshToColorFunc map[*model3d.Mesh]any) CoordColorFunc {
 	allMeshes := model3d.NewMesh()
 	triToColorFunc := map[*model3d.Triangle]CoordColorFunc{}
 	for mesh, colorObj := range meshToColorFunc {
@@ -170,8 +170,8 @@ func JoinedMeshCoordColorFunc(meshToColorFunc map[*model3d.Mesh]interface{}) Coo
 //
 // The points argument is a collection of points that are
 // known to be within some solid. It may either be a slice
-// of points, a *CoordTree, or a *CoordToCoord returned by
-// model3d.MarchingCubesInterior.
+// of points, a *CoordTree, or a *CoordMap[Coord3D]
+// returned by model3d.MarchingCubesInterior.
 // It can also be nil, in which case no nearest neighbor
 // lookups are performed. Note that the color function will
 // panic() if no solid contains a given point or its
@@ -181,7 +181,7 @@ func JoinedMeshCoordColorFunc(meshToColorFunc map[*model3d.Mesh]interface{}) Coo
 // points contained within one of the solids, a separate
 // set of interior points should be provided to use for
 // nearest neighbor lookup. This is the points argument.
-func JoinedSolidCoordColorFunc(points interface{}, solidsAndColors ...interface{}) CoordColorFunc {
+func JoinedSolidCoordColorFunc(points any, solidsAndColors ...any) CoordColorFunc {
 	var coordTree *model3d.CoordTree
 	if points != nil {
 		switch points := points.(type) {
@@ -189,7 +189,7 @@ func JoinedSolidCoordColorFunc(points interface{}, solidsAndColors ...interface{
 			coordTree = points
 		case []model3d.Coord3D:
 			coordTree = model3d.NewCoordTree(points)
-		case *model3d.CoordToCoord:
+		case *model3d.CoordMap[model3d.Coord3D]:
 			cs := make([]model3d.Coord3D, 0, points.Len())
 			points.ValueRange(func(c model3d.Coord3D) bool {
 				cs = append(cs, c)
@@ -238,7 +238,7 @@ func JoinedSolidCoordColorFunc(points interface{}, solidsAndColors ...interface{
 	}
 }
 
-func colorFuncFromObj(obj interface{}) CoordColorFunc {
+func colorFuncFromObj(obj any) CoordColorFunc {
 	switch colorFn := obj.(type) {
 	case CoordColorFunc:
 		return colorFn

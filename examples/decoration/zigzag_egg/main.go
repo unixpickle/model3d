@@ -152,7 +152,7 @@ func CreateZigZag() model3d.Solid {
 	}
 	zigZagMesh.AddMesh(zigZagMesh.MapCoords(model2d.XY(-1, 1).Mul))
 	bg := model2d.BoundsRect(zigZagMesh)
-	model2d.RasterizeColor("zig_zag.png", []interface{}{
+	model2d.RasterizeColor("zig_zag.png", []any{
 		bg, outerMesh, innerMesh, zigZagMesh,
 	}, []color.Color{
 		color.Gray{Y: 0xff},

@@ -11,7 +11,7 @@ import (
 
 func CreateBlocks() {
 	joinedMesh := model3d.NewMesh()
-	colorMap := model3d.NewCoordToCoord()
+	colorMap := model3d.NewCoordMap[model3d.Coord3D]()
 
 	curX := 0.0
 	addBlock := func(block *model3d.Mesh, colorFunc toolbox3d.CoordColorFunc) {
@@ -73,7 +73,7 @@ func CreateBlocks() {
 func TextBlock(size model3d.Coord3D, inset float64, imgScale float64,
 	faces [6]string) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
 	resMesh := model3d.NewMesh()
-	insideMap := model3d.NewCoordToBool()
+	insideMap := model3d.NewCoordMap[bool]()
 
 	for axis := 0; axis < 3; axis++ {
 		var origin model3d.Coord3D
