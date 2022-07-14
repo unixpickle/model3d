@@ -169,7 +169,7 @@ func BenchmarkVertexToFace(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		mesh.getVertexToFace()
-		var v2f *CoordToFaces
+		var v2f *CoordToSlice[*Triangle]
 		mesh.vertexToFace.Store(v2f)
 	}
 }

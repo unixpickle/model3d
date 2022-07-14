@@ -31,7 +31,7 @@ import (
 type Mesh struct {
 	faces map[*Segment]bool
 
-	// Stores a *CoordToFaces
+	// Stores a *CoordToSlice[*Segment]
 	vertexToFace  atomic.Value
 	v2fCreateLock sync.Mutex
 }
@@ -151,7 +151,7 @@ func (m *Mesh) Remove(f *Segment) {
 	}
 }
 
-func (m *Mesh) removeFaceFromVertex(v2f *CoordToFaces, f *Segment, p Coord) {
+func (m *Mesh) removeFaceFromVertex(v2f *CoordToSlice[*Segment], f *Segment, p Coord) {
 	s := v2f.Value(p)
 	for i, f1 := range s {
 		if f1 == f {
@@ -294,7 +294,7 @@ func (m *Mesh) Rotate(angle float64) *Mesh {
 // MapCoords creates a new mesh by transforming all of the
 // coordinates according to the function f.
 func (m *Mesh) MapCoords(f func(Coord) Coord) *Mesh {
-	mapping := NewCoordToCoord()
+	mapping := NewCoordMap[Coord]()
 	if v2f := m.getVertexToFaceOrNil(); v2f != nil {
 		v2f.KeyRange(func(c Coord) bool {
 			mapping.Store(c, f(c))
@@ -425,7 +425,7 @@ func (m *Mesh) Max() Coord {
 	return result
 }
 
-func (m *Mesh) getVertexToFace() *CoordToFaces {
+func (m *Mesh) getVertexToFace() *CoordToSlice[*Segment] {
 	v2f := m.getVertexToFaceOrNil()
 	if v2f != nil {
 		return v2f
@@ -443,7 +443,7 @@ func (m *Mesh) getVertexToFace() *CoordToFaces {
 		return v2f
 	}
 
-	v2f = NewCoordToFaces()
+	v2f = NewCoordToSlice[*Segment]()
 	for f := range m.faces {
 		uniqueVertices(f, func(p Coord) {
 			v2f.Append(p, f)
@@ -454,12 +454,12 @@ func (m *Mesh) getVertexToFace() *CoordToFaces {
 	return v2f
 }
 
-func (m *Mesh) getVertexToFaceOrNil() *CoordToFaces {
+func (m *Mesh) getVertexToFaceOrNil() *CoordToSlice[*Segment] {
 	res := m.vertexToFace.Load()
 	if res == nil {
 		return nil
 	}
-	return res.(*CoordToFaces)
+	return res.(*CoordToSlice[*Segment])
 }
 
 func (m *Mesh) clearVertexToFace() {

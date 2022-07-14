@@ -473,8 +473,8 @@ func separateSingularVertices(m *model3d.Mesh) {
 	}
 }
 
-func findUnsharedEdges(m *model3d.Mesh) *model3d.EdgeToBool {
-	edges := model3d.NewEdgeToBool()
+func findUnsharedEdges(m *model3d.Mesh) *model3d.EdgeMap[bool] {
+	edges := model3d.NewEdgeMap[bool]()
 	m.Iterate(func(t *model3d.Triangle) {
 		for i := 0; i < 3; i++ {
 			p1 := t[i]

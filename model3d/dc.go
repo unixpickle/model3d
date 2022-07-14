@@ -315,10 +315,10 @@ func (d *DualContouring) triangulateQuad(vs [4]Coord3D) (t1, t2 *Triangle) {
 	return
 }
 
-func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) *CoordToBool {
+func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) *CoordMap[bool] {
 	groups := singularEdgeGroups(m)
 	if len(groups) == 0 {
-		origPoints := NewCoordToBool()
+		origPoints := NewCoordMap[bool]()
 		m.IterateVertices(func(c Coord3D) {
 			origPoints.Store(c, true)
 		})
@@ -330,7 +330,7 @@ func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) *Coo
 		// Constrain vertices to be within a margin of the cube
 		// so that moving/creating vertices will not cause
 		// self-intersections.
-		mapping := NewCoordToCoord()
+		mapping := NewCoordMap[Coord3D]()
 		for _, group := range groups {
 			group.Constrain(m, epsilon, layout).Range(func(k, v Coord3D) bool {
 				mapping.Store(k, v)
@@ -342,7 +342,7 @@ func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) *Coo
 			group.Map(mapping)
 		}
 	}
-	origPoints := NewCoordToBool()
+	origPoints := NewCoordMap[bool]()
 	m.IterateVertices(func(c Coord3D) {
 		origPoints.Store(c, true)
 	})
@@ -352,7 +352,7 @@ func (d *DualContouring) repairSingularEdges(m *Mesh, layout *dcCubeLayout) *Coo
 	return origPoints
 }
 
-func (d *DualContouring) repairSingularVertices(m *Mesh, layout *dcCubeLayout, orig *CoordToBool) {
+func (d *DualContouring) repairSingularVertices(m *Mesh, layout *dcCubeLayout, orig *CoordMap[bool]) {
 	groups := singularVertexGroups(m)
 	if len(groups) == 0 {
 		return
@@ -370,7 +370,7 @@ func (d *DualContouring) repairSingularVertices(m *Mesh, layout *dcCubeLayout, o
 		// generated within a cube. The extra vertices added to
 		// the topology by singular edge repair will never be
 		// singular themselves.
-		mapping := NewCoordToCoord()
+		mapping := NewCoordMap[Coord3D]()
 		for _, group := range groups {
 			group.Constrain(m, epsilon, layout, orig).Range(func(k, v Coord3D) bool {
 				mapping.Store(k, v)
@@ -857,8 +857,8 @@ func newSingularEdgeGroup(m *Mesh, s Segment, tris []*Triangle) *singularEdgeGro
 	}
 }
 
-func (s *singularEdgeGroup) Constrain(m *Mesh, epsilon float64, layout *dcCubeLayout) *CoordToCoord {
-	points := NewCoordToCoord()
+func (s *singularEdgeGroup) Constrain(m *Mesh, epsilon float64, layout *dcCubeLayout) *CoordMap[Coord3D] {
+	points := NewCoordMap[Coord3D]()
 	for _, g := range s.Groups {
 		for _, t := range g {
 			for _, c := range t {
@@ -874,7 +874,7 @@ func (s *singularEdgeGroup) Constrain(m *Mesh, epsilon float64, layout *dcCubeLa
 	return points
 }
 
-func (s *singularEdgeGroup) Map(mapping *CoordToCoord) {
+func (s *singularEdgeGroup) Map(mapping *CoordMap[Coord3D]) {
 	s.Edge[0] = mapping.Value(s.Edge[0])
 	s.Edge[1] = mapping.Value(s.Edge[1])
 }
@@ -912,7 +912,7 @@ func (s *singularEdgeGroup) Repair(m *Mesh, epsilon float64) {
 }
 
 func singularEdgeGroups(m *Mesh) []*singularEdgeGroup {
-	counts := NewEdgeToFaces()
+	counts := NewEdgeToSlice[*Triangle]()
 	var results []*singularEdgeGroup
 	m.Iterate(func(t *Triangle) {
 		for _, s := range t.Segments() {
@@ -943,8 +943,8 @@ type singularVertexGroup struct {
 }
 
 func (s *singularVertexGroup) Constrain(m *Mesh, epsilon float64, layout *dcCubeLayout,
-	origPoints *CoordToBool) *CoordToCoord {
-	points := NewCoordToCoord()
+	origPoints *CoordMap[bool]) *CoordMap[Coord3D] {
+	points := NewCoordMap[Coord3D]()
 	for _, g := range s.Groups {
 		for _, t := range g {
 			for _, c := range t {
@@ -963,7 +963,7 @@ func (s *singularVertexGroup) Constrain(m *Mesh, epsilon float64, layout *dcCube
 	return points
 }
 
-func (s *singularVertexGroup) Map(mapping *CoordToCoord) {
+func (s *singularVertexGroup) Map(mapping *CoordMap[Coord3D]) {
 	s.Vertex = mapping.Value(s.Vertex)
 }
 
@@ -1020,7 +1020,7 @@ func singularVertexGroups(m *Mesh) []*singularVertexGroup {
 	return results
 }
 
-func mapInPlace(m *Mesh, mapping *CoordToCoord) {
+func mapInPlace(m *Mesh, mapping *CoordMap[Coord3D]) {
 	m.Iterate(func(t *Triangle) {
 		var changed bool
 		for _, c := range t {

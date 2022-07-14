@@ -82,7 +82,7 @@ func EncodePLY(triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) []byte {
 func WritePLY(w io.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3]uint8) error {
 	coords := [][3]float64{}
 	colors := [][3]uint8{}
-	coordToIdx := NewCoordToInt()
+	coordToIdx := NewCoordMap[int]()
 	for _, t := range triangles {
 		for _, p := range t {
 			if _, ok := coordToIdx.Load(p); !ok {
@@ -236,7 +236,7 @@ func BuildMaterialOBJ(t []*Triangle, c func(t *Triangle) [3]float64) (o *filefor
 	})
 
 	colorToMat := map[[3]float32]int{}
-	coordToIdx := NewCoordToInt()
+	coordToIdx := NewCoordToNumber[int]()
 	for i, tri := range t {
 		color32 := triColors[i]
 		matIdx, ok := colorToMat[color32]

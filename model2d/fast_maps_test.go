@@ -9,7 +9,7 @@ import (
 )
 
 func TestCoordMap(t *testing.T) {
-	cm := NewCoordMap()
+	cm := NewCoordMap[any]()
 
 	checkBehavior := func() {
 		baseline := map[Coord]int{}
@@ -94,7 +94,7 @@ func TestCoordMap(t *testing.T) {
 
 func BenchmarkCoordMap(b *testing.B) {
 	b.Run("Fast", func(b *testing.B) {
-		cm := NewCoordMap()
+		cm := NewCoordMap[int]()
 		c := NewCoordRandNorm()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -103,7 +103,7 @@ func BenchmarkCoordMap(b *testing.B) {
 		}
 	})
 	b.Run("Slow", func(b *testing.B) {
-		cm := NewCoordMap()
+		cm := NewCoordMap[int]()
 		c1, c2 := findHashCollision()
 		cm.Store(c1, 1337)
 		cm.Store(c2, 1337)
@@ -117,7 +117,7 @@ func BenchmarkCoordMap(b *testing.B) {
 		}
 	})
 	b.Run("Baseline", func(b *testing.B) {
-		cm := map[Coord]any{}
+		cm := map[Coord]int{}
 		c := NewCoordRandNorm()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {

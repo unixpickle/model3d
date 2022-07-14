@@ -67,7 +67,7 @@ func (c CoordColorFunc) Transform(t model3d.Transform) CoordColorFunc {
 // vertex that is part of a segment that changes color.
 func (c CoordColorFunc) ChangeFilterFunc(m *model3d.Mesh,
 	epsilon float64) func(c model3d.Coord3D) bool {
-	changed := model3d.NewCoordToBool()
+	changed := model3d.NewCoordMap[bool]()
 	m.Iterate(func(t *model3d.Triangle) {
 		for _, seg := range t.Segments() {
 			if c(seg[0]) != c(seg[1]) {
@@ -170,8 +170,8 @@ func JoinedMeshCoordColorFunc(meshToColorFunc map[*model3d.Mesh]any) CoordColorF
 //
 // The points argument is a collection of points that are
 // known to be within some solid. It may either be a slice
-// of points, a *CoordTree, or a *CoordToCoord returned by
-// model3d.MarchingCubesInterior.
+// of points, a *CoordTree, or a *CoordMap[Coord3D]
+// returned by model3d.MarchingCubesInterior.
 // It can also be nil, in which case no nearest neighbor
 // lookups are performed. Note that the color function will
 // panic() if no solid contains a given point or its
@@ -189,7 +189,7 @@ func JoinedSolidCoordColorFunc(points any, solidsAndColors ...any) CoordColorFun
 			coordTree = points
 		case []model3d.Coord3D:
 			coordTree = model3d.NewCoordTree(points)
-		case *model3d.CoordToCoord:
+		case *model3d.CoordMap[model3d.Coord3D]:
 			cs := make([]model3d.Coord3D, 0, points.Len())
 			points.ValueRange(func(c model3d.Coord3D) bool {
 				cs = append(cs, c)
