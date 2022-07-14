@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d/model2d"
@@ -12,7 +13,7 @@ import (
 func main() {
 	tower := CastleTower()
 	entrance := EntranceBuilding()
-	joined := model3d.JoinedSolid{
+	sandPart := model3d.JoinedSolid{
 		model3d.TranslateSolid(tower, model3d.XY(0.55, 0.525)),
 		model3d.TranslateSolid(tower, model3d.XY(0.55, -0.525)),
 		model3d.TranslateSolid(tower, model3d.XY(-0.55, 0.525)),
@@ -25,12 +26,18 @@ func main() {
 		SandLump(),
 	}
 	cutout := &model3d.SubtractedSolid{
-		Positive: joined.Optimize(),
+		Positive: sandPart.Optimize(),
 		Negative: StairCutout(),
 	}
-	mesh := model3d.MarchingCubesSearch(cutout, 0.03, 8)
-	mesh.SaveGroupedSTL("/home/alex/Desktop/castle.stl")
-	render3d.SaveRandomGrid("out.png", mesh, 3, 3, 300, nil)
+	log.Println("Creating mesh...")
+	mesh := model3d.MarchingCubesSearch(cutout, 0.008, 8)
+	log.Println("Decimating mesh...")
+	mesh = mesh.EliminateCoplanar(1e-5)
+	log.Println("Rendering...")
+	colorFn := toolbox3d.ConstantCoordColorFunc(render3d.NewColorRGB(0.92, 0.87, 0.62))
+	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFn.RenderColor)
+	log.Println("Saving...")
+	mesh.SaveMaterialOBJ("sand_castle.zip", colorFn.TriangleColor)
 }
 
 func CastleTower() model3d.Solid {
@@ -101,8 +108,10 @@ func EntranceBuilding() model3d.Solid {
 		model3d.NewRect(model3d.XY(-0.5, -0.15), model3d.XYZ(0.5, 0.15, 0.3)),
 		&model3d.Capsule{P1: model3d.Y(0.1), P2: model3d.YZ(0.1, 0.3), Radius: 0.15},
 	}
-	sdf := model3d.DualContourSDF(shape, 0.03)
+	sdf := model3d.DualContourSDF(shape, 0.015)
 	solid := model3d.SDFToSolid(sdf, 0.05)
+
+	// Make the building slightly wider at the base.
 	return model3d.CheckedFuncSolid(
 		solid.Min(),
 		solid.Max(),
@@ -133,7 +142,7 @@ func SandLump() model3d.Solid {
 	}
 	return model3d.CheckedFuncSolid(
 		model3d.XYZ(-2.0, -2.0, -0.5),
-		model3d.XYZ(2.0, 2.0, 0.2),
+		model3d.XYZ(2.0, 2.0, 0.3),
 		func(c model3d.Coord3D) bool {
 			dist := dropRadius - edgeBounds.SDF(c.XY())
 			dropoff := 0.0
@@ -145,7 +154,7 @@ func SandLump() model3d.Solid {
 			}
 			x := c.X * 3.5
 			y := c.Y * 3.5
-			z := 0.15 * math.Sqrt(2+2*(0.1*math.Cos(3*(x+0.5*math.Sin(y*2+6)))+0.2*math.Cos(1*(2*y-math.Sqrt(x+10)))+0.2*math.Cos(0.1+x*2)+0.2*math.Cos(0.3+y*1.7)+0.1*math.Cos(2*math.Sqrt(x*x+y*y))))
+			z := 0.15*math.Sqrt(2+2*(0.1*math.Cos(3*(x+0.5*math.Sin(y*2+6)))+0.2*math.Cos(1*(2*y-math.Sqrt(x+10)))+0.2*math.Cos(0.1+x*2)+0.2*math.Cos(0.3+y*1.7)+0.1*math.Cos(2*math.Sqrt(x*x+y*y)))) + 0.15*math.Exp(-math.Pow(x*x+y*y, 2)/50)
 			z += dropoff - 0.15
 			return c.Z < z
 		},
