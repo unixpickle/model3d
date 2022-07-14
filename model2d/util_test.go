@@ -9,7 +9,7 @@ import (
 )
 
 type Failer interface {
-	Fatal(args ...interface{})
+	Fatal(args ...any)
 }
 
 // ValidateMesh checks if m is manifold and has correct normals.

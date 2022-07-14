@@ -68,7 +68,7 @@ func (c *colorFuncObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, 
 // The colorFunc is used to color the object's material.
 // If colorFunc is used, a default yellow color is used,
 // unless the object already has an associated material.
-func Objectify(obj interface{}, colorFunc ColorFunc) Object {
+func Objectify(obj any, colorFunc ColorFunc) Object {
 	switch obj := obj.(type) {
 	case Object:
 		return &colorFuncObject{Object: obj, ColorFunc: colorFunc}
@@ -102,7 +102,7 @@ func Objectify(obj interface{}, colorFunc ColorFunc) Object {
 //
 // If colorFunc is non-nil, it is used to determine the
 // color for the visible parts of the model.
-func SaveRendering(path string, obj interface{}, origin model3d.Coord3D, width, height int,
+func SaveRendering(path string, obj any, origin model3d.Coord3D, width, height int,
 	colorFunc ColorFunc) error {
 	object := Objectify(obj, colorFunc)
 	image := NewImage(width*helperAntialias, height*helperAntialias)
@@ -130,7 +130,7 @@ func SaveRendering(path string, obj interface{}, origin model3d.Coord3D, width, 
 //
 // If colorFunc is non-nil, it is used to determine the
 // color for the visible parts of the model.
-func SaveRandomGrid(path string, obj interface{}, rows, cols, imgSize int,
+func SaveRandomGrid(path string, obj any, rows, cols, imgSize int,
 	colorFunc ColorFunc) error {
 	object := Objectify(obj, colorFunc)
 	fullOutput := NewImage(cols*imgSize, rows*imgSize)
@@ -167,7 +167,7 @@ func SaveRandomGrid(path string, obj interface{}, rows, cols, imgSize int,
 // The cameraDir specifies the direction (from the center
 // of the object) from which the camera will be extended
 // until it can see the entire object.
-func SaveRotatingGIF(path string, obj interface{}, axis, cameraDir model3d.Coord3D,
+func SaveRotatingGIF(path string, obj any, axis, cameraDir model3d.Coord3D,
 	imgSize, frames int, fps float64, colorFunc ColorFunc) error {
 	object := Objectify(obj, colorFunc)
 	min, max := object.Min(), object.Max()

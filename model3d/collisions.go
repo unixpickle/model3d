@@ -31,7 +31,7 @@ type RayCollision struct {
 	// information about the collision.
 	//
 	// For an example, see TriangleCollision.
-	Extra interface{}
+	Extra any
 }
 
 // TriangleCollision is triangle-specific collision
@@ -200,7 +200,7 @@ func GroupedCollidersToCollider(colliders []Collider) Collider {
 
 // BVHToCollider converts a BVH into a MultiCollider in a
 // hierarchical way.
-func BVHToCollider(b *BVH) MultiCollider {
+func BVHToCollider(b *BVH[*Triangle]) MultiCollider {
 	if b.Leaf != nil {
 		return b.Leaf
 	}

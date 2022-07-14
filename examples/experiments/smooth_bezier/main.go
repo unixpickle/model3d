@@ -83,7 +83,7 @@ func main() {
 
 func RenderSequence(animationPath string, upsampleRate float64, size model2d.Coord,
 	mesh *model2d.Mesh, beziers []model2d.BezierCurve) {
-	rasterizeObj := func(obj interface{}, thickness float64) *image.Gray {
+	rasterizeObj := func(obj any, thickness float64) *image.Gray {
 		rast := &model2d.Rasterizer{
 			Scale:     upsampleRate,
 			Bounds:    model2d.NewRect(model2d.Coord{}, size),

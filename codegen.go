@@ -47,11 +47,11 @@ func Generate2d3dTemplate(name string, checkNoChange bool) {
 	inPath := filepath.Join("templates", name+".template")
 	tmpl := template.New("")
 	tmpl.Funcs(template.FuncMap{
-		"mkargs": func(base map[string]interface{}, vs ...string) (map[string]interface{}, error) {
+		"mkargs": func(base map[string]any, vs ...string) (map[string]any, error) {
 			if len(vs)%2 != 0 {
 				return nil, errors.New("mismatched keys and values")
 			}
-			res := map[string]interface{}{}
+			res := map[string]any{}
 			for k, v := range base {
 				res[k] = v
 			}
@@ -93,7 +93,7 @@ func Generate2d3dTemplate(name string, checkNoChange bool) {
 	}
 }
 
-func TemplateEnvironment(pkg string) map[string]interface{} {
+func TemplateEnvironment(pkg string) map[string]any {
 	coordType := "Coord"
 	matrixType := "Matrix2"
 	faceType := "Segment"
@@ -112,7 +112,7 @@ func TemplateEnvironment(pkg string) map[string]interface{} {
 		circleLetter = "s"
 		numDims = 3
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"package":      pkg,
 		"model2d":      pkg == "model2d",
 		"coordType":    coordType,
@@ -126,7 +126,7 @@ func TemplateEnvironment(pkg string) map[string]interface{} {
 	}
 }
 
-func RenderTemplate(template *template.Template, data interface{}) string {
+func RenderTemplate(template *template.Template, data any) string {
 	w := bytes.NewBuffer(nil)
 	essentials.Must(template.Execute(w, data))
 	return string(w.Bytes())

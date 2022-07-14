@@ -13,7 +13,7 @@ func main() {
 		return 0.9 + 0.1*math.Sin(theta*5)
 	}, 300)
 	circle := &model2d.Circle{Radius: 0.3}
-	objs := []interface{}{
+	objs := []any{
 		model2d.NewColliderSolid(model2d.MeshToCollider(egg)),
 		circle,
 	}

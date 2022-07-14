@@ -5,39 +5,42 @@ import (
 	"sort"
 )
 
-// GeneralBVH represents a (possibly unbalanced)
-// axis-aligned bounding box hierarchy.
+// BVH represents a (possibly unbalanced) axis-aligned
+// bounding box hierarchy.
 //
-// A GeneralBVH can store arbitrary Bounders.
-// For a mesh-specific version, see BVH.
-type GeneralBVH struct {
+// A BVH can be used to accelerate collision detection.
+// See BVHToCollider() for more details.
+//
+// A BVH node is either a leaf (a single Bounder), or a
+// branch with two or more children.
+type BVH[B Bounder] struct {
 	// Leaf, if non-nil, is the final bounder.
-	Leaf Bounder
+	Leaf B
 
 	// Branch, if Leaf is nil, points to two children.
-	Branch []*GeneralBVH
+	Branch []*BVH[B]
 }
 
-// NewGeneralBVHAreaDensity creates a GeneralBVH by
-// minimizing the product of each bounding box's {{if .model2d}}perimeter{{else}}area{{end}} with
+// NewBVHAreaDensity creates a BVH by minimizing
+// the product of each bounding box's {{if .model2d}}perimeter{{else}}area{{end}} with
 // the number of objects contained in the bounding box at
 // each branch.
 //
 // This is good for efficient ray collision detection.
-func NewGeneralBVHAreaDensity(objects []Bounder) *GeneralBVH {
-	return newGeneralBVH(sortBounders(objects), make([]float64, len(objects)),
-		areaDensityBVHSplit)
+func NewBVHAreaDensity[B Bounder](objects []B) *BVH[B] {
+	return newBVH(sortBounders(objects), make([]float64, len(objects)),
+		areaDensityBVHSplit[B])
 }
 
-func newGeneralBVH(sortedBounders [{{.numDims}}][]*flaggedBounder, cache []float64,
-	splitter func([]*flaggedBounder, []float64) (int, float64)) *GeneralBVH {
+func newBVH[B Bounder](sortedBounders [{{.numDims}}][]*flaggedBounder[B], cache []float64,
+	splitter func([]*flaggedBounder[B], []float64) (int, float64)) *BVH[B] {
 	numObjs := len(sortedBounders[0])
 	if numObjs == 0 {
 		panic("empty sorted objects")
 	} else if numObjs == 1 {
-		return &GeneralBVH{Leaf: sortedBounders[0][0].B}
+		return &BVH[B]{Leaf: sortedBounders[0][0].B}
 	} else if numObjs == 2 {
-		return &GeneralBVH{Branch: []*GeneralBVH{
+		return &BVH[B]{Branch: []*BVH[B]{
 			{Leaf: sortedBounders[0][0].B},
 			{Leaf: sortedBounders[0][1].B},
 		}}
@@ -49,7 +52,7 @@ func newGeneralBVH(sortedBounders [{{.numDims}}][]*flaggedBounder, cache []float
 	zIndex, zScore := splitter(sortedBounders[2], cache)
 	{{- end}}
 
-	var split [2][{{.numDims}}][]*flaggedBounder
+	var split [2][{{.numDims}}][]*flaggedBounder[B]
 	{{if .model2d -}}
 	if xScore < yScore {
 		split = splitBounders(sortedBounders, 0, xIndex)
@@ -65,48 +68,12 @@ func newGeneralBVH(sortedBounders [{{.numDims}}][]*flaggedBounder, cache []float
 		split = splitBounders(sortedBounders, 2, zIndex)
 	}
 	{{- end}}
-	return &GeneralBVH{
-		Branch: []*GeneralBVH{
-			newGeneralBVH(split[0], cache, splitter),
-			newGeneralBVH(split[1], cache, splitter),
+	return &BVH[B]{
+		Branch: []*BVH[B]{
+			newBVH(split[0], cache, splitter),
+			newBVH(split[1], cache, splitter),
 		},
 	}
-}
-
-// BVH represents a (possibly unbalanced) axis-aligned
-// bounding box hierarchy of {{.faceName}}s.
-//
-// A BVH can be used to accelerate collision detection.
-// See BVHToCollider() for more details.
-//
-// A BVH node is either a leaf (a single {{.faceName}}), or a branch
-// with two or more children.
-//
-// For a more generic BVH that supports any object rather
-// than just {{.faceName}}s, see GeneralBVH.
-type BVH struct {
-	// Leaf, if non-nil, is the sole object in this node.
-	Leaf *{{.faceType}}
-
-	// Branch, if Leaf is nil, points to two children.
-	Branch []*BVH
-}
-
-// NewBVHAreaDensity is like NewGeneralBVHAreaDensity but
-// for {{.faceName}}s.
-func NewBVHAreaDensity(objs []*{{.faceType}}) *BVH {
-	return generalBVHToBVH(NewGeneralBVHAreaDensity(facesToBounders(objs)))
-}
-
-func generalBVHToBVH(g *GeneralBVH) *BVH {
-	if g.Leaf != nil {
-		return &BVH{Leaf: g.Leaf.(*{{.faceType}})}
-	}
-	res := &BVH{Branch: make([]*BVH, len(g.Branch))}
-	for i, g1 := range g.Branch {
-		res.Branch[i] = generalBVHToBVH(g1)
-	}
-	return res
 }
 
 // areaDensityBVHSplit chooses a split index that
@@ -117,7 +84,7 @@ func generalBVHToBVH(g *GeneralBVH) *BVH {
 // the number of {{.faceName}}s.
 //
 // The cache must contain at least len(faces) entries.
-func areaDensityBVHSplit(faces []*flaggedBounder, cache []float64) (int, float64) {
+func areaDensityBVHSplit[B Bounder](faces []*flaggedBounder[B], cache []float64) (int, float64) {
 	// Fill the cache with scores going in the other
 	// direction.
 	min, max := faces[len(faces)-1].Min, faces[len(faces)-1].Max
@@ -148,6 +115,7 @@ func areaDensityBVHSplit(faces []*flaggedBounder, cache []float64) (int, float64
 
 // Group{{.faceType}}s is like GroupBounders, but for {{.faceName}}s
 // in particular.
+// This is now equivalent to GroupBounders(faces).
 //
 // This can be used to prepare models for being turned
 // into a collider efficiently, or for storing meshes in
@@ -156,11 +124,7 @@ func areaDensityBVHSplit(faces []*flaggedBounder, cache []float64) (int, float64
 // The resulting hierarchy can be passed directly to
 // Grouped{{.faceType}}sToCollider().
 func Group{{.faceType}}s(faces []*{{.faceType}}) {
-	bs := facesToBounders(faces)
-	groupBounders(sortBounders(bs), bs)
-	for i, b := range bs {
-		faces[i] = b.(*{{.faceType}})
-	}
+	GroupBounders(faces)
 }
 
 // GroupBounders sorts a slice of objects into a balanced
@@ -172,11 +136,11 @@ func Group{{.faceType}}s(faces []*{{.faceType}}) {
 // To cut a slice in half, divide the length by two, round
 // down, and use the result as the start index for the
 // second half.
-func GroupBounders(objects []Bounder) {
+func GroupBounders[B Bounder](objects []B) {
 	groupBounders(sortBounders(objects), objects)
 }
 
-func groupBounders(sortedBounders [{{.numDims}}][]*flaggedBounder, output []Bounder) {
+func groupBounders[B Bounder](sortedBounders [{{.numDims}}][]*flaggedBounder[B], output []B) {
 	numObjs := len(sortedBounders[0])
 	if numObjs == 2 {
 		// The area-based splitting criterion doesn't
@@ -199,12 +163,13 @@ func groupBounders(sortedBounders [{{.numDims}}][]*flaggedBounder, output []Boun
 	groupBounders(separated[1], output[midIdx:])
 }
 
-func splitBounders(sortedBounders [{{.numDims}}][]*flaggedBounder, axis, midIdx int) [2][{{.numDims}}][]*flaggedBounder {
+func splitBounders[B Bounder](sortedBounders [{{.numDims}}][]*flaggedBounder[B],
+	axis, midIdx int) [2][{{.numDims}}][]*flaggedBounder[B] {
 	for i, b := range sortedBounders[axis] {
 		b.Flag = i < midIdx
 	}
 
-	separated := [{{.numDims}}][]*flaggedBounder{}
+	separated := [{{.numDims}}][]*flaggedBounder[B]{}
 	separated[axis] = sortedBounders[axis]
 
 	numObjs := len(sortedBounders[0])
@@ -212,7 +177,7 @@ func splitBounders(sortedBounders [{{.numDims}}][]*flaggedBounder, axis, midIdx 
 		if newAxis == axis {
 			continue
 		}
-		sep := make([]*flaggedBounder, numObjs)
+		sep := make([]*flaggedBounder[B], numObjs)
 		idx0 := 0
 		idx1 := midIdx
 		for _, b := range sortedBounders[newAxis] {
@@ -227,7 +192,7 @@ func splitBounders(sortedBounders [{{.numDims}}][]*flaggedBounder, axis, midIdx 
 		separated[newAxis] = sep
 	}
 
-	return [2][{{.numDims}}][]*flaggedBounder{
+	return [2][{{.numDims}}][]*flaggedBounder[B]{
 		{
 			separated[0][:midIdx],
 			separated[1][:midIdx],
@@ -245,7 +210,7 @@ func splitBounders(sortedBounders [{{.numDims}}][]*flaggedBounder, axis, midIdx 
 	}
 }
 
-func bestSplitAxis(sortedBounders [{{.numDims}}][]*flaggedBounder) int {
+func bestSplitAxis[B Bounder](sortedBounders [{{.numDims}}][]*flaggedBounder[B]) int {
 	midIdx := len(sortedBounders[0]) / 2
 
 	areaForAxis := func(axis int) float64 {
@@ -265,13 +230,13 @@ func bestSplitAxis(sortedBounders [{{.numDims}}][]*flaggedBounder) int {
 	return axis
 }
 
-func sortBounders(bs []Bounder) [{{.numDims}}][]*flaggedBounder {
+func sortBounders[B Bounder](bs []B) [{{.numDims}}][]*flaggedBounder[B] {
 	// Allocate all of the flaggedBounders at once all
 	// next to each other in memory.
-	flagged := make([]flaggedBounder, len(bs))
+	flagged := make([]flaggedBounder[B], len(bs))
 	for i, b := range bs {
 		min, max := b.Min(), b.Max()
-		flagged[i] = flaggedBounder{
+		flagged[i] = flaggedBounder[B]{
 			B:   b,
 			Min: min,
 			Max: max,
@@ -279,9 +244,9 @@ func sortBounders(bs []Bounder) [{{.numDims}}][]*flaggedBounder {
 		}
 	}
 
-	var result [{{.numDims}}][]*flaggedBounder
+	var result [{{.numDims}}][]*flaggedBounder[B]
 	for axis := range result {
-		bsCopy := make([]*flaggedBounder, len(flagged))
+		bsCopy := make([]*flaggedBounder[B], len(flagged))
 		for i := range flagged {
 			bsCopy[i] = &flagged[i]
 		}
@@ -305,7 +270,7 @@ func sortBounders(bs []Bounder) [{{.numDims}}][]*flaggedBounder {
 	return result
 }
 
-func multipleBoundsArea(bs []*flaggedBounder) float64 {
+func multipleBoundsArea[B Bounder](bs []*flaggedBounder[B]) float64 {
 	min, max := bs[0].Min, bs[0].Max
 	for i := 1; i < len(bs); i++ {
 		b := bs[i]
@@ -350,8 +315,8 @@ func boundsArea(min, max {{.coordType}}) float64 {
 	{{- end}}
 }
 
-type flaggedBounder struct {
-	B    Bounder
+type flaggedBounder[B Bounder] struct {
+	B    B
 	Min  {{.coordType}}
 	Max  {{.coordType}}
 	Mid  {{.coordType}}
@@ -413,12 +378,4 @@ func rayCollisionWithBounds(r *Ray, min, max {{.coordType}}) (minFrac, maxFrac f
 		}
 	}
 	return
-}
-
-func facesToBounders(faces []*{{.faceType}}) []Bounder {
-	bs := make([]Bounder, len(faces))
-	for i, t := range faces {
-		bs[i] = t
-	}
-	return bs
 }

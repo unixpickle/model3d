@@ -3,13 +3,13 @@
 package model2d
 
 // CoordMap implements a map-like interface for
-// mapping Coord to interface{}.
+// mapping Coord to any.
 //
 // This can be more efficient than using a map directly,
 // since it uses a special hash function for coordinates.
 // The speed-up is variable, but was ~2x as of mid-2021.
 type CoordMap struct {
-	slowMap map[Coord]interface{}
+	slowMap map[Coord]any
 	fastMap map[uint64]cellForCoordMap
 }
 
@@ -29,7 +29,7 @@ func (m *CoordMap) Len() int {
 
 // Value is like Load(), but without a second return
 // value.
-func (m *CoordMap) Value(key Coord) interface{} {
+func (m *CoordMap) Value(key Coord) any {
 	res, _ := m.Load(key)
 	return res
 }
@@ -39,7 +39,7 @@ func (m *CoordMap) Value(key Coord) interface{} {
 // If no value is present, the first return argument is a
 // zero value, and the second is false. Otherwise, the
 // second return value is true.
-func (m *CoordMap) Load(key Coord) (interface{}, bool) {
+func (m *CoordMap) Load(key Coord) (any, bool) {
 	if m.fastMap != nil {
 		cell, ok := m.fastMap[hashForCoordMap(key)]
 		if !ok || cell.Key != key {
@@ -67,7 +67,7 @@ func (m *CoordMap) Delete(key Coord) {
 
 // Store assigns the value to the given key, overwriting
 // the previous value for the key if necessary.
-func (m *CoordMap) Store(key Coord, value interface{}) {
+func (m *CoordMap) Store(key Coord, value any) {
 	if m.fastMap != nil {
 		hash := hashForCoordMap(key)
 		cell, ok := m.fastMap[hash]
@@ -103,7 +103,7 @@ func (m *CoordMap) KeyRange(f func(key Coord) bool) {
 
 // ValueRange is like Range, but only iterates over
 // values only.
-func (m *CoordMap) ValueRange(f func(value interface{}) bool) {
+func (m *CoordMap) ValueRange(f func(value any) bool) {
 	if m.fastMap != nil {
 		for _, cell := range m.fastMap {
 			if !f(cell.Value) {
@@ -125,7 +125,7 @@ func (m *CoordMap) ValueRange(f func(value interface{}) bool) {
 //
 // It is not safe to modify the map with Store or Delete
 // during enumeration.
-func (m *CoordMap) Range(f func(key Coord, value interface{}) bool) {
+func (m *CoordMap) Range(f func(key Coord, value any) bool) {
 	if m.fastMap != nil {
 		for _, cell := range m.fastMap {
 			if !f(cell.Key, cell.Value) {
@@ -142,7 +142,7 @@ func (m *CoordMap) Range(f func(key Coord, value interface{}) bool) {
 }
 
 func (m *CoordMap) fastToSlow() {
-	m.slowMap = map[Coord]interface{}{}
+	m.slowMap = map[Coord]any{}
 	for _, cell := range m.fastMap {
 		m.slowMap[cell.Key] = cell.Value
 	}
@@ -151,7 +151,7 @@ func (m *CoordMap) fastToSlow() {
 
 type cellForCoordMap struct {
 	Key   Coord
-	Value interface{}
+	Value any
 }
 
 func hashForCoordMap(c Coord) uint64 {
@@ -826,13 +826,13 @@ func hashForCoordToBool(c Coord) uint64 {
 }
 
 // EdgeMap implements a map-like interface for
-// mapping [2]Coord to interface{}.
+// mapping [2]Coord to any.
 //
 // This can be more efficient than using a map directly,
 // since it uses a special hash function for coordinates.
 // The speed-up is variable, but was ~2x as of mid-2021.
 type EdgeMap struct {
-	slowMap map[[2]Coord]interface{}
+	slowMap map[[2]Coord]any
 	fastMap map[uint64]cellForEdgeMap
 }
 
@@ -852,7 +852,7 @@ func (m *EdgeMap) Len() int {
 
 // Value is like Load(), but without a second return
 // value.
-func (m *EdgeMap) Value(key [2]Coord) interface{} {
+func (m *EdgeMap) Value(key [2]Coord) any {
 	res, _ := m.Load(key)
 	return res
 }
@@ -862,7 +862,7 @@ func (m *EdgeMap) Value(key [2]Coord) interface{} {
 // If no value is present, the first return argument is a
 // zero value, and the second is false. Otherwise, the
 // second return value is true.
-func (m *EdgeMap) Load(key [2]Coord) (interface{}, bool) {
+func (m *EdgeMap) Load(key [2]Coord) (any, bool) {
 	if m.fastMap != nil {
 		cell, ok := m.fastMap[hashForEdgeMap(key)]
 		if !ok || cell.Key != key {
@@ -890,7 +890,7 @@ func (m *EdgeMap) Delete(key [2]Coord) {
 
 // Store assigns the value to the given key, overwriting
 // the previous value for the key if necessary.
-func (m *EdgeMap) Store(key [2]Coord, value interface{}) {
+func (m *EdgeMap) Store(key [2]Coord, value any) {
 	if m.fastMap != nil {
 		hash := hashForEdgeMap(key)
 		cell, ok := m.fastMap[hash]
@@ -926,7 +926,7 @@ func (m *EdgeMap) KeyRange(f func(key [2]Coord) bool) {
 
 // ValueRange is like Range, but only iterates over
 // values only.
-func (m *EdgeMap) ValueRange(f func(value interface{}) bool) {
+func (m *EdgeMap) ValueRange(f func(value any) bool) {
 	if m.fastMap != nil {
 		for _, cell := range m.fastMap {
 			if !f(cell.Value) {
@@ -948,7 +948,7 @@ func (m *EdgeMap) ValueRange(f func(value interface{}) bool) {
 //
 // It is not safe to modify the map with Store or Delete
 // during enumeration.
-func (m *EdgeMap) Range(f func(key [2]Coord, value interface{}) bool) {
+func (m *EdgeMap) Range(f func(key [2]Coord, value any) bool) {
 	if m.fastMap != nil {
 		for _, cell := range m.fastMap {
 			if !f(cell.Key, cell.Value) {
@@ -965,7 +965,7 @@ func (m *EdgeMap) Range(f func(key [2]Coord, value interface{}) bool) {
 }
 
 func (m *EdgeMap) fastToSlow() {
-	m.slowMap = map[[2]Coord]interface{}{}
+	m.slowMap = map[[2]Coord]any{}
 	for _, cell := range m.fastMap {
 		m.slowMap[cell.Key] = cell.Value
 	}
@@ -974,7 +974,7 @@ func (m *EdgeMap) fastToSlow() {
 
 type cellForEdgeMap struct {
 	Key   [2]Coord
-	Value interface{}
+	Value any
 }
 
 func hashForEdgeMap(c [2]Coord) uint64 {

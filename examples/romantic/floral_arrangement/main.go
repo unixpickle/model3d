@@ -98,10 +98,10 @@ func CreateArrangement() []*FlowerDesc {
 	return results
 }
 
-func CompileArrangement(fs []*FlowerDesc) (model3d.Solid, map[*model3d.Mesh]interface{}) {
+func CompileArrangement(fs []*FlowerDesc) (model3d.Solid, map[*model3d.Mesh]any) {
 	solids := model3d.JoinedSolid{}
 	stemColor := render3d.NewColorRGB(55.0/255, 102.0/255, 54.0/255)
-	colorFuncs := map[*model3d.Mesh]interface{}{}
+	colorFuncs := map[*model3d.Mesh]any{}
 	for i, f := range fs {
 		log.Printf("Compiling flower %d/%d", i+1, len(fs))
 		stem := NewStem(model3d.XY(f.Base.X, f.Base.Y), f.Height, f.Flower.Tilt)

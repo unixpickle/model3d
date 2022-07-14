@@ -42,7 +42,7 @@ func TestCoordMap(t *testing.T) {
 				t.Fatalf("should have length %d but got %d", len(baseline), cm.Len())
 			}
 			count := 0
-			cm.Range(func(k Coord3D, v interface{}) bool {
+			cm.Range(func(k Coord3D, v any) bool {
 				count++
 				if baseline[k] != v {
 					t.Fatal("invalid entry")
@@ -117,7 +117,7 @@ func BenchmarkCoordMap(b *testing.B) {
 		}
 	})
 	b.Run("Baseline", func(b *testing.B) {
-		cm := map[Coord3D]interface{}{}
+		cm := map[Coord3D]any{}
 		c := NewCoord3DRandNorm()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
