@@ -15,6 +15,7 @@ const (
 	helperAmbient     = 0.1
 	helperDiffuse     = 0.8
 	helperSpecular    = 0.2
+	helperAntialias   = 2
 )
 
 // ColorFunc determines a color for collisions on a
@@ -104,7 +105,7 @@ func Objectify(obj interface{}, colorFunc ColorFunc) Object {
 func SaveRendering(path string, obj interface{}, origin model3d.Coord3D, width, height int,
 	colorFunc ColorFunc) error {
 	object := Objectify(obj, colorFunc)
-	image := NewImage(width, height)
+	image := NewImage(width*helperAntialias, height*helperAntialias)
 
 	min, max := object.Min(), object.Max()
 	center := min.Mid(max)
@@ -118,7 +119,7 @@ func SaveRendering(path string, obj interface{}, origin model3d.Coord3D, width, 
 		},
 	}
 	caster.Render(image, object)
-	return image.Save(path)
+	return image.Downsample(helperAntialias).Save(path)
 }
 
 // SaveRandomGrid renders a 3D object from a variety of
@@ -149,9 +150,9 @@ func SaveRandomGrid(path string, obj interface{}, rows, cols, imgSize int,
 					},
 				},
 			}
-			subImage := NewImage(imgSize, imgSize)
+			subImage := NewImage(imgSize*helperAntialias, imgSize*helperAntialias)
 			caster.Render(subImage, object)
-			fullOutput.CopyFrom(subImage, j*imgSize, i*imgSize)
+			fullOutput.CopyFrom(subImage.Downsample(helperAntialias), j*imgSize, i*imgSize)
 		}
 	}
 

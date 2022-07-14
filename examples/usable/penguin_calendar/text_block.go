@@ -59,7 +59,15 @@ func CreateBlocks() {
 		return colorMap.Value(coords.NearestNeighbor(c))
 	})
 
-	joinedMesh.SaveMaterialOBJ("blocks.zip", colorFunc.Cached().TriangleColor)
+	triColor := colorFunc.Cached().TriangleColor
+	joinedMesh.SaveMaterialOBJ("blocks.zip", triColor)
+
+	mp := joinedMesh.Min().Mid(joinedMesh.Max())
+	render3d.SaveRendering("rendering_blocks.png", joinedMesh, mp.Add(model3d.YZ(3.0, 8.0)),
+		500, 500, func(c model3d.Coord3D, rc model3d.RayCollision) render3d.Color {
+			rgb := triColor(rc.Extra.(*model3d.TriangleCollision).Triangle)
+			return render3d.NewColorRGB(rgb[0], rgb[1], rgb[2])
+		})
 }
 
 func TextBlock(size model3d.Coord3D, inset float64, imgScale float64,
