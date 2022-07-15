@@ -69,3 +69,33 @@ func TestSolidMux(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkSolidMux(b *testing.B) {
+	solids := make([]Solid, 5)
+	for i := 0; i < 5; i++ {
+		solids[i] = &Sphere{
+			Center: NewCoord3DRandNorm(),
+			Radius: 0.7,
+		}
+	}
+	mux := NewSolidMux(solids)
+
+	checkCoords := make([]Coord3D, 1024)
+	for i := range checkCoords {
+		checkCoords[i] = NewCoord3DRandNorm().Scale(2)
+	}
+
+	b.Run("AllContains", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			mux.AllContains(checkCoords[i%len(checkCoords)])
+		}
+	})
+	b.Run("IterContains", func(b *testing.B) {
+		bitmap := make([]bool, len(mux.Solids()))
+		for i := 0; i < b.N; i++ {
+			mux.IterContains(checkCoords[i%len(checkCoords)], func(i int) {
+				bitmap[i] = true
+			})
+		}
+	})
+}

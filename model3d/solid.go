@@ -514,6 +514,8 @@ type SolidMux struct {
 	leaf        Solid
 	leafIndex   int
 	children    [2]*SolidMux
+
+	solids []Solid
 }
 
 // NewSolidMux creates a SolidMux using the ordered list of
@@ -539,7 +541,9 @@ func NewSolidMux(solids []Solid) *SolidMux {
 		groupedSolids[i] = solids[idx]
 		indices[i] = idx
 	}
-	return groupedSolidsToSolidMux(groupedSolids, indices)
+	res := groupedSolidsToSolidMux(groupedSolids, indices)
+	res.solids = solids
+	return res
 }
 
 func groupedSolidsToSolidMux(solids []Solid, indices []int) *SolidMux {
@@ -560,6 +564,10 @@ func groupedSolidsToSolidMux(solids []Solid, indices []int) *SolidMux {
 			groupedSolidsToSolidMux(solids[splitIdx:], indices[splitIdx:]),
 		},
 	}
+}
+
+func (s *SolidMux) Solids() []Solid {
+	return s.solids
 }
 
 func (s *SolidMux) Min() Coord3D {
@@ -586,21 +594,47 @@ func (s *SolidMux) Contains(c Coord3D) bool {
 	}
 }
 
+// AllContains returns, for each solid in the mux, whether
+// the coordinate c is contained in the solid.
 func (s *SolidMux) AllContains(c Coord3D) []bool {
 	res := make([]bool, s.totalSolids)
-	s.allContains(c, res)
+	s.IterContains(c, func(i int) {
+		res[i] = true
+	})
 	return res
 }
 
-func (s *SolidMux) allContains(c Coord3D, out []bool) {
+// IterContains calls f with the index of each solid that
+// contains the coordinate.
+//
+// Returns the number of solids which contain the
+// coordinate.
+//
+// The f argument may be nil, in which case this simply
+// counts the number of containing solids.
+//
+// The order in which f is called is arbitrary and subject
+// to change. It will not necessarily be called in order of
+// the solids, but it will always be called at most once
+// per solid.
+func (s *SolidMux) IterContains(c Coord3D, f func(i int)) int {
 	if !s.bbox.Contains(c) || s.totalSolids == 0 {
-		return
+		return 0
 	}
 	if s.totalSolids == 1 {
-		out[s.leafIndex] = s.leaf.Contains(c)
-	} else {
-		for _, ch := range s.children {
-			ch.allContains(c, out)
+		if s.leaf.Contains(c) {
+			if f != nil {
+				f(s.leafIndex)
+			}
+			return 1
+		} else {
+			return 0
 		}
+	} else {
+		res := 0
+		for _, ch := range s.children {
+			res += ch.IterContains(c, f)
+		}
+		return res
 	}
 }
