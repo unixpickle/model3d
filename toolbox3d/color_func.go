@@ -211,17 +211,15 @@ func JoinedSolidCoordColorFunc(points any, solidsAndColors ...any) CoordColorFun
 		cfs = append(cfs, colorFuncFromObj(solidsAndColors[i+1]))
 	}
 
+	mux := model3d.NewSolidMux(solids)
+
 	return func(c model3d.Coord3D) render3d.Color {
 		// Try without and then with the nearest neighbor to c.
 		for try := 0; try < 2; try++ {
 			var colorSum render3d.Color
-			var colorCount int
-			for i, solid := range solids {
-				if solid.Contains(c) {
-					colorSum = colorSum.Add(cfs[i](c))
-					colorCount++
-				}
-			}
+			colorCount := mux.IterContains(c, func(i int) {
+				colorSum = colorSum.Add(cfs[i](c))
+			})
 			if colorCount > 0 {
 				return colorSum.Scale(1.0 / float64(colorCount))
 			}
