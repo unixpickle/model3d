@@ -335,9 +335,9 @@ func BuildQuantizedMaterialOBJ(t []*Triangle, textureSize int,
 }
 
 func buildPaletteTexture(colors [][3]float32, imageSize int) (*image.RGBA, [][2]float64, []int) {
-	allVecs := make([]numerical.Vec, len(colors))
+	allVecs := make([]numerical.Vec3, len(colors))
 	for i, c := range colors {
-		allVecs[i] = numerical.Vec{float64(c[0]), float64(c[1]), float64(c[2])}
+		allVecs[i] = numerical.Vec3{float64(c[0]), float64(c[1]), float64(c[2])}
 	}
 	numCenters := imageSize * imageSize
 	clusters := numerical.NewKMeans(allVecs, numCenters)

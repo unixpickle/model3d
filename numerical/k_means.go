@@ -18,24 +18,24 @@ import (
 // initial clustering using K-means++. Then, Iterate() can
 // be called repeatedly to refine the clustering as
 // desired.
-type KMeans struct {
+type KMeans[T Vector[T]] struct {
 	// Centers is the K-means cluster centers.
-	Centers []Vec
+	Centers []T
 
 	// Data stores all of the data points.
-	Data []Vec
+	Data []T
 }
 
 // NewKMeans creates a KMeans object with K-means++
 // initialization.
-func NewKMeans(data []Vec, numCenters int) *KMeans {
+func NewKMeans[T Vector[T]](data []T, numCenters int) *KMeans[T] {
 	if len(data) <= numCenters {
-		return &KMeans{
+		return &KMeans[T]{
 			Centers: data,
 			Data:    data,
 		}
 	}
-	return &KMeans{
+	return &KMeans[T]{
 		Centers: kmeansPlusPlusInit(data, numCenters),
 		Data:    data,
 	}
@@ -45,11 +45,11 @@ func NewKMeans(data []Vec, numCenters int) *KMeans {
 // current MSE loss.
 // If the MSE loss does not decrease, then the process has
 // converged.
-func (k *KMeans) Iterate() float64 {
-	dim := len(k.Centers[0])
-	centerSum := make([]Vec, len(k.Centers))
+func (k *KMeans[T]) Iterate() float64 {
+	zeroValue := k.Centers[0].Zeros()
+	centerSum := make([]T, len(k.Centers))
 	for i := range centerSum {
-		centerSum[i] = make(Vec, dim)
+		centerSum[i] = zeroValue
 	}
 	centerCount := make([]int, len(k.Centers))
 	totalError := 0.0
@@ -61,9 +61,9 @@ func (k *KMeans) Iterate() float64 {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			localCenterSum := make([]Vec, len(k.Centers))
+			localCenterSum := make([]T, len(k.Centers))
 			for i := range localCenterSum {
-				localCenterSum[i] = make(Vec, dim)
+				localCenterSum[i] = zeroValue
 			}
 			localCenterCount := make([]int, len(k.Centers))
 			localTotalError := 0.0
@@ -98,7 +98,7 @@ func (k *KMeans) Iterate() float64 {
 }
 
 // Assign gets the closest center index for every vector.
-func (k *KMeans) Assign(vecs []Vec) []int {
+func (k *KMeans[T]) Assign(vecs []T) []int {
 	result := make([]int, len(vecs))
 	essentials.ConcurrentMap(0, len(result), func(i int) {
 		_, result[i] = k.assign(vecs[i])
@@ -106,8 +106,7 @@ func (k *KMeans) Assign(vecs []Vec) []int {
 	return result
 }
 
-func (k *KMeans) assign(v Vec) (dist float64, idx int) {
-
+func (k *KMeans[T]) assign(v T) (dist float64, idx int) {
 	for i, center := range k.Centers {
 		d := float64(v.DistSquared(center))
 		if d < dist || i == 0 {
@@ -118,8 +117,8 @@ func (k *KMeans) assign(v Vec) (dist float64, idx int) {
 	return
 }
 
-func kmeansPlusPlusInit(allColors []Vec, numCenters int) []Vec {
-	centers := make([]Vec, numCenters)
+func kmeansPlusPlusInit[T Vector[T]](allColors []T, numCenters int) []T {
+	centers := make([]T, numCenters)
 	centers[0] = allColors[rand.Intn(len(allColors))]
 	dists := newCenterDistances(allColors, centers[0])
 	for i := 1; i < numCenters; i++ {
@@ -130,27 +129,27 @@ func kmeansPlusPlusInit(allColors []Vec, numCenters int) []Vec {
 	return centers
 }
 
-type centerDistances struct {
-	Data        []Vec
+type centerDistances[T Vector[T]] struct {
+	Data        []T
 	Distances   []float64
 	DistanceSum float64
 }
 
-func newCenterDistances(data []Vec, center Vec) *centerDistances {
+func newCenterDistances[T Vector[T]](data []T, center T) *centerDistances[T] {
 	dists := make([]float64, len(data))
 	sum := 0.0
 	for i, c := range data {
 		dists[i] = float64(c.DistSquared(center))
 		sum += dists[i]
 	}
-	return &centerDistances{
+	return &centerDistances[T]{
 		Data:        data,
 		Distances:   dists,
 		DistanceSum: sum,
 	}
 }
 
-func (c *centerDistances) Update(newCenter Vec) {
+func (c *centerDistances[T]) Update(newCenter T) {
 	c.DistanceSum = 0
 	for i, co := range c.Data {
 		d := float64(co.DistSquared(newCenter))
@@ -161,7 +160,7 @@ func (c *centerDistances) Update(newCenter Vec) {
 	}
 }
 
-func (c *centerDistances) Sample() int {
+func (c *centerDistances[T]) Sample() int {
 	sample := rand.Float64() * c.DistanceSum
 	idx := len(c.Data) - 1
 	for i, dist := range c.Distances {
