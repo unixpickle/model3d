@@ -26,6 +26,9 @@ func TestVec4OrthoBasis(t *testing.T) {
 	t.Run("Random", func(t *testing.T) {
 		v := Vec4{10, -17, 32, 5}
 		checkVec(t, v)
+		for i := 0; i < 100; i++ {
+			checkVec(t, NewVec4RandomUnit())
+		}
 	})
 }
 

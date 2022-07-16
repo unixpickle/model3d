@@ -5,6 +5,21 @@ import (
 	"math/rand"
 )
 
+// The Vector interface type is meant to be used in type
+// constraints as `T Vector[T]`. In this way, Vec2, Vec3,
+// Vec4, and Vec all implement this interface.
+type Vector[T any] interface {
+	Zeros() T
+	Add(T) T
+	Sub(T) T
+	Scale(float64) T
+	DistSquared(T) float64
+	Dist(T) float64
+	Norm() float64
+	Min(T) T
+	Max(T) T
+}
+
 // A Vec2 is a 2-dimensional tuple of floats.
 type Vec2 [2]float64
 
@@ -29,6 +44,13 @@ func NewVec2RandomUnit() Vec2 {
 	}
 }
 
+// Zeros returns a zero vector of the same size as v.
+// While seemingly useless, this can be useful for generic
+// code.
+func (v Vec2) Zeros() Vec2 {
+	return Vec2{}
+}
+
 // Add returns v + v1.
 func (v Vec2) Add(v1 Vec2) Vec2 {
 	return Vec2{v[0] + v1[0], v[1] + v1[1]}
@@ -42,6 +64,17 @@ func (v Vec2) Sub(v1 Vec2) Vec2 {
 // Scale returns v * f.
 func (v Vec2) Scale(f float64) Vec2 {
 	return Vec2{v[0] * f, v[1] * f}
+}
+
+// DistSquared computes ||v-v1||^2.
+func (v Vec2) DistSquared(v1 Vec2) float64 {
+	var res float64
+	for i, x := range v {
+		y := v1[i]
+		diff := (x - y)
+		res += diff * diff
+	}
+	return res
 }
 
 // Dist gets the Euclidean distance ||v - v1||.
@@ -77,6 +110,26 @@ func (v Vec2) ProjectOut(v1 Vec2) Vec2 {
 	return v.Add(normed.Scale(-normed.Dot(v)))
 }
 
+// Min computes the per-element minimum of v and v1.
+func (v Vec2) Min(v1 Vec2) Vec2 {
+	var res Vec2
+	for i, a := range v {
+		b := v1[i]
+		res[i] = math.Min(a, b)
+	}
+	return res
+}
+
+// Max computes the per-element maximum of v and v1.
+func (v Vec2) Max(v1 Vec2) Vec2 {
+	var res Vec2
+	for i, a := range v {
+		b := v1[i]
+		res[i] = math.Max(a, b)
+	}
+	return res
+}
+
 // A Vec3 is a 3-dimensional tuple of floats.
 type Vec3 [3]float64
 
@@ -102,6 +155,13 @@ func NewVec3RandomUnit() Vec3 {
 	}
 }
 
+// Zeros returns a zero vector of the same size as v.
+// While seemingly useless, this can be useful for generic
+// code.
+func (v Vec3) Zeros() Vec3 {
+	return Vec3{}
+}
+
 // Add returns v + v1.
 func (v Vec3) Add(v1 Vec3) Vec3 {
 	return Vec3{v[0] + v1[0], v[1] + v1[1], v[2] + v1[2]}
@@ -115,6 +175,17 @@ func (v Vec3) Sub(v1 Vec3) Vec3 {
 // Scale returns v * f.
 func (v Vec3) Scale(f float64) Vec3 {
 	return Vec3{v[0] * f, v[1] * f, v[2] * f}
+}
+
+// DistSquared computes ||v-v1||^2.
+func (v Vec3) DistSquared(v1 Vec3) float64 {
+	var res float64
+	for i, x := range v {
+		y := v1[i]
+		diff := (x - y)
+		res += diff * diff
+	}
+	return res
 }
 
 // Dist gets the Euclidean distance ||v - v1||.
@@ -158,6 +229,26 @@ func (v Vec3) Normalize() Vec3 {
 func (v Vec3) ProjectOut(v1 Vec3) Vec3 {
 	normed := v1.Normalize()
 	return v.Add(normed.Scale(-normed.Dot(v)))
+}
+
+// Min computes the per-element minimum of v and v1.
+func (v Vec3) Min(v1 Vec3) Vec3 {
+	var res Vec3
+	for i, a := range v {
+		b := v1[i]
+		res[i] = math.Min(a, b)
+	}
+	return res
+}
+
+// Max computes the per-element maximum of v and v1.
+func (v Vec3) Max(v1 Vec3) Vec3 {
+	var res Vec3
+	for i, a := range v {
+		b := v1[i]
+		res[i] = math.Max(a, b)
+	}
+	return res
 }
 
 // OrthoBasis creates two unit vectors which are
@@ -220,6 +311,13 @@ func NewVec4RandomUnit() Vec4 {
 	}
 }
 
+// Zeros returns a zero vector of the same size as v.
+// While seemingly useless, this can be useful for generic
+// code.
+func (v Vec4) Zeros() Vec4 {
+	return Vec4{}
+}
+
 // Add returns v + v1.
 func (v Vec4) Add(v1 Vec4) Vec4 {
 	return Vec4{v[0] + v1[0], v[1] + v1[1], v[2] + v1[2], v[3] + v1[3]}
@@ -233,6 +331,17 @@ func (v Vec4) Sub(v1 Vec4) Vec4 {
 // Scale returns v * f.
 func (v Vec4) Scale(f float64) Vec4 {
 	return Vec4{v[0] * f, v[1] * f, v[2] * f, v[3] * f}
+}
+
+// DistSquared computes ||v-v1||^2.
+func (v Vec4) DistSquared(v1 Vec4) float64 {
+	var res float64
+	for i, x := range v {
+		y := v1[i]
+		diff := (x - y)
+		res += diff * diff
+	}
+	return res
 }
 
 // Dist gets the Euclidean distance ||v - v1||.
@@ -268,6 +377,26 @@ func (v Vec4) Normalize() Vec4 {
 func (v Vec4) ProjectOut(v1 Vec4) Vec4 {
 	normed := v1.Normalize()
 	return v.Add(normed.Scale(-normed.Dot(v)))
+}
+
+// Min computes the per-element minimum of v and v1.
+func (v Vec4) Min(v1 Vec4) Vec4 {
+	var res Vec4
+	for i, a := range v {
+		b := v1[i]
+		res[i] = math.Min(a, b)
+	}
+	return res
+}
+
+// Max computes the per-element maximum of v and v1.
+func (v Vec4) Max(v1 Vec4) Vec4 {
+	var res Vec4
+	for i, a := range v {
+		b := v1[i]
+		res[i] = math.Max(a, b)
+	}
+	return res
 }
 
 // OrthoBasis creates three unit vectors which are
@@ -320,6 +449,13 @@ func (v Vec4) OrthoBasis() (Vec4, Vec4, Vec4) {
 
 // Vec is a vector of arbitrary dimension.
 type Vec []float64
+
+// Zeros returns a zero vector of the same size as v.
+// While seemingly useless, this can be useful for generic
+// code.
+func (v Vec) Zeros() Vec {
+	return make(Vec, len(v))
+}
 
 // Add returns v + v1.
 func (v Vec) Add(v1 Vec) Vec {
