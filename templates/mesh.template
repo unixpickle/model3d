@@ -571,6 +571,32 @@ func (m *Mesh) neighborsWithCounts(t *{{.faceType}}) map[*{{.faceType}}]int {
 	return counts
 }
 
+// AllVertexNeighbors returns a mapping between vertices
+// and all of their directly connected neighbors.
+func (m *Mesh) AllVertexNeighbors() *CoordToSlice[{{.coordType}}] {
+	neighbors := NewCoordToSlice[{{.coordType}}]()
+	m.Iterate(func(t *{{.faceType}}) {
+		for i, c := range t {
+			for j, c1 := range t {
+				if i != j {
+					cur := neighbors.Value(c)
+					found := false
+					for _, c2 := range cur {
+						if c2 == c1 {
+							found = true
+							break
+						}
+					}
+					if !found {
+						neighbors.Store(c, append(cur, c1))
+					}
+				}
+			}
+		}
+	})
+	return neighbors
+}
+
 // Find gets all the {{.faceName}}s that contain all of the passed
 // points.
 //

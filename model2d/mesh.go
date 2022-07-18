@@ -247,6 +247,32 @@ func (m *Mesh) neighborsWithCounts(t *Segment) map[*Segment]int {
 	return counts
 }
 
+// AllVertexNeighbors returns a mapping between vertices
+// and all of their directly connected neighbors.
+func (m *Mesh) AllVertexNeighbors() *CoordToSlice[Coord] {
+	neighbors := NewCoordToSlice[Coord]()
+	m.Iterate(func(t *Segment) {
+		for i, c := range t {
+			for j, c1 := range t {
+				if i != j {
+					cur := neighbors.Value(c)
+					found := false
+					for _, c2 := range cur {
+						if c2 == c1 {
+							found = true
+							break
+						}
+					}
+					if !found {
+						neighbors.Store(c, append(cur, c1))
+					}
+				}
+			}
+		}
+	})
+	return neighbors
+}
+
 // Find gets all the segments that contain all of the passed
 // points.
 //
