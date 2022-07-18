@@ -24,9 +24,21 @@ func NewSparseMatrix(size int) *SparseMatrix {
 // Set adds an entry to the matrix.
 //
 // The entry should not already be set.
+// If it is, this will result in undefined behavior.
 func (s *SparseMatrix) Set(row, col int, x float64) {
 	s.rows[row] = append(s.rows[row], x)
 	s.indices[row] = append(s.indices[row], col)
+}
+
+// Transpose computes the matrix transpose of s.
+func (s *SparseMatrix) Transpose() *SparseMatrix {
+	res := NewSparseMatrix(len(s.rows))
+	for i := 0; i < len(s.rows); i++ {
+		s.Iterate(i, func(j int, x float64) {
+			res.Set(j, i, x)
+		})
+	}
+	return res
 }
 
 // Iterate loops through the non-zero entries in a row.
@@ -125,9 +137,33 @@ func (s *SparseMatrix) RCM() []int {
 	return permutation
 }
 
+// Apply computes A*x.
+func (s *SparseMatrix) Apply(x []float64) []float64 {
+	res := make([]float64, len(x))
+	for row, indices := range s.indices {
+		for col, value := range s.rows[row] {
+			res[row] += x[indices[col]] * value
+		}
+	}
+	return res
+}
+
+// ApplyVec2 computes (A*x, A*y).
+func (s *SparseMatrix) ApplyVec2(x []Vec2) []Vec2 {
+	return sparseMatrixApply(s, x)
+}
+
 // ApplyVec3 computes (A*x, A*y, A*z).
 func (s *SparseMatrix) ApplyVec3(x []Vec3) []Vec3 {
-	res := make([]Vec3, len(x))
+	return sparseMatrixApply(s, x)
+}
+
+func sparseMatrixApply[T Vector[T]](s *SparseMatrix, x []T) []T {
+	zero := x[0].Zeros()
+	res := make([]T, len(x))
+	for i := range res {
+		res[i] = zero
+	}
 	for row, indices := range s.indices {
 		for col, value := range s.rows[row] {
 			res[row] = res[row].Add(x[indices[col]].Scale(value))
