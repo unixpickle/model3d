@@ -138,8 +138,8 @@ func (s *SparseMatrix) RCM() []int {
 }
 
 // Apply computes A*x.
-func (s *SparseMatrix) Apply(x []float64) []float64 {
-	res := make([]float64, len(x))
+func (s *SparseMatrix) Apply(x Vec) Vec {
+	res := make(Vec, len(x))
 	for row, indices := range s.indices {
 		for col, value := range s.rows[row] {
 			res[row] += x[indices[col]] * value
