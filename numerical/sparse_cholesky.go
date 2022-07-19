@@ -36,7 +36,7 @@ func NewSparseCholesky(mat *SparseMatrix) *SparseCholesky {
 
 	for i := 0; i < size; i++ {
 		diagonalEntry := diagonal[i]
-		lower.Iterate(i, func(col int, x float64) {
+		lower.Iterate(i, func(_ int, x float64) {
 			diagonalEntry -= x * x
 		})
 		// TODO: see if we need to make sure the diagonal entry
