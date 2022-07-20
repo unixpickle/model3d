@@ -1,7 +1,60 @@
 package numerical
 
+import (
+	"math"
+)
+
+// A LargeLinearSolver provides numerical solutions to
+// linear systems that are implemented as functions on
+// vectors.
+type LargeLinearSolver interface {
+	// SolveLinearSystem applies the inverse of a linear
+	// operator to the vector b.
+	SolveLinearSystem(op func(v Vec) Vec, b Vec) Vec
+}
+
+// BiCGSTABSolver implements LargeLinearSolver using the
+// BiCGSTAB algorithm with a specified stopping condition.
+//
+// The solver is configured using a tolerance on either
+// MSE, MAE, iterations, or a combination thereof.
+// At least one stopping criterion must be provided.
+type BiCGSTABSolver struct {
+	MaxIters int
+
+	// If either MSE or MAE go below these values, the
+	// optimization will terminate early.
+	MSETolerance float64
+	MAETolerance float64
+}
+
+// SolveLinearSystem iteratively runs BiCGSTAB until a
+// stopping criterion is met.
+func (b *BiCGSTABSolver) SolveLinearSystem(op func(v Vec) Vec, x Vec) Vec {
+	if b.MaxIters == 0 && b.MAETolerance <= 0 && b.MSETolerance <= 0 {
+		panic("no stopping criteria provided")
+	}
+	solver := NewBiCGSTAB(op, x, nil)
+	var solution Vec
+	for i := 0; b.MaxIters == 0 || i < b.MaxIters; i++ {
+		solution = solver.Iter()
+		if b.MSETolerance != 0 || b.MAETolerance != 0 {
+			sqErr := 0.0
+			absErr := 0.0
+			for _, x := range op(solution).Sub(x) {
+				sqErr += x * x
+				absErr += math.Abs(x)
+			}
+			if sqErr < b.MSETolerance*float64(len(x)) || absErr < b.MAETolerance*float64(len(x)) {
+				break
+			}
+		}
+	}
+	return solution
+}
+
 // BiCGSTAB implements the biconjugate gradient stabilized
-// method for inverting large asymmetric matrices.
+// method for inverting a specific large asymmetric matrix.
 //
 // This can be instantiated with NewBiCGSTAB() and then
 // iterated via the Iter() method, which returns the
