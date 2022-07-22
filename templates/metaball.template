@@ -134,3 +134,21 @@ func MetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, m ...Metaball
         },
     )
 }
+
+type sdfMetaball struct {
+    SDF
+}
+
+func (s sdfMetaball) MetaballField(c {{.coordType}}) float64 {
+    return -s.SDF.SDF(c)
+}
+
+func (s sdfMetaball) MetaballDistBound(d float64) float64 {
+    return d
+}
+
+// SDFToMetaball creates a Metaball from the SDF.
+// The resulting field is equal to the negative SDF.
+func SDFToMetaball(s SDF) Metaball {
+    return &sdfMetaball{SDF: s}
+}
