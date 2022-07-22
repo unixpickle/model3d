@@ -700,6 +700,8 @@ func (t *Triangle) genericSDF(coord Coord, normalOut, pointOut *Coord) float64 {
 		return -dist
 	}
 }
+
+{{template "sdfToMetaball" mkargs . "typeLetter" "t" "typeName" "Triangle"}}
 {{end}}
 
 {{if not .model2d}}

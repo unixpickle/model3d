@@ -706,6 +706,20 @@ func (t *Triangle) genericSDF(coord Coord, normalOut, pointOut *Coord) float64 {
 	}
 }
 
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (t *Triangle) MetaballField(coord Coord) float64 {
+	return -t.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (t *Triangle) MetaballDistBound(d float64) float64 {
+	return d
+}
+
 func safeNormal(direction, fallbackDirection, invalidDirection Coord) Coord {
 	if norm := direction.Norm(); norm == 0 {
 		// Fully degenerate case.
