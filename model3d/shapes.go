@@ -264,8 +264,8 @@ func (r *Rect) PointSDF(c Coord3D) (Coord3D, float64) {
 	return p, res
 }
 
-// NormalSDF gets the nearest point on the surface of the
-// rect and the corresponding SDF.
+// NormalSDF gets the signed distance to the rect and the
+// normal at the closest point on the surface.
 func (r *Rect) NormalSDF(c Coord3D) (Coord3D, float64) {
 	var n Coord3D
 	res := r.genericSDF(c, &n, nil)
@@ -475,8 +475,8 @@ func (c *Capsule) PointSDF(coord Coord3D) (Coord3D, float64) {
 	return p, res
 }
 
-// NormalSDF gets the nearest point on the surface of the
-// capsule and the corresponding SDF.
+// NormalSDF gets the signed distance to the capsule and
+// the normal at the closest point on the surface.
 func (c *Capsule) NormalSDF(coord Coord3D) (Coord3D, float64) {
 	var n Coord3D
 	res := c.genericSDF(coord, &n, nil)
