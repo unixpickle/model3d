@@ -584,6 +584,16 @@ func (t *Triangle) Contains(c Coord) bool {
 	return true
 }
 
+// Barycentric returns the barycentric coordinates of c.
+func (t *Triangle) Barycentric(c Coord) [3]float64 {
+	solution := t.invMat.MulColumn(c.Sub(t.coords[0]))
+	return [3]float64{
+		1 - (solution.X + solution.Y),
+		solution.X,
+		solution.Y,
+	}
+}
+
 // FirstRayCollision gets the first ray collision with the
 // triangle, if one occurs.
 func (t *Triangle) FirstRayCollision(r *Ray) (RayCollision, bool) {
