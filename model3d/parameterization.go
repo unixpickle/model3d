@@ -180,12 +180,12 @@ func Floater97DefaultSolver() *numerical.BiCGSTABSolver {
 	}
 }
 
-// Floater97 computes the 2D parameterization of a mesh
-// which is disc-like (having at least three boundary
-// points).
+// Floater97 computes the 2D parameterization of a mesh.
 //
-// The m argument is the mesh to parameterize, which must
-// be mappable to a disc.
+// The mesh m must be a simple-connected triangulated plane
+// graph; in other words, it must be mappable to a disc.
+// The boundary of this mesh must contain at least three
+// points, as is the case for a single triangle.
 //
 // The boundary argument maps each boundary vertex in m to
 // a coordinate on the 2D plane. The boundary must be a
@@ -388,4 +388,150 @@ func orderedNeighbors(m *Mesh, center Coord3D) []Coord3D {
 	}
 
 	return res
+}
+
+// MeshToPlaneGraphs splits a mesh m into one or more
+// sub-meshes which are simply-connected triangulated plane
+// graphs. These sub-meshes are suitable for Floater97().
+//
+// The mesh m must either be manifold, or be a subset of a
+// manifold mesh. For example, calling MeshToPlaneGraphs()
+// on a result of MeshToPlaneGraphs() should be an identity
+// operation.
+func MeshToPlaneGraphs(m *Mesh) []*Mesh {
+	m = m.Copy()
+	var res []*Mesh
+	for {
+		next := nextMeshDiscs(m)
+		if len(next) > 0 {
+			res = append(res, next...)
+		} else {
+			break
+		}
+	}
+	return res
+}
+
+func nextMeshDiscs(m *Mesh) []*Mesh {
+	var t1 *Triangle
+	for t := range m.faces {
+		t1 = t
+		break
+	}
+	if t1 == nil {
+		return nil
+	}
+	m.Remove(t1)
+
+	// As we add triangles, we will track the cumulative
+	// area at each triangle, so that we can possibly split
+	// the resulting mesh into two halves.
+	tris := []*Triangle{t1}
+	cumAreas := []float64{t1.Area()}
+
+	// The algorithm tracks the current boundary in terms
+	// of segments and vertices. Since vertices might be
+	// present in multiple segments, we reference count
+	// them.
+	segments := NewEdgeMap[bool]()
+	vertices := NewCoordToNumber[int]()
+	for _, s := range t1.Segments() {
+		segments.Store(s, true)
+	}
+	for _, c := range t1 {
+		vertices.Store(c, 1)
+	}
+
+	// We now search over triangles using a queue. The
+	// queue consists of triangles which currently touch
+	// the boundary; not all triangles can actually be
+	// added.
+	neighborQueue := m.Neighbors(t1)
+	inQueue := map[*Triangle]bool{}
+	for _, t := range neighborQueue {
+		inQueue[t] = true
+	}
+	for len(neighborQueue) > 0 {
+		next := neighborQueue[0]
+		delete(inQueue, next)
+		neighborQueue = neighborQueue[1:]
+
+		// If we add a new triangle from one part of the boundary
+		// with a vertex touching a separate part of the boundary,
+		// we will split the boundary into two disjoint sections.
+		//
+		// Visual explanation:
+		//
+		// ---old_boundary----
+		// new \   / other
+		// half \ /  half
+		//       +
+		// ---old_boundary----
+		//
+		// To avoid the above scenario, we skip triangles with a
+		// vertex that is not part of an edge already on the
+		// boundary. This can happen even if the triangle will
+		// eventually be incorporated; it might just need a
+		// different neighboring triangle to be added first.
+		touchingSegment := [3]bool{}
+		for i, c := range next {
+			c1 := next[(i+1)%3]
+			seg := NewSegment(c, c1)
+			if segments.Value(seg) {
+				touchingSegment[i] = true
+				touchingSegment[(i+1)%3] = true
+			}
+		}
+		wouldDivideBoundary := false
+		for i, c := range next {
+			if vertices.Value(c) > 0 && !touchingSegment[i] {
+				wouldDivideBoundary = true
+				break
+			}
+		}
+		if wouldDivideBoundary {
+			// The triangle may be re-discovered later when it can be
+			// added without creating two boundaries.
+			continue
+		}
+
+		m.Remove(next)
+		tris = append(tris, next)
+		cumAreas = append(cumAreas, cumAreas[len(cumAreas)-1]+next.Area())
+		for _, seg := range next.Segments() {
+			if segments.Value(seg) {
+				segments.Delete(seg)
+				for _, p := range seg {
+					if vertices.Add(p, -1) == 0 {
+						vertices.Delete(p)
+					}
+				}
+			} else {
+				segments.Store(seg, true)
+				for _, p := range seg {
+					vertices.Add(p, 1)
+				}
+			}
+		}
+		for _, neighbor := range m.Neighbors(next) {
+			if !inQueue[neighbor] {
+				neighborQueue = append(neighborQueue, neighbor)
+				inQueue[neighbor] = true
+			}
+		}
+	}
+
+	if segments.Len() == 0 {
+		// We completely covered a surface that was isomorphic
+		// to a sphere, with no boundary left at the final step.
+		// We must produce two discs, and we try to divide them
+		// as evenly as possible.
+		index := sort.SearchFloat64s(cumAreas, cumAreas[len(cumAreas)-1]/2)
+		if index > len(tris)-1 {
+			index = len(tris) - 1
+		}
+		return []*Mesh{NewMeshTriangles(tris[:index]), NewMeshTriangles(tris[index:])}
+	}
+
+	return []*Mesh{NewMeshTriangles(tris)}
 }
