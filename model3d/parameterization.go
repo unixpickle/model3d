@@ -535,3 +535,193 @@ func nextMeshDiscs(m *Mesh) []*Mesh {
 
 	return []*Mesh{NewMeshTriangles(tris)}
 }
+
+// A MeshUVMap is a mapping between triangles in a 3D mesh
+// and triangles on a 2D surface.
+//
+// The order of 3D triangles corresponds to the order of 2D
+// triangles (e.g. tri3d[i] maps to tri2d[i], 0 <= i < 3).
+type MeshUVMap map[*Triangle][3]model2d.Coord
+
+// JoinMeshUVMaps adds all keys and values from
+// all UV maps to a resulting mapping.
+//
+// This will not modify the coordinates in the mappings.
+func JoinMeshUVMaps(ms ...MeshUVMap) MeshUVMap {
+	res := MeshUVMap{}
+	for _, m := range ms {
+		for k, v := range m {
+			res[k] = v
+		}
+	}
+	return res
+}
+
+// NewMeshUVMapForCoords maps triangles in the mesh to 2D
+// triangles using direct per-point lookups.
+//
+// The mapping must have an entry for every vertex in the
+// mesh.
+func NewMeshUVMapForCoords(mesh *Mesh, mapping *CoordMap[model2d.Coord]) MeshUVMap {
+	res := MeshUVMap{}
+	mesh.Iterate(func(t *Triangle) {
+		var mapped [3]model2d.Coord
+		for i, c := range t {
+			if value, ok := mapping.Load(c); ok {
+				mapped[i] = value
+			} else {
+				panic("coordinate not present in mapping")
+			}
+		}
+		res[t] = mapped
+	})
+	return res
+}
+
+// MapFn creates a function that maps 2D coordinates to 3D
+// using the UV map.
+//
+// The resulting function also returns the 3D triangle
+// corresponding to the mapped point. If it is nil, then
+// the 3D coordinate is undefined.
+func (m MeshUVMap) MapFn() func(c model2d.Coord) (Coord3D, *Triangle) {
+	tris := make([]*model2d.Triangle, 0, len(m))
+	invMap := map[*model2d.Triangle]*Triangle{}
+	for t3d, ps2d := range m {
+		t2d := model2d.NewTriangle(ps2d[0], ps2d[1], ps2d[2])
+		tris = append(tris, t2d)
+		invMap[t2d] = t3d
+	}
+
+	model2d.GroupBounders(tris)
+	lookup := newTri2dLookup(tris)
+
+	// The numerical precision of collision detection will
+	// vary with the overall scale of 2D coordinates.
+	epsilon := 1e-8 * lookup.bounds.Min().Abs().Max(lookup.bounds.Max().Abs()).MaxCoord()
+
+	return func(c model2d.Coord) (Coord3D, *Triangle) {
+		t2d, interiorPoint := lookup.Find(c, epsilon)
+		if t2d == nil {
+			return Coord3D{}, nil
+		}
+		abc := t2d.Barycentric(interiorPoint)
+		t3d := invMap[t2d]
+		return t3d[0].Scale(abc[0]).Add(t3d[1].Scale(abc[1])).Add(t3d[2].Scale(abc[2])), t3d
+	}
+}
+
+// Bounds2D gets the bounding box of the 2D triangles.
+func (m MeshUVMap) Bounds2D() (min, max model2d.Coord) {
+	first := true
+	for _, t2d := range m {
+		for _, c := range t2d {
+			if first {
+				first = false
+				min = c
+				max = c
+			} else {
+				min = min.Min(c)
+				max = max.Max(c)
+			}
+		}
+	}
+	return
+}
+
+// ToBounds creates a new UV map where the 2D bounding box
+// is rescaled and translated to a new min and max.
+func (m MeshUVMap) ToBounds(min, max model2d.Coord) MeshUVMap {
+	if !model2d.BoundsValid(model2d.NewRect(min, max)) {
+		panic("bounds are invalid")
+	}
+	oldMin, oldMax := m.Bounds2D()
+	scale := max.Sub(min).Div(oldMax.Sub(oldMin))
+
+	res := MeshUVMap{}
+	for k, v := range m {
+		var newTri [3]model2d.Coord
+		for i, c := range v {
+			newTri[i] = c.Sub(oldMin).Mul(scale).Add(min)
+		}
+		res[k] = newTri
+	}
+	return res
+}
+
+// Area3D gets the total area of all the 3D triangles.
+func (m MeshUVMap) Area3D() float64 {
+	var sum float64
+	for k := range m {
+		sum += k.Area()
+	}
+	return sum
+}
+
+type tri2dLookup struct {
+	bounds   model2d.Rect
+	root     *model2d.Triangle
+	children []*tri2dLookup
+}
+
+func newTri2dLookup(grouped []*model2d.Triangle) *tri2dLookup {
+	if len(grouped) == 1 {
+		return &tri2dLookup{
+			bounds: *model2d.BoundsRect(grouped[0]),
+			root:   grouped[0],
+		}
+	}
+	i := len(grouped) / 2
+	ch1 := newTri2dLookup(grouped[:i])
+	ch2 := newTri2dLookup(grouped[i:])
+	return &tri2dLookup{
+		bounds: *model2d.NewRect(
+			ch1.bounds.Min().Min(ch2.bounds.Min()),
+			ch1.bounds.Max().Max(ch2.bounds.Max()),
+		),
+		children: []*tri2dLookup{ch1, ch2},
+	}
+}
+
+func (t *tri2dLookup) Find(c model2d.Coord, epsilon float64) (*model2d.Triangle, model2d.Coord) {
+	if tri := t.findContains(c); tri != nil {
+		return tri, c
+	}
+	return t.findNearby(c, epsilon)
+}
+
+func (t *tri2dLookup) findContains(c model2d.Coord) *model2d.Triangle {
+	if !t.bounds.Contains(c) {
+		return nil
+	}
+	if t.root != nil {
+		if t.root.Contains(c) {
+			return t.root
+		} else {
+			return nil
+		}
+	}
+	for _, ch := range t.children {
+		if tri := ch.findContains(c); tri != nil {
+			return tri
+		}
+	}
+	return nil
+}
+
+func (t *tri2dLookup) findNearby(c model2d.Coord, eps float64) (*model2d.Triangle, model2d.Coord) {
+	if t.bounds.SDF(c) < -eps {
+		return nil, model2d.Coord{}
+	}
+	if t.root != nil {
+		if p, sdf := t.root.PointSDF(c); sdf > -eps {
+			return t.root, p
+		}
+	}
+	for _, ch := range t.children {
+		if tri, p := ch.findNearby(c, eps); tri != nil {
+			return tri, p
+		}
+	}
+	return nil, model2d.Coord{}
+}
