@@ -31,6 +31,9 @@ type BiCGSTABSolver struct {
 // SolveLinearSystem iteratively runs BiCGSTAB until a
 // stopping criterion is met.
 func (b *BiCGSTABSolver) SolveLinearSystem(op func(v Vec) Vec, x Vec) Vec {
+	if len(x) == 0 {
+		return x.Zeros()
+	}
 	if b.MaxIters == 0 && b.MAETolerance <= 0 && b.MSETolerance <= 0 {
 		panic("no stopping criteria provided")
 	}
@@ -71,6 +74,10 @@ type BiCGSTAB struct {
 	w        float64
 	v        Vec
 	p        Vec
+
+	// flag to disable more updates, since they might
+	// cause NaN.
+	terminate bool
 }
 
 // NewBiCGSTAB initializes the BiCGSTAB solver for the
@@ -100,6 +107,9 @@ func NewBiCGSTAB(op func(v Vec) Vec, b, initGuess Vec) *BiCGSTAB {
 // Iter performs an iteration of the method and returns the
 // current estimated solution.
 func (b *BiCGSTAB) Iter() Vec {
+	if b.terminate {
+		return b.x
+	}
 	// Unpreconditioned BiCGSTAB: https://en.wikipedia.org/wiki/Biconjugate_gradient_stabilized_method
 	rhoI := b.rHatZero.Dot(b.r)
 	beta := (rhoI / b.rho) * (b.alpha / b.w)
@@ -109,6 +119,15 @@ func (b *BiCGSTAB) Iter() Vec {
 	h := b.x.Add(pI.Scale(b.alpha))
 	s := b.r.Sub(vI.Scale(b.alpha))
 	t := b.Op(s)
+
+	if t.Norm() == 0 {
+		// Prevent NaN due to division-by-zero
+		// because this is an exact solution.
+		b.terminate = true
+		b.x = h
+		return b.x
+	}
+
 	wI := t.Dot(s) / t.Dot(t)
 	xI := h.Add(s.Scale(wI))
 	rI := s.Sub(t.Scale(wI))
