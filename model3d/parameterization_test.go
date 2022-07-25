@@ -2,6 +2,8 @@ package model3d
 
 import (
 	"testing"
+
+	"github.com/unixpickle/model3d/model2d"
 )
 
 func TestMeshToPlaneGraphs(t *testing.T) {
@@ -86,4 +88,44 @@ func mustHaveSingleBoundary(t *testing.T, m *Mesh) {
 		t.Error("mesh has multiple boundaries")
 		return
 	}
+}
+
+func TestBoundaryNonDegenerate(t *testing.T) {
+	testFn := func(t *testing.T, fn func(*Mesh) *CoordMap[model2d.Coord]) {
+		// Try a few times since MeshToPlaneGraphs is non-deterministic.
+		for i := 0; i < 4; i++ {
+			// Create a mesh which likely has whole triangles
+			// on the boundary.
+			m := NewMeshIcosphere(Origin, 1, 8)
+			subMesh := MeshToPlaneGraphs(m)[0]
+
+			boundary := fn(subMesh)
+			subMesh.Iterate(func(t3d *Triangle) {
+				var t2d [3]model2d.Coord
+				all := true
+				for i, c := range t3d {
+					if v, ok := boundary.Load(c); ok {
+						t2d[i] = v
+					} else {
+						all = false
+						break
+					}
+				}
+				if all {
+					area := model2d.NewTriangle(t2d[0], t2d[1], t2d[2]).Area()
+					if area == 0 {
+						t.Fatalf("degenerate triangle: %v", t2d)
+					}
+				}
+			})
+		}
+	}
+	t.Run("Circle", func(t *testing.T) {
+		testFn(t, CircleBoundary)
+	})
+	t.Run("PNormBoundary", func(t *testing.T) {
+		testFn(t, func(m *Mesh) *CoordMap[model2d.Coord] {
+			return PNormBoundary(m, 4)
+		})
+	})
 }
