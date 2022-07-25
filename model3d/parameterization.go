@@ -43,8 +43,11 @@ func CircleBoundary(m *Mesh) *CoordMap[model2d.Coord] {
 	return mapping
 }
 
-// SquareBoundary copmutes a mapping of the boundary of a
-// mesh m to the unit square.
+// SquareBoundary computes a mapping of the boundary of a
+// mesh m to the unit square. This may result in some
+// triangles being mapped to three colinear points if the
+// boundary contains two consecutive segments from one
+// triangle.
 //
 // See CircleBoundary for restrictions on the mesh m.
 func SquareBoundary(m *Mesh) *CoordMap[model2d.Coord] {
@@ -57,6 +60,19 @@ func SquareBoundary(m *Mesh) *CoordMap[model2d.Coord] {
 		// convex. This could be changed in the future to better
 		// preserve arc-length.
 		res.Store(k, v.Scale(1/v.Abs().MaxCoord()))
+		return true
+	})
+	return res
+}
+
+// PNormBoundary is similar to CircleBoundary, except that
+// the circle is defined under any p-norm, not just p=2.
+func PNormBoundary(m *Mesh, p float64) *CoordMap[model2d.Coord] {
+	res := NewCoordMap[model2d.Coord]()
+	CircleBoundary(m).Range(func(k Coord3D, v model2d.Coord) bool {
+		abs := v.Abs()
+		pNorm := math.Pow(math.Pow(abs.X, p)+math.Pow(abs.Y, p), 1/p)
+		res.Store(k, v.Scale(1/pNorm))
 		return true
 	})
 	return res
