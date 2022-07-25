@@ -7,6 +7,16 @@ import (
 // A Triangle is a triangle in 3D Euclidean space.
 type Triangle [3]Coord3D
 
+// AtBarycentric computes the point at the barycentric
+// coordinates.
+func (t *Triangle) AtBarycentric(c [3]float64) Coord3D {
+	var res Coord3D
+	for i, v := range t {
+		res = res.Add(v.Scale(c[i]))
+	}
+	return res
+}
+
 // Area computes the area of the triangle.
 func (t *Triangle) Area() float64 {
 	return t.crossProduct().Norm() / 2
