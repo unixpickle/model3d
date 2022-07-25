@@ -589,6 +589,12 @@ func (t *Triangle) Barycentric(c Coord) [3]float64 {
 	}
 }
 
+// Area returns the area of the triangle.
+func (t *Triangle) Area() float64 {
+	c := t.coords
+	return NewMatrix2Columns(c[1].Sub(c[0]), c[2].Sub(c[0])).Det() / 2
+}
+
 // FirstRayCollision gets the first ray collision with the
 // triangle, if one occurs.
 func (t *Triangle) FirstRayCollision(r *Ray) (RayCollision, bool) {
