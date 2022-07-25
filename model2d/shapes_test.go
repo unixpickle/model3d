@@ -38,7 +38,8 @@ func TestTriangle(t *testing.T) {
 			c := NewCoordRandNorm()
 			point, sdf := tri.PointSDF(c)
 			normal, sdf1 := tri.NormalSDF(c)
-			if math.Abs(sdf-sdf1) > 1e-8 {
+			bary, sdf2 := tri.BarycentricSDF(c)
+			if math.Abs(sdf-sdf1) > 1e-8 || math.Abs(sdf-sdf2) > 1e-8 {
 				t.Fatalf("inconsistent SDF results")
 			}
 			if math.Abs(sdf) > 1e-5 && (tri.Contains(c) != (sdf > 0)) {
@@ -49,6 +50,11 @@ func TestTriangle(t *testing.T) {
 			}
 			if math.Abs(normal.Norm()-1) > 1e-8 {
 				t.Fatalf("normal is not unit length: %v", normal)
+			}
+			baryPoint := tri.AtBarycentric(bary)
+			if math.Abs(baryPoint.Dist(c)-math.Abs(sdf)) > 1e-8 {
+				t.Fatalf("dist should be %f but got %f for barycentric %v", sdf, baryPoint.Dist(c),
+					bary)
 			}
 
 			// Normals should push us in/out of the
@@ -91,6 +97,19 @@ func TestTriangle(t *testing.T) {
 		sort.Float64s(scales)
 		if scales[0] != 0.4 || scales[1] != 2*(0.2+0.5) {
 			t.Fatalf("unexpected scales: %v", scales)
+		}
+	})
+
+	t.Run("Degenerate", func(t *testing.T) {
+		tri := NewTriangle(
+			XY(0.1259765625397359, 0.062061342678565015),
+			XY(0.12597656434913396, 0.0613543861243865),
+			XY(0.1259765625, 0.06255842497713796),
+		)
+		point := XY(0.1259765625, 0.0615234375)
+		bary := tri.Barycentric(point)
+		if tri.AtBarycentric(bary).Dist(point) > 1e-5 {
+			t.Errorf("bad bary: %v => %v", bary, tri.AtBarycentric(bary))
 		}
 	})
 }

@@ -546,12 +546,33 @@ type Triangle struct {
 // The triangle's behavior will be mostly identical (up to
 // rounding error) regardless of the order of the points.
 func NewTriangle(p1, p2, p3 Coord) *Triangle {
-	mat := NewMatrix2Columns(p2.Sub(p1), p3.Sub(p1))
+	v1 := p2.Sub(p1)
+	v2 := p3.Sub(p1)
+	mat := NewMatrix2Columns(v1, v2)
+
+	// Handle degenerate triangles using a pseudoinverse.
+	// This will result in non-NaN (but possibly incorrect)
+	// barycentric coordinates.
+	maxDet := math.Sqrt(v1.NormSquared() * v2.NormSquared())
+	const eps = 1e-12
+	if det := mat.Det(); math.Abs(det) > eps*maxDet {
+		mat.InvertInPlaceDet(det)
+	} else {
+		var u, s, v Matrix2
+		mat.SVD(&u, &s, &v)
+		for i, x := range s {
+			if x > eps {
+				s[i] = 1 / x
+			}
+		}
+		*mat = *v.Mul(&s).Mul(u.Transpose())
+	}
+
 	return &Triangle{
 		coords: [3]Coord{p1, p2, p3},
 		min:    p1.Min(p2).Min(p3),
 		max:    p1.Max(p2).Max(p3),
-		invMat: *mat.Inverse(),
+		invMat: *mat,
 	}
 }
 
@@ -585,6 +606,11 @@ func (t *Triangle) Contains(c Coord) bool {
 }
 
 // Barycentric returns the barycentric coordinates of c.
+//
+// The result should always sum to 1.
+//
+// If the triangle is degenerate, the behavior is
+// undefined and the results may be unstable.
 func (t *Triangle) Barycentric(c Coord) [3]float64 {
 	solution := t.invMat.MulColumn(c.Sub(t.coords[0]))
 	return [3]float64{
@@ -592,6 +618,16 @@ func (t *Triangle) Barycentric(c Coord) [3]float64 {
 		solution.X,
 		solution.Y,
 	}
+}
+
+// AtBarycentric computes the point at the barycentric
+// coordinates.
+func (t *Triangle) AtBarycentric(c [3]float64) Coord {
+	var res Coord
+	for i, v := range t.coords {
+		res = res.Add(v.Scale(c[i]))
+	}
+	return res
 }
 
 // Area returns the area of the triangle.
@@ -642,14 +678,14 @@ func (t *Triangle) CircleCollision(center Coord, r float64) bool {
 
 // SDF gets the signed distance to the surface of the capsule.
 func (t *Triangle) SDF(c Coord) float64 {
-	return t.genericSDF(c, nil, nil)
+	return t.genericSDF(c, nil, nil, nil)
 }
 
 // PointSDF gets the nearest point on the border of the
 // triangle and the corresponding SDF.
 func (t *Triangle) PointSDF(c Coord) (Coord, float64) {
 	var p Coord
-	res := t.genericSDF(c, nil, &p)
+	res := t.genericSDF(c, nil, &p, nil)
 	return p, res
 }
 
@@ -657,13 +693,23 @@ func (t *Triangle) PointSDF(c Coord) (Coord, float64) {
 // the normal at the closest point on the border.
 func (t *Triangle) NormalSDF(c Coord) (Coord, float64) {
 	var n Coord
-	res := t.genericSDF(c, &n, nil)
+	res := t.genericSDF(c, &n, nil, nil)
 	return n, res
 }
 
-func (t *Triangle) genericSDF(coord Coord, normalOut, pointOut *Coord) float64 {
+// BarycentricSDF gets the signed distance to the triangle
+// and the barycentric coordinates of the closest point on
+// the border.
+func (t *Triangle) BarycentricSDF(c Coord) ([3]float64, float64) {
+	var bary [3]float64
+	res := t.genericSDF(c, nil, nil, &bary)
+	return bary, res
+}
+
+func (t *Triangle) genericSDF(coord Coord, normalOut, pointOut *Coord, baryOut *[3]float64) float64 {
 	closest := math.Inf(1)
 	var closestPoint Coord
+	var closestDot float64
 	closestVertex := -1
 	closestEdge := 0
 	for i := 0; i < 3; i++ {
@@ -687,6 +733,7 @@ func (t *Triangle) genericSDF(coord Coord, normalOut, pointOut *Coord) float64 {
 		if distSq < closest {
 			closest = distSq
 			closestPoint = foundPoint
+			closestDot = dot
 			closestVertex = foundVertex
 			closestEdge = i
 		}
@@ -713,6 +760,16 @@ func (t *Triangle) genericSDF(coord Coord, normalOut, pointOut *Coord) float64 {
 	}
 	if pointOut != nil {
 		*pointOut = closestPoint
+	}
+	if baryOut != nil {
+		var bary [3]float64
+		if closestVertex != -1 {
+			bary[closestVertex] = 1
+		} else {
+			bary[closestEdge] = 1 - closestDot
+			bary[(closestEdge+1)%3] = closestDot
+		}
+		*baryOut = bary
 	}
 	dist := math.Sqrt(closest)
 	if t.Contains(coord) {
