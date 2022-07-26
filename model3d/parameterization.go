@@ -5,14 +5,66 @@ import (
 	"math"
 	"sort"
 
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/numerical"
 )
 
 const (
-	Floater97DefaultMAETol   = 1e-4
-	Floater97DefaultMaxIters = 1000
+	Floater97DefaultMSETol   = 1e-12
+	Floater97DefaultMaxIters = 5000
 )
+
+// BuildAutomaticUVMap creates a MeshUVMap for an entire
+// mesh which fits in the unit square (0, 0) to (1, 1) and
+// should work best at the given resolution.
+//
+// The resolution specifies the side-length of the targeted
+// texture image. It must be a power of two. This is used
+// to determine spacing in the final layout.
+//
+// The mesh itself should be manifold, but needn't have any
+// special kind of topology.
+//
+// This is meant for quick applications that don't need a
+// lot of control over the resulting parameterization. The
+// underlying algorithm and exact results are subject to
+// change.
+func BuildAutomaticUVMap(m *Mesh, resolution int) MeshUVMap {
+	foundPower := false
+	for i := 0; i < 32; i++ {
+		if 1<<uint(i) == resolution {
+			foundPower = true
+			break
+		}
+	}
+	if !foundPower {
+		panic("resolution must be power of 2")
+	}
+
+	// Attempt to target a constant number of patches by
+	// putting a limit on the triangles per patch.
+	nTris := essentials.MaxInt(128, len(m.TriangleSlice())/50)
+	discs := MeshToPlaneGraphsLimited(m, nTris)
+
+	params := make([]MeshUVMap, len(discs))
+	for i, disc := range discs {
+		parameterization := Floater97(
+			disc,
+			PNormBoundary(disc, 4), // Almost square, but no colinear points.
+			Floater97ShapePreservingWeights(disc),
+			nil,
+		)
+		ExtendBoundaryUVs(disc, parameterization)
+		params[i] = NewMeshUVMapForCoords(disc, parameterization)
+	}
+	return PackMeshUVMaps(
+		model2d.XY(0, 0),
+		model2d.XY(1, 1),
+		0.5/float64(resolution),
+		params,
+	)
+}
 
 // CircleBoundary computes a mapping of the boundary of a
 // mesh m to the unit circle based on segment length.
@@ -112,6 +164,41 @@ func boundarySequence(m *Mesh) []Coord3D {
 	return res
 }
 
+// ExtendBoundaryUVs rescales vertices of triangles on the
+// boundary of a plane graph triangulation to ensure that
+// these triangles are not highly stretched or even fully
+// degenerate.
+//
+// It is assumed that the boundary parameterization is
+// centered around the origin, as done by CircleBoundary()
+// and similar helpers.
+func ExtendBoundaryUVs(m *Mesh, param *CoordMap[model2d.Coord]) {
+	boundary := boundarySequence(m)
+	for i, p1 := range boundary {
+		p0 := boundary[(i+len(boundary)-1)%len(boundary)]
+		p2 := boundary[(i+1)%len(boundary)]
+		if tris := m.Find(p0, p1, p2); len(tris) == 1 {
+			uv0, uv1, uv2 := param.Value(p0), param.Value(p1), param.Value(p2)
+
+			seg3d := NewSegment(p0, p2)
+			ratio3d := seg3d.Dist(p1) / seg3d.Length()
+
+			seg2d := model2d.Segment{uv0, uv2}
+			dist2d := seg2d.Dist(uv1)
+			ratio2d := dist2d / seg2d.Length()
+
+			if ratio2d >= ratio3d {
+				// The UV triangle is already less degenerate.
+				continue
+			}
+
+			extraDist := (ratio3d - ratio2d) * seg2d.Length()
+			direction := uv1.ProjectOut(uv2.Sub(uv0)).Normalize()
+			param.Store(p1, uv1.Add(direction.Scale(extraDist)))
+		}
+	}
+}
+
 // Floater97UniformWeights computes the uniform weighting
 // scheme for the edgeWeights argument of Floater97().
 // This is the simplest possible weighting scheme, but may
@@ -192,7 +279,7 @@ func Floater97ShapePreservingWeights(m *Mesh) *EdgeMap[float64] {
 func Floater97DefaultSolver() *numerical.BiCGSTABSolver {
 	return &numerical.BiCGSTABSolver{
 		MaxIters:     Floater97DefaultMaxIters,
-		MAETolerance: Floater97DefaultMAETol,
+		MSETolerance: Floater97DefaultMSETol,
 	}
 }
 
@@ -406,6 +493,29 @@ func orderedNeighbors(m *Mesh, center Coord3D) []Coord3D {
 	return res
 }
 
+func triangleStretchAndArea(t *Triangle, m *CoordMap[model2d.Coord]) (stretchSq, area float64) {
+	p2d := [3]model2d.Coord{}
+	for i, c := range t {
+		p2d[i] = m.Value(c)
+	}
+
+	// The mapping from 2D to 3D is equivalent to doing:
+	// 2d coordinate -> barycentric -> 3d coordinate
+	// which is represented as: A*U^-1.
+	// Then we compute the SVD of U*A^T*A*U^-1.
+
+	u := model2d.NewMatrix2Columns(p2d[1].Sub(p2d[0]), p2d[2].Sub(p2d[0]))
+	a1 := t[1].Sub(t[0])
+	a2 := t[2].Sub(t[0])
+	aDiag := a1.Dot(a2)
+	aTa := &model2d.Matrix2{a1.Dot(a1), aDiag, aDiag, a2.Dot(a2)}
+
+	mapSq := u.Mul(aTa).Mul(u.Inverse())
+	lambdas := mapSq.Eigenvalues()
+
+	return (real(lambdas[0]) + real(lambdas[1])) / 2, u.Det() / 2
+}
+
 // MeshToPlaneGraphs splits a mesh m into one or more
 // sub-meshes which are simply-connected triangulated plane
 // graphs. These sub-meshes are suitable for Floater97().
@@ -415,10 +525,16 @@ func orderedNeighbors(m *Mesh, center Coord3D) []Coord3D {
 // on a result of MeshToPlaneGraphs() should be an identity
 // operation.
 func MeshToPlaneGraphs(m *Mesh) []*Mesh {
+	return MeshToPlaneGraphsLimited(m, 0)
+}
+
+// MeshToPlaneGraphsLimited is like MeshToPlaneGraphs, but
+// limits the number of triangles per sub-mesh.
+func MeshToPlaneGraphsLimited(m *Mesh, maxSize int) []*Mesh {
 	m = m.Copy()
 	var res []*Mesh
 	for {
-		next := nextMeshDiscs(m)
+		next := nextMeshDiscs(m, maxSize)
 		if len(next) > 0 {
 			res = append(res, next...)
 		} else {
@@ -428,7 +544,7 @@ func MeshToPlaneGraphs(m *Mesh) []*Mesh {
 	return res
 }
 
-func nextMeshDiscs(m *Mesh) []*Mesh {
+func nextMeshDiscs(m *Mesh, maxSize int) []*Mesh {
 	var t1 *Triangle
 	for t := range m.faces {
 		t1 = t
@@ -467,7 +583,7 @@ func nextMeshDiscs(m *Mesh) []*Mesh {
 	for _, t := range neighborQueue {
 		inQueue[t] = true
 	}
-	for len(neighborQueue) > 0 {
+	for len(neighborQueue) > 0 && (maxSize == 0 || len(tris) < maxSize) {
 		next := neighborQueue[0]
 		delete(inQueue, next)
 		neighborQueue = neighborQueue[1:]
@@ -573,6 +689,19 @@ func JoinMeshUVMaps(ms ...MeshUVMap) MeshUVMap {
 	return res
 }
 
+// PackMeshUVMaps rescales and combines all of the provided
+// UV maps into a single rectangle given by the bounds
+// min and max.
+//
+// The border argument is an amount of space to put around
+// the edges of each separate UV map in the texture to
+// avoid interpolation from mixing them.
+func PackMeshUVMaps(min, max model2d.Coord, border float64,
+	params []MeshUVMap) MeshUVMap {
+	tree := newParamQuadTree(params)
+	return tree.Joined(border, min, max)
+}
+
 // NewMeshUVMapForCoords maps triangles in the mesh to 2D
 // triangles using direct per-point lookups.
 //
@@ -598,8 +727,11 @@ func NewMeshUVMapForCoords(mesh *Mesh, mapping *CoordMap[model2d.Coord]) MeshUVM
 // using the UV map.
 //
 // The resulting function also returns the 3D triangle
-// corresponding to the mapped point. If it is nil, then
-// the 3D coordinate is undefined.
+// corresponding to the mapped point.
+//
+// Resulting 3D points will always be produced, even if the
+// 2D point lands outside the 2D triangulation. In this
+// case, the nearest 2D point on the triangulation is used.
 func (m MeshUVMap) MapFn() func(c model2d.Coord) (Coord3D, *Triangle) {
 	tris := make([]*model2d.Triangle, 0, len(m))
 	invMap := map[*model2d.Triangle]*Triangle{}
@@ -611,19 +743,18 @@ func (m MeshUVMap) MapFn() func(c model2d.Coord) (Coord3D, *Triangle) {
 
 	model2d.GroupBounders(tris)
 	lookup := newTri2dLookup(tris)
+	if math.IsNaN(lookup.bounds.Max().Sub(lookup.bounds.Min()).Norm()) {
+		panic("NaN detected in bounds; possibly degenerate mapping")
+	}
 
 	// The numerical precision of collision detection will
 	// vary with the overall scale of 2D coordinates.
 	epsilon := 1e-8 * lookup.bounds.Min().Abs().Max(lookup.bounds.Max().Abs()).MaxCoord()
 
 	return func(c model2d.Coord) (Coord3D, *Triangle) {
-		t2d, interiorPoint := lookup.Find(c, epsilon)
-		if t2d == nil {
-			return Coord3D{}, nil
-		}
-		abc := t2d.Barycentric(interiorPoint)
+		t2d, abc := lookup.Find(c, epsilon)
 		t3d := invMap[t2d]
-		return t3d[0].Scale(abc[0]).Add(t3d[1].Scale(abc[1])).Add(t3d[2].Scale(abc[2])), t3d
+		return t3d.AtBarycentric(abc), t3d
 	}
 }
 
@@ -699,45 +830,175 @@ func newTri2dLookup(grouped []*model2d.Triangle) *tri2dLookup {
 	}
 }
 
-func (t *tri2dLookup) Find(c model2d.Coord, epsilon float64) (*model2d.Triangle, model2d.Coord) {
-	if tri := t.findContains(c); tri != nil {
-		return tri, c
+func (t *tri2dLookup) Find(c model2d.Coord, epsilon float64) (*model2d.Triangle, [3]float64) {
+	// Perfect containment lookup is faster than nearest
+	// point lookup, and should often be sufficient if the
+	// texture covers most of the plane.
+	if tri, bary := t.findContains(c); tri != nil {
+		return tri, bary
 	}
-	return t.findNearby(c, epsilon)
+
+	var resultTri *model2d.Triangle
+	var resultBary [3]float64
+	resultDist := math.Inf(1)
+	t.findNearest(c, &resultTri, &resultBary, &resultDist)
+	return resultTri, resultBary
 }
 
-func (t *tri2dLookup) findContains(c model2d.Coord) *model2d.Triangle {
+func (t *tri2dLookup) findContains(c model2d.Coord) (*model2d.Triangle, [3]float64) {
 	if !t.bounds.Contains(c) {
-		return nil
+		return nil, [3]float64{}
 	}
 	if t.root != nil {
-		if t.root.Contains(c) {
-			return t.root
-		} else {
-			return nil
+		if model2d.InBounds(t.root, c) {
+			bary := t.root.Barycentric(c)
+			if bary[0] >= 0 && bary[1] >= 0 && bary[2] >= 0 {
+				return t.root, bary
+			}
 		}
+		return nil, [3]float64{}
 	}
 	for _, ch := range t.children {
-		if tri := ch.findContains(c); tri != nil {
-			return tri
+		if tri, bary := ch.findContains(c); tri != nil {
+			return tri, bary
 		}
 	}
-	return nil
+	return nil, [3]float64{}
 }
 
-func (t *tri2dLookup) findNearby(c model2d.Coord, eps float64) (*model2d.Triangle, model2d.Coord) {
-	if t.bounds.SDF(c) < -eps {
-		return nil, model2d.Coord{}
-	}
+func (t *tri2dLookup) findNearest(c model2d.Coord, tri **model2d.Triangle, coord *[3]float64,
+	distBound *float64) {
 	if t.root != nil {
-		if p, sdf := t.root.PointSDF(c); sdf > -eps {
-			return t.root, p
+		if bary, sdf := t.root.BarycentricSDF(c); sdf > -*distBound {
+			*distBound = -sdf
+			*tri = t.root
+			*coord = bary
+		}
+		return
+	}
+
+	// Try the closer child first, and ignore children that
+	// cannot possibly have a closer point.
+	chs := [2]*tri2dLookup{t.children[0], t.children[1]}
+	ds := [2]float64{
+		t.children[0].bounds.SDF(c),
+		t.children[1].bounds.SDF(c),
+	}
+	if ds[0] < ds[1] {
+		chs[0], chs[1] = chs[1], chs[0]
+		ds[0], ds[1] = ds[1], ds[0]
+	}
+	for i, ch := range chs {
+		d := ds[i]
+		if d < -*distBound {
+			break
+		}
+		ch.findNearest(c, tri, coord, distBound)
+	}
+}
+
+type paramQuadTree struct {
+	Leaf MeshUVMap
+
+	// Branches contains at most four elements.
+	Branches []*paramQuadTree
+}
+
+func newParamQuadTree(params []MeshUVMap) *paramQuadTree {
+	sortedParams := append([]MeshUVMap{}, params...)
+	sortedAreas := make([]float64, len(params))
+	for i, p := range params {
+		sortedAreas[i] = p.Area3D()
+	}
+	essentials.VoodooSort(sortedAreas, func(i, j int) bool {
+		return sortedAreas[i] > sortedAreas[j]
+	}, sortedParams)
+	return buildParamQuadTree(sortedParams, sortedAreas)
+}
+
+func buildParamQuadTree(params []MeshUVMap, areas []float64) *paramQuadTree {
+	if len(params) == 1 {
+		return &paramQuadTree{Leaf: params[0]}
+	}
+	if len(params) <= 4 {
+		branches := make([]*paramQuadTree, len(params))
+		for i, x := range params {
+			branches[i] = &paramQuadTree{Leaf: x}
+		}
+		return &paramQuadTree{Branches: branches}
+	}
+
+	// Problem: assign parameterizations such that
+	// area is distributed as evenly as possible
+	// across all four quadrants.
+	//
+	// For now, we don't do anything particularly
+	// intelligent to solve this knapsack problem.
+	// Better search algorithms exist for this, but
+	// the exact problem is NP-complete.
+	var assignments [4][]MeshUVMap
+	var assignmentsAreas [4][]float64
+	var assignmentsTotals [4]float64
+
+	for i, param := range params {
+		area := areas[i]
+
+		minArea := assignmentsTotals[0]
+		dstIndex := 0
+		for j := 1; j < 4; j++ {
+			if assignmentsTotals[j] < minArea {
+				minArea = assignmentsTotals[j]
+				dstIndex = j
+			}
+		}
+
+		assignments[dstIndex] = append(assignments[dstIndex], param)
+		assignmentsAreas[dstIndex] = append(assignmentsAreas[dstIndex], area)
+		assignmentsTotals[dstIndex] += area
+	}
+
+	branches := make([]*paramQuadTree, 4)
+	for i, pile := range assignments {
+		branches[i] = buildParamQuadTree(pile, assignmentsAreas[i])
+	}
+	return &paramQuadTree{Branches: branches}
+}
+
+func (p *paramQuadTree) Joined(border float64, min, max model2d.Coord) MeshUVMap {
+	if p.Leaf != nil {
+		return p.Leaf.ToBounds(min.AddScalar(border), max.AddScalar(-border))
+	}
+
+	if len(p.Branches) == 2 {
+		// Split the grid in half along the longer dimension.
+		diff := max.Sub(min)
+		if diff.Y > diff.X {
+			mp := (min.Y + max.Y) / 2
+			return JoinMeshUVMaps(
+				p.Branches[0].Joined(border, min, model2d.XY(max.X, mp)),
+				p.Branches[1].Joined(border, model2d.XY(min.X, mp), max),
+			)
+		} else {
+			mp := (min.X + max.X) / 2
+			return JoinMeshUVMaps(
+				p.Branches[0].Joined(border, min, model2d.XY(mp, max.Y)),
+				p.Branches[1].Joined(border, model2d.XY(mp, min.Y), max),
+			)
 		}
 	}
-	for _, ch := range t.children {
-		if tri, p := ch.findNearby(c, eps); tri != nil {
-			return tri, p
-		}
+
+	// Split up into a grid of four.
+	mp := min.Mid(max)
+	xs := [3]float64{min.X, mp.X, max.X}
+	ys := [3]float64{min.Y, mp.Y, max.Y}
+	params := make([]MeshUVMap, len(p.Branches))
+	for i, branch := range p.Branches {
+		x := i % 2
+		y := i / 2
+		min := model2d.XY(xs[x], ys[y])
+		max := model2d.XY(xs[x+1], ys[y+1])
+		params[i] = branch.Joined(border, min, max)
 	}
-	return nil, model2d.Coord{}
+
+	return JoinMeshUVMaps(params...)
 }
