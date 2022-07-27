@@ -10,7 +10,10 @@ import (
 type LargeLinearSolver interface {
 	// SolveLinearSystem applies the inverse of a linear
 	// operator to the vector b.
-	SolveLinearSystem(op func(v Vec) Vec, b Vec) Vec
+	//
+	// The initGuess argument can be ignored, but may be
+	// provided as a starting point for the solver.
+	SolveLinearSystem(op func(v Vec) Vec, b, initGuess Vec) Vec
 }
 
 // BiCGSTABSolver implements LargeLinearSolver using the
@@ -30,14 +33,14 @@ type BiCGSTABSolver struct {
 
 // SolveLinearSystem iteratively runs BiCGSTAB until a
 // stopping criterion is met.
-func (b *BiCGSTABSolver) SolveLinearSystem(op func(v Vec) Vec, x Vec) Vec {
+func (b *BiCGSTABSolver) SolveLinearSystem(op func(v Vec) Vec, x, initGuess Vec) Vec {
 	if len(x) == 0 {
 		return x.Zeros()
 	}
 	if b.MaxIters == 0 && b.MAETolerance <= 0 && b.MSETolerance <= 0 {
 		panic("no stopping criteria provided")
 	}
-	solver := NewBiCGSTAB(op, x, nil)
+	solver := NewBiCGSTAB(op, x, initGuess)
 	var solution Vec
 	for i := 0; b.MaxIters == 0 || i < b.MaxIters; i++ {
 		solution = solver.Iter()
@@ -47,6 +50,9 @@ func (b *BiCGSTABSolver) SolveLinearSystem(op func(v Vec) Vec, x Vec) Vec {
 			for _, x := range op(solution).Sub(x) {
 				sqErr += x * x
 				absErr += math.Abs(x)
+			}
+			if math.IsNaN(absErr) {
+				panic("NaN detected during solving")
 			}
 			if sqErr < b.MSETolerance*float64(len(x)) || absErr < b.MAETolerance*float64(len(x)) {
 				break

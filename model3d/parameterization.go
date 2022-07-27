@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"sort"
 
@@ -11,8 +12,13 @@ import (
 )
 
 const (
-	Floater97DefaultMSETol   = 1e-12
+	Floater97DefaultMSETol   = 1e-16
 	Floater97DefaultMaxIters = 5000
+
+	automaticUVMapMinTris    = 128
+	automaticUVMapMaxTris    = 16384
+	automaticUVMapParamIters = 10
+	automaticUVMapParamEta   = 0.75
 )
 
 // BuildAutomaticUVMap creates a MeshUVMap for an entire
@@ -30,7 +36,7 @@ const (
 // lot of control over the resulting parameterization. The
 // underlying algorithm and exact results are subject to
 // change.
-func BuildAutomaticUVMap(m *Mesh, resolution int) MeshUVMap {
+func BuildAutomaticUVMap(m *Mesh, resolution int, verbose bool) MeshUVMap {
 	foundPower := false
 	for i := 0; i < 32; i++ {
 		if 1<<uint(i) == resolution {
@@ -44,19 +50,34 @@ func BuildAutomaticUVMap(m *Mesh, resolution int) MeshUVMap {
 
 	// Attempt to target a constant number of patches by
 	// putting a limit on the triangles per patch.
-	nTris := essentials.MaxInt(128, len(m.TriangleSlice())/50)
+	nTris := essentials.MinInt(
+		automaticUVMapMaxTris,
+		essentials.MaxInt(automaticUVMapMinTris, len(m.TriangleSlice())/50),
+	)
+	if verbose {
+		log.Printf("- splitting mesh into plane graphs with max %d tris", nTris)
+	}
 	discs := MeshToPlaneGraphsLimited(m, nTris)
+	if verbose {
+		log.Printf("- mapping %d plane graphs", len(discs))
+	}
 
 	params := make([]MeshUVMap, len(discs))
 	for i, disc := range discs {
-		parameterization := Floater97(
+		parameterization := StretchMinimizingParameterization(
 			disc,
 			PNormBoundary(disc, 4), // Almost square, but no colinear points.
 			Floater97ShapePreservingWeights(disc),
 			nil,
+			automaticUVMapParamIters,
+			automaticUVMapParamEta,
+			verbose,
 		)
-		ExtendBoundaryUVs(disc, parameterization)
+		ExtendBoundaryUVs(disc, parameterization, 0.1)
 		params[i] = NewMeshUVMapForCoords(disc, parameterization)
+		if verbose {
+			log.Printf("- completed %d/%d plane graphs", i+1, len(discs))
+		}
 	}
 	return PackMeshUVMaps(
 		model2d.XY(0, 0),
@@ -169,10 +190,13 @@ func boundarySequence(m *Mesh) []Coord3D {
 // these triangles are not highly stretched or even fully
 // degenerate.
 //
+// The maxDist argument specifies the maximum distance to
+// extend the point.
+//
 // It is assumed that the boundary parameterization is
 // centered around the origin, as done by CircleBoundary()
 // and similar helpers.
-func ExtendBoundaryUVs(m *Mesh, param *CoordMap[model2d.Coord]) {
+func ExtendBoundaryUVs(m *Mesh, param *CoordMap[model2d.Coord], maxDist float64) {
 	boundary := boundarySequence(m)
 	for i, p1 := range boundary {
 		p0 := boundary[(i+len(boundary)-1)%len(boundary)]
@@ -192,7 +216,7 @@ func ExtendBoundaryUVs(m *Mesh, param *CoordMap[model2d.Coord]) {
 				continue
 			}
 
-			extraDist := (ratio3d - ratio2d) * seg2d.Length()
+			extraDist := math.Min(maxDist, (ratio3d-ratio2d)*seg2d.Length())
 			direction := uv1.ProjectOut(uv2.Sub(uv0)).Normalize()
 			param.Store(p1, uv1.Add(direction.Scale(extraDist)))
 		}
@@ -317,6 +341,12 @@ func Floater97DefaultSolver() *numerical.BiCGSTABSolver {
 // (Floater, 1996). https://www.cs.jhu.edu/~misha/Fall09/Floater97.pdf
 func Floater97(m *Mesh, boundary *CoordMap[model2d.Coord],
 	edgeWeights *EdgeMap[float64], solver numerical.LargeLinearSolver) *CoordMap[model2d.Coord] {
+	return floater97(m, boundary, edgeWeights, solver, nil)
+}
+
+func floater97(m *Mesh, boundary *CoordMap[model2d.Coord],
+	edgeWeights *EdgeMap[float64], solver numerical.LargeLinearSolver,
+	previousParam *CoordMap[model2d.Coord]) *CoordMap[model2d.Coord] {
 	// Map coordinates to all their neighbors.
 	neighbors := NewCoordToSlice[Coord3D]()
 	m.Iterate(func(t *Triangle) {
@@ -353,8 +383,8 @@ func Floater97(m *Mesh, boundary *CoordMap[model2d.Coord],
 	matrix := numerical.NewSparseMatrix(len(nonBoundary))
 	bias := make([]numerical.Vec2, len(nonBoundary))
 	for i, center := range nonBoundary {
-		matrix.Set(i, i, -1.0)
-		total := 0.0
+		matrix.Set(i, i, -1)
+		totalWeight := 0.0
 		for _, neighbor := range neighbors.Value(center) {
 			weight, ok := edgeWeights.Load([2]Coord3D{center, neighbor})
 			if !ok {
@@ -363,6 +393,8 @@ func Floater97(m *Mesh, boundary *CoordMap[model2d.Coord],
 			if weight < 0 {
 				panic(fmt.Sprintf("weight %f should not be negative", weight))
 			}
+			totalWeight += weight
+
 			j, ok := nonBoundaryToIndex.Load(neighbor)
 			if !ok {
 				// This is a boundary, so we don't actually have a
@@ -372,11 +404,9 @@ func Floater97(m *Mesh, boundary *CoordMap[model2d.Coord],
 			} else {
 				matrix.Set(i, j, weight)
 			}
-			total += weight
 		}
-		if math.Abs(total-1.0) > 1e-4 {
-			panic(fmt.Sprintf("total edge weight must add up to 1.0 for every vertex, got %f",
-				total))
+		if math.Abs(totalWeight-1) > 1e-4 {
+			panic("total weight per vertex must be approximately 1.0")
 		}
 	}
 
@@ -389,7 +419,14 @@ func Floater97(m *Mesh, boundary *CoordMap[model2d.Coord],
 		for j, v := range bias {
 			bias1d[j] = v[i]
 		}
-		for j, x := range solver.SolveLinearSystem(matrix.Apply, bias1d) {
+		var initGuess []float64
+		if previousParam != nil {
+			initGuess = make([]float64, len(bias))
+			for j, p := range nonBoundary {
+				initGuess[j] = previousParam.Value(p).Array()[i]
+			}
+		}
+		for j, x := range solver.SolveLinearSystem(matrix.Apply, bias1d, initGuess) {
 			solution[j][i] = x
 		}
 	}
@@ -403,6 +440,75 @@ func Floater97(m *Mesh, boundary *CoordMap[model2d.Coord],
 		result.Store(nonBoundary[i], model2d.NewCoordArray(point))
 	}
 	return result
+}
+
+// StretchMinimizingParameterization implements the
+// stretch-minimizing mesh parameterization technique from
+// "A fast and simple stretch-minimizing mesh parameterization"
+// (Yoshizawa et al., 2004).
+//
+// The usage is similar to Floater97, except that the
+// edgeWeights mapping will be modified with the final
+// weights used to solve for the final parameterization.
+//
+// The nIters parameter determines the number of
+// optimization steps to perform. If it is -1, then the the
+// method terminates when the objective function increases.
+//
+// The eta parameter determines the step size. If it is 1,
+// then the standard solver is used; values between 0 and 1
+// slow convergence.
+func StretchMinimizingParameterization(m *Mesh, boundary *CoordMap[model2d.Coord],
+	edgeWeights *EdgeMap[float64], solver numerical.LargeLinearSolver, nIters int,
+	eta float64, verbose bool) *CoordMap[model2d.Coord] {
+	solution := Floater97(m, boundary, edgeWeights, solver)
+
+	// Don't count stretch of triangles completely
+	// on the boundary, since they are constants.
+	// If we do not do this, the parameterization can
+	// become very stretched near the boundary.
+	boundaryTris := map[*Triangle]bool{}
+	m.Iterate(func(t *Triangle) {
+		for _, c := range t {
+			if _, ok := boundary.Load(c); !ok {
+				return
+			}
+		}
+		boundaryTris[t] = true
+	})
+
+	prevSolution := solution
+	prevTotalStretch := math.Inf(1)
+	for i := 0; i < nIters || nIters == -1; i++ {
+		stretches, totalStretch := vertexStretches(m, boundaryTris, solution, eta)
+		if verbose {
+			log.Printf("- iter %d: stretch=%f", i, totalStretch)
+		}
+		if totalStretch >= prevTotalStretch {
+			return prevSolution
+		}
+
+		weightSums := NewCoordToNumber[float64]()
+		unnormalizedWeights := NewEdgeMap[float64]()
+		edgeWeights.Range(func(key [2]Coord3D, value float64) bool {
+			newValue := value / stretches.Value(key[1])
+			if math.IsNaN(newValue) || math.IsInf(newValue, 0) {
+				panic("invalid stretch result")
+			}
+			unnormalizedWeights.Store(key, newValue)
+			weightSums.Add(key[0], newValue)
+			return true
+		})
+		unnormalizedWeights.Range(func(key [2]Coord3D, value float64) bool {
+			edgeWeights.Store(key, value/weightSums.Value(key[0]))
+			return true
+		})
+
+		prevTotalStretch = totalStretch
+		prevSolution = solution
+		solution = floater97(m, boundary, edgeWeights, solver, solution)
+	}
+	return solution
 }
 
 func localParameterizationWeights(m *Mesh, center Coord3D) ([]Coord3D, []float64) {
@@ -493,27 +599,61 @@ func orderedNeighbors(m *Mesh, center Coord3D) []Coord3D {
 	return res
 }
 
+func vertexStretches(m *Mesh, boundaryTris map[*Triangle]bool, curParam *CoordMap[model2d.Coord],
+	eta float64) (*CoordMap[float64],
+	float64) {
+	var totalStretch, totalArea float64
+	stretchAreas := map[*Triangle][2]float64{}
+	m.Iterate(func(t *Triangle) {
+		if boundaryTris[t] {
+			return
+		}
+		stretchSq, area := triangleStretchAndArea(t, curParam)
+		stretchAreas[t] = [2]float64{stretchSq, area}
+		totalStretch += area * stretchSq
+		totalArea += area
+	})
+	result := NewCoordMap[float64]()
+	m.IterateVertices(func(c Coord3D) {
+		var numerator, denominator float64
+		for _, t := range m.Find(c) {
+			sa, ok := stretchAreas[t]
+			if !ok {
+				continue
+			}
+			stretchSq, area := sa[0], sa[1]
+			numerator += area * stretchSq
+			denominator += area
+		}
+		result.Store(c, math.Pow(numerator/denominator, eta/2.0))
+	})
+	if totalArea == 0 {
+		totalStretch = 0
+		totalArea = 1
+	}
+	return result, totalStretch / totalArea
+}
+
 func triangleStretchAndArea(t *Triangle, m *CoordMap[model2d.Coord]) (stretchSq, area float64) {
 	p2d := [3]model2d.Coord{}
 	for i, c := range t {
-		p2d[i] = m.Value(c)
+		var ok bool
+		p2d[i], ok = m.Load(c)
+		if !ok {
+			panic("vertex not found in mapping")
+		}
 	}
 
-	// The mapping from 2D to 3D is equivalent to doing:
-	// 2d coordinate -> barycentric -> 3d coordinate
-	// which is represented as: A*U^-1.
-	// Then we compute the SVD of U*A^T*A*U^-1.
-
-	u := model2d.NewMatrix2Columns(p2d[1].Sub(p2d[0]), p2d[2].Sub(p2d[0]))
-	a1 := t[1].Sub(t[0])
-	a2 := t[2].Sub(t[0])
-	aDiag := a1.Dot(a2)
-	aTa := &model2d.Matrix2{a1.Dot(a1), aDiag, aDiag, a2.Dot(a2)}
-
-	mapSq := u.Mul(aTa).Mul(u.Inverse())
-	lambdas := mapSq.Eigenvalues()
-
-	return (real(lambdas[0]) + real(lambdas[1])) / 2, u.Det() / 2
+	// "Texture Mapping Progressive Meshes"
+	// (Sander et al.), https://hhoppe.com/tmpm.pdf
+	s1, s2, s3 := p2d[0].X, p2d[1].X, p2d[2].X
+	t1, t2, t3 := p2d[0].Y, p2d[1].Y, p2d[2].Y
+	A := ((s2-s1)*(t3-t1) - (s3-s1)*(t2-t1)) / 2
+	Ss := t[0].Scale(t2 - t3).Add(t[1].Scale(t3 - t1)).Add(t[2].Scale(t1 - t2)).Scale(1 / (2 * A))
+	St := t[0].Scale(s3 - s2).Add(t[1].Scale(s1 - s3)).Add(t[2].Scale(s2 - s1)).Scale(1 / (2 * A))
+	a := Ss.Dot(Ss)
+	c := St.Dot(St)
+	return (a + c) / 2, t.Area()
 }
 
 // MeshToPlaneGraphs splits a mesh m into one or more
