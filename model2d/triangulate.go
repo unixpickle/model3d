@@ -500,7 +500,7 @@ func (t *triangulateSweepState) removeEdges(segs ...[2]*ptrCoord) {
 // Edges can be sorted in this way so long as they do not
 // intersect, and all overlap in their x-axis projections.
 type triangulateEdgeTree struct {
-	Tree splaytree.Tree
+	Tree splaytree.Tree[*sortedEdge]
 }
 
 func (t *triangulateEdgeTree) Insert(s [2]*ptrCoord) {
@@ -516,18 +516,19 @@ func (t *triangulateEdgeTree) FindAbove(c Coord) [2]*ptrCoord {
 	return res
 }
 
-func (t *triangulateEdgeTree) findAbove(n *splaytree.Node, c Coord) ([2]*ptrCoord, bool) {
+func (t *triangulateEdgeTree) findAbove(n *splaytree.Node[*sortedEdge],
+	c Coord) ([2]*ptrCoord, bool) {
 	if n == nil {
 		return [2]*ptrCoord{}, false
 	}
-	comp := n.Value.(*sortedEdge).ComparePoint(c)
+	comp := n.Value.ComparePoint(c)
 	if comp == -1 {
 		// This node is below the vertex.
 		return t.findAbove(n.Right, c)
 	} else if comp == 1 {
 		res, ok := t.findAbove(n.Left, c)
 		if !ok {
-			return n.Value.(*sortedEdge).Segment, true
+			return n.Value.Segment, true
 		}
 		return res, true
 	} else {
@@ -565,8 +566,7 @@ func newSortedEdge(s [2]*ptrCoord) *sortedEdge {
 // Compare compares two edges in terms of y value,
 // assuming the edges overlap in the x axis but do not
 // intersect.
-func (s *sortedEdge) Compare(other splaytree.Value) int {
-	s1 := other.(*sortedEdge)
+func (s *sortedEdge) Compare(s1 *sortedEdge) int {
 	if s1.Segment == s.Segment {
 		return 0
 	}

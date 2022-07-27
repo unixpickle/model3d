@@ -1,8 +1,6 @@
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
-github.com/unixpickle/essentials v1.0.1 h1:Z6t84d2Y9S9Wp5bFXi/1ol4Re+3UIzOkmh0jqWyjrG4=
-github.com/unixpickle/essentials v1.0.1/go.mod h1:dQ1idvqrgrDgub3mfckQm7osVPzT3u9rB6NK/LEhmtQ=
 github.com/unixpickle/essentials v1.3.0 h1:H258Z5Uo1pVzFjxD2rwFWzHPN3s0J0jLs5kuxTRSfCs=
 github.com/unixpickle/essentials v1.3.0/go.mod h1:dQ1idvqrgrDgub3mfckQm7osVPzT3u9rB6NK/LEhmtQ=
-github.com/unixpickle/splaytree v0.0.0-20160517015709-ba216b293df0 h1:vf24zG+kzuiwC/Y8I4MeIl0C0StIiBAmFPsnpv/BtuA=
-github.com/unixpickle/splaytree v0.0.0-20160517015709-ba216b293df0/go.mod h1:GaKWGsPs4eeIaQbzcYyytkXTrMTczow7bvvBlQSKX1c=
+github.com/unixpickle/splaytree v1.1.0 h1:LXYm3OHPHLacGrUnEsrES4i8DFTqwyw1eoxXuZIE6kM=
+github.com/unixpickle/splaytree v1.1.0/go.mod h1:Wmzeu7zl1qJVgZXlOdWib73pZlFOsFVgYo3k/72bYDw=
