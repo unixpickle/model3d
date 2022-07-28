@@ -9,6 +9,7 @@ import (
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/numerical"
+	"github.com/unixpickle/splaytree"
 )
 
 const (
@@ -17,8 +18,10 @@ const (
 
 	automaticUVMapMinTris    = 128
 	automaticUVMapMaxTris    = 16384
-	automaticUVMapParamIters = 10
+	automaticUVMapParamIters = 20
 	automaticUVMapParamEta   = 0.75
+
+	meshDiscsCosineBins = 10
 )
 
 // BuildAutomaticUVMap creates a MeshUVMap for an entire
@@ -82,7 +85,7 @@ func BuildAutomaticUVMap(m *Mesh, resolution int, verbose bool) MeshUVMap {
 	return PackMeshUVMaps(
 		model2d.XY(0, 0),
 		model2d.XY(1, 1),
-		0.5/float64(resolution),
+		1.0/float64(resolution),
 		params,
 	)
 }
@@ -718,15 +721,23 @@ func nextMeshDiscs(m *Mesh, maxSize int) []*Mesh {
 	// queue consists of triangles which currently touch
 	// the boundary; not all triangles can actually be
 	// added.
-	neighborQueue := m.Neighbors(t1)
-	inQueue := map[*Triangle]bool{}
-	for _, t := range neighborQueue {
-		inQueue[t] = true
+	//
+	// The queue is sorted by dot product with existing
+	// triangles so that we prioritize flat surfaces if
+	// possible.
+	var neighborQueueUID int
+	neighborQueue := &splaytree.Tree[*meshDiscsQueueNode]{}
+	inQueue := map[*Triangle]*meshDiscsQueueNode{}
+	for _, t := range m.Neighbors(t1) {
+		node := newMeshDiscsQueueNode(t1, t, &neighborQueueUID)
+		neighborQueue.Insert(node)
+		inQueue[t] = node
 	}
-	for len(neighborQueue) > 0 && (maxSize == 0 || len(tris) < maxSize) {
-		next := neighborQueue[0]
+	for len(inQueue) > 0 && (maxSize == 0 || len(tris) < maxSize) {
+		nextNode := neighborQueue.Max()
+		neighborQueue.Delete(nextNode)
+		next := nextNode.Triangle
 		delete(inQueue, next)
-		neighborQueue = neighborQueue[1:]
 
 		// If we add a new triangle from one part of the boundary
 		// with a vertex touching a separate part of the boundary,
@@ -786,9 +797,16 @@ func nextMeshDiscs(m *Mesh, maxSize int) []*Mesh {
 			}
 		}
 		for _, neighbor := range m.Neighbors(next) {
-			if !inQueue[neighbor] {
-				neighborQueue = append(neighborQueue, neighbor)
-				inQueue[neighbor] = true
+			node := newMeshDiscsQueueNode(next, neighbor, &neighborQueueUID)
+			if oldNode, ok := inQueue[neighbor]; !ok {
+				neighborQueue.Insert(node)
+				inQueue[neighbor] = node
+			} else if node.NormalDot > oldNode.NormalDot {
+				// Update the node's priority if it's more
+				// co-planar with a different neighbor.
+				neighborQueue.Delete(oldNode)
+				neighborQueue.Insert(node)
+				inQueue[neighbor] = node
 			}
 		}
 	}
@@ -806,6 +824,49 @@ func nextMeshDiscs(m *Mesh, maxSize int) []*Mesh {
 	}
 
 	return []*Mesh{NewMeshTriangles(tris)}
+}
+
+type meshDiscsQueueNode struct {
+	NormalDot float64
+
+	// UID helps break ties in the queue for equal dot products.
+	UID int
+
+	Triangle *Triangle
+}
+
+func newMeshDiscsQueueNode(orig, newTri *Triangle, counter *int) *meshDiscsQueueNode {
+	*counter = *counter + 1
+	return &meshDiscsQueueNode{
+		// If we use the exact normal, we might end up
+		// tracing out artifact-y shapes in automatically
+		// generated meshes (e.g. we might care too much
+		// about rounding error). Discretizing helps
+		// alleviate this, although artifacts are still
+		// possible around the bin thresholds.
+		NormalDot: math.Round(meshDiscsCosineBins * (orig.Normal().Dot(newTri.Normal()) + 1) / 2),
+		UID:       *counter,
+		Triangle:  newTri,
+	}
+}
+
+func (m *meshDiscsQueueNode) Compare(other *meshDiscsQueueNode) int {
+	if m.NormalDot < other.NormalDot {
+		return -1
+	} else if m.NormalDot == other.NormalDot {
+		if m.UID > other.UID {
+			// Greater UID means a node came afterwards,
+			// and we should prioritize earlier nodes to
+			// more evenly span uniformly curved spaces.
+			return -1
+		} else if m.UID == other.UID {
+			return 0
+		} else {
+			return 1
+		}
+	} else {
+		return 1
+	}
 }
 
 // A MeshUVMap is a mapping between triangles in a 3D mesh
