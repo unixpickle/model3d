@@ -184,7 +184,11 @@ func WriteQuantizedMaterialOBJ(w io.Writer, ts []*Triangle, textureSize int,
 func writeQuantizedMaterialOBJ(w io.Writer, triangles []*Triangle, textureSize int,
 	colorFunc func(t *Triangle) [3]float64) error {
 	obj, mtl, texture := BuildQuantizedMaterialOBJ(triangles, textureSize, colorFunc)
+	return WriteTexturedMaterialOBJ(w, obj, mtl, texture)
+}
 
+func WriteTexturedMaterialOBJ(w io.Writer, obj *fileformats.OBJFile, mtl *fileformats.MTLFile,
+	texture image.Image) error {
 	zipFile := zip.NewWriter(w)
 
 	fw, err := zipFile.Create("object.obj")
@@ -270,6 +274,72 @@ func BuildMaterialOBJ(t []*Triangle, c func(t *Triangle) [3]float64) (o *filefor
 	}
 
 	return
+}
+
+// BuildUVMapMaterialOBJ is like BuildMaterialOBJ, but
+// writes texture coordinates based on a UV map.
+//
+// The generated material file should be saved to the name
+// "material.mtl", and references a texture "texture.png"
+// that should be the target of the UV map.
+func BuildUVMapMaterialOBJ(t []*Triangle, uvMap MeshUVMap) (*fileformats.OBJFile, *fileformats.MTLFile) {
+	uvs := [][2]float64{}
+	uvToIndex := map[[2]float64]int{}
+	coords := [][3]float64{}
+	triIndices := [][3]int{}
+	triUVIndices := [][3]int{}
+	coordToIndex := map[[3]float64]int{}
+	for _, tri := range t {
+		var inds [3]int
+		for i, c := range tri {
+			vec3 := c.Array()
+			if _, ok := coordToIndex[vec3]; !ok {
+				coordToIndex[vec3] = len(coords)
+				coords = append(coords, vec3)
+			}
+			inds[i] = coordToIndex[vec3] + 1
+		}
+		triIndices = append(triIndices, inds)
+
+		var uvInds [3]int
+		for i, c := range uvMap[tri] {
+			vec2 := c.Array()
+			if _, ok := uvToIndex[vec2]; !ok {
+				uvToIndex[vec2] = len(uvs)
+				uvs = append(uvs, vec2)
+			}
+			uvInds[i] = uvToIndex[vec2] + 1
+		}
+		triUVIndices = append(triUVIndices, uvInds)
+	}
+
+	material := &fileformats.MTLFileMaterial{
+		Name:             "material",
+		Ambient:          [3]float32{0.0, 0.0, 0.0},
+		Diffuse:          [3]float32{1.0, 1.0, 1.0},
+		SpecularExponent: 1.0,
+		DiffuseMap:       &fileformats.MTLFileTextureMap{Filename: "texture.png"},
+	}
+	mtl := &fileformats.MTLFile{Materials: []*fileformats.MTLFileMaterial{material}}
+	group := &fileformats.OBJFileFaceGroup{Material: "material"}
+
+	for i, vertIndices := range triIndices {
+		uvIndices := triUVIndices[i]
+		group.Faces = append(group.Faces, [3][3]int{
+			{vertIndices[0], uvIndices[0], 0},
+			{vertIndices[1], uvIndices[1], 0},
+			{vertIndices[2], uvIndices[2], 0},
+		})
+	}
+
+	obj := &fileformats.OBJFile{
+		MaterialFiles: []string{"material.mtl"},
+		Vertices:      coords,
+		UVs:           uvs,
+		FaceGroups:    []*fileformats.OBJFileFaceGroup{group},
+	}
+
+	return obj, mtl
 }
 
 // BuildQuantizedMaterialOBJ is like BuildMaterialOBJ, but

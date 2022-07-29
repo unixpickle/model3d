@@ -2,12 +2,19 @@ package toolbox3d
 
 import (
 	"fmt"
+	"log"
 	"math"
+	"os"
 	"sync"
 
+	"github.com/pkg/errors"
+	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 )
+
+const DefaultTextureImageAntialias = 4
 
 // CoordColorFunc wraps a generic point-to-color function
 // and provides methods for various other color-using APIs.
@@ -57,6 +64,93 @@ func (c CoordColorFunc) Transform(t model3d.Transform) CoordColorFunc {
 	return func(coord model3d.Coord3D) render3d.Color {
 		return c(tInv.Apply(coord))
 	}
+}
+
+// ToTexture writes a texture image for a UV map by
+// averaging colors for 3D points mapped from each pixel.
+//
+// This assumes that the UV map is confined to the unit
+// square.
+//
+// The antialias argument specifies the square root of the
+// number of points to sample per pixel. A value of 0 will
+// default to DefaultTextureImageAntialias.
+func (c CoordColorFunc) ToTexture(out *render3d.Image, mapping model3d.MeshUVMap, antialias int,
+	verbose bool) {
+	if antialias == 0 {
+		antialias = DefaultTextureImageAntialias
+	}
+	mapFn := mapping.MapFn()
+
+	dx := 1 / float64(out.Width*antialias)
+	dy := 1 / float64(out.Height*antialias)
+	numPixels := out.Width * out.Height
+	logInterval := numPixels / 10
+	essentials.ConcurrentMap(0, numPixels, func(i int) {
+		x := i % out.Width
+		y := i / out.Width
+		if verbose && i%logInterval == 0 {
+			log.Printf("- filled %.02f%% of texture", 100*(float64(i)/float64(numPixels)))
+		}
+		minY := float64(y) / float64(out.Height)
+		minX := float64(x) / float64(out.Width)
+		var sum render3d.Color
+		var count float64
+		for innerY := 0; innerY < antialias; innerY++ {
+			finalY := minY + dy/2 + dy*float64(innerY)
+			for innerX := 0; innerX < antialias; innerX++ {
+				finalX := minX + dx/2 + dx*float64(innerX)
+				c3d, _ := mapFn(model2d.XY(finalX, finalY))
+				sum = sum.Add(c(c3d))
+				count++
+			}
+		}
+		if count > 0 {
+			out.Set(x, out.Height-(y+1), sum.Scale(1/count))
+		}
+	})
+	if verbose {
+		log.Println("- filled texture")
+	}
+}
+
+// SaveTexturedMaterialOBJ writes an OBJ zip file with a
+// material based on the color function.
+//
+// The material is encoded as a texture with the given
+// resolution as its side length.
+//
+// It is highly recommended that the texture size is a
+// multiple of 2 to work best with edges in an automatic
+// UV map.
+//
+// The provided uvMap is used to map texture coordinates to
+// 3D coordinates. If it is nil, one will be built
+// automatically.
+func (c CoordColorFunc) SaveTexturedMaterialOBJ(path string, mesh *model3d.Mesh,
+	uvMap model3d.MeshUVMap, resolution int, verbose bool) error {
+	if uvMap == nil {
+		uvMap = model3d.BuildAutomaticUVMap(mesh, resolution, verbose)
+	}
+	tris := mesh.TriangleSlice()
+	obj, mtl := model3d.BuildUVMapMaterialOBJ(tris, uvMap)
+	img := render3d.NewImage(resolution, resolution)
+	if verbose {
+		log.Printf("- constructing texture...")
+	}
+	c.ToTexture(img, uvMap, 0, verbose)
+	f, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save textured material OBJ")
+	}
+	if err := model3d.WriteTexturedMaterialOBJ(f, obj, mtl, img.RGBA()); err != nil {
+		f.Close()
+		return errors.Wrap(err, "save textured material OBJ")
+	}
+	if err := f.Close(); err != nil {
+		return errors.Wrap(err, "save textured material OBJ")
+	}
+	return nil
 }
 
 // ChangeFilterFunc creates a filter for mesh decimation

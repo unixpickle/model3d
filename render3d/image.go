@@ -29,6 +29,22 @@ func NewImage(width, height int) *Image {
 	}
 }
 
+// At gets the color at the coordinate.
+func (i *Image) At(x, y int) Color {
+	if x < 0 || y < 0 || x >= i.Width || y >= i.Height {
+		panic("position out of bounds")
+	}
+	return i.Data[x+y*i.Width]
+}
+
+// Set stores a color at the coordinate.
+func (i *Image) Set(x, y int, c Color) {
+	if x < 0 || y < 0 || x >= i.Width || y >= i.Height {
+		panic("position out of bounds")
+	}
+	i.Data[x+y*i.Width] = c
+}
+
 // CopyFrom copies the image img into this image at the
 // given coordinates x, y in i.
 //
