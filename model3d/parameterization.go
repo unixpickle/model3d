@@ -60,7 +60,7 @@ func BuildAutomaticUVMap(m *Mesh, resolution int, verbose bool) MeshUVMap {
 	if verbose {
 		log.Printf("- splitting mesh into plane graphs with max %d tris", nTris)
 	}
-	discs := MeshToPlaneGraphsLimited(m, nTris)
+	discs := MeshToPlaneGraphsLimited(m, nTris, 0)
 	if verbose {
 		log.Printf("- mapping %d plane graphs", len(discs))
 	}
