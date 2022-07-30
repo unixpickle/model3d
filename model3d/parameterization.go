@@ -668,16 +668,40 @@ func triangleStretchAndArea(t *Triangle, m *CoordMap[model2d.Coord]) (stretchSq,
 // on a result of MeshToPlaneGraphs() should be an identity
 // operation.
 func MeshToPlaneGraphs(m *Mesh) []*Mesh {
-	return MeshToPlaneGraphsLimited(m, 0)
+	return MeshToPlaneGraphsLimited(m, 0, 0)
 }
 
 // MeshToPlaneGraphsLimited is like MeshToPlaneGraphs, but
-// limits the number of triangles per sub-mesh.
-func MeshToPlaneGraphsLimited(m *Mesh, maxSize int) []*Mesh {
+// limits the number of triangles per sub-mesh or the area
+// of the triangles, or both.
+//
+// If maxSize > 0, it is the maximum triangle count.
+// If maxArea > 0, it is a soft limit on the maximum area.
+// It may be exceeded if the first triangle has greater
+// than the maximum area.
+func MeshToPlaneGraphsLimited(m *Mesh, maxSize int, maxArea float64) []*Mesh {
 	m = m.Copy()
 	var res []*Mesh
 	for {
-		next := nextMeshDiscs(m, maxSize)
+		next := nextMeshPlaneGraphs(m, maxSize, maxArea, false, func(t1, t2 *Triangle) float64 {
+			if t1 == nil {
+				// Try to put largest triangles in the center
+				// of mesh discs.
+				return t2.Area()
+			}
+
+			// Prioritize more planar sections to cover
+			// flat surfaces before seams in the presence
+			// of a size limit.
+			//
+			// If we use the exact normal, we might end up
+			// tracing out artifact-y shapes in automatically
+			// generated meshes (e.g. we might care too much
+			// about rounding error). Discretizing helps
+			// alleviate this, although artifacts are still
+			// possible around the bin thresholds.
+			return math.Round(meshDiscsCosineBins * (t1.Normal().Dot(t2.Normal()) + 1) / 2)
+		})
 		if len(next) > 0 {
 			res = append(res, next...)
 		} else {
@@ -687,53 +711,126 @@ func MeshToPlaneGraphsLimited(m *Mesh, maxSize int) []*Mesh {
 	return res
 }
 
-func nextMeshDiscs(m *Mesh, maxSize int) []*Mesh {
-	var t1 *Triangle
-	for t := range m.faces {
-		t1 = t
-		break
+// SplitPlaneGraph splits a plane graph into at least two
+// sub-graphs such that one subgraph mostly has higher
+// decision values than the other subgraph(s). It attempts
+// to split off roughly half of the total area in the first
+// subgraph.
+//
+// If the mesh is minimal and cannot be split, one item is
+// returned instead of two or more.
+func SplitPlaneGraph(m *Mesh, decision func(t *Triangle) float64) []*Mesh {
+	if m.NumTriangles() < 2 {
+		return []*Mesh{m}
 	}
-	if t1 == nil {
-		return nil
+	m = m.Copy()
+	halfArea := m.Area() / 2
+	var res []*Mesh
+	for {
+		next := nextMeshPlaneGraphs(m, 0, halfArea, true, func(t1, t2 *Triangle) float64 {
+			return decision(t2)
+		})
+		if len(next) > 0 {
+			res = append(res, next...)
+		} else {
+			break
+		}
 	}
-	m.Remove(t1)
+	return res
+}
 
-	// As we add triangles, we will track the cumulative
-	// area at each triangle, so that we can possibly split
-	// the resulting mesh into two halves.
-	tris := []*Triangle{t1}
-	cumAreas := []float64{t1.Area()}
+func nextMeshPlaneGraphs(m *Mesh, maxSize int, maxArea float64, hasExistingBoundary bool,
+	priority func(orig, newTri *Triangle) float64) []*Mesh {
+	// The queue consists of triangles which currently
+	// touch the boundary. Not all triangles can actually
+	// be added, so much still be processed.
+	//
+	// The queue is sorted by a priority metric, and ties
+	// are broken in order of addition to the queue.
+	var neighborQueueUID int
+	neighborQueue := &splaytree.Tree[*meshDiscsQueueNode]{}
+	inQueue := map[*Triangle]*meshDiscsQueueNode{}
 
+	// State to make sure we don't create any inner loops
+	// by intersecting with the boundary.
+	//
 	// The algorithm tracks the current boundary in terms
 	// of segments and vertices. Since vertices might be
 	// present in multiple segments, we reference count
 	// them.
 	segments := NewEdgeMap[bool]()
 	vertices := NewCoordToNumber[int]()
-	for _, s := range t1.Segments() {
-		segments.Store(s, true)
-	}
-	for _, c := range t1 {
-		vertices.Store(c, 1)
+
+	// As we add triangles, we will track the cumulative
+	// area at each triangle, so that we can possibly split
+	// the resulting mesh into two halves if it is a closed
+	// sphere-like surface.
+	var tris []*Triangle
+	var cumAreas []float64
+
+	// Routine to add a triangle to the boundary, once it
+	// has been checked for boundary intersections.
+	addTriangle := func(t *Triangle) {
+		m.Remove(t)
+		tris = append(tris, t)
+		if len(cumAreas) > 0 {
+			cumAreas = append(cumAreas, cumAreas[len(cumAreas)-1]+t.Area())
+		} else {
+			cumAreas = append(cumAreas, t.Area())
+		}
+		for _, seg := range t.Segments() {
+			if segments.Value(seg) {
+				segments.Delete(seg)
+				for _, p := range seg {
+					if vertices.Add(p, -1) == 0 {
+						vertices.Delete(p)
+					}
+				}
+			} else {
+				segments.Store(seg, true)
+				for _, p := range seg {
+					vertices.Add(p, 1)
+				}
+			}
+		}
+
+		for _, neighbor := range m.Neighbors(t) {
+			node := newMeshDiscsQueueNode(neighbor, priority(t, neighbor), neighborQueueUID)
+			neighborQueueUID++
+			if oldNode, ok := inQueue[neighbor]; !ok {
+				neighborQueue.Insert(node)
+				inQueue[neighbor] = node
+			} else if node.Priority > oldNode.Priority {
+				// Update the node's priority if it's more compatible
+				// with the current neighbor than a previous one.
+				neighborQueue.Delete(oldNode)
+				neighborQueue.Insert(node)
+				inQueue[neighbor] = node
+			}
+		}
 	}
 
-	// We now search over triangles using a queue. The
-	// queue consists of triangles which currently touch
-	// the boundary; not all triangles can actually be
-	// added.
-	//
-	// The queue is sorted by dot product with existing
-	// triangles so that we prioritize flat surfaces if
-	// possible.
-	var neighborQueueUID int
-	neighborQueue := &splaytree.Tree[*meshDiscsQueueNode]{}
-	inQueue := map[*Triangle]*meshDiscsQueueNode{}
-	for _, t := range m.Neighbors(t1) {
-		node := newMeshDiscsQueueNode(t1, t, &neighborQueueUID)
-		neighborQueue.Insert(node)
-		inQueue[t] = node
+	// Add the first triangle to the plane graph.
+	var t1 *Triangle
+	var bestPriority float64
+	for t := range m.faces {
+		pri := priority(nil, t)
+		if t1 == nil || pri > bestPriority {
+			bestPriority = pri
+			t1 = t
+		}
 	}
-	for len(inQueue) > 0 && (maxSize == 0 || len(tris) < maxSize) {
+	if t1 == nil {
+		if len(m.faces) > 0 {
+			panic("no boundary found, even though mesh was not empty")
+		}
+		return nil
+	}
+	addTriangle(t1)
+
+	// Priority-first search loop.
+	for len(inQueue) > 0 && (maxSize == 0 || len(tris) < maxSize) &&
+		(maxArea == 0 || cumAreas[len(cumAreas)-1] < maxArea) {
 		nextNode := neighborQueue.Max()
 		neighborQueue.Delete(nextNode)
 		next := nextNode.Triangle
@@ -772,46 +869,16 @@ func nextMeshDiscs(m *Mesh, maxSize int) []*Mesh {
 				break
 			}
 		}
-		if wouldDivideBoundary {
-			// The triangle may be re-discovered later when it can be
-			// added without creating two boundaries.
-			continue
-		}
-
-		m.Remove(next)
-		tris = append(tris, next)
-		cumAreas = append(cumAreas, cumAreas[len(cumAreas)-1]+next.Area())
-		for _, seg := range next.Segments() {
-			if segments.Value(seg) {
-				segments.Delete(seg)
-				for _, p := range seg {
-					if vertices.Add(p, -1) == 0 {
-						vertices.Delete(p)
-					}
-				}
-			} else {
-				segments.Store(seg, true)
-				for _, p := range seg {
-					vertices.Add(p, 1)
-				}
+		if !wouldDivideBoundary {
+			// Avoid exceeding maxArea for all additional triangles.
+			if maxArea != 0 && cumAreas[len(cumAreas)-1]+next.Area() > maxArea {
+				break
 			}
-		}
-		for _, neighbor := range m.Neighbors(next) {
-			node := newMeshDiscsQueueNode(next, neighbor, &neighborQueueUID)
-			if oldNode, ok := inQueue[neighbor]; !ok {
-				neighborQueue.Insert(node)
-				inQueue[neighbor] = node
-			} else if node.NormalDot > oldNode.NormalDot {
-				// Update the node's priority if it's more
-				// co-planar with a different neighbor.
-				neighborQueue.Delete(oldNode)
-				neighborQueue.Insert(node)
-				inQueue[neighbor] = node
-			}
+			addTriangle(next)
 		}
 	}
 
-	if segments.Len() == 0 {
+	if !hasExistingBoundary && segments.Len() == 0 {
 		// We completely covered a surface that was isomorphic
 		// to a sphere, with no boundary left at the final step.
 		// We must produce two discs, and we try to divide them
@@ -827,33 +894,26 @@ func nextMeshDiscs(m *Mesh, maxSize int) []*Mesh {
 }
 
 type meshDiscsQueueNode struct {
-	NormalDot float64
+	Priority float64
 
-	// UID helps break ties in the queue for equal dot products.
+	// UID helps break ties in the queue for equal priorities.
 	UID int
 
 	Triangle *Triangle
 }
 
-func newMeshDiscsQueueNode(orig, newTri *Triangle, counter *int) *meshDiscsQueueNode {
-	*counter = *counter + 1
+func newMeshDiscsQueueNode(tri *Triangle, priority float64, uid int) *meshDiscsQueueNode {
 	return &meshDiscsQueueNode{
-		// If we use the exact normal, we might end up
-		// tracing out artifact-y shapes in automatically
-		// generated meshes (e.g. we might care too much
-		// about rounding error). Discretizing helps
-		// alleviate this, although artifacts are still
-		// possible around the bin thresholds.
-		NormalDot: math.Round(meshDiscsCosineBins * (orig.Normal().Dot(newTri.Normal()) + 1) / 2),
-		UID:       *counter,
-		Triangle:  newTri,
+		Priority: priority,
+		UID:      uid,
+		Triangle: tri,
 	}
 }
 
 func (m *meshDiscsQueueNode) Compare(other *meshDiscsQueueNode) int {
-	if m.NormalDot < other.NormalDot {
+	if m.Priority < other.Priority {
 		return -1
-	} else if m.NormalDot == other.NormalDot {
+	} else if m.Priority == other.Priority {
 		if m.UID > other.UID {
 			// Greater UID means a node came afterwards,
 			// and we should prioritize earlier nodes to
