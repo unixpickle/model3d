@@ -426,6 +426,11 @@ func (m *Mesh) Contains(f *Triangle) bool {
 	return ok
 }
 
+// NumTriangles returns the number of triangles in m.
+func (m *Mesh) NumTriangles() int {
+	return len(m.faces)
+}
+
 // Iterate calls f for every triangle in m in an arbitrary
 // order.
 //

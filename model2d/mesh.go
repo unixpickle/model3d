@@ -172,6 +172,11 @@ func (m *Mesh) Contains(f *Segment) bool {
 	return ok
 }
 
+// NumSegments returns the number of segments in m.
+func (m *Mesh) NumSegments() int {
+	return len(m.faces)
+}
+
 // Iterate calls f for every segment in m in an arbitrary
 // order.
 //

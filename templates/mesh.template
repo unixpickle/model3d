@@ -485,6 +485,11 @@ func (m *Mesh) Contains(f *{{.faceType}}) bool {
 	return ok
 }
 
+// Num{{.faceType}}s returns the number of {{.faceName}}s in m.
+func (m *Mesh) Num{{.faceType}}s() int {
+	return len(m.faces)
+}
+
 // Iterate calls f for every {{.faceName}} in m in an arbitrary
 // order.
 //
