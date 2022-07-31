@@ -71,6 +71,24 @@ func (t *Triangle) inCommon(t1 *Triangle) int {
 	return inCommon
 }
 
+func (t *Triangle) sharedSegment(t1 *Triangle) Segment {
+	var shared [2]Coord3D
+	var num int
+	for _, c := range t {
+		for _, c1 := range t1 {
+			if c == c1 {
+				shared[num] = c
+				num++
+				break
+			}
+		}
+	}
+	if num != 2 {
+		panic("no shared edge detected")
+	}
+	return NewSegment(shared[0], shared[1])
+}
+
 func (t *Triangle) otherSegment(v Coord3D) Segment {
 	for i, c := range t {
 		if c == v {
