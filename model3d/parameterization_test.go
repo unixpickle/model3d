@@ -1,9 +1,11 @@
 package model3d
 
 import (
+	"math"
 	"testing"
 
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/numerical"
 )
 
 func TestMeshToPlaneGraphs(t *testing.T) {
@@ -128,4 +130,31 @@ func TestBoundaryNonDegenerate(t *testing.T) {
 			return PNormBoundary(m, 4)
 		})
 	})
+}
+
+func TestTriangleSurfaceDist(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		p1 := NewCoord3DRandNorm()
+		p2 := NewCoord3DRandNorm()
+		t1 := &Triangle{p1, NewCoord3DRandNorm(), p2}
+		t2 := &Triangle{p2, NewCoord3DRandNorm(), p1}
+		actual := triangleSurfaceDist(t1, t2)
+		expected := bruteForceTriangleSurfaceDist(t1, t2)
+		if math.Abs(actual-expected) > 1e-4 {
+			t.Errorf("expected %f but got %f", expected, actual)
+		}
+	}
+}
+
+func bruteForceTriangleSurfaceDist(t1, t2 *Triangle) float64 {
+	shared := t1.sharedSegment(t2)
+	p1 := t1.AtBarycentric([3]float64{1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0})
+	p2 := t2.AtBarycentric([3]float64{1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0})
+	v := shared[1].Sub(shared[0])
+	lossFn := func(t float64) float64 {
+		mp := shared[0].Add(v.Scale(t))
+		return p1.Dist(mp) + p2.Dist(mp)
+	}
+	_, loss := (&numerical.LineSearch{Stops: 100, Recursions: 3}).Minimize(0, 1, lossFn)
+	return loss
 }
