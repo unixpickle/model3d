@@ -16,12 +16,12 @@ const (
 	Floater97DefaultMSETol   = 1e-16
 	Floater97DefaultMaxIters = 5000
 
-	automaticUVMapMinTris    = 128
-	automaticUVMapMaxTris    = 16384
-	automaticUVMapParamIters = 20
-	automaticUVMapParamEta   = 0.75
-
-	meshDiscsCosineBins = 10
+	automaticUVMapMaxTris       = 32768
+	automaticUVMapMaxAreaDivide = 512
+	automaticUVMapMaxRecursion  = 8
+	automaticUVMapParamIters    = 20
+	automaticUVMapParamEta      = 0.75
+	automaticUVMaxStretch       = 10.0
 )
 
 // BuildAutomaticUVMap creates a MeshUVMap for an entire
@@ -51,22 +51,21 @@ func BuildAutomaticUVMap(m *Mesh, resolution int, verbose bool) MeshUVMap {
 		panic("resolution must be power of 2")
 	}
 
-	// Attempt to target a constant number of patches by
-	// putting a limit on the triangles per patch.
-	nTris := essentials.MinInt(
-		automaticUVMapMaxTris,
-		essentials.MaxInt(automaticUVMapMinTris, len(m.TriangleSlice())/50),
-	)
+	totalArea := m.Area()
+	minSplitArea := totalArea / automaticUVMapMaxAreaDivide
 	if verbose {
-		log.Printf("- splitting mesh into plane graphs with max %d tris", nTris)
-	}
-	discs := MeshToPlaneGraphsLimited(m, nTris, 0)
-	if verbose {
-		log.Printf("- mapping %d plane graphs", len(discs))
+		log.Printf("- processing mesh with total area %f", totalArea)
 	}
 
-	params := make([]MeshUVMap, len(discs))
-	for i, disc := range discs {
+	var params []MeshUVMap
+	var completedArea float64
+
+	var handleDisc func(disc *Mesh, depth int)
+	handleDisc = func(disc *Mesh, depth int) {
+		area := disc.Area()
+		if verbose {
+			log.Printf("- parameterizing plane graph of area %f", area)
+		}
 		parameterization := StretchMinimizingParameterization(
 			disc,
 			PNormBoundary(disc, 4), // Almost square, but no colinear points.
@@ -77,10 +76,34 @@ func BuildAutomaticUVMap(m *Mesh, resolution int, verbose bool) MeshUVMap {
 			verbose,
 		)
 		ExtendBoundaryUVs(disc, parameterization, 0.1)
-		params[i] = NewMeshUVMapForCoords(disc, parameterization)
-		if verbose {
-			log.Printf("- completed %d/%d plane graphs", i+1, len(discs))
+		stretch := normalizedStretch(disc, parameterization)
+
+		if depth < automaticUVMapMaxRecursion && disc.NumTriangles() > 1 && area > minSplitArea &&
+			stretch > automaticUVMaxStretch {
+			separated := SplitPlaneGraph(disc, nil)
+			if verbose {
+				log.Printf("- split plane graph of area %f and normalized stretch %f into %d pieces",
+					area, stretch, len(separated))
+			}
+			for _, subMesh := range separated {
+				handleDisc(subMesh, depth+1)
+			}
+		} else {
+			if verbose {
+				log.Printf("- parameterized with normalized stretch %f", stretch)
+			}
+			params = append(params, NewMeshUVMapForCoords(disc, parameterization))
+			completedArea += area
+			if verbose {
+				log.Printf("- completed %.2f%% of surface area", 100*completedArea/totalArea)
+			}
 		}
+	}
+	for _, disc := range MeshToPlaneGraphsLimited(m, automaticUVMapMaxTris, 0) {
+		handleDisc(disc, 0)
+	}
+	if verbose {
+		log.Printf("- created a total of %d local parameterizations", len(params))
 	}
 	return PackMeshUVMaps(
 		model2d.XY(0, 0),
@@ -511,6 +534,10 @@ func StretchMinimizingParameterization(m *Mesh, boundary *CoordMap[model2d.Coord
 		prevSolution = solution
 		solution = floater97(m, boundary, edgeWeights, solver, solution)
 	}
+	_, totalStretch := vertexStretches(m, boundaryTris, solution, eta)
+	if totalStretch >= prevTotalStretch {
+		return prevSolution
+	}
 	return solution
 }
 
@@ -603,8 +630,7 @@ func orderedNeighbors(m *Mesh, center Coord3D) []Coord3D {
 }
 
 func vertexStretches(m *Mesh, boundaryTris map[*Triangle]bool, curParam *CoordMap[model2d.Coord],
-	eta float64) (*CoordMap[float64],
-	float64) {
+	eta float64) (*CoordMap[float64], float64) {
 	var totalStretch, totalArea float64
 	stretchAreas := map[*Triangle][2]float64{}
 	m.Iterate(func(t *Triangle) {
@@ -637,6 +663,24 @@ func vertexStretches(m *Mesh, boundaryTris map[*Triangle]bool, curParam *CoordMa
 	return result, totalStretch / totalArea
 }
 
+func normalizedStretch(m *Mesh, curParam *CoordMap[model2d.Coord]) float64 {
+	var totalStretch, totalArea3d, totalArea2d float64
+	m.Iterate(func(t *Triangle) {
+		stretchSq, area := triangleStretchAndArea(t, curParam)
+		totalStretch += area * stretchSq
+		totalArea3d += area
+		totalArea2d += model2d.NewTriangle(
+			curParam.Value(t[0]),
+			curParam.Value(t[1]),
+			curParam.Value(t[2]),
+		).Area()
+	})
+	if totalArea3d == 0 || totalArea2d == 0 {
+		return 1.0
+	}
+	return (totalStretch / totalArea3d) * (totalArea2d / totalArea3d)
+}
+
 func triangleStretchAndArea(t *Triangle, m *CoordMap[model2d.Coord]) (stretchSq, area float64) {
 	p2d := [3]model2d.Coord{}
 	for i, c := range t {
@@ -657,6 +701,61 @@ func triangleStretchAndArea(t *Triangle, m *CoordMap[model2d.Coord]) (stretchSq,
 	a := Ss.Dot(Ss)
 	c := St.Dot(St)
 	return (a + c) / 2, t.Area()
+}
+
+// triangleSurfaceDist computes the distance between the
+// center of two adjacent triangles when the path is traced
+// along the surface of the triangles.
+func triangleSurfaceDist(t1, t2 *Triangle) float64 {
+	shared := t1.sharedSegment(t2)
+
+	p1 := t1.AtBarycentric([3]float64{1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0})
+	p2 := t2.AtBarycentric([3]float64{1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0})
+
+	// Observe that this distance doesn't matter if you
+	// rotate t2 along the shared segment as if it were
+	// a hinge. This allows us to "flatten" the two
+	// triangles and simply draw a straight line between
+	// the centers. We then constrain the intersection of
+	// this line and the hinge, so that we don't trace a
+	// path outside of the triangles.
+
+	// Create a basis where the shared segment is the
+	// y-axis and the other axis creates the planes for
+	// t1 and t2.
+	yAxis := shared[1].Sub(shared[0]).Normalize()
+	mp := shared[1].Mid(shared[0])
+	xAxis := shared.Other(t1).Sub(mp).ProjectOut(yAxis).Normalize()
+	xAxis2 := mp.Sub(shared.Other(t2)).ProjectOut(yAxis).Normalize()
+
+	// Transforms to turn a coordinate c into the
+	// rotated planes of triangle 1 and triangle 2.
+	transform1 := func(c Coord3D) model2d.Coord {
+		c = c.Sub(mp)
+		return model2d.XY(xAxis.Dot(c), yAxis.Dot(c))
+	}
+	transform2 := func(c Coord3D) model2d.Coord {
+		c = c.Sub(mp)
+		return model2d.XY(xAxis2.Dot(c), yAxis.Dot(c))
+	}
+
+	flatP1 := transform1(p1)
+	flatP2 := transform2(p2)
+
+	// Imagine a line between flatP1 and flatP2. When it
+	// intersects the y axis is when the point passes from
+	// t1 to t2.
+	// (flatP1.X*t + flatP2.X*(1-t)) = 0
+	// (flatP1.X*t + flatP2.X - t*flatP2.X) = 0
+	// t*(flatP1.X - flatP2.X) = -flatP2.X
+	// t = flatP2.X / (flatP2.X - flatP1.X)
+	t := flatP2.X / (flatP2.X - flatP1.X)
+	y := flatP1.Y*t + flatP2.Y*(1-t)
+	minY := shared[0].Sub(mp).Dot(yAxis)
+	maxY := shared[1].Sub(mp).Dot(yAxis)
+	midPoint := model2d.Y(math.Max(minY, math.Min(maxY, y)))
+
+	return flatP1.Dist(midPoint) + flatP2.Dist(midPoint)
 }
 
 // MeshToPlaneGraphs splits a mesh m into one or more
@@ -683,25 +782,8 @@ func MeshToPlaneGraphsLimited(m *Mesh, maxSize int, maxArea float64) []*Mesh {
 	m = m.Copy()
 	var res []*Mesh
 	for {
-		next := nextMeshPlaneGraphs(m, maxSize, maxArea, false, func(t1, t2 *Triangle) float64 {
-			if t1 == nil {
-				// Try to put largest triangles in the center
-				// of mesh discs.
-				return t2.Area()
-			}
-
-			// Prioritize more planar sections to cover
-			// flat surfaces before seams in the presence
-			// of a size limit.
-			//
-			// If we use the exact normal, we might end up
-			// tracing out artifact-y shapes in automatically
-			// generated meshes (e.g. we might care too much
-			// about rounding error). Discretizing helps
-			// alleviate this, although artifacts are still
-			// possible around the bin thresholds.
-			return math.Round(meshDiscsCosineBins * (t1.Normal().Dot(t2.Normal()) + 1) / 2)
-		})
+		next := nextMeshPlaneGraphs(m, maxSize, maxArea, false,
+			newDistancePriorityTracker().Priority)
 		if len(next) > 0 {
 			res = append(res, next...)
 		} else {
@@ -717,19 +799,31 @@ func MeshToPlaneGraphsLimited(m *Mesh, maxSize int, maxArea float64) []*Mesh {
 // to split off roughly half of the total area in the first
 // subgraph.
 //
+// If the decision function is nil, a distance-based
+// heuristic is used to search triangles in order of
+// distance from the initial triangle.
+//
 // If the mesh is minimal and cannot be split, one item is
 // returned instead of two or more.
 func SplitPlaneGraph(m *Mesh, decision func(t *Triangle) float64) []*Mesh {
 	if m.NumTriangles() < 2 {
 		return []*Mesh{m}
 	}
+
+	var priorityFn func(t1, t2 *Triangle) float64
+	if decision != nil {
+		priorityFn = func(t1, t2 *Triangle) float64 {
+			return decision(t2)
+		}
+	} else {
+		priorityFn = newDistancePriorityTracker().Priority
+	}
+
 	m = m.Copy()
 	halfArea := m.Area() / 2
 	var res []*Mesh
 	for {
-		next := nextMeshPlaneGraphs(m, 0, halfArea, true, func(t1, t2 *Triangle) float64 {
-			return decision(t2)
-		})
+		next := nextMeshPlaneGraphs(m, 0, halfArea, true, priorityFn)
 		if len(next) > 0 {
 			res = append(res, next...)
 		} else {
@@ -927,6 +1021,28 @@ func (m *meshDiscsQueueNode) Compare(other *meshDiscsQueueNode) int {
 	} else {
 		return 1
 	}
+}
+
+type distancePriorityTracker struct {
+	dists map[*Triangle]float64
+}
+
+func newDistancePriorityTracker() *distancePriorityTracker {
+	return &distancePriorityTracker{
+		dists: map[*Triangle]float64{},
+	}
+}
+
+func (d *distancePriorityTracker) Priority(orig, newTri *Triangle) float64 {
+	if orig == nil {
+		// Prioritize larger triangles first
+		return newTri.Area()
+	}
+	dist := d.dists[orig] + triangleSurfaceDist(orig, newTri)
+	if old, ok := d.dists[newTri]; !ok || old > dist {
+		d.dists[newTri] = dist
+	}
+	return -dist
 }
 
 // A MeshUVMap is a mapping between triangles in a 3D mesh
