@@ -63,12 +63,39 @@ func BuildAutomaticUVMap(m *Mesh, resolution int, verbose bool) MeshUVMap {
 	var handleDisc func(disc *Mesh, depth int)
 	handleDisc = func(disc *Mesh, depth int) {
 		area := disc.Area()
+		canSplit := depth < automaticUVMapMaxRecursion && disc.NumTriangles() > 1 &&
+			area > minSplitArea
 		if verbose {
 			log.Printf("- parameterizing plane graph of area %f", area)
 		}
+
+		splitRecursively := func(stretch float64) {
+			separated := SplitPlaneGraph(disc, nil)
+			if verbose {
+				log.Printf("- split plane graph of area %f and normalized stretch %f into %d pieces",
+					area, stretch, len(separated))
+			}
+			for _, subMesh := range separated {
+				handleDisc(subMesh, depth+1)
+			}
+		}
+
+		// Avoid colinear points like in a square boundary.
+		boundary := PNormBoundary(disc, 4)
+
+		// Don't bother parameterizing if the boundary is already
+		// too stretched and the disc needs to be split.
+		if canSplit {
+			stretch := normalizedStretchBoundary(m, boundary)
+			if stretch > automaticUVMaxStretch {
+				splitRecursively(stretch)
+				return
+			}
+		}
+
 		parameterization := StretchMinimizingParameterization(
 			disc,
-			PNormBoundary(disc, 4), // Almost square, but no colinear points.
+			boundary,
 			Floater97ShapePreservingWeights(disc),
 			nil,
 			automaticUVMapParamIters,
@@ -78,25 +105,18 @@ func BuildAutomaticUVMap(m *Mesh, resolution int, verbose bool) MeshUVMap {
 		ExtendBoundaryUVs(disc, parameterization, 0.1)
 		stretch := normalizedStretch(disc, parameterization)
 
-		if depth < automaticUVMapMaxRecursion && disc.NumTriangles() > 1 && area > minSplitArea &&
-			stretch > automaticUVMaxStretch {
-			separated := SplitPlaneGraph(disc, nil)
-			if verbose {
-				log.Printf("- split plane graph of area %f and normalized stretch %f into %d pieces",
-					area, stretch, len(separated))
-			}
-			for _, subMesh := range separated {
-				handleDisc(subMesh, depth+1)
-			}
-		} else {
-			if verbose {
-				log.Printf("- parameterized with normalized stretch %f", stretch)
-			}
-			params = append(params, NewMeshUVMapForCoords(disc, parameterization))
-			completedArea += area
-			if verbose {
-				log.Printf("- completed %.2f%% of surface area", 100*completedArea/totalArea)
-			}
+		if canSplit && stretch > automaticUVMaxStretch {
+			splitRecursively(stretch)
+			return
+		}
+
+		if verbose {
+			log.Printf("- parameterized with normalized stretch %f", stretch)
+		}
+		params = append(params, NewMeshUVMapForCoords(disc, parameterization))
+		completedArea += area
+		if verbose {
+			log.Printf("- completed %.2f%% of surface area", 100*completedArea/totalArea)
 		}
 	}
 	for _, disc := range MeshToPlaneGraphsLimited(m, automaticUVMapMaxTris, 0) {
@@ -661,6 +681,34 @@ func vertexStretches(m *Mesh, boundaryTris map[*Triangle]bool, curParam *CoordMa
 		totalArea = 1
 	}
 	return result, totalStretch / totalArea
+}
+
+func normalizedStretchBoundary(m *Mesh, boundary *CoordMap[model2d.Coord]) float64 {
+	var totalStretch, totalArea3d, totalArea2d float64
+	m.Iterate(func(t *Triangle) {
+		// For non-boundary triangles, just count the 3D
+		// area of the triangle and nothing else.
+		for _, c := range t {
+			if _, ok := boundary.Load(c); !ok {
+				totalArea3d += t.Area()
+				return
+			}
+		}
+		// Pretend the boundary is a parameterization, because it
+		// already determines the 2D triangle completely.
+		stretchSq, area := triangleStretchAndArea(t, boundary)
+		totalStretch += area * stretchSq
+		totalArea3d += area
+		totalArea2d += model2d.NewTriangle(
+			boundary.Value(t[0]),
+			boundary.Value(t[1]),
+			boundary.Value(t[2]),
+		).Area()
+	})
+	if totalArea3d == 0 {
+		return 1.0
+	}
+	return (totalStretch / totalArea3d) * (totalArea2d / totalArea3d)
 }
 
 func normalizedStretch(m *Mesh, curParam *CoordMap[model2d.Coord]) float64 {
