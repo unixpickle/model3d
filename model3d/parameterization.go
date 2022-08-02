@@ -831,7 +831,7 @@ func MeshToPlaneGraphsLimited(m *Mesh, maxSize int, maxArea float64) []*Mesh {
 	var res []*Mesh
 	for {
 		next := nextMeshPlaneGraphs(m, maxSize, maxArea, false,
-			newDistancePriorityTracker().Priority)
+			newDistancePriorityTracker(m).Priority)
 		if len(next) > 0 {
 			res = append(res, next...)
 		} else {
@@ -864,7 +864,7 @@ func SplitPlaneGraph(m *Mesh, decision func(t *Triangle) float64) []*Mesh {
 			return decision(t2)
 		}
 	} else {
-		priorityFn = newDistancePriorityTracker().Priority
+		priorityFn = newDistancePriorityTracker(m).Priority
 	}
 
 	m = m.Copy()
@@ -1072,25 +1072,55 @@ func (m *meshDiscsQueueNode) Compare(other *meshDiscsQueueNode) int {
 }
 
 type distancePriorityTracker struct {
-	dists map[*Triangle]float64
+	dists         map[*Triangle]float64
+	initMean      Coord3D
+	initDirection Coord3D
 }
 
-func newDistancePriorityTracker() *distancePriorityTracker {
+func newDistancePriorityTracker(m *Mesh) *distancePriorityTracker {
+	initMean, initDirection := maxVertexPrincipalComponent(m)
 	return &distancePriorityTracker{
-		dists: map[*Triangle]float64{},
+		dists:         map[*Triangle]float64{},
+		initMean:      initMean,
+		initDirection: initDirection,
 	}
 }
 
 func (d *distancePriorityTracker) Priority(orig, newTri *Triangle) float64 {
 	if orig == nil {
-		// Prioritize larger triangles first
-		return newTri.Area()
+		maxValue := math.Inf(-1)
+		for _, c := range newTri {
+			maxValue = math.Max(maxValue, d.initDirection.Dot(c.Sub(d.initMean)))
+		}
+		return maxValue
 	}
 	dist := d.dists[orig] + triangleSurfaceDist(orig, newTri)
 	if old, ok := d.dists[newTri]; !ok || old > dist {
 		d.dists[newTri] = dist
 	}
 	return -dist
+}
+
+func maxVertexPrincipalComponent(m *Mesh) (mean, direction Coord3D) {
+	vertices := m.VertexSlice()
+	for _, v := range vertices {
+		mean = mean.Add(v)
+	}
+	mean = mean.Scale(1 / float64(len(vertices)))
+	var covMatrix Matrix3
+	m.IterateVertices(func(c Coord3D) {
+		arr := c.Sub(mean).Array()
+		for i := 0; i < 3; i++ {
+			for j := 0; j < 3; j++ {
+				covMatrix[i*3+j] += arr[i] * arr[j]
+			}
+		}
+	})
+	var u, s, v Matrix3
+	covMatrix.SVD(&u, &s, &v)
+	maxEig := v.Transpose()[:3]
+	direction = XYZ(maxEig[0], maxEig[1], maxEig[2])
+	return
 }
 
 // A MeshUVMap is a mapping between triangles in a 3D mesh
