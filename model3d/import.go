@@ -23,17 +23,19 @@ func readSTL(r io.Reader) ([]*Triangle, error) {
 	if err != nil {
 		return nil, err
 	}
-	tris := make([]*Triangle, int(reader.NumTriangles()))
-	for i := range tris {
+	tris := make([]*Triangle, 0, int(reader.NumTriangles()))
+	for {
 		_, vertices, err := reader.ReadTriangle()
-		if err != nil {
+		if err == io.EOF {
+			break
+		} else if err != nil {
 			return nil, err
 		}
 		tri := &Triangle{}
 		for j, vert := range vertices {
 			tri[j] = XYZ(float64(vert[0]), float64(vert[1]), float64(vert[2]))
 		}
-		tris[i] = tri
+		tris = append(tris, tri)
 	}
 	return tris, nil
 }
