@@ -9,56 +9,76 @@ import (
 )
 
 func TestSTLBinary(t *testing.T) {
-	tris := make([][4][3]float32, 50)
-	for i := range tris {
-		for j := 0; j < 4; j++ {
-			for k := 0; k < 3; k++ {
-				tris[i][j][k] = float32(rand.NormFloat64())
-			}
-		}
-	}
-
-	buf := bytes.NewBuffer(nil)
-	writer, err := NewSTLWriter(buf, uint32(len(tris)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, x := range tris {
-		err := writer.WriteTriangle(x[0], [3][3]float32{x[1], x[2], x[3]})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	reader, err := NewSTLReader(bytes.NewReader(buf.Bytes()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if int(reader.NumTriangles()) != len(tris) {
-		t.Fatal("bad length")
-	}
-
-	for i, x := range tris {
-		normal, vertices, err := reader.ReadTriangle()
-		if err != nil {
-			t.Fatal(err)
-		}
-		y := [4][3]float32{normal, vertices[0], vertices[1], vertices[2]}
-		for j := 0; j < 4; j++ {
-			for k := 0; k < 3; k++ {
-				if x[j][k] != y[j][k] || math.IsNaN(float64(y[j][k])) ||
-					math.IsInf(float64(y[j][k]), 0) {
-					t.Errorf("mismatch at %d,%d,%d: expected %f got %f", i, j, k, x[j][k], y[j][k])
+	testBinaryReader := func(t *testing.T, header []byte) {
+		tris := make([][4][3]float32, 50)
+		for i := range tris {
+			for j := 0; j < 4; j++ {
+				for k := 0; k < 3; k++ {
+					tris[i][j][k] = float32(rand.NormFloat64())
 				}
 			}
 		}
-	}
-	for i := 0; i < 3; i++ {
-		_, _, err = reader.ReadTriangle()
-		if err != io.EOF {
-			t.Fatalf("unexpected extra read error: %v", err)
+
+		buf := bytes.NewBuffer(nil)
+		writer, err := NewSTLWriter(buf, uint32(len(tris)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, x := range tris {
+			err := writer.WriteTriangle(x[0], [3][3]float32{x[1], x[2], x[3]})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		data := buf.Bytes()
+		copy(data, header)
+
+		reader, err := NewSTLReader(bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if int(reader.NumTriangles()) != len(tris) {
+			t.Fatal("bad length")
+		}
+
+		for i, x := range tris {
+			normal, vertices, err := reader.ReadTriangle()
+			if err != nil {
+				t.Fatal(err)
+			}
+			y := [4][3]float32{normal, vertices[0], vertices[1], vertices[2]}
+			for j := 0; j < 4; j++ {
+				for k := 0; k < 3; k++ {
+					if x[j][k] != y[j][k] || math.IsNaN(float64(y[j][k])) ||
+						math.IsInf(float64(y[j][k]), 0) {
+						t.Errorf("mismatch at %d,%d,%d: expected %f got %f", i, j, k, x[j][k], y[j][k])
+					}
+				}
+			}
+		}
+		for i := 0; i < 3; i++ {
+			_, _, err = reader.ReadTriangle()
+			if err != io.EOF {
+				t.Fatalf("unexpected extra read error: %v", err)
+			}
 		}
 	}
+
+	t.Run("Basic", func(t *testing.T) {
+		testBinaryReader(t, []byte{})
+	})
+	t.Run("DummySolid", func(t *testing.T) {
+		testBinaryReader(t, []byte("solid"))
+	})
+	t.Run("SpaceSolid", func(t *testing.T) {
+		header := make([]byte, 80)
+		copy(header, []byte("solid"))
+		for i := 5; i < len(header); i++ {
+			header[i] = ' '
+		}
+		testBinaryReader(t, header)
+	})
 }
 
 func TestSTLASCII(t *testing.T) {

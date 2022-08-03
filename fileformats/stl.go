@@ -8,6 +8,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/pkg/errors"
 )
@@ -69,32 +70,73 @@ type STLReader struct {
 // NewSTLReader creates an STL reader by reading the header
 // of an STL file.
 func NewSTLReader(r io.Reader) (*STLReader, error) {
-	firstBytes := make([]byte, 5)
-	if _, err := io.ReadFull(r, firstBytes); err != nil {
+	// Unfortunately, many binary STL files start with "solid", so we
+	// need to read some data and detect if it's valid ASCII or not.
+	chunk := make([]byte, 512)
+	n, err := io.ReadFull(r, chunk)
+	if n == 0 {
+		return nil, errors.Wrap(io.ErrUnexpectedEOF, "read STL header")
+	} else if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
 		return nil, errors.Wrap(err, "read STL header")
 	}
-	if bytes.Equal(firstBytes, []byte("solid")) {
-		br := bufio.NewReader(r)
-		_, err := br.ReadString('\n')
-		if err != nil {
-			return nil, errors.Wrap(err, "read STL header")
-		}
-		return &STLReader{br: br}, nil
-	} else {
-		header := make([]byte, 80-5)
-		if _, err := io.ReadFull(r, header); err != nil {
-			return nil, errors.Wrap(err, "read STL header")
-		}
-		var numTris uint32
-		if err := binary.Read(r, binary.LittleEndian, &numTris); err != nil {
-			return nil, errors.Wrap(err, "read STL header")
-		}
-		return &STLReader{
-			r:        r,
-			isBinary: true,
-			numTris:  numTris,
-		}, nil
+	chunk = chunk[:n]
+
+	var resetReader io.Reader
+	resetReader = bytes.NewReader(chunk)
+	if err == nil {
+		resetReader = io.MultiReader(resetReader, r)
 	}
+
+	var res *STLReader
+	if isSTLChunkASCII(chunk) {
+		res, err = newSTLReaderASCII(resetReader)
+	} else {
+		res, err = newSTLReaderBinary(resetReader)
+	}
+	if err != nil {
+		err = errors.Wrap(err, "read STL header")
+	}
+	return res, err
+}
+
+func isSTLChunkASCII(chunk []byte) bool {
+	if len(chunk) < 5 {
+		return false
+	}
+	if !bytes.Equal(chunk[:5], []byte("solid")) {
+		return false
+	}
+	for _, x := range chunk {
+		if x == 0 || x > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
+}
+
+func newSTLReaderASCII(r io.Reader) (*STLReader, error) {
+	br := bufio.NewReader(r)
+	_, err := br.ReadString('\n')
+	if err != nil {
+		return nil, errors.Wrap(err, "read STL header")
+	}
+	return &STLReader{br: br}, nil
+}
+
+func newSTLReaderBinary(r io.Reader) (*STLReader, error) {
+	header := make([]byte, 80)
+	if _, err := io.ReadFull(r, header); err != nil {
+		return nil, errors.Wrap(err, "read STL header")
+	}
+	var numTris uint32
+	if err := binary.Read(r, binary.LittleEndian, &numTris); err != nil {
+		return nil, errors.Wrap(err, "read STL header")
+	}
+	return &STLReader{
+		r:        r,
+		isBinary: true,
+		numTris:  numTris,
+	}, nil
 }
 
 // IsBinary returns true if this file is encoded in the
@@ -214,5 +256,6 @@ func (s *STLReader) readBinary() (normal [3]float32, vertices [3][3]float32, err
 			vertices[i][j] = math.Float32frombits(binary.LittleEndian.Uint32(data[(i*3+j+3)*4 : (i*3+j+4)*4]))
 		}
 	}
+	s.readTris++
 	return
 }
