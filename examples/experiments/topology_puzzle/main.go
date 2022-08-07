@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"math"
+	"os"
+	"path/filepath"
 
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
@@ -72,6 +74,9 @@ func Archway() model3d.Solid {
 }
 
 func SavePiece(name string, piece model3d.Solid, delta float64) {
+	os.Mkdir("renderings", 0755)
+	os.Mkdir("models", 0755)
+
 	log.Printf("Processing %s...", name)
 	log.Println(" - creating mesh...")
 	mesh := model3d.DualContour(piece, delta, true, false)
@@ -79,8 +84,17 @@ func SavePiece(name string, piece model3d.Solid, delta float64) {
 	log.Println(" - simplifying mesh...")
 	mesh = mesh.EliminateCoplanar(1e-5)
 	log.Println(" - saving STL...")
-	mesh.SaveGroupedSTL(name + ".stl")
+	mesh.SaveGroupedSTL(filepath.Join("models", name+".stl"))
 	log.Println(" - rendering...")
-	render3d.SaveRandomGrid("rendering_"+name+".png", mesh, 3, 3, 300, nil)
+	mid := piece.Min().Mid(piece.Max())
+	size := piece.Min().Dist(piece.Max())
+	cameraPos := mid.Add(model3d.XYZ(0.5, -1, 0.8).Scale(size))
+	render3d.SaveRendering(filepath.Join("renderings", name+".png"), mesh, cameraPos, 512, 512,
+		nil)
+	if name == "board" {
+		cameraPos.Z = -cameraPos.Z
+		render3d.SaveRendering(filepath.Join("renderings", name+"_bottom.png"), mesh, cameraPos,
+			512, 512, nil)
+	}
 	log.Printf(" - done with %d triangles", len(mesh.TriangleSlice()))
 }
