@@ -27,7 +27,10 @@ func main() {
 	}
 	cutout := &model3d.SubtractedSolid{
 		Positive: sandPart.Optimize(),
-		Negative: StairCutout(),
+		Negative: model3d.JoinedSolid{
+			StairCutout(),
+			TextCutout(),
+		},
 	}
 	log.Println("Creating mesh...")
 	mesh := model3d.MarchingCubesSearch(cutout, 0.008, 8)
@@ -176,4 +179,20 @@ func StairCutout() model3d.Solid {
 		oneSide,
 		model3d.RotateSolid(oneSide, model3d.Z(1), math.Pi),
 	}
+}
+
+func TextCutout() model3d.Solid {
+	textMesh := model2d.MustReadBitmap("text_imprint.png", nil).FlipX().Mesh().SmoothSq(20)
+	textMesh = textMesh.Translate(textMesh.Max().Mid(textMesh.Min()).Scale(-1))
+	textMesh = textMesh.Scale(1 / textMesh.Max().X)
+	textCollider2d := model2d.MeshToCollider(textMesh)
+	textCollider3d := model3d.ProfileCollider(textCollider2d, -0.075, 0.075)
+	textSolid3d := model3d.NewColliderSolidInset(textCollider3d, -0.01)
+	return model3d.RotateSolid(
+		model3d.TranslateSolid(
+			model3d.RotateSolid(textSolid3d, model3d.X(1), -math.Pi/4),
+			model3d.YZ(1.75, -0.1),
+		),
+		model3d.Z(1), -math.Pi/2,
+	)
 }
