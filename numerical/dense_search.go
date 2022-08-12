@@ -59,6 +59,43 @@ func (l *LineSearch) maximize(min, max float64, f func(float64) float64,
 	return l.maximize(newMin, newMax, f, recursions-1)
 }
 
+// A RecursiveLineSearch searches for an optimum in an
+// N-dimensional space by recursively applying line
+// searches along each axis.
+type RecursiveLineSearch[T FiniteVector[T]] struct {
+	LineSearch LineSearch
+}
+
+func (r *RecursiveLineSearch[T]) Maximize(min, max T, f func(T) float64) (solution T, fVal float64) {
+	return r.maximize(min, max, f, min.Zeros(), 0)
+}
+
+func (r *RecursiveLineSearch[T]) Minimize(min, max T, f func(T) float64) (solution T, fVal float64) {
+	x, fVal := r.Maximize(min, max, func(pos T) float64 {
+		return -f(pos)
+	})
+	return x, -fVal
+}
+
+func (r *RecursiveLineSearch[T]) maximize(min, max T, f func(T) float64, prefix T, startDim int) (solution T, fVal float64) {
+	if startDim == prefix.Len() {
+		return prefix, f(prefix)
+	}
+
+	solution = min.Add(max).Scale(0.5)
+	fVal = math.Inf(-1)
+	objective := func(v float64) float64 {
+		x, y := r.maximize(min, max, f, prefix.WithDim(startDim, v), startDim+1)
+		if y > fVal {
+			solution = x
+			fVal = y
+		}
+		return y
+	}
+	r.LineSearch.Maximize(min.At(startDim), max.At(startDim), objective)
+	return
+}
+
 // A GridSearch2D implements 2D grid search for minimizing
 // or maximizing 2D functions.
 type GridSearch2D struct {

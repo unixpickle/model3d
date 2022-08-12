@@ -20,6 +20,16 @@ type Vector[T any] interface {
 	Max(T) T
 }
 
+// A FiniteVector is a Vector with the extra constraint
+// that it has a finite number of dimensions that can be
+// accessed independently.
+type FiniteVector[T any] interface {
+	Vector[T]
+	Len() int
+	WithDim(i int, value float64) T
+	At(i int) float64
+}
+
 // A Vec2 is a 2-dimensional tuple of floats.
 type Vec2 [2]float64
 
@@ -128,6 +138,24 @@ func (v Vec2) Max(v1 Vec2) Vec2 {
 		res[i] = math.Max(a, b)
 	}
 	return res
+}
+
+// Len returns the number of dimensions.
+func (v Vec2) Len() int {
+	return len(v)
+}
+
+// WithDim creates a new vector with the given value at the
+// index, and otherwise the values of v.
+func (v Vec2) WithDim(i int, x float64) Vec2 {
+	v1 := v
+	v1[i] = x
+	return v1
+}
+
+// At gets the value at dimension i.
+func (v Vec2) At(i int) float64 {
+	return v[i]
 }
 
 // A Vec3 is a 3-dimensional tuple of floats.
@@ -283,6 +311,24 @@ func (v Vec3) OrthoBasis() (Vec3, Vec3) {
 
 	basis2 := basis1.Cross(v)
 	return basis1.Normalize(), basis2.Normalize()
+}
+
+// Len returns the number of dimensions.
+func (v Vec3) Len() int {
+	return len(v)
+}
+
+// WithDim creates a new vector with the given value at the
+// index, and otherwise the values of v.
+func (v Vec3) WithDim(i int, x float64) Vec3 {
+	v1 := v
+	v1[i] = x
+	return v1
+}
+
+// At gets the value at dimension i.
+func (v Vec3) At(i int) float64 {
+	return v[i]
 }
 
 // A Vec4 is a 4-dimensional tuple of floats.
@@ -447,6 +493,24 @@ func (v Vec4) OrthoBasis() (Vec4, Vec4, Vec4) {
 	return otherVecs[0], otherVecs[1], otherVecs[2]
 }
 
+// Len returns the number of dimensions.
+func (v Vec4) Len() int {
+	return len(v)
+}
+
+// WithDim creates a new vector with the given value at the
+// index, and otherwise the values of v.
+func (v Vec4) WithDim(i int, x float64) Vec4 {
+	v1 := v
+	v1[i] = x
+	return v1
+}
+
+// At gets the value at dimension i.
+func (v Vec4) At(i int) float64 {
+	return v[i]
+}
+
 // Vec is a vector of arbitrary dimension.
 type Vec []float64
 
@@ -543,4 +607,22 @@ func (v Vec) Dist(v1 Vec) float64 {
 func (v Vec) ProjectOut(v1 Vec) Vec {
 	normed := v1.Normalize()
 	return v.Sub(normed.Scale(normed.Dot(v)))
+}
+
+// Len returns the number of dimensions.
+func (v Vec) Len() int {
+	return len(v)
+}
+
+// WithDim creates a new vector with the given value at the
+// index, and otherwise the values of v.
+func (v Vec) WithDim(i int, x float64) Vec {
+	v1 := append(Vec{}, v...)
+	v1[i] = x
+	return v1
+}
+
+// At gets the value at dimension i.
+func (v Vec) At(i int) float64 {
+	return v[i]
 }
