@@ -127,7 +127,7 @@ func (m *Matrix2) Eigenvalues() [2]complex128 {
 //
 // It populates matrices u, s, and v, such that
 //
-//     m = u*s*v.Transpose()
+//	m = u*s*v.Transpose()
 //
 // The singular values in s are sorted largest to
 // smallest.

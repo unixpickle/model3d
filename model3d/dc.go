@@ -409,14 +409,14 @@ type dcEdgeIdx int
 //
 // Each cube has 8 corners, laid out like so:
 //
-// 0 --------- 1
-// |\          |\
-// | \         | \
-// |  2 --------- 3
-// 4 -|------ 5   |
-//  \ |        \  |
-//   \|         \ |
-//    6 --------- 7
+//	0 -------- 1
+//	|\         |\
+//	| \        | \
+//	|  2 --------- 3
+//	4 -|------ 5   |
+//	\  |        \  |
+//	 \ |         \ |
+//	   6 --------- 7
 //
 // Where 0 is at (0, 0, 0), 1 is at (1, 0, 0), 2 is at
 // (0, 1, 0), and 4 is at (0, 0, 1) in terms of XYZ.
@@ -429,10 +429,11 @@ type dcEdgeIdx int
 // 4  \        5  \
 // |   +-----3-+---+
 // +---+--8----+   |
-//  \  6        \  7
-//   9 |        10 |
-//    \|          \|
-//     +---- 11----+
+//
+//	\  6        \  7
+//	 9 |        10 |
+//	  \|          \|
+//	   +---- 11----+
 //
 // Note that, under the above setup, the last 4 edges are
 // equal to the top 4 edges moved down one cube.

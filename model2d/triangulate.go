@@ -271,11 +271,11 @@ func triangulateMonotoneMesh(m *ptrMesh) [][3]Coord {
 //
 // The are several assumptions on m:
 //
-//     * No two coordinates have the same x value
-//     * No segments have infinite slope.
-//     * This is either a simple polygon, or a polygon with one
-//       depth of holes.
-//     * The normals are correct.
+//   - No two coordinates have the same x value
+//   - No segments have infinite slope.
+//   - This is either a simple polygon, or a polygon with one
+//     depth of holes.
+//   - The normals are correct.
 //
 // The mesh m will be destroyed in the process.
 func triangulateMonotoneDecomp(m *ptrMesh) []*ptrMesh {

@@ -260,11 +260,10 @@ func msSearch(s Solid, delta float64, iters int, mesh *Mesh) *Mesh {
 // The x-axis is the first bit, and y-axis is the second
 // bit, so for example (0, 1) is 0b10.
 //
-//     2 +-----+ 3
-//       |     |
-//       |     |
-//     0 +-----+ 1
-//
+//	2 +-----+ 3
+//	  |     |
+//	  |     |
+//	0 +-----+ 1
 type msCorner uint8
 
 // msCornerCoordinates gets the coordinates of all four
@@ -283,11 +282,10 @@ func msCornerCoordinates(min, max Coord) [4]Coord {
 //
 // The bits are:
 //
-//     1: the corner (0, 0)
-//     2: the corner (1, 0)
-//     4: the corner (0, 1)
-//     8: the corner (1, 1)
-//
+//	1: the corner (0, 0)
+//	2: the corner (1, 0)
+//	4: the corner (0, 1)
+//	8: the corner (1, 1)
 type msIntersections uint8
 
 func newMsIntersections(corners ...msCorner) msIntersections {

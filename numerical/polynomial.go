@@ -12,7 +12,7 @@ import (
 
 // A Polynomial is an equation of the form
 //
-//     a0 + a1*x + a2*x^2 + a3*x^3 + ...
+//	a0 + a1*x + a2*x^2 + a3*x^3 + ...
 //
 // Here, the polynomial is represented as an array of
 // [a0, a1, ...].

@@ -149,7 +149,7 @@ func (m *Matrix4) CharPoly() Polynomial {
 //
 // It populates matrices u, s, and v, such that
 //
-//     m = u*s*v.Transpose()
+//	m = u*s*v.Transpose()
 //
 // The singular values in s are sorted largest to
 // smallest.

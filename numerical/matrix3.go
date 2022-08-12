@@ -192,7 +192,7 @@ func (m *Matrix3) Eigenvalues() [3]complex128 {
 //
 // It populates matrices u, s, and v, such that
 //
-//     m = u*s*v.Transpose()
+//	m = u*s*v.Transpose()
 //
 // The singular values in s are sorted largest to
 // smallest.
@@ -264,8 +264,7 @@ func (m *Matrix3) SVD(u, s, v *Matrix3) {
 //
 // It populates matrices v and s such that
 //
-//     m = v*s*v.Transpose()
-//
+//	m = v*s*v.Transpose()
 func (m *Matrix3) symEigDecomp(s, v *Matrix3) {
 	eigVals := m.Eigenvalues()
 	largestEig := math.Max(real(eigVals[0]), math.Max(real(eigVals[1]), real(eigVals[2])))

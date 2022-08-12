@@ -127,7 +127,7 @@ func (m *Matrix2) Eigenvalues() [2]complex128 {
 //
 // It populates matrices u, s, and v, such that
 //
-//     m = u*s*v.Transpose()
+//	m = u*s*v.Transpose()
 //
 // The singular values in s are sorted largest to
 // smallest.
@@ -177,8 +177,7 @@ func (m *Matrix2) SVD(u, s, v *Matrix2) {
 //
 // It populates matrices v and s such that
 //
-//     m = v*s*v.Transpose()
-//
+//	m = v*s*v.Transpose()
 func (m *Matrix2) symEigDecomp(s, v *Matrix2) {
 	eigVals := m.Eigenvalues()
 	if real(eigVals[0]) < real(eigVals[1]) {

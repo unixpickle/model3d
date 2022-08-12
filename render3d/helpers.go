@@ -61,9 +61,9 @@ func (c *colorFuncObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, 
 //
 // Accepted object types are:
 //
-//     - render3d.Object
-//     - *model3d.Mesh
-//     - model3d.Collider
+//   - render3d.Object
+//   - *model3d.Mesh
+//   - model3d.Collider
 //
 // The colorFunc is used to color the object's material.
 // If colorFunc is used, a default yellow color is used,
