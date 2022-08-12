@@ -2,6 +2,7 @@ package toolbox3d
 
 import (
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/numerical"
 )
 
@@ -63,5 +64,33 @@ func (g *GridSearch2D) Maximize(min, max model2d.Coord,
 // MaxSDF finds the point with maximal SDF and returns it,
 // along with the SDF value.
 func (g *GridSearch2D) MaxSDF(s model2d.SDF) (model2d.Coord, float64) {
+	return g.Maximize(s.Min(), s.Max(), s.SDF)
+}
+
+// GridSearch3D is an extension of numerical.GridSearch3D
+// with extra helper methods for concrete applications.
+type GridSearch3D numerical.GridSearch3D
+
+func (g *GridSearch3D) Minimize(min, max model3d.Coord3D,
+	f func(model3d.Coord3D) float64) (model3d.Coord3D, float64) {
+	x, y := (*numerical.GridSearch3D)(g).Minimize(min.Array(), max.Array(),
+		func(c numerical.Vec3) float64 {
+			return f(model3d.NewCoord3DArray(c))
+		})
+	return model3d.NewCoord3DArray(x), y
+}
+
+func (g *GridSearch3D) Maximize(min, max model3d.Coord3D,
+	f func(model3d.Coord3D) float64) (model3d.Coord3D, float64) {
+	x, y := (*numerical.GridSearch3D)(g).Maximize(min.Array(), max.Array(),
+		func(c numerical.Vec3) float64 {
+			return f(model3d.NewCoord3DArray(c))
+		})
+	return model3d.NewCoord3DArray(x), y
+}
+
+// MaxSDF finds the point with maximal SDF and returns it,
+// along with the SDF value.
+func (g *GridSearch3D) MaxSDF(s model3d.SDF) (model3d.Coord3D, float64) {
 	return g.Maximize(s.Min(), s.Max(), s.SDF)
 }
