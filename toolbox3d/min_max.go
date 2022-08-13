@@ -20,6 +20,27 @@ func (l *LineSearch) Maximize(min, max float64, f func(float64) float64) (x, fVa
 	return (*numerical.LineSearch)(l).Maximize(min, max, f)
 }
 
+// CurveBounds approximates the bounding box of a
+// parametric curve, such as a 2D bezier curve.
+//
+// The min and max arguments specify the minimum and
+// maximum argument to pass to f, which is typically in
+// the range [0, 1] for Bezier curves.
+func (l *LineSearch) CurveBounds(min, max float64, f func(float64) model2d.Coord) (model2d.Coord,
+	model2d.Coord) {
+	minArr := [2]float64{}
+	maxArr := [2]float64{}
+	for i := 0; i < 2; i++ {
+		_, minArr[i] = l.Minimize(min, max, func(t float64) float64 {
+			return f(t).Array()[i]
+		})
+		_, maxArr[i] = l.Maximize(min, max, func(t float64) float64 {
+			return f(t).Array()[i]
+		})
+	}
+	return model2d.NewCoordArray(minArr), model2d.NewCoordArray(maxArr)
+}
+
 // LineSearch3D is a 3-dimensional recursive line search
 // with extra helper methods for concrete applications.
 type LineSearch3D numerical.RecursiveLineSearch[numerical.Vec3]
@@ -86,27 +107,6 @@ func (l *LineSearch3D) SolidBounds(solid model3d.Solid) (min, max model3d.Coord3
 		}
 	}
 	return model3d.NewCoord3DArray(minMax[0]), model3d.NewCoord3DArray(minMax[1])
-}
-
-// CurveBounds approximates the bounding box of a
-// parametric curve, such as a 2D bezier curve.
-//
-// The min and max arguments specify the minimum and
-// maximum argument to pass to f, which is typically in
-// the range [0, 1] for Bezier curves.
-func (l *LineSearch) CurveBounds(min, max float64, f func(float64) model2d.Coord) (model2d.Coord,
-	model2d.Coord) {
-	minArr := [2]float64{}
-	maxArr := [2]float64{}
-	for i := 0; i < 2; i++ {
-		_, minArr[i] = l.Minimize(min, max, func(t float64) float64 {
-			return f(t).Array()[i]
-		})
-		_, maxArr[i] = l.Maximize(min, max, func(t float64) float64 {
-			return f(t).Array()[i]
-		})
-	}
-	return model2d.NewCoordArray(minArr), model2d.NewCoordArray(maxArr)
 }
 
 // GridSearch2D is an extension of numerical.GridSearch2D
