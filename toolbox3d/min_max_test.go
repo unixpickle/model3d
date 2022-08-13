@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"math"
 	"testing"
+
+	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/numerical"
 )
 
 func TestLineSearch(t *testing.T) {
@@ -56,5 +59,23 @@ func TestLineSearch(t *testing.T) {
 					poly, expectedX, expectedY, actualX, actualY)
 			}
 		})
+	}
+}
+
+func TestSolidBounds(t *testing.T) {
+	rawSolid := model3d.VecScaleSolid(
+		&model3d.Sphere{Radius: 1.0, Center: model3d.XYZ(1, 2, 3)},
+		model3d.XYZ(2.0, 0.75, 1.5),
+	)
+	min, max := rawSolid.Min(), rawSolid.Max()
+	looseBounds := model3d.ForceSolidBounds(rawSolid, min.AddScalar(-1), max.AddScalar(1))
+
+	search := LineSearch3D{LineSearch: numerical.LineSearch{Stops: 20, Recursions: 5}}
+	tightMin, tightMax := search.SolidBounds(looseBounds)
+	if tightMin.Dist(min) > 1e-4 {
+		t.Errorf("expected min %v but got %v", min, tightMin)
+	}
+	if tightMax.Dist(max) > 1e-4 {
+		t.Errorf("expected max %v but got %v", max, tightMax)
 	}
 }
