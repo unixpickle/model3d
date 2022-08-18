@@ -93,13 +93,7 @@ func TopPanel() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	// of the structure but doesn't move around too much.
 	sliceZ := ArchPanelHeight - 1e-5
 	solid3d, _ := ArchSides()
-	solid2d := model2d.CheckedFuncSolid(
-		solid3d.Min().XY(),
-		solid3d.Max().XY(),
-		func(c model2d.Coord) bool {
-			return solid3d.Contains(model3d.XYZ(c.X, c.Y, sliceZ))
-		},
-	)
+	solid2d := toolbox3d.SliceSolid(solid3d, toolbox3d.AxisZ, sliceZ)
 	outline2d := model2d.MarchingSquaresSearch(solid2d, 0.005, 8)
 	mesh := model2d.MeshToHierarchy(outline2d)[0].Children[0].Mesh
 	collider2d := model2d.MeshToCollider(mesh)
