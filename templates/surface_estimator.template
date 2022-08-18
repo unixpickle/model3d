@@ -61,6 +61,15 @@ type SolidSurfaceEstimator struct {
 // It is assumed that p1 is outside the surface and p2 is
 // inside, and that min < max.
 func (s *SolidSurfaceEstimator) BisectInterp(p1, p2 {{.coordType}}, min, max float64) float64 {
+	min, max = s.BisectInterpRange(p1, p2, min, max)
+	return (min + max) / 2
+}
+
+// BisectInterpRange is like BisectInterp, but returns a
+// range where the second value corresponds to a point
+// inside the surface.
+func (s *SolidSurfaceEstimator) BisectInterpRange(p1, p2 {{.coordType}}, min,
+	max float64) (float64, float64) {
 	d := p2.Sub(p1)
 	count := s.bisectCount()
 	for i := 0; i < count; i++ {
@@ -71,18 +80,27 @@ func (s *SolidSurfaceEstimator) BisectInterp(p1, p2 {{.coordType}}, min, max flo
 			min = f
 		}
 	}
-	return (min + max) / 2
+	return min, max
 }
 
 // Bisect finds the point between p1 and p2 closest to the
 // surface, provided that p1 and p2 are on different sides.
 func (s *SolidSurfaceEstimator) Bisect(p1, p2 {{.coordType}}) {{.coordType}} {
-	var alpha float64
 	if s.Solid.Contains(p1) {
-		alpha = 1 - s.BisectInterp(p2, p1, 0, 1)
-	} else {
-		alpha = s.BisectInterp(p1, p2, 0, 1)
+		p1, p2 = p2, p1
 	}
+	alpha := s.BisectInterp(p1, p2, 0, 1)
+	return p1.Add(p2.Sub(p1).Scale(alpha))
+}
+
+// BisectInterior is like Bisect, but it always returns a
+// point contained within the solid as long as one of the
+// two points is within the solid.
+func (s *SolidSurfaceEstimator) BisectInterior(p1, p2 {{.coordType}}) {{.coordType}} {
+	if s.Solid.Contains(p1) {
+		p1, p2 = p2, p1
+	}
+	_, alpha := s.BisectInterpRange(p1, p2, 0, 1)
 	return p1.Add(p2.Sub(p1).Scale(alpha))
 }
 
