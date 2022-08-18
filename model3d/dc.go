@@ -37,6 +37,21 @@ func DualContour(s Solid, delta float64, repair, clip bool) *Mesh {
 	return dc.Mesh()
 }
 
+// DualContourInterior is like DualContour, but also
+// returns a list of points which are known to be contained
+// within the solid.
+func DualContourInterior(s Solid, delta float64, repair, clip bool) (*Mesh, []Coord3D) {
+	dc := &DualContouring{
+		S: SolidSurfaceEstimator{
+			Solid: s,
+		},
+		Delta:  delta,
+		Repair: repair,
+		Clip:   clip,
+	}
+	return dc.MeshInterior()
+}
+
 // DualContourSDF constructs an SDF of a Solid using dual
 // contouring. This approach accounts for the fact that
 // dual contouring produces self-intersecting meshes and
@@ -131,6 +146,23 @@ type DualContouring struct {
 
 // Mesh computes a mesh for the surface.
 func (d *DualContouring) Mesh() *Mesh {
+	return d.mesh(nil)
+}
+
+// MeshInterior is like Mesh(), but also returns a slice of
+// coordinates which are known to be inside the solid.
+//
+// The interior points are found along edge-surface
+// intersections during the dual contouring algorithm, and
+// therefore correspond to faces of the mesh rather than
+// vertices.
+func (d *DualContouring) MeshInterior() (*Mesh, []Coord3D) {
+	var points []Coord3D
+	m := d.mesh(&points)
+	return m, points
+}
+
+func (d *DualContouring) mesh(interior *[]Coord3D) *Mesh {
 	if !BoundsValid(d.S.Solid) {
 		panic("invalid bounds for solid")
 	}
@@ -143,7 +175,7 @@ func (d *DualContouring) Mesh() *Mesh {
 	mesh := NewMesh()
 	for {
 		d.populateCorners(layout)
-		d.populateEdges(layout)
+		d.populateEdges(layout, interior)
 		d.populateCubes(layout)
 		d.appendMesh(layout, mesh)
 		if layout.Remaining() == 0 {
@@ -171,21 +203,33 @@ func (d *DualContouring) populateCorners(layout *dcCubeLayout) {
 	})
 }
 
-func (d *DualContouring) populateEdges(layout *dcCubeLayout) {
-	essentials.ConcurrentMap(d.MaxGos, len(layout.Edges), func(i int) {
-		edge := layout.Edge(dcEdgeIdx(i))
-		if edge.Populated {
-			return
-		}
-		edge.Populated = true
-		corners := layout.EdgeCorners(dcEdgeIdx(i))
-		c1 := layout.Corner(corners[0])
-		c2 := layout.Corner(corners[1])
-		edge.Active = (c1.Value != c2.Value)
-		if edge.Active {
-			edge.Coord = d.S.Bisect(c1.Coord, c2.Coord)
-			edge.Normal = d.S.Normal(edge.Coord)
-		}
+func (d *DualContouring) populateEdges(layout *dcCubeLayout, interior *[]Coord3D) {
+	essentials.ReduceConcurrentMap(d.MaxGos, len(layout.Edges), func() (func(int), func()) {
+		var localInterior []Coord3D
+		return func(i int) {
+				edge := layout.Edge(dcEdgeIdx(i))
+				if edge.Populated {
+					return
+				}
+				edge.Populated = true
+				corners := layout.EdgeCorners(dcEdgeIdx(i))
+				c1 := layout.Corner(corners[0])
+				c2 := layout.Corner(corners[1])
+				edge.Active = (c1.Value != c2.Value)
+				if edge.Active {
+					if interior == nil {
+						edge.Coord = d.S.Bisect(c1.Coord, c2.Coord)
+					} else {
+						edge.Coord = d.S.BisectInterior(c1.Coord, c2.Coord)
+						localInterior = append(localInterior, edge.Coord)
+					}
+					edge.Normal = d.S.Normal(edge.Coord)
+				}
+			}, func() {
+				if interior != nil {
+					*interior = append(*interior, localInterior...)
+				}
+			}
 	})
 }
 

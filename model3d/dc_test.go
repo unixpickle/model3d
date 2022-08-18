@@ -58,6 +58,30 @@ func TestDualContouringBasic(t *testing.T) {
 	}
 }
 
+func TestDualContouringInterior(t *testing.T) {
+	solid := &Sphere{Radius: 1.0}
+	dc := &DualContouring{
+		S:          SolidSurfaceEstimator{Solid: solid},
+		Delta:      0.04,
+		MaxGos:     8,
+		BufferSize: 5000,
+	}
+	var mesh *Mesh
+	var interior []Coord3D
+	mesh, interior = dc.MeshInterior()
+	if len(interior) == 0 {
+		t.Fatal("no interior points")
+	}
+	for _, c := range interior {
+		if !solid.Contains(c) {
+			t.Fatalf("interior point not contained: %v", c)
+		}
+	}
+	// In general, meshes from Dual Contouring might not be
+	// manifold, but this one should be.
+	MustValidateMesh(t, mesh, false)
+}
+
 func TestDualContouringSingular(t *testing.T) {
 	runTransform := func(t *testing.T, transform Transform) {
 		var solid Solid
