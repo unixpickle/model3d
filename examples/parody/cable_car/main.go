@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"math"
 
 	"github.com/unixpickle/model3d/model2d"
@@ -35,18 +36,34 @@ var (
 type ModelFn func() (model3d.Solid, toolbox3d.CoordColorFunc)
 
 func main() {
-	fns := []ModelFn{
-		BaseWheels,
-		TopPanel,
-		BottomPanel,
-		ArchSides,
-		ArchedTop,
-	}
-	mesh, colorFn := BuildMesh(fns)
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFn.RenderColor)
+	log.Println("Building base...")
+	base, baseColor := BuildMesh(BaseWheels, BottomPanel, ArchSides)
+
+	log.Println("Building top...")
+	top, topColor := BuildMesh(TopPanel, ArchedTop)
+
+	log.Println("Building full model...")
+	baseCoordTree := model3d.NewCoordTree(base.VertexSlice())
+	topCoordTree := model3d.NewCoordTree(top.VertexSlice())
+	fullColor := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
+		if baseCoordTree.Dist(c) < topCoordTree.Dist(c) {
+			return baseColor(c)
+		} else {
+			return topColor(c)
+		}
+	})
+	fullMesh := base.Copy()
+	fullMesh.AddMesh(top)
+
+	log.Println("Rendering...")
+	render3d.SaveRandomGrid("rendering.png", fullMesh, 3, 3, 300, fullColor.RenderColor)
+
+	log.Println("Saving...")
+	base.SaveMaterialOBJ("base.zip", baseColor.Cached().TriangleColor)
+	top.SaveMaterialOBJ("top.zip", topColor.Cached().TriangleColor)
 }
 
-func BuildMesh(fns []ModelFn) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
+func BuildMesh(fns ...ModelFn) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
 	var solids model3d.JoinedSolid
 	solidsAndColors := []any{}
 	for _, partFn := range fns {
