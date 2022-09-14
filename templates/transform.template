@@ -100,7 +100,9 @@ func (v *VecScale) Apply(c {{.coordType}}) {{.coordType}} {
 }
 
 func (v *VecScale) ApplyBounds(min {{.coordType}}, max {{.coordType}}) ({{.coordType}}, {{.coordType}}) {
-	return min.Mul(v.Scale), max.Mul(v.Scale)
+	min, max = min.Mul(v.Scale), max.Mul(v.Scale)
+	// Handle negative scales.
+	return min.Min(max), max.Max(min)
 }
 
 func (v *VecScale) Inverse() Transform {

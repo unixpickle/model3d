@@ -828,7 +828,8 @@ func castCircle(normal, center Coord3D, radius float64, r *Ray) (RayCollision, b
 // castPlane gets the collision with r and a plane defined
 // by:
 //
-//	normal*x = bias
+//     normal*x = bias
+//
 func castPlane(normal Coord3D, bias float64, r *Ray) (RayCollision, bool) {
 	// Want to solve for t such that:
 	//

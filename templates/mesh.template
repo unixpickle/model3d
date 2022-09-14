@@ -648,6 +648,12 @@ func (m *Mesh) Translate(v {{.coordType}}) *Mesh {
 	return m.MapCoords(v.Add)
 }
 
+// CenterBounds translates the mesh so that the midpoint of
+// Min() and Max() is the origin.
+func (m *Mesh) Center() *Mesh {
+	return m.Translate(m.Min().Mid(m.Max()).Scale(-1))
+}
+
 {{if .model2d}}
 // Rotate returns a mesh with all coordinates rotated
 // around the origin by a given angle (in radians).

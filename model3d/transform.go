@@ -102,7 +102,9 @@ func (v *VecScale) Apply(c Coord3D) Coord3D {
 }
 
 func (v *VecScale) ApplyBounds(min Coord3D, max Coord3D) (Coord3D, Coord3D) {
-	return min.Mul(v.Scale), max.Mul(v.Scale)
+	min, max = min.Mul(v.Scale), max.Mul(v.Scale)
+	// Handle negative scales.
+	return min.Min(max), max.Max(min)
 }
 
 func (v *VecScale) Inverse() Transform {
