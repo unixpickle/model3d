@@ -11,17 +11,18 @@ import (
 )
 
 const (
+	FastMode             = false
 	AxleRadius           = 0.15
 	SideOverhang         = 0.1
 	TopBottomThickness   = 0.15
 	WheelThickness       = 0.15
 	WheelRadius          = 0.35
 	WheelSlip            = 0.05
-	ArchInset            = 0.16
+	ArchInset            = 0.18
 	ArchTopInset         = 0.2
 	ArchPanelWidth       = 1.0
 	ArchPanelHeight      = 2.6
-	ArchPanelThickness   = 0.1
+	ArchPanelThickness   = 0.15
 	ArchOutlineThickness = 0.025
 	TopLipSpace          = 0.02
 	ArchedTopHeight      = 0.5
@@ -30,7 +31,8 @@ const (
 var (
 	BottomColor      = render3d.NewColor(0.1)
 	CarColor         = render3d.NewColorRGB(1.0, 0.3, 0.3)
-	ArchOutlineColor = render3d.NewColorRGB(1.0, 1.0, 0.0)
+	ArchOutlineColor = render3d.NewColorRGB(1.0, 0.5, 0.0)
+	SideTextColor    = render3d.NewColorRGB(1.0, 0.5, 0.0)
 )
 
 type ModelFn func() (model3d.Solid, toolbox3d.CoordColorFunc)
@@ -42,7 +44,7 @@ func main() {
 	log.Println("Building top...")
 	top, topColor := BuildMesh(TopPanel, ArchedTop)
 
-	log.Println("Building full model...")
+	log.Println("Building full color function...")
 	baseCoordTree := model3d.NewCoordTree(base.VertexSlice())
 	topCoordTree := model3d.NewCoordTree(top.VertexSlice())
 	fullColor := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
@@ -52,15 +54,19 @@ func main() {
 			return topColor(c)
 		}
 	})
-	fullMesh := base.Copy()
-	fullMesh.AddMesh(top)
 
-	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", fullMesh, 3, 3, 300, fullColor.RenderColor)
+	log.Println("Decimating...")
+	base = Decimate(base, baseColor)
+	top = Decimate(top, topColor)
 
 	log.Println("Saving...")
-	base.SaveMaterialOBJ("base.zip", baseColor.Cached().TriangleColor)
-	top.SaveMaterialOBJ("top.zip", topColor.Cached().TriangleColor)
+	base.SaveMaterialOBJ("base.zip", baseColor.TriangleColor)
+	top.SaveMaterialOBJ("top.zip", topColor.TriangleColor)
+
+	log.Println("Rendering...")
+	fullMesh := base.Copy()
+	fullMesh.AddMesh(top)
+	render3d.SaveRandomGrid("rendering.png", fullMesh, 3, 3, 300, fullColor.RenderColor)
 }
 
 func BuildMesh(fns ...ModelFn) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
@@ -71,9 +77,28 @@ func BuildMesh(fns ...ModelFn) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
 		solids = append(solids, solid)
 		solidsAndColors = append(solidsAndColors, solid, colorFn)
 	}
-	mesh, interior := model3d.MarchingCubesInterior(solids.Optimize(), 0.02, 8)
+	delta := 0.015
+	if FastMode {
+		delta = 0.04
+	}
+	mesh, interior := model3d.DualContourInterior(solids.Optimize(), delta, true, false)
 	colorFn := toolbox3d.JoinedSolidCoordColorFunc(interior, solidsAndColors...)
 	return mesh, colorFn
+}
+
+func Decimate(m *model3d.Mesh, cf toolbox3d.CoordColorFunc) *model3d.Mesh {
+	d := &model3d.Decimator{
+		FeatureAngle:     0.03,
+		BoundaryDistance: 1e-5,
+		PlaneDistance:    1e-4,
+		FilterFunc:       cf.ChangeFilterFunc(m, 0.02),
+	}
+	newMesh := d.Decimate(m)
+	oldCount := len(m.TriangleSlice())
+	newCount := len(newMesh.TriangleSlice())
+	log.Printf("Went from %d triangles to %d (%f%% reduction)", oldCount, newCount,
+		100*(1.0-float64(newCount)/float64(oldCount)))
+	return newMesh
 }
 
 func BaseWheels() (model3d.Solid, toolbox3d.CoordColorFunc) {
@@ -161,9 +186,14 @@ func ArchSides() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	baseSolid := outsetArchSides(0)
 	midOutset := outsetArchSides(ArchOutlineThickness)
 	fullOutset := outsetArchSides(ArchOutlineThickness * 2)
+
+	textSolid := ArchSidesText()
+
 	return baseSolid, func(c model3d.Coord3D) render3d.Color {
 		if !fullOutset.Contains(c) && midOutset.Contains(c) {
 			return ArchOutlineColor
+		} else if textSolid.Contains(c) {
+			return SideTextColor
 		} else if math.Abs(c.Y) < 1.5-ArchPanelThickness {
 			return CarColor
 		} else {
@@ -172,6 +202,9 @@ func ArchSides() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	}
 }
 
+// outsetArchSides creates the sides of the car with arches
+// cut out. The outset controls how much extra space is cut
+// out along the rims of each window.
 func outsetArchSides(outset float64) model3d.Solid {
 	var result model3d.JoinedSolid
 	for i := 0; i < 7; i++ {
@@ -247,7 +280,7 @@ func ArchPanel(center model3d.Coord3D, fullHeight bool, outset float64) model3d.
 	}
 	archBottom := model3d.NewRect(
 		model3d.XYZ(-archRadius, -ArchPanelThickness-1e-5, -ArchPanelHeight/2+inset),
-		model3d.XYZ(archRadius, ArchPanelThickness+1e-5, ArchPanelHeight/2-(topInset+archRadius)+0.1),
+		model3d.XYZ(archRadius, ArchPanelThickness+1e-5, ArchPanelHeight/2-(topInset+archRadius)),
 	)
 	if !fullHeight {
 		archBottom.MinVal.Z = 0
@@ -258,6 +291,34 @@ func ArchPanel(center model3d.Coord3D, fullHeight bool, outset float64) model3d.
 		Negative: model3d.JoinedSolid{arch, archBottom},
 	}
 	return model3d.TranslateSolid(untranslated, center)
+}
+
+func ArchSidesText() model3d.Solid {
+	minX := -3.5 + 3*ArchPanelWidth
+	maxX := -3.5 + 6*ArchPanelWidth
+	minZ := -ArchPanelHeight / 2
+	maxZ := 0.0
+
+	textMesh := model2d.MustReadBitmap("text.png", nil).Mesh().SmoothSq(20)
+	size := textMesh.Max().Sub(textMesh.Min())
+	textMesh = textMesh.Scale(math.Min((maxX-minX)/size.X, (maxZ-minZ)/size.Y))
+	center2d := model2d.XY((minX+maxX)/2, (minZ+maxZ)/2)
+	textMesh = textMesh.Center().Translate(center2d)
+	var solid2d model2d.Solid = model2d.NewColliderSolid(model2d.MeshToCollider(textMesh))
+	var res model3d.JoinedSolid
+	for _, y := range []float64{-1.5 + ArchPanelThickness/2, 1.5 - ArchPanelThickness/2} {
+		profile := model3d.ProfileSolid(solid2d, y-ArchPanelThickness/2, y+ArchPanelThickness/2)
+		profile = model3d.RotateSolid(profile, model3d.X(1), -math.Pi/2)
+		res = append(res, profile)
+		solid2d = model2d.TranslateSolid(
+			model2d.VecScaleSolid(
+				model2d.TranslateSolid(solid2d, center2d.Scale(-1)),
+				model2d.XY(-1, 1),
+			),
+			center2d,
+		)
+	}
+	return res
 }
 
 func ArchedTop() (model3d.Solid, toolbox3d.CoordColorFunc) {
