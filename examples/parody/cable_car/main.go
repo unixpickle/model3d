@@ -31,8 +31,8 @@ const (
 var (
 	BottomColor      = render3d.NewColor(0.1)
 	CarColor         = render3d.NewColorRGB(1.0, 0.3, 0.3)
-	ArchOutlineColor = render3d.NewColorRGB(1.0, 0.5, 0.0)
-	SideTextColor    = render3d.NewColorRGB(1.0, 0.5, 0.0)
+	ArchOutlineColor = render3d.NewColorRGB(1.0, 0.8, 0.0)
+	SideTextColor    = render3d.NewColorRGB(1.0, 0.8, 0.0)
 )
 
 type ModelFn func() (model3d.Solid, toolbox3d.CoordColorFunc)
@@ -66,7 +66,7 @@ func main() {
 	log.Println("Rendering...")
 	fullMesh := base.Copy()
 	fullMesh.AddMesh(top)
-	render3d.SaveRandomGrid("rendering.png", fullMesh, 3, 3, 300, fullColor.RenderColor)
+	render3d.SaveRendering("rendering.png", fullMesh, model3d.XYZ(6, -10, 4), 512, 512, fullColor.RenderColor)
 }
 
 func BuildMesh(fns ...ModelFn) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
@@ -77,7 +77,7 @@ func BuildMesh(fns ...ModelFn) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
 		solids = append(solids, solid)
 		solidsAndColors = append(solidsAndColors, solid, colorFn)
 	}
-	delta := 0.015
+	delta := 0.0125
 	if FastMode {
 		delta = 0.04
 	}
@@ -87,13 +87,7 @@ func BuildMesh(fns ...ModelFn) (*model3d.Mesh, toolbox3d.CoordColorFunc) {
 }
 
 func Decimate(m *model3d.Mesh, cf toolbox3d.CoordColorFunc) *model3d.Mesh {
-	d := &model3d.Decimator{
-		FeatureAngle:     0.03,
-		BoundaryDistance: 1e-5,
-		PlaneDistance:    1e-4,
-		FilterFunc:       cf.ChangeFilterFunc(m, 0.02),
-	}
-	newMesh := d.Decimate(m)
+	newMesh := m.EliminateCoplanarFiltered(1e-4, cf.ChangeFilterFunc(m, 0.02))
 	oldCount := len(m.TriangleSlice())
 	newCount := len(newMesh.TriangleSlice())
 	log.Printf("Went from %d triangles to %d (%f%% reduction)", oldCount, newCount,
@@ -184,8 +178,8 @@ func topBottomPanel(top bool) (model3d.Solid, toolbox3d.CoordColorFunc) {
 
 func ArchSides() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	baseSolid := outsetArchSides(0)
-	midOutset := outsetArchSides(ArchOutlineThickness)
-	fullOutset := outsetArchSides(ArchOutlineThickness * 2)
+	midOutset := outsetArchSides(ArchOutlineThickness * 0.5)
+	fullOutset := outsetArchSides(ArchOutlineThickness * 1.5)
 
 	textSolid := ArchSidesText()
 
