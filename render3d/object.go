@@ -165,3 +165,21 @@ func (f *FilteredObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, b
 	}
 	return f.Object.Cast(r)
 }
+
+// BVHToObject creates a single object from a BVH by
+// wrapping each node in a (bounding-box filtered) joined
+// object.
+func BVHToObject(objs *model3d.BVH[Object]) Object {
+	if objs.Leaf != nil {
+		return objs.Leaf
+	} else {
+		var branches JoinedObject
+		for _, x := range objs.Branch {
+			branches = append(branches, BVHToObject(x))
+		}
+		return &FilteredObject{
+			Object: branches,
+			Bounds: model3d.BoundsRect(branches),
+		}
+	}
+}
