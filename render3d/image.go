@@ -45,6 +45,13 @@ func (i *Image) Set(x, y int, c Color) {
 	i.Data[x+y*i.Width] = c
 }
 
+// SetAll sets all of the pixels to a constant color.
+func (i *Image) SetAll(c Color) {
+	for j := range i.Data {
+		i.Data[j] = c
+	}
+}
+
 // CopyFrom copies the image img into this image at the
 // given coordinates x, y in i.
 //
