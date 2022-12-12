@@ -22,11 +22,15 @@ func main() {
 	var inputPath string
 	var outputPath string
 	var pointRadius float64
+	var fov float64
+	var cameraDist float64
 	var frames int
 	var resolution int
 	flag.StringVar(&inputPath, "input-path", "", "input path to PLY")
 	flag.StringVar(&outputPath, "output-path", "", "output path to PLY")
 	flag.Float64Var(&pointRadius, "radius", 0.01, "radius of each point")
+	flag.Float64Var(&fov, "fov", render3d.DefaultFieldOfView, "field of view")
+	flag.Float64Var(&cameraDist, "camera-dist", -1.0, "distance of camera from center")
 	flag.IntVar(&frames, "frames", 20, "number of frames to animate")
 	flag.IntVar(&resolution, "resolution", 256, "size of images")
 	flag.Parse()
@@ -88,6 +92,10 @@ func main() {
 	center := joined.Min().Mid(joined.Max())
 	radius := joined.Min().Dist(joined.Max())
 
+	if cameraDist == -1 {
+		cameraDist = radius
+	}
+
 	renderer := &render3d.RayCaster{
 		Lights: []*render3d.PointLight{
 			{
@@ -104,12 +112,8 @@ func main() {
 	for i := 0; i < frames; i++ {
 		log.Println("rendering view", i, "of", frames, "...")
 		theta := 2 * math.Pi * float64(i) / float64(frames)
-		offset := model3d.XYZ(math.Cos(theta), math.Sin(theta), 0.25).Scale(radius)
-		renderer.Camera = render3d.NewCameraAt(
-			center.Add(offset),
-			center,
-			render3d.DefaultFieldOfView,
-		)
+		offset := model3d.XYZ(math.Cos(theta), math.Sin(theta), 0.25).Scale(cameraDist)
+		renderer.Camera = render3d.NewCameraAt(center.Add(offset), center, fov)
 		out := render3d.NewImage(resolution*4, resolution*4)
 		out.SetAll(render3d.NewColor(1.0))
 		renderer.Render(out, joined)
