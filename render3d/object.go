@@ -151,3 +151,17 @@ func (j JoinedObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, bool
 	}
 	return coll, mat, found
 }
+
+// A FilteredObject only reports ray collisions if the ray
+// collides with some bounds object.
+type FilteredObject struct {
+	Object
+	Bounds model3d.Collider
+}
+
+func (f *FilteredObject) Cast(r *model3d.Ray) (model3d.RayCollision, Material, bool) {
+	if _, ok := f.Bounds.FirstRayCollision(r); !ok {
+		return model3d.RayCollision{}, nil, false
+	}
+	return f.Object.Cast(r)
+}
