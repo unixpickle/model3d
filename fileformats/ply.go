@@ -231,6 +231,44 @@ func NewPLYElementFace(count int64) *PLYElement {
 	}
 }
 
+func (p *PLYElement) IsStandardVertex() bool {
+	if p.Name != "vertex" && len(p.Properties) != 6 {
+		return false
+	}
+	for _, prop := range p.Properties {
+		switch prop.Name {
+		case "x", "y", "z":
+			if prop.LenType != PLYPropertyTypeNone || (prop.ElemType != PLYPropertyTypeFloat && prop.ElemType != PLYPropertyTypeFloat32) {
+				return false
+			}
+		case "red", "green", "blue":
+			if prop.LenType != PLYPropertyTypeNone || (prop.ElemType != PLYPropertyTypeUchar && prop.ElemType != PLYPropertyTypeUint8) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (p *PLYElement) IsStandardFace() bool {
+	if p.Name != "face" && len(p.Properties) != 1 {
+		return false
+	}
+	prop := p.Properties[0]
+	if prop.Name != "vertex_index" {
+		return false
+	}
+	if prop.LenType != PLYPropertyTypeUchar && prop.LenType != PLYPropertyTypeInt8 {
+		return false
+	}
+	if prop.ElemType != PLYPropertyTypeInt && prop.ElemType != PLYPropertyTypeInt32 {
+		return false
+	}
+	return true
+}
+
 func (p *PLYElement) Encode() string {
 	var header strings.Builder
 	header.WriteString(fmt.Sprintf("element %s %d\n", p.Name, p.Count))
@@ -589,6 +627,14 @@ func NewPLYReader(r io.Reader) (*PLYReader, error) {
 	}
 	p.header = *header
 	return p, nil
+}
+
+// Header gets the file header that was read when the
+// reader was created.
+//
+// The caller should not modify the returned object.
+func (p *PLYReader) Header() PLYHeader {
+	return p.header
 }
 
 // Read reads the next element row from the file.
