@@ -1,5 +1,5 @@
-// Input a colored point cloud from a PLY file, and render a pan around it
-// with a ray caster.
+// Command pan_pointcloud inputs a colored point cloud from
+// a PLY file, and render a pan around it.
 package main
 
 import (
