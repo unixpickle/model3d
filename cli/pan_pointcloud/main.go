@@ -54,6 +54,9 @@ func main() {
 			break
 		}
 		essentials.Must(err)
+		if !element.IsStandardVertex() {
+			essentials.Die("unexpected element type:", element.Encode())
+		}
 		var red, green, blue float64
 		var x, y, z float32
 		for i, value := range values {
