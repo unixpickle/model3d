@@ -38,3 +38,14 @@ func BoundsValid(b Bounder) bool {
 	}
 	return true
 }
+
+// BoundsUnion computes the bounds of one or more bounder.
+func BoundsUnion[B Bounder](bs []B) (min Coord, max Coord) {
+	min = bs[0].Min()
+	max = bs[0].Max()
+	for _, b := range bs[1:] {
+		min = min.Min(b.Min())
+		max = max.Max(b.Max())
+	}
+	return
+}

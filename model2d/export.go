@@ -40,12 +40,7 @@ func EncodeCustomSVG(meshes []*Mesh, colors []string, thicknesses []float64, bou
 	if bounds != nil {
 		min, max = bounds.Min(), bounds.Max()
 	} else {
-		min = meshes[0].Min()
-		max = meshes[0].Max()
-		for _, m := range meshes {
-			min = m.Min().Min(min)
-			max = m.Max().Max(max)
-		}
+		min, max = BoundsUnion(meshes)
 	}
 
 	var result bytes.Buffer
