@@ -67,6 +67,48 @@ func (s *SVGWriter) WritePoly(points [][2]float64, attrs map[string]string) erro
 	return nil
 }
 
+// WritePolyPath writes one or more polygons into a single
+// path element. Each polygon is either closed or left open
+// depending on whether the final point matches up with the
+// first.
+func (s *SVGWriter) WritePolyPath(paths [][][2]float64, attrs map[string]string) error {
+	fullPath := []string{}
+	for _, points := range paths {
+		pointStrs := make([]string, len(points))
+		for i, c := range points {
+			start := 'L'
+			if i == 0 {
+				start = 'M'
+			}
+			pointStrs[i] = fmt.Sprintf("%c%f,%f", start, c[0], c[1])
+		}
+		if len(pointStrs) > 1 && pointStrs[0][1:] == pointStrs[len(pointStrs)-1][1:] {
+			pointStrs[len(pointStrs)-1] = "z"
+		}
+		fullPath = append(fullPath, strings.Join(pointStrs, " "))
+	}
+	line := "<path d=\"" + strings.Join(fullPath, " ") + "\""
+
+	var attrStrings []string
+	for attribute, value := range attrs {
+		var encodedString bytes.Buffer
+		if err := xml.EscapeText(&encodedString, []byte(value)); err != nil {
+			return errors.Wrap(err, "write SVG polygon path")
+		}
+		attrStrings = append(attrStrings, fmt.Sprintf("%s=\"%s\"", attribute, string(encodedString.Bytes())))
+	}
+	line += " " + strings.Join(attrStrings, " ")
+	if len(attrs) != 1 {
+		line += " "
+	}
+	line += "/>"
+	_, err := s.w.Write([]byte(line))
+	if err != nil {
+		return errors.Wrap(err, "write SVG polygon path")
+	}
+	return nil
+}
+
 // WriteEnd writes any necessary footer information.
 func (s *SVGWriter) WriteEnd() error {
 	_, err := s.w.Write([]byte("</svg>"))

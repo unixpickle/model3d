@@ -388,6 +388,20 @@ func (m *Mesh) SaveSVG(path string) error {
 	return nil
 }
 
+// SavePathSVG encodes the mesh as a path to an SVG file.
+func (m *Mesh) SavePathSVG(path string) error {
+	data := EncodePathSVG(m)
+	w, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save path SVG")
+	}
+	defer w.Close()
+	if _, err := w.Write(data); err != nil {
+		return errors.Wrap(err, "save path SVG")
+	}
+	return nil
+}
+
 // SegmentSlice gets a snapshot of all the segments
 // currently in the mesh. The resulting slice is a copy,
 // and will not change as the mesh is updated.

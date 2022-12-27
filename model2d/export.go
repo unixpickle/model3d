@@ -22,6 +22,12 @@ func EncodeSVG(m *Mesh) []byte {
 	return EncodeCustomSVG([]*Mesh{m}, []string{"black"}, []float64{1.0}, nil)
 }
 
+// EncodePathSVG encodes the mesh as a single filled path
+// in an SVG file.
+func EncodePathSVG(m *Mesh) []byte {
+	return EncodeCustomPathSVG([]*Mesh{m}, []string{"black"}, []string{"none"}, []float64{0.0}, nil)
+}
+
 // EncodeCustomSVG encodes multiple meshes, each with a
 // different color and line thickness.
 //
@@ -68,6 +74,67 @@ func EncodeCustomSVG(meshes []*Mesh, colors []string, thicknesses []float64, bou
 				panic(err)
 			}
 		})
+	}
+
+	if err := writer.WriteEnd(); err != nil {
+		panic(err)
+	}
+	return result.Bytes()
+}
+
+// EncodeCustomPathSVG encodes a collection of meshes each as
+// path elements with individually specified parameters.
+//
+// If bounds is not nil, it is used to determine the
+// resulting bounds of the SVG. Otherwise, the bounds of
+// the mesh are used.
+func EncodeCustomPathSVG(meshes []*Mesh, fillColors []string, strokeColors []string,
+	thicknesses []float64, bounds Bounder) []byte {
+	if len(meshes) != len(fillColors) {
+		panic("incorrect number of fill colors")
+	}
+	if len(meshes) != len(strokeColors) {
+		panic("incorrect number of stroke colors")
+	}
+	if len(meshes) != len(thicknesses) {
+		panic("incorrect number of thicknesses")
+	}
+
+	var min, max Coord
+	if bounds != nil {
+		min, max = bounds.Min(), bounds.Max()
+	} else {
+		min, max = BoundsUnion(meshes)
+	}
+
+	var result bytes.Buffer
+	writer, err := fileformats.NewSVGWriter(&result, [4]float64{
+		min.X, min.Y, max.X - min.X, max.Y - min.Y,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	for i, m := range meshes {
+		fillColor := fillColors[i]
+		strokeColor := strokeColors[i]
+		thickness := fmt.Sprintf("%f", thicknesses[i])
+		var allPaths [][][2]float64
+		findPolylines(m, func(points []Coord) {
+			pointArrs := make([][2]float64, len(points))
+			for i, x := range points {
+				pointArrs[i] = x.Array()
+			}
+			allPaths = append(allPaths, pointArrs)
+		})
+		err = writer.WritePolyPath(allPaths, map[string]string{
+			"fill":         fillColor,
+			"stroke-width": thickness,
+			"stroke":       strokeColor,
+		})
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if err := writer.WriteEnd(); err != nil {
