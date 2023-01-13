@@ -4,8 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"image"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
@@ -49,9 +52,47 @@ func main() {
 	mesh = mesh.Decimate(maxVertices)
 
 	log.Println("Subdividing mesh...")
-	mesh = mesh.Subdivide(subdivisions)
+	if subdivisions > 0 {
+		mesh = mesh.Subdivide(subdivisions)
+	}
 
 	log.Println("Rendering...")
+	outPath := flag.Args()[1]
+	if IsSVGPath(outPath) {
+		SaveSVG(outPath, mesh, size, outline, upsampleRate)
+	} else {
+		SaveRasterImage(outPath, mesh, size, outline, thicken, upsampleRate)
+	}
+}
+
+func SaveSVG(outPath string, mesh *model2d.Mesh, size model2d.Coord, outline bool,
+	upsampleRate float64) {
+	mesh = mesh.Scale(upsampleRate)
+	size = size.Scale(upsampleRate)
+	bounds := model2d.NewRect(model2d.Origin, size)
+
+	var data []byte
+	if outline {
+		data = model2d.EncodeCustomSVG(
+			[]*model2d.Mesh{mesh},
+			[]string{"black"},
+			[]float64{1.0},
+			bounds,
+		)
+	} else {
+		data = model2d.EncodeCustomPathSVG(
+			[]*model2d.Mesh{mesh},
+			[]string{"black"},
+			[]string{"none"},
+			[]float64{1.0},
+			bounds,
+		)
+	}
+	essentials.Must(ioutil.WriteFile(outPath, data, 0644))
+}
+
+func SaveRasterImage(outPath string, mesh *model2d.Mesh, size model2d.Coord, outline bool,
+	thicken, upsampleRate float64) {
 	collider := model2d.MeshToCollider(mesh)
 	rast := &model2d.Rasterizer{Scale: upsampleRate}
 	var img image.Image
@@ -71,13 +112,17 @@ func main() {
 			MaxVal: size,
 		})
 	}
-	essentials.Must(model2d.SaveImage(flag.Args()[1], img))
+	essentials.Must(model2d.SaveImage(outPath, img))
 }
 
 func ReadImage(path string) (mesh *model2d.Mesh, size model2d.Coord) {
 	bmp := model2d.MustReadBitmap(path, nil)
 	size = model2d.XY(float64(bmp.Width), float64(bmp.Height))
 	return bmp.Mesh(), size
+}
+
+func IsSVGPath(path string) bool {
+	return filepath.Ext(strings.ToLower(path)) == ".svg"
 }
 
 type BoundedSolid struct {
