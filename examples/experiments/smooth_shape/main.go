@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	var invert bool
 	var smoothIters int
 	var maxVertices int
 	var subdivisions int
@@ -22,6 +23,7 @@ func main() {
 	var thicken float64
 	var outline bool
 
+	flag.BoolVar(&invert, "invert", false, "invert positive and negative pixels")
 	flag.IntVar(&smoothIters, "smooth-iters", 100, "number of smoothing iterations")
 	flag.IntVar(&maxVertices, "max-vertices", 70, "maximum vertices after decimation")
 	flag.IntVar(&subdivisions, "subdivisions", 2, "number of smoothing sub-divisions")
@@ -43,7 +45,7 @@ func main() {
 	}
 
 	log.Println("Reading file as mesh...")
-	mesh, size := ReadImage(flag.Args()[0])
+	mesh, size := ReadImage(flag.Args()[0], invert)
 
 	log.Println("Smoothing mesh...")
 	mesh = mesh.SmoothSq(smoothIters)
@@ -115,8 +117,11 @@ func SaveRasterImage(outPath string, mesh *model2d.Mesh, size model2d.Coord, out
 	essentials.Must(model2d.SaveImage(outPath, img))
 }
 
-func ReadImage(path string) (mesh *model2d.Mesh, size model2d.Coord) {
+func ReadImage(path string, invert bool) (mesh *model2d.Mesh, size model2d.Coord) {
 	bmp := model2d.MustReadBitmap(path, nil)
+	if invert {
+		bmp = bmp.Invert()
+	}
 	size = model2d.XY(float64(bmp.Width), float64(bmp.Height))
 	return bmp.Mesh(), size
 }
