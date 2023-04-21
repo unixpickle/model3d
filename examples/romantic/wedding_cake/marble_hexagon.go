@@ -11,7 +11,7 @@ import (
 
 const (
 	HexThickness      = 0.8
-	GoldDripThickness = 0.05
+	GoldDripThickness = 0.035
 )
 
 var GoldDripColor = render3d.NewColorRGB(1.0, 1.0, 0.0)
@@ -222,7 +222,7 @@ func GoldDripMesh() *model3d.Mesh {
 		return model3d.XYZ(math.Cos(theta)*radius, math.Sin(theta)*radius, HexThickness)
 	}
 
-	theta0 := 0.4
+	theta0 := 0.7
 	theta1 := 1.9
 
 	topShape := model2d.BezierCurve{
