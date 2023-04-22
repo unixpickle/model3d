@@ -11,7 +11,7 @@ func main() {
 	colors := []toolbox3d.CoordColorFunc{}
 	curZ := 0.0
 	for _, fn := range []func() (model3d.Solid, toolbox3d.CoordColorFunc){
-		HexRoughLayer, MarbleHexagon, RoughRoundLayer,
+		HexRoughLayer, DotsLayer, MarbleHexagon, RoughRoundLayer,
 	} {
 		solid, color := fn()
 		solid = model3d.TranslateSolid(solid, model3d.Z(curZ))
