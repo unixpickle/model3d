@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
@@ -20,6 +22,8 @@ func main() {
 		layers = append(layers, solid)
 		colors = append(colors, color)
 	}
+
+	log.Println("Creating mesh and texture...")
 	mesh, interior := model3d.MarchingCubesInterior(layers, 0.02, 8)
 	var solidsAndColors []any
 	for i, x := range layers {
@@ -30,6 +34,10 @@ func main() {
 		solidsAndColors...,
 	)
 
-	render3d.SaveRotatingGIF("hexagon.gif", mesh, model3d.Z(1), model3d.XZ(1, 0.4).Normalize(),
+	log.Println("Saving...")
+	mesh.SaveQuantizedMaterialOBJ("cake.zip", 16, fullColor.Cached().TriangleColor)
+
+	log.Println("Rendering...")
+	render3d.SaveRotatingGIF("panning.gif", mesh, model3d.Z(1), model3d.XZ(1, 0.4).Normalize(),
 		300, 50, 10.0, fullColor.RenderColor)
 }

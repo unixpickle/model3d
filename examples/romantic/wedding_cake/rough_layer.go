@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	RoughRoundLayerThickness = 0.8
+	RoughRoundLayerThickness = 1.0
 	RoughRoundLayerRadius    = 0.6
 	RoughRoundLayerNoise     = 0.01
 	RoundRoughLayerGridSize  = 0.03
-	HexRoughLayerThickness   = 0.5
+	HexRoughLayerThickness   = 1.0
 	HexRoughLayerRadius      = 2.0
 )
 

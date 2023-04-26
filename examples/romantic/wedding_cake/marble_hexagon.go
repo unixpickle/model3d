@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	HexThickness      = 0.8
+	HexThickness      = 1.0
 	GoldDripThickness = 0.035
 )
 
-var GoldDripColor = render3d.NewColorRGB(1.0, 1.0, 0.0)
+var GoldDripColor = render3d.NewColorRGB(1.0, 0.73, 0.04)
 
 func MarbleHexagonLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	hexMesh := model2d.NewMeshPolar(func(theta float64) float64 {
@@ -27,12 +27,10 @@ func MarbleHexagonLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 
 	dripColl := model3d.MeshToCollider(GoldDripMesh())
 	drip := model3d.NewColliderSolidHollow(dripColl, GoldDripThickness)
-	dripContainer := model3d.NewColliderSolidHollow(dripColl, GoldDripThickness+0.02)
 	rotDrip := model3d.RotateSolid(drip, model3d.Z(1), math.Pi)
 
 	return model3d.JoinedSolid{solid3d, drip, rotDrip}, func(c model3d.Coord3D) render3d.Color {
-		rotC := model3d.XYZ(c.Y, -c.X, c.Z)
-		if dripContainer.Contains(c) || dripContainer.Contains(rotC) {
+		if drip.Contains(c) || rotDrip.Contains(c) {
 			return GoldDripColor
 		}
 		maxStreak := 0.0

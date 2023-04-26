@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	FlowerLayerThickness   = 0.8
-	FlowerLayerRadius      = 2.54
+	FlowerLayerThickness   = 1.0
+	FlowerLayerRadius      = 2.2
 	FlowerLayerFlowerDepth = 0.03
 )
 

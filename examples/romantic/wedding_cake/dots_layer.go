@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	DotsLayerThickness     = 0.8
+	DotsLayerThickness     = 1.0
 	DotsLayerRadius        = 1.5
 	DotsLayerRepeats       = 10.0
 	DotsLayerDotsPerRepeat = 8.0
@@ -38,14 +38,15 @@ func DotsLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 		}
 	}
 	tree := model3d.NewCoordTree(points)
+	r := DotsLayerRadius + DotsLayerDotRadius
 	return model3d.CheckedFuncSolid(
-			model3d.XYZ(-DotsLayerRadius, -DotsLayerRadius, 0),
-			model3d.XYZ(DotsLayerRadius, DotsLayerRadius, DotsLayerThickness),
+			model3d.XYZ(-r, -r, 0),
+			model3d.XYZ(r, r, DotsLayerThickness),
 			func(c model3d.Coord3D) bool {
 				return c.XY().Norm() < DotsLayerRadius || tree.Dist(c) < DotsLayerDotRadius
 			},
 		), func(c model3d.Coord3D) render3d.Color {
-			if tree.Dist(c) < DotsLayerDotRadius+0.01 {
+			if tree.Dist(c) < DotsLayerDotRadius {
 				return GoldDripColor
 			} else {
 				return render3d.NewColor(1)
