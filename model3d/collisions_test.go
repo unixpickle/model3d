@@ -168,6 +168,9 @@ func TestMeshShapeCollisions(t *testing.T) {
 }
 
 func TestSolidCollider(t *testing.T) {
+	// Prevent test non-determinism
+	rand.Seed(0)
+
 	// Create a non-trivial, non-convex solid.
 	solid := JoinedSolid{
 		&CylinderSolid{
