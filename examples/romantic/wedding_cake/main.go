@@ -22,6 +22,9 @@ func main() {
 		layers = append(layers, solid)
 		colors = append(colors, color)
 	}
+	s, c := LetterCircle(layers[0])
+	layers = append(layers, s)
+	colors = append(colors, c)
 
 	log.Println("Creating mesh and texture...")
 	mesh, interior := model3d.MarchingCubesInterior(layers, 0.02, 8)
