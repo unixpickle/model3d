@@ -8,7 +8,10 @@ import (
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
+const GlobalScale = 0.5
+
 func main() {
+	log.Println("Creating scene...")
 	layers := model3d.JoinedSolid{}
 	colors := []toolbox3d.CoordColorFunc{}
 	curZ := 0.0
@@ -18,7 +21,7 @@ func main() {
 		solid, color := fn()
 		solid = model3d.TranslateSolid(solid, model3d.Z(curZ))
 		color = color.Transform(&model3d.Translate{Offset: model3d.Z(curZ)})
-		curZ = solid.Max().Z
+		curZ = solid.Max().Z - 0.075 // Make each layer sink into the last.
 		layers = append(layers, solid)
 		colors = append(colors, color)
 	}
@@ -26,8 +29,16 @@ func main() {
 	layers = append(layers, s)
 	colors = append(colors, c)
 
+	// Create base under the cake.
+	layers = append(layers, &model3d.Cylinder{
+		P1:     model3d.Z(-0.2),
+		P2:     model3d.Z(0.03),
+		Radius: 3.5,
+	})
+	colors = append(colors, toolbox3d.ConstantCoordColorFunc(render3d.NewColor(1.0)))
+
 	log.Println("Creating mesh and texture...")
-	mesh, interior := model3d.MarchingCubesInterior(layers, 0.02, 8)
+	mesh, interior := model3d.MarchingCubesInterior(layers, 0.01, 8)
 	var solidsAndColors []any
 	for i, x := range layers {
 		solidsAndColors = append(solidsAndColors, x, colors[i])
@@ -36,6 +47,13 @@ func main() {
 		interior,
 		solidsAndColors...,
 	)
+	oldCount := mesh.NumTriangles()
+	mesh = mesh.EliminateCoplanarFiltered(1e-5, fullColor.ChangeFilterFunc(mesh, 0.05))
+	newCount := mesh.NumTriangles()
+	log.Printf(" => went from %d to %d triangles", oldCount, newCount)
+
+	mesh = mesh.Scale(GlobalScale)
+	fullColor = fullColor.Transform(&model3d.Scale{Scale: GlobalScale})
 
 	log.Println("Saving...")
 	mesh.SaveQuantizedMaterialOBJ("cake.zip", 16, fullColor.Cached().TriangleColor)
