@@ -42,7 +42,7 @@ func TestMeshSubdivide(t *testing.T) {
 	mesh := MarchingSquaresSearch(&Circle{Radius: 0.9}, 0.01, 8)
 	mesh1 := mesh.Subdivide(2)
 
-	MustValidateMesh(t, mesh1)
+	MustValidateMesh(t, mesh1, true)
 
 	sdf := MeshToSDF(mesh)
 	sdf1 := MeshToSDF(mesh1)
@@ -68,7 +68,7 @@ func TestMeshRepair(t *testing.T) {
 			XY(math.Cos(i), math.Sin(i)),
 		})
 	}
-	MustValidateMesh(t, original)
+	MustValidateMesh(t, original, true)
 	repaired := original.Repair(1e-5)
 	if !meshesEqual(original, repaired) {
 		t.Fatal("repairing a manifold mesh did not work")
@@ -84,7 +84,7 @@ func TestMeshRepair(t *testing.T) {
 		t.Fatal("random perturbations should break the mesh")
 	}
 	repaired = damaged.Repair(1e-5)
-	MustValidateMesh(t, repaired)
+	MustValidateMesh(t, repaired, true)
 	if len(repaired.SegmentsSlice()) != len(original.SegmentsSlice()) {
 		t.Error("invalid number of segments after repair")
 	}
@@ -99,7 +99,7 @@ func TestMeshDecimate(t *testing.T) {
 			t.Errorf("mesh had unexpected vertex count: %d", n)
 		}
 
-		MustValidateMesh(t, mesh)
+		MustValidateMesh(t, mesh, false)
 	})
 	t.Run("ManifoldComplex", func(t *testing.T) {
 		var solid JoinedSolid
@@ -108,21 +108,21 @@ func TestMeshDecimate(t *testing.T) {
 		}
 		mesh := MarchingSquaresSearch(solid.Optimize(), 0.01, 8)
 		mesh = mesh.Decimate(2)
-		MustValidateMesh(t, mesh)
+		MustValidateMesh(t, mesh, false)
 	})
 	t.Run("Triangle", func(t *testing.T) {
 		mesh := NewMesh()
 		mesh.Add(&Segment{XY(1, 0), XY(0, 0)})
 		mesh.Add(&Segment{XY(1, 1), XY(1, 0)})
 		mesh.Add(&Segment{XY(0, 0), XY(1, 1)})
-		MustValidateMesh(t, mesh)
+		MustValidateMesh(t, mesh, false)
 
 		mesh = mesh.Decimate(2)
 		if n := len(mesh.VertexSlice()); n != 3 {
 			t.Errorf("mesh had unexpected vertex count: %d", n)
 		}
 
-		MustValidateMesh(t, mesh)
+		MustValidateMesh(t, mesh, false)
 	})
 	t.Run("Correct", func(t *testing.T) {
 		mesh := NewMesh()

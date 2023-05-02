@@ -9,7 +9,7 @@ func TestMarchingSquares(t *testing.T) {
 	solid := BitmapToSolid(testingBitmap())
 
 	testMesh := func(mesh *Mesh) {
-		MustValidateMesh(t, mesh)
+		MustValidateMesh(t, mesh, true)
 
 		meshSolid := NewColliderSolid(MeshToCollider(mesh))
 

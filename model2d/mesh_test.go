@@ -25,10 +25,10 @@ func TestNewMeshPolar(t *testing.T) {
 	mesh := NewMeshPolar(func(theta float64) float64 {
 		return math.Cos(theta) + 2
 	}, 100)
-	MustValidateMesh(t, mesh)
+	MustValidateMesh(t, mesh, true)
 }
 
 func TestNewMeshRect(t *testing.T) {
 	mesh := NewMeshRect(XY(0.2, 0.3), XY(0.25, 0.5))
-	MustValidateMesh(t, mesh)
+	MustValidateMesh(t, mesh, true)
 }

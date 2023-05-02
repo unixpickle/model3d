@@ -108,7 +108,7 @@ func hierarchyTestingMesh(f Failer) (mesh *Mesh, numHier int, depth int) {
 		return r == 0 && g == 0 && b == 0
 	})
 	mesh = bitmap.Mesh().SmoothSq(30)
-	MustValidateMesh(f, mesh)
+	MustValidateMesh(f, mesh, true)
 	numHier = 3
 	depth = 5
 	return

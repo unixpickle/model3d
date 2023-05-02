@@ -80,7 +80,7 @@ func TestTriangulateMeshComplex(t *testing.T) {
 		return r == 0 && g == 0 && b == 0
 	})
 	mesh := bitmap.Mesh().SmoothSq(30)
-	MustValidateMesh(t, mesh)
+	MustValidateMesh(t, mesh, true)
 
 	tris := TriangulateMesh(mesh)
 	if len(tris) == 0 {

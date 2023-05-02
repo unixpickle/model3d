@@ -108,6 +108,30 @@ func (m *Mesh) Manifold() bool {
 	return result
 }
 
+// InconsistentVertices finds vertices which are used as
+// either the first or second point in more than one edge,
+// indicating an inconsistent mesh orientation in otherwise
+// manifold meshes.
+func (m *Mesh) InconsistentVertices() []Coord {
+	var result []Coord
+	m.getVertexToFace().Range(func(c Coord, s []*Segment) bool {
+		numFirst := 0
+		numSecond := 0
+		for _, seg := range s {
+			if c == seg[0] {
+				numFirst += 1
+			} else {
+				numSecond += 1
+			}
+		}
+		if numFirst > 1 || numSecond > 1 {
+			result = append(result, c)
+		}
+		return true
+	})
+	return result
+}
+
 // RepairNormals flips normals when they point within the
 // shape defined by the mesh, as determined by the
 // even-odd rule.

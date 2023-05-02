@@ -55,7 +55,7 @@ func TestPolytopeMesh(t *testing.T) {
 func testPolytopeMesh(t *testing.T, c ConvexPolytope) {
 	mesh := c.Mesh()
 
-	MustValidateMesh(t, mesh)
+	MustValidateMesh(t, mesh, true)
 
 	solid := NewColliderSolid(MeshToCollider(mesh))
 	sdf := MeshToSDF(mesh)
