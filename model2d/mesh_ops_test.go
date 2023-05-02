@@ -99,7 +99,7 @@ func TestMeshDecimate(t *testing.T) {
 			t.Errorf("mesh had unexpected vertex count: %d", n)
 		}
 
-		MustValidateMesh(t, mesh, false)
+		MustValidateMesh(t, mesh, true)
 	})
 	t.Run("ManifoldComplex", func(t *testing.T) {
 		var solid JoinedSolid
@@ -115,14 +115,14 @@ func TestMeshDecimate(t *testing.T) {
 		mesh.Add(&Segment{XY(1, 0), XY(0, 0)})
 		mesh.Add(&Segment{XY(1, 1), XY(1, 0)})
 		mesh.Add(&Segment{XY(0, 0), XY(1, 1)})
-		MustValidateMesh(t, mesh, false)
+		MustValidateMesh(t, mesh, true)
 
 		mesh = mesh.Decimate(2)
 		if n := len(mesh.VertexSlice()); n != 3 {
 			t.Errorf("mesh had unexpected vertex count: %d", n)
 		}
 
-		MustValidateMesh(t, mesh, false)
+		MustValidateMesh(t, mesh, true)
 	})
 	t.Run("Correct", func(t *testing.T) {
 		mesh := NewMesh()
