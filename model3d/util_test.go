@@ -14,7 +14,9 @@ type Failer interface {
 }
 
 // ValidateMesh checks if m is manifold and has correct normals.
-func ValidateMesh(m *Mesh, checkIntersections bool) error {
+//
+// If checkExtra is true, then self-intersections are tested.
+func ValidateMesh(m *Mesh, checkExtra bool) error {
 	if m.NeedsRepair() {
 		return errors.New("mesh needs repair")
 	}
@@ -24,7 +26,7 @@ func ValidateMesh(m *Mesh, checkIntersections bool) error {
 	if _, n := m.RepairNormals(1e-8); n != 0 {
 		return fmt.Errorf("mesh has %d flipped normals", n)
 	}
-	if checkIntersections {
+	if checkExtra {
 		if n := m.SelfIntersections(); n != 0 {
 			return fmt.Errorf("mesh has %d self-intersections", n)
 		}
@@ -36,8 +38,8 @@ func ValidateMesh(m *Mesh, checkIntersections bool) error {
 	return nil
 }
 
-func MustValidateMesh(f Failer, m *Mesh, checkIntersections bool) {
-	if err := ValidateMesh(m, checkIntersections); err != nil {
+func MustValidateMesh(f Failer, m *Mesh, checkExtra bool) {
+	if err := ValidateMesh(m, checkExtra); err != nil {
 		f.Fatal(err)
 	}
 }

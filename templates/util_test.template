@@ -14,24 +14,40 @@ type Failer interface {
 }
 
 // ValidateMesh checks if m is manifold and has correct normals.
-func ValidateMesh(m *Mesh{{if not .model2d}}, checkIntersections bool{{end}}) error {
+{{- if .model2d}}
+//
+// If checkExtra is true, then normals are checked universally.
+// Otherwise, it is ensured that orientation is correct, but
+// normals could be flipped.
+{{- else}}
+//
+// If checkExtra is true, then self-intersections are tested.
+{{- end}}
+func ValidateMesh(m *Mesh, checkExtra bool) error {
     {{if .model2d -}}
     if !m.Manifold() {
         return errors.New("mesh is non-manifold")
     }
-    {{- else -}}
+	if checkExtra {
+		if _, n := m.RepairNormals(1e-8); n != 0 {
+			return fmt.Errorf("mesh has %d flipped normals", n)
+		}
+	} else {
+		if n := len(m.InconsistentVertices()); n != 0 {
+			return fmt.Errorf("mesh has %d inconsistent vertices", n)
+		}
+	}
+    {{else -}}
 	if m.NeedsRepair() {
 		return errors.New("mesh needs repair")
 	}
 	if n := len(m.SingularVertices()); n > 0 {
 		return fmt.Errorf("mesh has %d singular vertices", n)
 	}
-    {{- end}}
 	if _, n := m.RepairNormals(1e-8); n != 0 {
 		return fmt.Errorf("mesh has %d flipped normals", n)
 	}
-    {{if not .model2d -}}
-	if checkIntersections {
+	if checkExtra {
 		if n := m.SelfIntersections(); n != 0 {
 			return fmt.Errorf("mesh has %d self-intersections", n)
 		}
@@ -40,12 +56,12 @@ func ValidateMesh(m *Mesh{{if not .model2d}}, checkIntersections bool{{end}}) er
 	if math.IsNaN(volume) || math.IsInf(volume, 0) {
 		return fmt.Errorf("volume is %f", volume)
 	}
-    {{end -}}
+    {{- end}}
 	return nil
 }
 
-func MustValidateMesh(f Failer, m *Mesh{{if not .model2d}}, checkIntersections bool{{end}}) {
-	if err := ValidateMesh(m{{if not .model2d}}, checkIntersections{{end}}); err != nil {
+func MustValidateMesh(f Failer, m *Mesh, checkExtra bool) {
+	if err := ValidateMesh(m, checkExtra); err != nil {
 		f.Fatal(err)
 	}
 }
