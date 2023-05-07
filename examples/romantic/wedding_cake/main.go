@@ -56,7 +56,7 @@ func main() {
 	fullColor = fullColor.Transform(&model3d.Scale{Scale: GlobalScale})
 
 	log.Println("Saving...")
-	mesh.SaveQuantizedMaterialOBJ("cake.zip", 16, fullColor.Cached().TriangleColor)
+	mesh.SaveMaterialOBJ("cake.zip", fullColor.Cached().QuantizedTriangleColor(mesh, 128))
 
 	log.Println("Rendering...")
 	render3d.SaveRotatingGIF("panning.gif", mesh, model3d.Z(1), model3d.XZ(1, 0.4).Normalize(),

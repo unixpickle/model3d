@@ -11,6 +11,7 @@ import (
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/numerical"
 	"github.com/unixpickle/model3d/render3d"
 )
 
@@ -37,6 +38,43 @@ func (c CoordColorFunc) TriangleColor(t *model3d.Triangle) [3]float64 {
 		sum[2] += b / 3
 	}
 	return sum
+}
+
+// QuantizedTriangleColor clusters triangle colors and
+// returns a mapping from triangles to a finite space of
+// colors.
+//
+// Inputs to the resulting function need not be contained
+// in the original mesh. The mesh is only used to obtain a
+// dataset for clustering.
+//
+// It is recommended that you call this on a cached
+// CoordColorFunc to avoid re-computing colors at vertices
+// shared across triangles.
+func (c CoordColorFunc) QuantizedTriangleColor(mesh *model3d.Mesh,
+	numColors int) func(t *model3d.Triangle) [3]float64 {
+	tris := mesh.TriangleSlice()
+	colors := make([]numerical.Vec3, len(tris))
+	essentials.ConcurrentMap(0, len(tris), func(i int) {
+		colors[i] = c.TriangleColor(tris[i])
+	})
+	clusters := numerical.NewKMeans(colors, numColors)
+	loss := math.Inf(1)
+	for i := 0; i < 5; i++ {
+		loss1 := clusters.Iterate()
+		if loss1 >= loss {
+			break
+		}
+		loss = loss1
+	}
+	coords := make([]model3d.Coord3D, len(clusters.Centers))
+	for i, c := range clusters.Centers {
+		coords[i] = model3d.NewCoord3DArray(c)
+	}
+	table := model3d.NewCoordTree(coords)
+	return func(t *model3d.Triangle) [3]float64 {
+		return table.NearestNeighbor(model3d.NewCoord3DArray(c.TriangleColor(t))).Array()
+	}
 }
 
 // Cached wraps c in another CoordColorFunc that caches
