@@ -38,7 +38,10 @@ func main() {
 	colors = append(colors, toolbox3d.ConstantCoordColorFunc(render3d.NewColor(1.0)))
 
 	log.Println("Creating mesh and texture...")
-	mesh, interior := model3d.MarchingCubesInterior(layers, 0.01, 8)
+	mesh, interior := model3d.DualContourInterior(layers, 0.01, true, false)
+	if mesh.NeedsRepair() || len(mesh.SingularVertices()) > 0 {
+		panic("mesh is bad")
+	}
 	var solidsAndColors []any
 	for i, x := range layers {
 		solidsAndColors = append(solidsAndColors, x, colors[i])
