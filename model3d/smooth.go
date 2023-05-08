@@ -53,6 +53,20 @@ type MeshSmoother struct {
 
 // Smooth applies gradient descent to smooth the mesh.
 func (m *MeshSmoother) Smooth(mesh *Mesh) *Mesh {
+	im, _ := m.smoothInternal(mesh)
+	return im.Mesh()
+}
+
+// SmoothMapping returns a mapping from old vertices to
+// smoothed ones.
+func (m *MeshSmoother) SmoothMapping(mesh *Mesh) *CoordMap[Coord3D] {
+	im, origins := m.smoothInternal(mesh)
+	return im.Mapping(origins)
+}
+
+// SmoothMapping returns a mapping from old vertices to
+// smoothed ones.
+func (m *MeshSmoother) smoothInternal(mesh *Mesh) (*indexMesh, []Coord3D) {
 	im := newIndexMesh(mesh)
 	origins := append([]Coord3D{}, im.Coords...)
 	newCoords := append([]Coord3D{}, im.Coords...)
@@ -103,7 +117,7 @@ func (m *MeshSmoother) Smooth(mesh *Mesh) *Mesh {
 		copy(im.Coords, newCoords)
 	}
 
-	return im.Mesh()
+	return im, origins
 }
 
 // VoxelSmoother uses hard-constraints on top of gradient
@@ -125,6 +139,18 @@ type VoxelSmoother struct {
 
 // Smooth applies gradient descent to smooth the mesh.
 func (v *VoxelSmoother) Smooth(mesh *Mesh) *Mesh {
+	im, _ := v.smoothInternal(mesh)
+	return im.Mesh()
+}
+
+// SmoothMapping returns a mapping from original vertices
+// to smoothed vertices.
+func (v *VoxelSmoother) SmoothMapping(mesh *Mesh) *CoordMap[Coord3D] {
+	im, origins := v.smoothInternal(mesh)
+	return im.Mapping(origins)
+}
+
+func (v *VoxelSmoother) smoothInternal(mesh *Mesh) (*indexMesh, []Coord3D) {
 	im := newIndexMesh(mesh)
 	origins := append([]Coord3D{}, im.Coords...)
 	newCoords := append([]Coord3D{}, im.Coords...)
@@ -147,8 +173,7 @@ func (v *VoxelSmoother) Smooth(mesh *Mesh) *Mesh {
 		}
 		copy(im.Coords, newCoords)
 	}
-
-	return im.Mesh()
+	return im, origins
 }
 
 type indexMesh struct {
@@ -200,4 +225,12 @@ func (i *indexMesh) Mesh() *Mesh {
 		m.Add(&t)
 	}
 	return m
+}
+
+func (i *indexMesh) Mapping(sources []Coord3D) *CoordMap[Coord3D] {
+	res := NewCoordMap[Coord3D]()
+	for j, s := range sources {
+		res.Store(s, i.Coords[j])
+	}
+	return res
 }
