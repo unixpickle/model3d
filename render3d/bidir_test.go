@@ -2,6 +2,7 @@ package render3d
 
 import (
 	"math"
+	"math/rand"
 	"runtime"
 	"testing"
 
@@ -44,6 +45,7 @@ func TestBidirPathTracer(t *testing.T) {
 	}
 
 	runTest := func(t *testing.T) {
+		rand.Seed(0)
 		actual := NewImage(4, 4)
 		bpt.Render(actual, scene)
 
