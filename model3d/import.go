@@ -145,6 +145,11 @@ func readColorPLY(r io.Reader) ([]*Triangle, *CoordMap[[3]uint8], error) {
 
 	tris := make([]*Triangle, len(triangles))
 	for i, t := range triangles {
+		for _, v := range t {
+			if v >= len(vertices) {
+				return nil, nil, errors.New("vertex out of bounds")
+			}
+		}
 		tris[i] = &Triangle{vertices[t[0]], vertices[t[1]], vertices[t[2]]}
 	}
 
