@@ -77,6 +77,14 @@ func (c CoordColorFunc) QuantizedTriangleColor(mesh *model3d.Mesh,
 	}
 }
 
+// Map returns a new CoordColorFunc which applies f to all
+// input coordinates before calling c.
+func (c CoordColorFunc) Map(f func(model3d.Coord3D) model3d.Coord3D) CoordColorFunc {
+	return func(x model3d.Coord3D) render3d.Color {
+		return c(f(x))
+	}
+}
+
 // Cached wraps c in another CoordColorFunc that caches
 // colors for coordinates.
 //

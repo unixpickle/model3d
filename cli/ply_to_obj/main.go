@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 
@@ -16,17 +17,28 @@ import (
 )
 
 func main() {
-	var inputPath string
-	var outputPath string
 	var textureSize int
-	flag.StringVar(&inputPath, "input-path", "", "path to PLY file")
-	flag.StringVar(&outputPath, "output-path", "", "path to output OBJ file")
+	var noImage bool
+	var smoothStepSize float64
+	var smoothIters int
 	flag.IntVar(&textureSize, "texture-size", 32, "resolution of texture image")
+	flag.BoolVar(&noImage, "no-image", false,
+		"use a quantized per-face material instead of a texture image")
+	flag.Float64Var(&smoothStepSize, "smooth-step-size", 0.05, "step size for Laplacian smoothing")
+	flag.IntVar(&smoothIters, "smooth-iters", 0, "steps of Laplacian smoothing")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: ply_to_obj [flags] input.ply output.zip")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
-	if inputPath == "" || outputPath == "" {
-		essentials.Die("Need -input-path and -output-path. See -help for required flags.")
+	args := flag.Args()
+	if len(args) != 2 {
+		flag.Usage()
+		os.Exit(1)
 	}
+	inputPath, outputPath := args[0], args[1]
 
 	f, err := os.Open(inputPath)
 	essentials.Must(err)
@@ -116,5 +128,37 @@ func main() {
 	cf := toolbox3d.CoordColorFunc(func(c model3d.Coord3D) render3d.Color {
 		return colors[c]
 	})
-	essentials.Must(mesh.SaveQuantizedMaterialOBJ(outputPath, textureSize, cf.TriangleColor))
+
+	if smoothIters > 0 {
+		smoother := &model3d.MeshSmoother{
+			StepSize:   smoothStepSize,
+			Iterations: smoothIters,
+		}
+		mapping := smoother.SmoothMapping(mesh)
+		mesh = mesh.MapCoords(mapping.Value)
+
+		inv := model3d.NewCoordMap[model3d.Coord3D]()
+		mapping.Range(func(k, v model3d.Coord3D) bool {
+			inv.Store(v, k)
+			return true
+		})
+		cf = cf.Map(inv.Value)
+	}
+
+	if noImage {
+		essentials.Must(
+			mesh.SaveMaterialOBJ(
+				outputPath,
+				cf.Cached().QuantizedTriangleColor(mesh, textureSize*textureSize),
+			),
+		)
+	} else {
+		essentials.Must(
+			mesh.SaveQuantizedMaterialOBJ(
+				outputPath,
+				textureSize,
+				cf.Cached().TriangleColor,
+			),
+		)
+	}
 }
