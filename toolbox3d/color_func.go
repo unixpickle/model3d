@@ -40,6 +40,13 @@ func (c CoordColorFunc) TriangleColor(t *model3d.Triangle) [3]float64 {
 	return sum
 }
 
+// SRGB returns the sRGB color as an array.
+// This is useful for use with mesh.SaveVertexColorOBJ().
+func (c CoordColorFunc) SRGB(coord model3d.Coord3D) [3]float64 {
+	r, g, b := render3d.RGB(c(coord))
+	return [3]float64{r, g, b}
+}
+
 // QuantizedTriangleColor clusters triangle colors and
 // returns a mapping from triangles to a finite space of
 // colors.
