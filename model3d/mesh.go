@@ -633,6 +633,21 @@ func (m *Mesh) EncodePLY(colorFunc func(c Coord3D) [3]uint8) []byte {
 	return EncodePLY(m.TriangleSlice(), colorFunc)
 }
 
+// SaveVertexColorOBJ saves the mesh to an OBJ file with a
+// color per vertex.
+func (m *Mesh) SaveVertexColorOBJ(path string, colorFunc func(Coord3D) [3]float64) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save vertex color OBJ")
+	}
+	defer f.Close()
+	err = WriteVertexColorOBJ(f, m.TriangleSlice(), colorFunc)
+	if err != nil {
+		return errors.Wrap(err, "save vertex color OBJ")
+	}
+	return nil
+}
+
 // EncodeMaterialOBJ encodes the mesh as a zip file with
 // per-triangle material.
 func (m *Mesh) EncodeMaterialOBJ(colorFunc func(t *Triangle) [3]float64) []byte {

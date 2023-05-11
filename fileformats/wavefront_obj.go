@@ -24,10 +24,11 @@ type OBJFileFaceGroup struct {
 type OBJFile struct {
 	MaterialFiles []string
 
-	Vertices   [][3]float64
-	UVs        [][2]float64
-	Normals    [][3]float64
-	FaceGroups []*OBJFileFaceGroup
+	Vertices     [][3]float64
+	VertexColors [][3]float64
+	UVs          [][2]float64
+	Normals      [][3]float64
+	FaceGroups   []*OBJFileFaceGroup
 }
 
 // Write encodes the file to w and returns the first write
@@ -40,9 +41,24 @@ func (o *OBJFile) Write(w io.Writer) error {
 			return err
 		}
 	}
-	for _, c := range o.Vertices {
-		if _, err := buf.WriteString(o.encode3D("v", c)); err != nil {
-			return err
+	for i, c := range o.Vertices {
+		if o.VertexColors == nil {
+			if _, err := buf.WriteString(o.encode3D("v", c)); err != nil {
+				return err
+			}
+		} else {
+			co := o.VertexColors[i]
+			line := "v " +
+				" " + strconv.FormatFloat(c[0], 'f', -1, 32) +
+				" " + strconv.FormatFloat(c[1], 'f', -1, 32) +
+				" " + strconv.FormatFloat(c[2], 'f', -1, 32) +
+				" " + strconv.FormatFloat(co[0], 'f', -1, 32) +
+				" " + strconv.FormatFloat(co[1], 'f', -1, 32) +
+				" " + strconv.FormatFloat(co[2], 'f', -1, 32) +
+				"\n"
+			if _, err := buf.WriteString(line); err != nil {
+				return err
+			}
 		}
 	}
 	for _, n := range o.Normals {

@@ -117,6 +117,18 @@ func WritePLY(w io.Writer, triangles []*Triangle, colorFunc func(Coord3D) [3]uin
 	return nil
 }
 
+// WriteVertexColorOBJ encodes a 3D model as an OBJ file
+// with vertex colors.
+//
+// The colorFunc maps vertices to real-valued RGB colors.
+func WriteVertexColorOBJ(w io.Writer, ts []*Triangle, colorFunc func(Coord3D) [3]float64) error {
+	obj := BuildVertexColorOBJ(ts, colorFunc)
+	if err := obj.Write(w); err != nil {
+		return errors.Wrap(err, "write vertex color OBJ")
+	}
+	return nil
+}
+
 // EncodeMaterialOBJ encodes a 3D model as a zip file
 // containing both an OBJ and an MTL file.
 //
@@ -216,6 +228,37 @@ func WriteTexturedMaterialOBJ(w io.Writer, obj *fileformats.OBJFile, mtl *filefo
 	}
 
 	return zipFile.Close()
+}
+
+// BuildVertexColorOBJ constructs an obj file with vertex
+// colors.
+func BuildVertexColorOBJ(t []*Triangle, c func(Coord3D) [3]float64) *fileformats.OBJFile {
+	o := &fileformats.OBJFile{}
+
+	group := &fileformats.OBJFileFaceGroup{}
+	coordToIdx := NewCoordToNumber[int]()
+	for _, tri := range t {
+		face := [3][3]int{}
+		for i, p := range tri {
+			if idx, ok := coordToIdx.Load(p); !ok {
+				idx = coordToIdx.Len()
+				coordToIdx.Store(p, idx)
+				o.Vertices = append(o.Vertices, p.Array())
+				face[i][0] = idx + 1
+			} else {
+				face[i][0] = idx + 1
+			}
+		}
+		group.Faces = append(group.Faces, face)
+	}
+	o.FaceGroups = append(o.FaceGroups, group)
+
+	o.VertexColors = make([][3]float64, len(o.Vertices))
+	essentials.ConcurrentMap(0, len(o.Vertices), func(i int) {
+		o.VertexColors[i] = c(NewCoord3DArray(o.Vertices[i]))
+	})
+
+	return o
 }
 
 // BuildMaterialOBJ constructs obj and mtl files from a
