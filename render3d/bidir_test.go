@@ -39,9 +39,9 @@ func TestBidirPathTracer(t *testing.T) {
 		Camera:     camera,
 		Light:      light,
 		MaxDepth:   10,
-		NumSamples: 100000,
+		NumSamples: 200000,
 		MinSamples: 1000,
-		MaxStddev:  0.002,
+		MaxStddev:  0.00175,
 	}
 
 	runTest := func(t *testing.T) {
