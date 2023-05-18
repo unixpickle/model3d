@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/fileformats"
 	"github.com/unixpickle/model3d/model2d"
 )
 
@@ -706,6 +707,16 @@ func (m *Mesh) SaveGroupedSTL(path string) error {
 		return errors.Wrap(err, "save grouped STL")
 	}
 	return nil
+}
+
+// Save3MF writes the mesh to a 3MF file.
+func (m *Mesh) Save3MF(path string, units fileformats.ThreeMFUnit) error {
+	w, err := os.Create(path)
+	if err != nil {
+		return errors.Wrap(err, "save 3MF")
+	}
+	defer w.Close()
+	return Write3MF(w, units, m.TriangleSlice())
 }
 
 // TriangleSlice gets a snapshot of all the triangles

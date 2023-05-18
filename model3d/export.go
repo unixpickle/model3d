@@ -501,3 +501,13 @@ func VertexColorsToTriangle(f func(c Coord3D) [3]float64) func(t *Triangle) [3]f
 		return sum
 	}
 }
+
+// Write3MF encodes the mesh as a 3MF file.
+func Write3MF(w io.Writer, unit fileformats.ThreeMFUnit, tris []*Triangle) error {
+	im := newIndexMesh(NewMeshTriangles(tris))
+	coords := make([][3]float64, len(im.Coords))
+	for i, c := range im.Coords {
+		coords[i] = c.Array()
+	}
+	return fileformats.Write3MFMesh(w, unit, coords, im.Triangles)
+}
