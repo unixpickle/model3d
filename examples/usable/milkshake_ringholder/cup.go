@@ -17,6 +17,8 @@ const (
 	CupTopRadius      = 0.9
 	CupHeight         = 3
 	CupRimHeight      = 0.4
+	CupRimThickness   = 0.1
+	CupContentsDepth  = 0.1
 )
 
 func CupSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
@@ -39,9 +41,22 @@ func CupSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
 					facetDepth := math.Sqrt(1 - r*r)
 					radius -= facetDepth * CupFacetFlatten
 				}
+			} else if c.Z > CupHeight-CupContentsDepth {
+				r := c.XY().Norm()
+				return r < radius && r > radius-CupRimThickness
 			}
 			return c.XY().Norm() < radius
 		},
 	)
-	return solid, toolbox3d.ConstantCoordColorFunc(render3d.NewColorRGB(0x65/255.0, 0xbc/255.0, 0xd4/255.0))
+	colorFn := func(c model3d.Coord3D) render3d.Color {
+		fracTop := c.Z / CupHeight
+		radius := fracTop*CupTopRadius + (1-fracTop)*CupBottomRadius
+		r := c.XY().Norm()
+		if r <= radius-CupRimThickness && c.Z > CupHeight-CupRimHeight {
+			return render3d.NewColor(1.0)
+		} else {
+			return render3d.NewColorRGB(0x65/255.0, 0xbc/255.0, 0xd4/255.0)
+		}
+	}
+	return solid, colorFn
 }
