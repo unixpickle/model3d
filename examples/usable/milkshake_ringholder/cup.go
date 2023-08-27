@@ -18,7 +18,7 @@ const (
 	CupHeight         = 3
 	CupRimHeight      = 0.4
 	CupRimThickness   = 0.1
-	CupContentsDepth  = 0.1
+	CupContentsDepth  = 0.05
 )
 
 func CupSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {

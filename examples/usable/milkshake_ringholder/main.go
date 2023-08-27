@@ -9,14 +9,20 @@ import (
 func main() {
 	cup, cupColor := CupSolid()
 	cream, creamColor := CreamSolid()
-	joined := model3d.JoinedSolid{cup, cream}
+	straw, strawColor := StrawSolid()
+	cherry, cherryColor := CherrySolid()
+	joined := model3d.JoinedSolid{cup, cream, straw, cherry}
 
 	mesh, interior := model3d.MarchingCubesInterior(joined, 0.02, 8)
+	mesh = model3d.MeshToHierarchy(mesh)[0].Mesh
 	colorFunc := toolbox3d.JoinedSolidCoordColorFunc(
 		interior,
 		cup, cupColor,
 		cream, creamColor,
+		straw, strawColor,
+		cherry, cherryColor,
 	)
 
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
+	mesh.SaveMaterialOBJ("milkshake.zip", colorFunc.TriangleColor)
 }
