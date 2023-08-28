@@ -19,9 +19,11 @@ const (
 	CupRimHeight      = 0.4
 	CupRimThickness   = 0.1
 	CupContentsDepth  = 0.05
+	CupEngravingDepth = 0.05
 )
 
 func CupSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
+	engraving := ReadEngraving()
 	solid := model3d.CheckedFuncSolid(
 		model3d.XYZ(-CupTopRadius, -CupTopRadius, 0),
 		model3d.XYZ(CupTopRadius, CupTopRadius, CupHeight),
@@ -41,14 +43,35 @@ func CupSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
 					facetDepth := math.Sqrt(1 - r*r)
 					radius -= facetDepth * CupFacetFlatten
 				}
-			} else if c.Z > CupHeight-CupContentsDepth {
-				r := c.XY().Norm()
-				return r < radius && r > radius-CupRimThickness
 			}
-			return c.XY().Norm() < radius
+
+			if c.Z > CupHeight-CupRimHeight {
+				engravingX := math.Atan2(c.X, c.Y)
+				engravingY := (CupHeight-c.Z)/CupRimHeight - 0.5
+				if engraving.Contains(model2d.XY(engravingX, engravingY)) {
+					radius -= CupEngravingDepth
+				}
+			}
+
+			r := c.XY().Norm()
+			if c.Z > CupHeight-CupContentsDepth {
+				if r < radius-CupRimThickness {
+					return false
+				}
+			}
+
+			return r < radius
 		},
 	)
 	colorFn := func(c model3d.Coord3D) render3d.Color {
+		if c.Z > CupHeight-CupRimHeight {
+			engravingX := math.Atan2(c.X, c.Y)
+			engravingY := (CupHeight-c.Z)/CupRimHeight - 0.5
+			if engraving.Contains(model2d.XY(engravingX, engravingY)) {
+				return render3d.NewColorRGB(0.5*0x65/255.0, 0.5*0xbc/255.0, 0.5*0xd4/255.0)
+			}
+		}
+
 		fracTop := c.Z / CupHeight
 		radius := fracTop*CupTopRadius + (1-fracTop)*CupBottomRadius
 		r := c.XY().Norm()
@@ -59,4 +82,11 @@ func CupSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
 		}
 	}
 	return solid, colorFn
+}
+
+func ReadEngraving() model2d.Solid {
+	mesh := model2d.MustReadBitmap("text.png", nil).FlipX().Mesh().SmoothSq(20)
+	mesh = mesh.Translate(mesh.Min().Mid(mesh.Max()).Scale(-1))
+	mesh = mesh.Scale(3.0 / (mesh.Max().X - mesh.Min().X))
+	return model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
 }

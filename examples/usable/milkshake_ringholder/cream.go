@@ -62,7 +62,12 @@ func CreamMesh() *model3d.Mesh {
 	)
 	length := 10.0
 	solid3d := model3d.ProfileSolid(baseShape, 0, length)
-	mesh3d := model3d.DualContour(solid3d, 0.03, true, false)
+
+	delta := 0.03
+	if Production {
+		delta = 0.01
+	}
+	mesh3d := model3d.DualContour(solid3d, delta, true, false)
 
 	// Deform along a curve.
 	return mesh3d.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {

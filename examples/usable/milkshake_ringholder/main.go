@@ -6,6 +6,8 @@ import (
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
+const Production = true
+
 func main() {
 	cup, cupColor := CupSolid()
 	cream, creamColor := CreamSolid()
@@ -13,7 +15,11 @@ func main() {
 	cherry, cherryColor := CherrySolid()
 	joined := model3d.JoinedSolid{cup, cream, straw, cherry}
 
-	mesh, interior := model3d.MarchingCubesInterior(joined, 0.02, 8)
+	delta := 0.02
+	if Production {
+		delta = 0.01
+	}
+	mesh, interior := model3d.DualContourInterior(joined, delta, true, false)
 	mesh = model3d.MeshToHierarchy(mesh)[0].Mesh
 	colorFunc := toolbox3d.JoinedSolidCoordColorFunc(
 		interior,

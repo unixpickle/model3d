@@ -59,7 +59,7 @@ func SingleStrawSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
 		for theta > math.Pi*2 {
 			theta -= math.Pi * 2
 		}
-		if theta < math.Pi/4 || (theta > math.Pi && theta < math.Pi+math.Pi/4) {
+		if theta < math.Pi/2 || (theta > math.Pi && theta < math.Pi+math.Pi/2) {
 			return render3d.NewColorRGB(1.0, 0.0, 0.0)
 		} else {
 			return render3d.NewColor(0.8)
