@@ -19,7 +19,7 @@ const (
 	CupRimHeight      = 0.4
 	CupRimThickness   = 0.1
 	CupContentsDepth  = 0.05
-	CupEngravingDepth = 0.05
+	CupEngravingDepth = 0.03
 )
 
 func CupSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
@@ -85,8 +85,9 @@ func CupSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
 }
 
 func ReadEngraving() model2d.Solid {
-	mesh := model2d.MustReadBitmap("text.png", nil).FlipX().Mesh().SmoothSq(20)
+	mesh := model2d.MustReadBitmap("text.png", nil).FlipX().Mesh().SmoothSq(10)
 	mesh = mesh.Translate(mesh.Min().Mid(mesh.Max()).Scale(-1))
 	mesh = mesh.Scale(3.0 / (mesh.Max().X - mesh.Min().X))
-	return model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
+	mesh = mesh.MapCoords(model2d.XY(0.8, 1.0).Mul) // make it look less stretched
+	return model2d.NewColliderSolidInset(model2d.MeshToCollider(mesh), -0.02)
 }

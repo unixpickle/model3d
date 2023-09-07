@@ -11,7 +11,7 @@ import (
 const (
 	StrawHeight    = 1.5
 	StrawRadius    = 0.1
-	StrawInset     = 0.02
+	StrawInset     = 0.03
 	StrawTwistRate = 5.0
 )
 
@@ -40,9 +40,8 @@ func SingleStrawSolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	}
 	solid := &model3d.SubtractedSolid{
 		Positive: outerSolid,
-		Negative: &model3d.Cylinder{
-			P1:     model3d.Z(CupHeight + StrawHeight - 0.05),
-			P2:     model3d.Z(CupHeight + StrawHeight),
+		Negative: &model3d.Sphere{
+			Center: outerSolid.P2,
 			Radius: StrawRadius - StrawInset,
 		},
 	}
