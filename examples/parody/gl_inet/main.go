@@ -9,7 +9,9 @@ import (
 )
 
 func main() {
-	body := InetBody()
+	body := InetBody(true)
+
+	lid, lidCutout := LidAndCutout()
 
 	jack := EthernetJackSolid()
 	min, max := jack.Min(), jack.Max()
@@ -38,6 +40,7 @@ func main() {
 				jackHole,
 				usbPort,
 				fanHole,
+				lidCutout,
 			},
 		},
 		usbInner,
@@ -50,8 +53,10 @@ func main() {
 	}
 
 	log.Println("Creating mesh...")
+	lidMesh := model3d.DualContour(lid, 0.01, true, false)
+	lidMesh.SaveGroupedSTL("lid.stl")
 	mesh, interior := model3d.DualContourInterior(joined, 0.01, true, false)
-	mesh.SaveGroupedSTL("out.stl")
+	mesh.SaveGroupedSTL("body.stl")
 	colorFunc := toolbox3d.JoinedSolidCoordColorFunc(
 		interior,
 		body, render3d.NewColorRGB(224.0/255, 209.0/255, 0),
