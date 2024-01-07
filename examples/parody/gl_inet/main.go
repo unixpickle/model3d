@@ -25,12 +25,12 @@ func main() {
 	jackEnd := model3d.NewRect(min, max)
 
 	usbPort := model3d.NewRect(
-		model3d.XYZ(BodySideLength/2-0.3, -0.8, 0.2),
-		model3d.XYZ(BodySideLength/2+0.1, -0.65, 0.7),
+		model3d.XYZ(BodySideLength/2-0.3, -0.8, 0.15),
+		model3d.XYZ(BodySideLength/2+0.1, -0.65, 0.65),
 	)
 	usbInner := model3d.NewRect(
-		model3d.XYZ(BodySideLength/2-0.3, -0.8, 0.2),
-		model3d.XYZ(BodySideLength/2-0.05, -0.75, 0.7),
+		model3d.XYZ(BodySideLength/2-0.3, -0.8, 0.15),
+		model3d.XYZ(BodySideLength/2-0.05, -0.75, 0.65),
 	)
 
 	fanHole := FanHole()
@@ -84,12 +84,13 @@ func main() {
 		interior,
 		body, Yellow,
 		jackEnd, render3d.NewColor(0.5),
-		usbInner, render3d.NewColor(0.5),
-		jack, render3d.NewColor(0.9),
+		usbInner, render3d.NewColor(1.0),
+		jack, render3d.NewColor(1.0),
 	)
 	mesh = mesh.EliminateCoplanarFiltered(1e-5, colorFunc.ChangeFilterFunc(mesh, 0.05))
 	mesh.SaveMaterialOBJ("body.zip", colorFunc.TriangleColor)
 	lidMesh.SaveMaterialOBJ("lid.zip", toolbox3d.ConstantCoordColorFunc(Yellow).TriangleColor)
 	log.Println("Rendering...")
-	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
+
+	render3d.SaveRendering("rendering.png", mesh, model3d.XYZ(3, -2, 1.9), 512, 512, colorFunc.RenderColor)
 }

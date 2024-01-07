@@ -9,11 +9,11 @@ import (
 
 func FanHole() model3d.Solid {
 	oneHole := model3d.CheckedFuncSolid(
-		model3d.XYZ(0.9, 0.7, 0.5),
-		model3d.XYZ(BodySideLength/2+0.01, 0.9, 0.7),
+		model3d.XYZ(0.9, 0.7, 0.45),
+		model3d.XYZ(BodySideLength/2+0.01, 0.9, 0.65),
 		func(c model3d.Coord3D) bool {
 			x := (c.Y - 0.8) / 0.1
-			y := (c.Z - 0.6) / 0.1
+			y := (c.Z - 0.55) / 0.1
 			xy := model2d.XY(x, y)
 			if xy.Norm() > 1.0 {
 				return false
