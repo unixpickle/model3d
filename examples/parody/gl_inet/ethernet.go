@@ -6,42 +6,30 @@ import (
 )
 
 func EthernetJackSolid() model3d.Solid {
+	profilePoints := []model2d.Coord{
+		model2d.XY(0.15, 0.15),
+		model2d.XY(0.85, 0.15),
+		model2d.XY(0.85, 0.7),
+		model2d.XY(0.65, 0.7),
+		model2d.XY(0.65, 0.85),
+		model2d.XY(0.35, 0.85),
+		model2d.XY(0.35, 0.7),
+		model2d.XY(0.15, 0.7),
+		model2d.XY(0.15, 0.15),
+	}
+	segments := []*model2d.Segment{}
+	for i := 0; i < len(profilePoints)-1; i++ {
+		segments = append(segments, &model2d.Segment{profilePoints[i], profilePoints[i+1]})
+	}
 	profile := model2d.NewColliderSolid(
 		model2d.MeshToCollider(
-			model2d.CurveMesh(model2d.JoinedCurve{
-				&model2d.BezierCurve{
-					model2d.XY(0.15, 0.15),
-					model2d.XY(0.85, 0.15),
-				},
-				&model2d.BezierCurve{
-					model2d.XY(0.85, 0.15),
-					model2d.XY(0.85, 0.7),
-				},
-				&model2d.BezierCurve{
-					model2d.XY(0.85, 0.7),
-					model2d.XY(0.65, 0.7),
-				},
-				&model2d.BezierCurve{
-					model2d.XY(0.65, 0.7),
-					model2d.XY(0.65, 0.85),
-				},
-				&model2d.BezierCurve{
-					model2d.XY(0.65, 0.85),
-					model2d.XY(0.35, 0.85),
-				},
-				&model2d.BezierCurve{
-					model2d.XY(0.35, 0.85),
-					model2d.XY(0.35, 0.7),
-				},
-				&model2d.BezierCurve{
-					model2d.XY(0.35, 0.7),
-					model2d.XY(0.15, 0.7),
-				},
-				&model2d.BezierCurve{
-					model2d.XY(0.1, 0.7),
-					model2d.XY(0.1, 0.1),
-				},
-			}, 300).MapCoords(model2d.XY(1.0, -1.0).Mul).Translate(model2d.Y(1.0)),
+			model2d.NewMeshSegments(
+				segments,
+			).MapCoords(
+				model2d.XY(1.0, -1.0).Mul,
+			).Translate(
+				model2d.Y(1.0),
+			),
 		),
 	)
 	return model3d.CheckedFuncSolid(
