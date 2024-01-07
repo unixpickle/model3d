@@ -8,6 +8,8 @@ import (
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
+var Yellow = render3d.NewColorRGB(224.0/255, 209.0/255, 0)
+
 func main() {
 	body := InetBody(true)
 
@@ -74,18 +76,20 @@ func main() {
 		jackEnd,
 	}
 
-	log.Println("Creating mesh...")
+	log.Println("Creating meshes...")
 	lidMesh := model3d.DualContour(lid, 0.01, true, false)
-	lidMesh.SaveGroupedSTL("lid.stl")
+	lidMesh = lidMesh.EliminateCoplanar(1e-5)
 	mesh, interior := model3d.DualContourInterior(joined, 0.01, true, false)
-	mesh.SaveGroupedSTL("body.stl")
 	colorFunc := toolbox3d.JoinedSolidCoordColorFunc(
 		interior,
-		body, render3d.NewColorRGB(224.0/255, 209.0/255, 0),
+		body, Yellow,
 		jackEnd, render3d.NewColor(0.5),
 		usbInner, render3d.NewColor(0.5),
 		jack, render3d.NewColor(0.9),
 	)
+	mesh = mesh.EliminateCoplanarFiltered(1e-5, colorFunc.ChangeFilterFunc(mesh, 0.05))
+	mesh.SaveMaterialOBJ("body.zip", colorFunc.TriangleColor)
+	lidMesh.SaveMaterialOBJ("lid.zip", toolbox3d.ConstantCoordColorFunc(Yellow).TriangleColor)
 	log.Println("Rendering...")
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, colorFunc.RenderColor)
 }
