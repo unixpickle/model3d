@@ -33,6 +33,26 @@ func main() {
 
 	fanHole := FanHole()
 
+	powerSwitchHole := model3d.NewColliderSolidInset(
+		model3d.NewRect(
+			model3d.XYZ(BodySideLength/2-0.05, -0.1, 0.3),
+			model3d.XYZ(BodySideLength/2+0.01, 0.1, 0.3001),
+		),
+		-0.075,
+	)
+	powerSwitch := model3d.JoinedSolid{
+		&model3d.Cylinder{
+			P1:     model3d.XYZ(BodySideLength/2-0.2, 0.0, 0.3),
+			P2:     model3d.XYZ(BodySideLength/2, 0.0, 0.3),
+			Radius: 0.08,
+		},
+		// Mask the rounded back of the powerSwitchHole.
+		model3d.NewRect(
+			model3d.XYZ(BodySideLength/2-0.2, -0.2, 0.2),
+			model3d.XYZ(BodySideLength/2-0.05, 0.2, 0.4),
+		),
+	}
+
 	body = model3d.JoinedSolid{
 		&model3d.SubtractedSolid{
 			Positive: body,
@@ -41,9 +61,11 @@ func main() {
 				usbPort,
 				fanHole,
 				lidCutout,
+				powerSwitchHole,
 			},
 		},
 		usbInner,
+		powerSwitch,
 	}
 
 	joined := model3d.JoinedSolid{
