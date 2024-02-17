@@ -10,17 +10,17 @@ var NoseColor = render3d.NewColorRGB(0xd9/255.0, 0xce/255.0, 0x98/255.0)
 
 func Nose() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	mound := &model3d.Torus{
-		Center:      model3d.YZ(0.4, 1.0),
+		Center:      model3d.YZ(0.39, 1.0),
 		Axis:        model3d.YZ(-0.5, 0.55).Normalize(),
-		InnerRadius: 0.15,
-		OuterRadius: 0.3,
+		InnerRadius: 0.18,
+		OuterRadius: 0.28,
 	}
 	dot := model3d.TranslateSolid(
 		model3d.VecScaleSolid(
 			&model3d.Sphere{Radius: 0.1},
 			model3d.XYZ(1.0, 1.0, 0.8),
 		),
-		model3d.YZ(0.7, 1.35),
+		model3d.YZ(0.68, 1.35),
 	)
 	return model3d.JoinedSolid{mound, dot}, func(c model3d.Coord3D) render3d.Color {
 		if dot.Contains(c) {

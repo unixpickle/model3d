@@ -25,7 +25,8 @@ func Ears() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	otherEar.P1.X *= -1
 	otherEar.P2.X *= -1
 	bothEars := model3d.JoinedSolid{
-		earSolid, &otherEar,
+		model3d.NewColliderSolidInset(earSolid, -0.03),
+		model3d.NewColliderSolidInset(&otherEar, -0.03),
 	}
 
 	otherInside := *insideSolid

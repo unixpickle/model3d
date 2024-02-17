@@ -9,7 +9,7 @@ import (
 func Teeth() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	tooth := &model3d.Capsule{
 		P1:     model3d.YZ(0.69, 1.15),
-		P2:     model3d.YZ(0.69, 0.95),
+		P2:     model3d.YZ(0.69, 0.98),
 		Radius: 0.055,
 	}
 	teeth := model3d.JoinedSolid{
