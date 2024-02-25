@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -15,7 +16,7 @@ func main() {
 	hands, handsColor := Hands()
 	feet, feetColor := Feet()
 	solid := model3d.JoinedSolid{base, body, eyes, ears, nose, teeth, hands, feet}
-	mesh, points := model3d.MarchingCubesInterior(solid, 0.02, 8)
+	mesh, points := model3d.MarchingCubesInterior(solid, 0.01, 8)
 	cf := toolbox3d.JoinedSolidCoordColorFunc(
 		points,
 		base, baseColor,
@@ -27,7 +28,6 @@ func main() {
 		hands, handsColor,
 		feet, feetColor,
 	)
-	// render3d.SaveRotatingGIF("rendering.gif", mesh, model3d.Z(1), model3d.Y(-1), 300, 20, 5.0, cf.RenderColor)
-	// render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, cf.RenderColor)
+	render3d.SaveRendering("rendering.png", mesh, model3d.XYZ(1, 5, 3), 512, 512, cf.RenderColor)
 	mesh.SaveMaterialOBJ("gopher.zip", cf.TriangleColor)
 }
