@@ -512,7 +512,8 @@ func (s *SolidCollider) bisectCollision(r *Ray, min, max float64) float64 {
 			min = f
 		}
 	}
-	return (min + max) / 2
+	// Always return the point inside the solid
+	return max
 }
 
 func (s *SolidCollider) approximateNormal(c Coord3D) Coord3D {
