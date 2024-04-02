@@ -2,6 +2,7 @@ package toolbox3d
 
 import (
 	"flag"
+	"fmt"
 	"reflect"
 	"strconv"
 	"unicode"
@@ -16,20 +17,20 @@ import (
 // indicate the default integer or floating point values.
 //
 // This may panic() if the default for a field is
-// incorrectly formatted.
+// incorrectly formatted, or if a field is not supported.
 func AddFlags(obj any, f *flag.FlagSet) {
 	if f == nil {
 		f = flag.CommandLine
 	}
-	val := reflect.ValueOf(obj)
+	val := reflect.ValueOf(obj).Elem()
 	fields := reflect.VisibleFields(val.Type())
 	for _, field := range fields {
 		flagName := flagNameForField(field.Name)
 		defaultStr := field.Tag.Get("default")
 		usageStr := field.Tag.Get("usage")
 		var err error
-		switch field.Type.Kind() {
-		case reflect.Int:
+		switch field.Type {
+		case reflect.TypeOf(int(0)):
 			var defaultVal int
 			if defaultStr != "" {
 				defaultVal, err = strconv.Atoi(defaultStr)
@@ -39,7 +40,7 @@ func AddFlags(obj any, f *flag.FlagSet) {
 			}
 			f.IntVar(val.FieldByIndex(field.Index).Addr().Interface().(*int),
 				flagName, defaultVal, usageStr)
-		case reflect.Float64:
+		case reflect.TypeOf(float64(0)):
 			var defaultVal float64
 			if defaultStr != "" {
 				defaultVal, err = strconv.ParseFloat(defaultStr, 64)
@@ -49,6 +50,8 @@ func AddFlags(obj any, f *flag.FlagSet) {
 			}
 			f.Float64Var(val.FieldByIndex(field.Index).Addr().Interface().(*float64),
 				flagName, defaultVal, usageStr)
+		default:
+			panic(fmt.Sprintf("unsupported type: %v", field.Type))
 		}
 	}
 }
@@ -61,6 +64,8 @@ func flagNameForField(field string) string {
 				result = append(result, '-')
 			}
 			result = append(result, unicode.ToLower(x))
+		} else {
+			result = append(result, x)
 		}
 	}
 	return string(result)
