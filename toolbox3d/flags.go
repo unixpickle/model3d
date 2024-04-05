@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 	"unicode"
 )
 
@@ -40,6 +41,37 @@ func AddFlags(obj any, f *flag.FlagSet) {
 			}
 			f.IntVar(val.FieldByIndex(field.Index).Addr().Interface().(*int),
 				flagName, defaultVal, usageStr)
+		case reflect.TypeOf(int64(0)):
+			var defaultVal int64
+			if defaultStr != "" {
+				defaultVal, err = strconv.ParseInt(defaultStr, 10, 0)
+				if err != nil {
+					panic(err)
+				}
+			}
+			f.Int64Var(val.FieldByIndex(field.Index).Addr().Interface().(*int64),
+				flagName, defaultVal, usageStr)
+		case reflect.TypeOf(uint(0)):
+			var defaultVal uint
+			if defaultStr != "" {
+				x, err := strconv.ParseUint(defaultStr, 10, 64)
+				if err != nil {
+					panic(err)
+				}
+				defaultVal = uint(x)
+			}
+			f.UintVar(val.FieldByIndex(field.Index).Addr().Interface().(*uint),
+				flagName, defaultVal, usageStr)
+		case reflect.TypeOf(uint64(0)):
+			var defaultVal uint64
+			if defaultStr != "" {
+				defaultVal, err = strconv.ParseUint(defaultStr, 10, 64)
+				if err != nil {
+					panic(err)
+				}
+			}
+			f.Uint64Var(val.FieldByIndex(field.Index).Addr().Interface().(*uint64),
+				flagName, defaultVal, usageStr)
 		case reflect.TypeOf(float64(0)):
 			var defaultVal float64
 			if defaultStr != "" {
@@ -50,8 +82,30 @@ func AddFlags(obj any, f *flag.FlagSet) {
 			}
 			f.Float64Var(val.FieldByIndex(field.Index).Addr().Interface().(*float64),
 				flagName, defaultVal, usageStr)
+		case reflect.TypeOf(""):
+			f.StringVar(val.FieldByIndex(field.Index).Addr().Interface().(*string),
+				flagName, defaultStr, usageStr)
+		case reflect.TypeOf(true):
+			var defaultVal bool
+			if defaultStr == "true" {
+				defaultVal = true
+			} else if defaultStr != "false" {
+				panic(fmt.Sprintf("invalid boolean: %#v", defaultStr))
+			}
+			f.BoolVar(val.FieldByIndex(field.Index).Addr().Interface().(*bool),
+				flagName, defaultVal, usageStr)
+		case reflect.TypeOf(time.Duration(0)):
+			var defaultVal time.Duration
+			if defaultStr != "" {
+				defaultVal, err = time.ParseDuration(defaultStr)
+				if err != nil {
+					panic(err)
+				}
+			}
+			f.DurationVar(val.FieldByIndex(field.Index).Addr().Interface().(*time.Duration),
+				flagName, defaultVal, usageStr)
 		default:
-			panic(fmt.Sprintf("unsupported type: %v", field.Type))
+			panic(fmt.Sprintf("unsupported argument type: %v", field.Type))
 		}
 	}
 }
