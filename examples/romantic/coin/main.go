@@ -15,50 +15,38 @@ import (
 	"github.com/unixpickle/model3d/render3d"
 )
 
+type Args struct {
+	Out          string  `default:"coin.stl" usage:"output filename"`
+	Render       string  `default:"rendering.png" usage:"rendered output filename"`
+	MinHeight    float64 `default:"0.1" usage:"minimum height"`
+	MaxHeight    float64 `default:"0.13" usage:"maximum height"`
+	Resolution   float64 `default:"0.01" usage:"resolution of marching squares, relative to radius"`
+	McDelta      float64 `default:"0.01" usage:"resolution of marching cubes when rounding the solid"`
+	SmoothIters  int     `default:"50" usage:"number of mesh smoothing iterations"`
+	Radius       float64 `default:"0.5" usage:"radius of coin"`
+	Template     string  `default:"example.png" usage:"coin design image"`
+	Rounded      bool    `default:"false" usage:"use a rounded design instead of flat"`
+	RoundSamples int     `default:"10000" usage:"number of samples to use for rounded design"`
+}
+
 func main() {
-	var outFile string
-	var renderFile string
-	var minHeight float64
-	var maxHeight float64
-	var msResolution float64
-	var mcDelta float64
-	var smoothIters int
-	var radius float64
-	var template string
-	var rounded bool
-	var roundSamples int
-
-	flag.StringVar(&outFile, "out", "coin.stl", "output file name")
-	flag.StringVar(&renderFile, "render", "rendering.png", "rendered output file name")
-	flag.Float64Var(&minHeight, "min-height", 0.1, "minimum height")
-	flag.Float64Var(&maxHeight, "max-height", 0.13, "maximum height")
-	flag.Float64Var(&msResolution, "resolution", 0.01,
-		"resolution of marching squares, relative to radius")
-	flag.Float64Var(&mcDelta, "mc-delta", 0.01,
-		"resolution of marching cubes when creating a rounded solid")
-	flag.IntVar(&smoothIters, "smooth-iters", 50,
-		"number of mesh smoothing iterations")
-	flag.Float64Var(&radius, "radius", 0.5, "radius of coin")
-	flag.StringVar(&template, "template", "example.png", "coin design image")
-	flag.BoolVar(&rounded, "rounded", false, "use a rounded design instead of flat")
-	flag.IntVar(&roundSamples, "round-samples", 10000,
-		"number of samples to use for rounded design")
-
+	var args Args
+	toolbox3d.AddFlags(&args, nil)
 	flag.Parse()
 
 	log.Println("Creating 2D mesh from template...")
-	mesh := ReadTemplateIntoMesh(template, msResolution, smoothIters, radius)
+	mesh := ReadTemplateIntoMesh(args.Template, args.Resolution, args.SmoothIters, args.Radius)
 
 	var mesh3d *model3d.Mesh
-	if rounded {
-		mesh3d = RoundedModel(mesh, minHeight, maxHeight, mcDelta, roundSamples)
+	if args.Rounded {
+		mesh3d = RoundedModel(mesh, args.MinHeight, args.MaxHeight, args.McDelta, args.RoundSamples)
 	} else {
-		mesh3d = UnroundedModel(mesh, minHeight, maxHeight)
+		mesh3d = UnroundedModel(mesh, args.MinHeight, args.MaxHeight)
 	}
 
 	log.Println("Saving...")
-	essentials.Must(mesh3d.SaveGroupedSTL(outFile))
-	essentials.Must(render3d.SaveRandomGrid(renderFile, mesh3d, 4, 4, 200, nil))
+	essentials.Must(mesh3d.SaveGroupedSTL(args.Out))
+	essentials.Must(render3d.SaveRandomGrid(args.Render, mesh3d, 4, 4, 200, nil))
 }
 
 func UnroundedModel(mesh *model2d.Mesh, minHeight, maxHeight float64) *model3d.Mesh {

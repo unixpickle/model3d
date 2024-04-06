@@ -89,7 +89,7 @@ func AddFlags(obj any, f *flag.FlagSet) {
 			var defaultVal bool
 			if defaultStr == "true" {
 				defaultVal = true
-			} else if defaultStr != "false" {
+			} else if defaultStr != "false" && defaultStr != "" {
 				panic(fmt.Sprintf("invalid boolean: %#v", defaultStr))
 			}
 			f.BoolVar(val.FieldByIndex(field.Index).Addr().Interface().(*bool),

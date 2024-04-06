@@ -6,28 +6,30 @@ import (
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model2d"
+	"github.com/unixpickle/model3d/toolbox3d"
 )
 
+type Args struct {
+	Image         string `usage:"input image file to process"`
+	SmoothIters   int    `default:"50" usage:"mesh smoothing iterations"`
+	ContentCenter bool   `usage:"use the center of the content instead of the whole image"`
+}
+
 func main() {
-	var inputImage string
-	var smoothIters int
-	var useContentCenter bool
-	flag.StringVar(&inputImage, "image", "", "input image file to process")
-	flag.IntVar(&smoothIters, "smooth-iters", 50, "mesh smoothing iterations")
-	flag.BoolVar(&useContentCenter, "content-center", false,
-		"use the center of the content instead of the whole image")
+	var args Args
+	toolbox3d.AddFlags(&args, nil)
 	flag.Parse()
 
-	if inputImage == "" {
+	if args.Image == "" {
 		essentials.Die("Missing -image flag. See -help.")
 	}
 
-	bmp := model2d.MustReadBitmap(inputImage, nil)
-	mesh := bmp.Mesh().SmoothSq(smoothIters)
+	bmp := model2d.MustReadBitmap(args.Image, nil)
+	mesh := bmp.Mesh().SmoothSq(args.SmoothIters)
 	collider := model2d.MeshToCollider(mesh)
 
 	var center model2d.Coord
-	if useContentCenter {
+	if args.ContentCenter {
 		center = collider.Min().Mid(collider.Max())
 	} else {
 		center = model2d.XY(float64(bmp.Width), float64(bmp.Height)).Scale(0.5)
