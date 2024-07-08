@@ -1,0 +1,100 @@
+<!--
+Draw a path on a canvas and dump it as JSON.
+This code was entirely written by ChatGPT.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draw Shape with Cursor and Touch</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            height: 100vh;
+            justify-content: center;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid #000;
+        }
+        textarea {
+            margin-top: 10px;
+            width: 400px;
+            height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="drawingCanvas" width="500" height="500"></canvas>
+    <textarea id="coordinatesOutput" readonly></textarea>
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        const output = document.getElementById('coordinatesOutput');
+        let drawing = false;
+        let coordinates = [];
+
+        function getPointerPosition(e) {
+            if (e.touches) {
+                return { x: e.touches[0].clientX - canvas.offsetLeft, y: e.touches[0].clientY - canvas.offsetTop };
+            } else {
+                return { x: e.offsetX, y: e.offsetY };
+            }
+        }
+
+        function startDrawing(e) {
+            drawing = true;
+            coordinates = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            const pos = getPointerPosition(e);
+            ctx.moveTo(pos.x, pos.y);
+            coordinates.push({ x: pos.x, y: pos.y });
+        }
+
+        function draw(e) {
+            if (drawing) {
+                const pos = getPointerPosition(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                coordinates.push({ x: pos.x, y: pos.y });
+            }
+        }
+
+        function stopDrawing() {
+            if (drawing) {
+                drawing = false;
+                output.value = JSON.stringify(coordinates, null, 2);
+            }
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startDrawing(e);
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            draw(e);
+        });
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopDrawing();
+        });
+        canvas.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            stopDrawing();
+        });
+    </script>
+</body>
+</html>
