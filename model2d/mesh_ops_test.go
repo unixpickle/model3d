@@ -56,6 +56,32 @@ func TestMeshSubdivide(t *testing.T) {
 	}
 }
 
+func TestMeshSubdividePath(t *testing.T) {
+	mesh := MarchingSquaresSearch(&Circle{Radius: 0.9}, 0.01, 8)
+
+	// Remove some segment and subdivide it separately,
+	// which should actually leave it unchanged.
+	seg := mesh.SegmentsSlice()[0]
+	mesh.Remove(seg)
+	mesh1 := mesh.SubdividePath(2)
+	mesh2 := NewMeshSegments([]*Segment{seg}).SubdividePath(2)
+	mesh1.AddMesh(mesh2)
+	mesh.Add(seg)
+
+	MustValidateMesh(t, mesh1, true)
+
+	sdf := MeshToSDF(mesh)
+	sdf1 := MeshToSDF(mesh1)
+	for i := 0; i < 1000; i++ {
+		c := NewCoordRandNorm()
+		s1 := sdf.SDF(c)
+		s2 := sdf1.SDF(c)
+		if math.Abs(s1-s2) > 0.01 {
+			t.Errorf("bad SDF at %v: expected %f but got %f", c, s1, s2)
+		}
+	}
+}
+
 func TestMeshRepair(t *testing.T) {
 	original := NewMesh()
 	for i := 0.0; i < 2*math.Pi; i += 0.1 {

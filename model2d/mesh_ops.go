@@ -93,6 +93,53 @@ func (m *Mesh) Subdivide(iters int) *Mesh {
 	return current
 }
 
+// SubdividePath is like Subdivide, except that it is meant
+// to be applied to meshes that include unclosed paths
+// rather than closed, manifold meshes.
+//
+// There should be no cycles in the paths in the mesh, i.e.
+// no vertices with more than two attached segments.
+func (m *Mesh) SubdividePath(iters int) *Mesh {
+	if iters < 1 {
+		panic("must subdivide for at least one iteration")
+	}
+	current := m
+	for i := 0; i < iters; i++ {
+		next := NewMesh()
+		current.Iterate(func(s *Segment) {
+			len0 := len(current.Find(s[0]))
+			len1 := len(current.Find(s[1]))
+			if len0 > 2 || len1 > 2 {
+				panic("mesh does not consist of manifold sub-meshes or unclosed loops")
+			}
+			mp1 := s[0].Scale(0.75).Add(s[1].Scale(0.25))
+			mp2 := s[1].Scale(0.75).Add(s[0].Scale(0.25))
+			if len0 == 2 && len1 == 2 {
+				next.Add(&Segment{mp1, mp2})
+			}
+
+			if len1 == 2 {
+				others := current.Find(s[1])
+				s1 := others[0]
+				if s1 == s {
+					s1 = others[1]
+				}
+				mp3 := s1[0].Scale(0.75).Add(s1[1].Scale(0.25))
+				next.Add(&Segment{mp2, mp3})
+				if len0 == 1 {
+					next.Add(&Segment{s[0], mp2})
+				}
+			} else if len0 == 2 {
+				next.Add(&Segment{mp1, s[1]})
+			} else {
+				next.Add(&Segment{s[0], s[1]})
+			}
+		})
+		current = next
+	}
+	return current
+}
+
 // Manifold checks if the mesh is manifold, i.e. if every
 // vertex has two segments.
 func (m *Mesh) Manifold() bool {
