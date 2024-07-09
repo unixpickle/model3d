@@ -228,6 +228,7 @@ func TestCapsuleSDF(t *testing.T) {
 }
 
 func TestConeSDF(t *testing.T) {
+	rand.Seed(0)
 	for i := 0; i < 10; i++ {
 		p1 := NewCoord3DRandUnit()
 		p2 := NewCoord3DRandUnit()
