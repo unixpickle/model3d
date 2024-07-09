@@ -2,6 +2,7 @@ package model2d
 
 import (
 	"math"
+	"sort"
 	"sync"
 
 	"github.com/unixpickle/model3d/numerical"
@@ -67,13 +68,12 @@ func CurveTranspose(c Curve) Curve {
 // along the curve.
 func CurveMesh(c Curve, n int) *Mesh {
 	m := NewMesh()
-	t1 := 0.0
-	c1 := c.Eval(t1)
+	c1 := c.Eval(0.0)
 	for i := 0; i < n; i++ {
 		t2 := float64(i+1) / float64(n)
 		c2 := c.Eval(t2)
 		m.Add(&Segment{c1, c2})
-		t1, c1 = t2, c2
+		c1 = c2
 	}
 	return m
 }
@@ -355,6 +355,90 @@ func (b BezierCurve) cubicLength(tol float64, maxSplits int) float64 {
 
 	b1, b2 := b.Split(0.5)
 	return b1.cubicLength(tol/2, maxSplits-1) + b2.cubicLength(tol/2, maxSplits-1)
+}
+
+// FuncCurve is a Curve defined as a single function.
+type FuncCurve func(t float64) Coord
+
+// Eval returns the result of f(t).
+func (f FuncCurve) Eval(t float64) Coord {
+	return f(t)
+}
+
+// A SegmentCurve is a curve comprised of connected linear
+// segments.
+type SegmentCurve struct {
+	segments    []*Segment
+	lengths     []float64
+	totalLength float64
+}
+
+// NewSegmentCurve creates a SegmentCurve from a sequence
+// of consecutive segments along the curve.
+func NewSegmentCurve(segments []*Segment) *SegmentCurve {
+	var lengths []float64
+	var totalLength float64
+	for _, x := range segments {
+		lengths = append(lengths, totalLength)
+		totalLength += x.Length()
+	}
+	return &SegmentCurve{
+		segments:    segments,
+		lengths:     lengths,
+		totalLength: totalLength,
+	}
+}
+
+// NewSegmentCurveMesh turns a mesh, which must contain a single
+// unclosed continuous path, into a curve.
+//
+// The mesh should have exactly two vertices which are
+// connected to one segment, and the rest should connect to
+// two segments.
+// The second vertex of each segment should be connected to
+// the first vertex of the next segment, except for the
+// final segment in the path.
+func NewSegmentCurveMesh(m *Mesh) *SegmentCurve {
+	var firstSeg *Segment
+	m.Iterate(func(s *Segment) {
+		if count := len(m.Find(s[0])); count == 1 {
+			if firstSeg != nil {
+				panic("multiple first-vertices found in mesh")
+			}
+			firstSeg = s
+		} else if count != 2 {
+			panic("mesh has loops")
+		}
+	})
+
+	var segments []*Segment
+	removed := m.Copy()
+	removed.Remove(firstSeg)
+	segments = append(segments, firstSeg)
+	nextPoint := firstSeg[1]
+	for removed.NumSegments() > 0 {
+		segs := removed.Find(nextPoint)
+		if len(segs) != 1 {
+			panic("mesh is not a valid single closed path")
+		}
+		segments = append(segments, segs[0])
+		nextPoint = segs[0][1]
+		removed.Remove(segs[0])
+	}
+	return NewSegmentCurve(segments)
+}
+
+// Eval returns the piecewise-linear interpolated point.
+func (s *SegmentCurve) Eval(t float64) Coord {
+	l := t * s.totalLength
+	idx := sort.SearchFloat64s(s.lengths, l)
+	if idx == len(s.segments) {
+		idx -= 1
+	}
+	seg := s.segments[idx]
+	offset := l - s.lengths[idx]
+	offsetFrac := offset / seg.Length()
+	return seg[0].Add(seg[1].Sub(seg[0]).Scale(offsetFrac))
 }
 
 // CacheScalarFunc creates a scalar function that is
