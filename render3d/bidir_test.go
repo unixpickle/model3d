@@ -29,7 +29,7 @@ func TestBidirPathTracer(t *testing.T) {
 		MaxDepth:        10,
 		NumSamples:      100000,
 		MinSamples:      1000,
-		MaxStddev:       0.002,
+		MaxStddev:       0.0015,
 	}
 
 	groundTruth := NewImage(4, 4)
@@ -41,7 +41,7 @@ func TestBidirPathTracer(t *testing.T) {
 		MaxDepth:   10,
 		NumSamples: 200000,
 		MinSamples: 1000,
-		MaxStddev:  0.00175,
+		MaxStddev:  0.0015,
 	}
 
 	runTest := func(t *testing.T) {
