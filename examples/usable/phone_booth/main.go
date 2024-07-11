@@ -154,7 +154,7 @@ func BodySolid(a *Args) (model3d.Solid, float64) {
 	}
 
 	// Cut out for slot
-	cuts = append(cuts, model3d.NewRect(
+	slot := model3d.NewRect(
 		model3d.XYZ(
 			-a.SideLength/2+a.CornerMargin-a.SlotExtraEdge,
 			a.SideLength/2-a.DividerThickness-a.SlotThickness,
@@ -165,7 +165,9 @@ func BodySolid(a *Args) (model3d.Solid, float64) {
 			a.SideLength/2-a.DividerThickness,
 			a.Height-headingHeight+a.SlotExtraEdge,
 		),
-	))
+	)
+	cuts = append(cuts, slot)
+	log.Printf("Slot size: %f x %f", slot.Max().X-slot.Min().X, slot.Max().Z-slot.Min().Z)
 
 	// Cut out all four sides, with radial symmetry.
 	allCuts := model3d.JoinedSolid{}
