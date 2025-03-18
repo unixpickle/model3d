@@ -10,6 +10,7 @@ import (
 )
 
 func TestHeigthMapInterp(t *testing.T) {
+	rand.Seed(0)
 	hm := createRandomizedHeightMap()
 	for i := 0; i < 1000; i++ {
 		c1 := model2d.NewCoordRandBounds(
@@ -26,6 +27,7 @@ func TestHeigthMapInterp(t *testing.T) {
 }
 
 func TestHeightMapAdd(t *testing.T) {
+	rand.Seed(0)
 	h1 := createRandomizedHeightMap()
 	h2 := h1.Copy()
 	hAdd := createRandomizedHeightMap()
@@ -44,6 +46,7 @@ func TestHeightMapAdd(t *testing.T) {
 }
 
 func TestHeightMapAddSphere(t *testing.T) {
+	rand.Seed(0)
 	h := NewHeightMap(model2d.XY(-1, -1), model2d.XY(1, 1), 1000)
 	h.AddSphere(model2d.XY(0.1, 0.1), 0.3)
 
@@ -63,6 +66,7 @@ func TestHeightMapAddSphere(t *testing.T) {
 }
 
 func TestHeightMapMesh(t *testing.T) {
+	rand.Seed(0)
 	h := NewHeightMap(model2d.XY(-1, -1), model2d.XY(1, 1), 100)
 	for i := 0; i < h.Rows; i++ {
 		for j := 0; j < h.Cols; j++ {
