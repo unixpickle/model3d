@@ -14,18 +14,21 @@ type Args struct {
 	DiscThickness             float64 `default:"0.1"`
 	BaseThickness             float64 `default:"0.2"`
 	ObstacleThickness         float64 `default:"0.1"`
-	ObstacleGapToDisc         float64 `default:"0.1"`
+	ObstacleGapToDisc         float64 `default:"0.05"`
 	ObstacleHeight            float64 `default:"0.9"`
+	ObstacleStartRadius       float64 `default:"0.2"`
 	GrooveDepth               float64 `default:"0.05"`
 	PoleRadius                float64 `default:"0.07"`
 	PoleOutsetX               float64 `default:"0.6"`
 	PoleOutsetY               float64 `default:"0.4"`
 	PoleHeight                float64 `default:"0.7"`
-	ObstacleCutoutRadius      float64 `default:"0.09"`
+	ObstacleCutoutRadius      float64 `default:"0.1"`
 	ObstacleCutoutExtraHeight float64 `default:"0.2"`
-	DiscCutoutThickness       float64 `default:"0.12"`
+	DiscCutoutPlay            float64 `default:"0.03"`
 	DiscHoverGap              float64 `default:"0.02"`
 	DiscRadius                float64 `default:"1.0"`
+	DiscAxleRadius            float64 `default:"0.1"`
+	DiscAxlePlay              float64 `default:"0.01"`
 	BaseSize                  float64 `default:"1.3"`
 
 	Delta float64 `default:"0.01"`
@@ -39,7 +42,8 @@ func main() {
 	log.Println("Creating disc component...")
 	disc := CreateDisc(&a, true)
 	pole := CreatePole(&a)
-	part1 := model3d.JoinedSolid{disc, pole}
+	axle := CreateDiscAxle(&a)
+	part1 := model3d.JoinedSolid{disc, pole, axle}
 	mesh1 := model3d.DualContour(part1, a.Delta, true, false)
 
 	log.Println("Creating board and obstacle component...")
@@ -83,7 +87,8 @@ func CreateDisc(a *Args, cutoutForObstacle bool) model3d.Solid {
 			r := c.XY().Norm()
 			if r > a.DiscRadius {
 				return false
-			} else if cutoutForObstacle && math.Abs(c.Y) < a.DiscCutoutThickness/2 && c.X > 0 {
+			} else if cutoutForObstacle && math.Abs(c.Y) < a.ObstacleThickness/2+a.DiscCutoutPlay &&
+				c.X > a.ObstacleStartRadius-a.DiscCutoutPlay {
 				return false
 			} else if c.Z < 0 {
 				targetGroveRad := a.DiscRadius - a.GrooveDepth
@@ -94,6 +99,14 @@ func CreateDisc(a *Args, cutoutForObstacle bool) model3d.Solid {
 			}
 		},
 	)
+}
+
+func CreateDiscAxle(a *Args) *model3d.Cylinder {
+	return &model3d.Cylinder{
+		P1:     model3d.Z(-a.BaseThickness - 1e-5),
+		P2:     model3d.Z(1e-5),
+		Radius: a.DiscAxleRadius,
+	}
 }
 
 func CreatePole(a *Args) model3d.Solid {
@@ -133,7 +146,7 @@ func polePoints(a *Args) (model3d.Coord3D, model3d.Coord3D) {
 func CreateObstacle(a *Args) model3d.Solid {
 	mainRect := model3d.NewRect(
 		model3d.XYZ(-a.BaseSize, -a.ObstacleThickness/2, a.DiscThickness+a.ObstacleGapToDisc),
-		model3d.XYZ(0, a.ObstacleThickness/2, a.DiscThickness+a.ObstacleHeight),
+		model3d.XYZ(-a.ObstacleStartRadius, a.ObstacleThickness/2, a.DiscThickness+a.ObstacleHeight),
 	)
 	connectRect := model3d.NewRect(
 		model3d.XYZ(-a.BaseSize, -a.ObstacleThickness/2, -a.DiscHoverGap-1e-5),
@@ -155,6 +168,9 @@ func CreateBoard(a *Args) model3d.Solid {
 			P2:     model3d.Z(-a.DiscHoverGap),
 			Radius: a.BaseSize,
 		},
-		Negative: CreateDisc(a, false),
+		Negative: model3d.JoinedSolid{
+			CreateDisc(a, false),
+			model3d.SDFToSolid(CreateDiscAxle(a), a.DiscAxlePlay),
+		},
 	}
 }
