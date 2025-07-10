@@ -97,7 +97,7 @@ func (j JoinedSolid) Optimize() Solid {
 
 func groupedSolidsToSolid(s []Solid) Solid {
 	if len(s) == 1 {
-		return CacheSolidBounds(s[0].(Solid))
+		return CacheSolidBounds(s[0])
 	}
 	firstHalf := s[:len(s)/2]
 	secondHalf := s[len(s)/2:]
@@ -112,6 +112,11 @@ func groupedSolidsToSolid(s []Solid) Solid {
 type SubtractedSolid struct {
 	Positive Solid
 	Negative Solid
+}
+
+// Subtract creates a solid subtracting y from x.
+func Subtract(x, y Solid) *SubtractedSolid {
+	return &SubtractedSolid{Positive: x, Negative: y}
 }
 
 func (s *SubtractedSolid) Min() Coord {

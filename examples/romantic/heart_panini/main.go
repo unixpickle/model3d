@@ -14,7 +14,7 @@ var args struct {
 	CrustThickness    float64 `default:"0.3"`
 	CrustCutDepth     float64 `default:"0.09"`
 	CrustCutSpacing   float64 `default:"1.0"`
-	Delta             float64 `default:"0.02"`
+	Delta             float64 `default:"0.015"`
 	TomatoRadius      float64 `default:"1.0"`
 	TomatoThickness   float64 `default:"0.25"`
 	ScrewRadius       float64 `default:"0.2"`

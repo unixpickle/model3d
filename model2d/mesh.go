@@ -316,7 +316,7 @@ func (m *Mesh) Translate(v Coord) *Mesh {
 	return m.MapCoords(v.Add)
 }
 
-// CenterBounds translates the mesh so that the midpoint of
+// Center translates the mesh so that the midpoint of
 // Min() and Max() is the origin.
 func (m *Mesh) Center() *Mesh {
 	return m.Translate(m.Min().Mid(m.Max()).Scale(-1))
