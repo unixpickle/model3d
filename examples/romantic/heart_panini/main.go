@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"log"
+	"math"
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
+	"github.com/unixpickle/model3d/render3d"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -73,20 +75,36 @@ func main() {
 	cutTomatoes := model3d.Subtract(tomatoes, screwCutout)
 
 	log.Println("Creating top...")
-	mesh := Meshify(cutTop)
-	mesh.SaveGroupedSTL("panini_top.stl")
+	mesh1 := Meshify(cutTop)
+	mesh1.SaveGroupedSTL("panini_top.stl")
 
 	log.Println("Creating bottom...")
-	mesh = Meshify(cutBottom)
-	mesh.SaveGroupedSTL("panini_bottom.stl")
+	mesh2 := Meshify(cutBottom)
+	mesh2.SaveGroupedSTL("panini_bottom.stl")
 
 	log.Println("Creating tomatoes...")
-	mesh = Meshify(cutTomatoes)
-	mesh.SaveGroupedSTL("panini_tomatoes.stl")
+	mesh3 := Meshify(cutTomatoes)
+	mesh3.SaveGroupedSTL("panini_tomatoes.stl")
 
 	log.Println("Creating screw...")
-	mesh = Meshify(screw)
-	mesh.SaveGroupedSTL("panini_screw.stl")
+	mesh4 := Meshify(screw)
+	mesh4.SaveGroupedSTL("panini_screw.stl")
+
+	log.Println("Rendering...")
+	combined := model3d.NewMesh()
+	for _, m := range []*model3d.Mesh{mesh1, mesh2, mesh3, mesh4} {
+		combined.AddMesh(m)
+	}
+	tomatoSDF := model3d.MeshToSDF(mesh3)
+	render3d.SaveRandomGrid("rendering.png", combined, 3, 3, 300,
+		func(c model3d.Coord3D, _ model3d.RayCollision) render3d.Color {
+			if math.Abs(tomatoSDF.SDF(c)) < 1e-5 {
+				return render3d.NewColorRGB(1.0, 0.0, 0.0)
+			} else {
+				return render3d.NewColorRGB(0.702, 0.455, 0.133)
+			}
+		},
+	)
 }
 
 func Meshify(s model3d.Solid) *model3d.Mesh {
