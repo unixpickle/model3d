@@ -12,7 +12,7 @@ func RingBox() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	box := model3d.NewRect(model3d.XYZ(-0.9, -0.9, -0.5), model3d.XYZ(0.9, 0.9, 0.5))
 	outer := model3d.NewColliderSolidInset(box, -0.2)
 	inner := model3d.NewColliderSolidInset(box, -0.1)
-	fullBox := &model3d.SubtractedSolid{Positive: outer, Negative: inner}
+	fullBox := model3d.Subtract(outer, inner)
 
 	boxBottom := toolbox3d.ClampAxis(fullBox, toolbox3d.AxisZ, math.Inf(-1), 0.0)
 	boxTop := toolbox3d.ClampAxis(fullBox, toolbox3d.AxisZ, 0.0, math.Inf(1))

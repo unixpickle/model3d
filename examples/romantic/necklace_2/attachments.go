@@ -39,7 +39,7 @@ func Attachment(name string) model3d.Solid {
 				ImageAttachmentThickness/2-ImageAttachmentEngravingDepth,
 				ImageAttachmentThickness/2+1e-5,
 			)
-			return &model3d.SubtractedSolid{Positive: baseSolid, Negative: engraving3d}
+			return model3d.Subtract(baseSolid, engraving3d)
 		}
 		return baseSolid
 	}

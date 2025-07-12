@@ -82,11 +82,7 @@ func (s *ScrewSolid) Contains(c model3d.Coord3D) bool {
 	zOffset := math.Atan2(offset.Y, offset.X) * s.GrooveSize / math.Pi
 	offZ := offset.Z - zOffset
 	roundedZ := math.Round(offZ/(s.GrooveSize*2)) * s.GrooveSize * 2
-	if math.Abs(roundedZ-offZ) <= maxDistance {
-		return true
-	}
-
-	return false
+	return math.Abs(roundedZ-offZ) <= maxDistance
 }
 
 func (s *ScrewSolid) boundingCylinder() *model3d.CylinderSolid {

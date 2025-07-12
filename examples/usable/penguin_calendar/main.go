@@ -24,7 +24,7 @@ func main() {
 	)
 	fullSolid := model3d.JoinedSolid{
 		base,
-		&model3d.SubtractedSolid{Positive: body, Negative: hole},
+		model3d.Subtract(body, hole),
 	}
 	bodyColorFuncs = append(bodyColorFuncs,
 		base, toolbox3d.ConstantCoordColorFunc(render3d.NewColor(1.0)))

@@ -109,7 +109,7 @@ func (m *MeshSmoother) smoothInternal(mesh *Mesh) (*indexMesh, []Coord3D) {
 				newCoords[j] = newCoords[j].Add(grad.Scale(-m.StepSize))
 			}
 		}
-		if hardConstraints != nil {
+		if len(hardConstraints) > 0 {
 			for _, i := range hardConstraints {
 				newCoords[i] = im.Coords[i]
 			}

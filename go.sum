@@ -4,5 +4,3 @@ github.com/unixpickle/essentials v1.3.0 h1:H258Z5Uo1pVzFjxD2rwFWzHPN3s0J0jLs5kux
 github.com/unixpickle/essentials v1.3.0/go.mod h1:dQ1idvqrgrDgub3mfckQm7osVPzT3u9rB6NK/LEhmtQ=
 github.com/unixpickle/splaytree v1.1.0 h1:LXYm3OHPHLacGrUnEsrES4i8DFTqwyw1eoxXuZIE6kM=
 github.com/unixpickle/splaytree v1.1.0/go.mod h1:Wmzeu7zl1qJVgZXlOdWib73pZlFOsFVgYo3k/72bYDw=
-golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 h1:aAcj0Da7eBAtrTp03QXWvm88pSyOt+UgdZw2BFZ+lEw=
-golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8/go.mod h1:CQ1k9gNrJ50XIzaKCRR2hssIjF07kZFEiieALBM/ARQ=

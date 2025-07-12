@@ -37,13 +37,7 @@ func CreateFrame() model3d.Solid {
 	// Back wall.
 	wallMin := solid.Min()
 	wallMin.Y = solid.Max().Y - FrameThickness
-	solid = append(solid, &model3d.SubtractedSolid{
-		Positive: &model3d.Rect{
-			MinVal: wallMin,
-			MaxVal: solid.Max(),
-		},
-		Negative: BackWallHole{},
-	})
+	solid = append(solid, model3d.Subtract(model3d.NewRect(wallMin, solid.Max()), BackWallHole{}))
 
 	// Ridges for shelves.
 	for i := 0; i < DrawerCount; i++ {
@@ -74,11 +68,7 @@ func CreateFrame() model3d.Solid {
 			0, -1, 0,
 		},
 	}
-	return model3d.TransformSolid(rotate,
-		&model3d.SubtractedSolid{
-			Positive: solid,
-			Negative: holes,
-		})
+	return model3d.TransformSolid(rotate, model3d.Subtract(solid, holes))
 }
 
 func CreateRidge(z float64, onRight bool) model3d.Solid {

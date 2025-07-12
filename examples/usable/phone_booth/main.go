@@ -43,10 +43,7 @@ func main() {
 	_ = headingHeight
 
 	textCutout := TelephoneTextSolid(&args, headingHeight)
-	solid := &model3d.SubtractedSolid{
-		Positive: mainSolid,
-		Negative: textCutout,
-	}
+	solid := model3d.Subtract(mainSolid, textCutout)
 	outsetCutout := model3d.NewColliderSolidInset(
 		model3d.MeshToCollider(model3d.DualContour(textCutout, 0.005, true, false)),
 		-0.001,
@@ -69,7 +66,7 @@ func main() {
 		if top {
 			cutSolid = model3d.IntersectedSolid{topRect, solid}
 		} else {
-			cutSolid = &model3d.SubtractedSolid{Positive: solid, Negative: topRect}
+			cutSolid = model3d.Subtract(solid, topRect)
 		}
 		if top {
 			// Inside part to prevent the top from sliding
@@ -87,7 +84,7 @@ func main() {
 				model3d.XYZ(-side, -side, 0),
 				model3d.XYZ(side, side, args.Height),
 			)
-			cutSolid = &model3d.SubtractedSolid{Positive: cutSolid, Negative: cutout}
+			cutSolid = model3d.Subtract(cutSolid, cutout)
 		}
 		mesh := model3d.DualContour(cutSolid, 0.01, true, false)
 		oldCount := mesh.NumTriangles()
@@ -178,7 +175,7 @@ func BodySolid(a *Args) (model3d.Solid, float64) {
 
 	fullSolid := model3d.JoinedSolid{
 		model3d.IntersectedSolid{
-			&model3d.SubtractedSolid{Positive: bodyRect, Negative: allCuts},
+			model3d.Subtract(bodyRect, allCuts),
 			intersectTopSphere,
 		},
 		top,

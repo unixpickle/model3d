@@ -30,13 +30,13 @@ func main() {
 	biggerStem.Radius += 0.005
 	biggerStem.P2.Z += 0.005
 
-	solid := &model3d.SubtractedSolid{
-		Positive: model3d.JoinedSolid{
+	solid := model3d.Subtract(
+		model3d.JoinedSolid{
 			NewAppleSolid(),
 			stem,
 		},
-		Negative: bite,
-	}
+		bite,
+	)
 
 	mesh := model3d.MarchingCubesSearch(solid, 0.005, 8)
 

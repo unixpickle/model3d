@@ -43,9 +43,9 @@ func CreateDrawer() model3d.Solid {
 
 	mid := min.Mid(max)
 
-	return &model3d.SubtractedSolid{
-		Positive: result,
-		Negative: model3d.JoinedSolid{
+	return model3d.Subtract(
+		result,
+		model3d.JoinedSolid{
 			&RidgeSolid{X1: min.X, X2: min.X + RidgeDepth, Z: mid.Z},
 			&RidgeSolid{X1: max.X, X2: max.X - RidgeDepth, Z: mid.Z},
 			toolbox3d.Teardrop3D(
@@ -54,5 +54,5 @@ func CreateDrawer() model3d.Solid {
 				DrawerHoleRadius,
 			),
 		},
-	}
+	)
 }

@@ -20,10 +20,7 @@ func TestRectSetAddRemove(t *testing.T) {
 			bounder = append(bounder, nextRect)
 			if rand.Intn(2) == 0 {
 				rectSet.Remove(nextRect)
-				solid = &model3d.SubtractedSolid{
-					Positive: solid,
-					Negative: nextRect,
-				}
+				solid = model3d.Subtract(solid, nextRect)
 			} else {
 				rectSet.Add(nextRect)
 				solid = model3d.JoinedSolid{solid, nextRect}
@@ -54,10 +51,7 @@ func TestRemoveRectSet(t *testing.T) {
 		rs1 := randomRectSet()
 		rs2 := randomRectSet()
 
-		expected := &model3d.SubtractedSolid{
-			Positive: naiveRectSetSolid(rs1),
-			Negative: naiveRectSetSolid(rs2),
-		}
+		expected := model3d.Subtract(naiveRectSetSolid(rs1), naiveRectSetSolid(rs2))
 		rs1.RemoveRectSet(rs2)
 		testSolidsEquivalent(t, expected, naiveRectSetSolid(rs1), expected)
 	}

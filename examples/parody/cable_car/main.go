@@ -343,7 +343,7 @@ func ArchedTop() (model3d.Solid, toolbox3d.CoordColorFunc) {
 				},
 				&outerCurve,
 			},
-			&model3d.SubtractedSolid{Positive: &outerCurve, Negative: &innerCurve},
+			model3d.Subtract(&outerCurve, &innerCurve),
 		},
 		bounds,
 	}, toolbox3d.ConstantCoordColorFunc(CarColor)

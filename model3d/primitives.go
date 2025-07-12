@@ -338,7 +338,7 @@ func (t *Triangle) TriangleCollisions(t1 *Triangle) []Segment {
 		// Equivalent to a column swap during gaussian
 		// elimination to find any solution.
 		matA = m2
-		v3, v4 = v4, v3
+		_, v4 = v4, v3
 	}
 	invA := matA.Inverse()
 	o := invA.MulColumn(t1[0].Sub(t[0]))

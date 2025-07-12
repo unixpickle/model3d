@@ -195,15 +195,14 @@ func mcSearch(s Solid, delta float64, iters int, mesh *Mesh, interior *CoordMap[
 	if interior != nil {
 		interiorVertices := make([]Coord3D, len(inVertices))
 		essentials.ConcurrentMap(0, len(inVertices), func(i int) {
-			outVertices[i] = mcSearchPoint(s, delta, iters, mesh, spacer, inVertices[i],
-				&interiorVertices[i])
+			outVertices[i] = mcSearchPoint(s, iters, spacer, inVertices[i], &interiorVertices[i])
 		})
 		for i, c := range outVertices {
 			interior.Store(c, interiorVertices[i])
 		}
 	} else {
 		essentials.ConcurrentMap(0, len(inVertices), func(i int) {
-			outVertices[i] = mcSearchPoint(s, delta, iters, mesh, spacer, inVertices[i], nil)
+			outVertices[i] = mcSearchPoint(s, iters, spacer, inVertices[i], nil)
 		})
 	}
 
@@ -225,8 +224,13 @@ func mcSearch(s Solid, delta float64, iters int, mesh *Mesh, interior *CoordMap[
 	mesh.vertexToFace = atomic.Value{}
 }
 
-func mcSearchPoint(s Solid, delta float64, iters int, m *Mesh, spacer *squareSpacer,
-	c Coord3D, interiorPoint *Coord3D) Coord3D {
+func mcSearchPoint(
+	s Solid,
+	iters int,
+	spacer *squareSpacer,
+	c Coord3D,
+	interiorPoint *Coord3D,
+) Coord3D {
 	axis, falsePoint, truePoint := spacer.LookupEdgePoint(c)
 
 	arr := c.Array()

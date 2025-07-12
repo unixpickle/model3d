@@ -241,16 +241,6 @@ type ptrTriangle struct {
 	Next   *ptrTriangle
 }
 
-// newPtrTriangle creates a triangle and adds it to all of
-// its coordinates.
-func newPtrTriangle(c1, c2, c3 *ptrCoord) *ptrTriangle {
-	res := &ptrTriangle{Coords: [3]*ptrCoord{c1, c2, c3}}
-	for _, c := range res.Coords {
-		c.Triangles = append(c.Triangles, res)
-	}
-	return res
-}
-
 // Triangle creates a geometric triangle for p.
 func (p *ptrTriangle) Triangle() *Triangle {
 	return &Triangle{p.Coords[0].Coord3D, p.Coords[1].Coord3D, p.Coords[2].Coord3D}

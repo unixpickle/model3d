@@ -7,14 +7,13 @@ func singularVertexFamilies(m *model3d.Mesh, v model3d.Coord3D) [][]*model3d.Tri
 	tris := m.Find(v)
 	for len(tris) > 0 {
 		var family []*model3d.Triangle
-		family, tris = singularVertexNextFamily(m, tris)
+		family, tris = singularVertexNextFamily(tris)
 		families = append(families, family)
 	}
 	return families
 }
 
-func singularVertexNextFamily(m *model3d.Mesh, tris []*model3d.Triangle) (family,
-	leftover []*model3d.Triangle) {
+func singularVertexNextFamily(tris []*model3d.Triangle) (family, leftover []*model3d.Triangle) {
 	// See mesh.SingularVertices() for an explanation of
 	// this algorithm.
 

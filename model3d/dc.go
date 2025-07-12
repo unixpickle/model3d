@@ -828,7 +828,7 @@ type singularEdgeGroup struct {
 	Edge       Segment
 }
 
-func newSingularEdgeGroup(m *Mesh, s Segment, tris []*Triangle) *singularEdgeGroup {
+func newSingularEdgeGroup(s Segment, tris []*Triangle) *singularEdgeGroup {
 	if len(tris)%2 != 0 {
 		panic("invalid triangle count")
 	}
@@ -925,7 +925,7 @@ func (s *singularEdgeGroup) Map(mapping *CoordMap[Coord3D]) {
 }
 
 func (s *singularEdgeGroup) RecomputeGroups(m *Mesh) {
-	*s = *newSingularEdgeGroup(m, s.Edge, m.Find(s.Edge[0], s.Edge[1]))
+	*s = *newSingularEdgeGroup(s.Edge, m.Find(s.Edge[0], s.Edge[1]))
 }
 
 func (s *singularEdgeGroup) Repair(m *Mesh, epsilon float64) {
@@ -966,7 +966,7 @@ func singularEdgeGroups(m *Mesh) []*singularEdgeGroup {
 	})
 	counts.Range(func(key [2]Coord3D, tris []*Triangle) bool {
 		if len(tris) > 2 {
-			results = append(results, newSingularEdgeGroup(m, Segment(key), tris))
+			results = append(results, newSingularEdgeGroup(Segment(key), tris))
 		}
 		return true
 	})
