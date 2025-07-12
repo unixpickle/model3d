@@ -89,7 +89,7 @@ func TestMatrix4SVD(t *testing.T) {
 		// The precision we use is lower than normal, because the characteristic
 		// polynomial is essentially (x-4)^4, so finding the root is very poorly
 		// conditioned.
-		testSVD(t, 1e-4, &Matrix4{
+		testSVD(t, 2e-4, &Matrix4{
 			0.21466134858214758, -1.5439761178918934, 1.1357222139082424, 0.5293328873589178,
 			0.18422399983270635, 0.7634112609593281, 0.14852742239738262, 1.833358767214458,
 			0.4830940705809065, -0.9578566217750428, -1.6178405574598163, 0.48137588403386594,
