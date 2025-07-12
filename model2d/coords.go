@@ -221,6 +221,18 @@ func (c Coord) fastHash() uint32 {
 // fastHash64 is like fastHash, but uses a 64-bit hash
 // space to help mitigate collisions.
 func (c Coord) fastHash64() uint64 {
-	// Coefficients are random (keyboard mashed).
-	return math.Float64bits(0.78378384728594870293*c.X + 0.12938729312040294193*c.Y)
+	return hash2(math.Float64bits(c.X), math.Float64bits(c.Y))
+}
+
+func hash2(x, y uint64) uint64 {
+	const prime1 = 0x9e3779b185ebca87
+	const prime2 = 0xc2b2ae3d27d4eb4f
+
+	h := x*prime1 ^ y*prime2
+	h ^= h >> 33
+	h *= 0xff51afd7ed558ccd
+	h ^= h >> 33
+	h *= 0xc4ceb9fe1a85ec53
+	h ^= h >> 33
+	return h
 }

@@ -427,7 +427,19 @@ func (c Coord3D) fastHash() uint32 {
 // fastHash64 is like fastHash, but uses a 64-bit hash
 // space to help mitigate collisions.
 func (c Coord3D) fastHash64() uint64 {
-	// Coefficients are random (keyboard mashed).
-	return math.Float64bits(0.78378384728594870293*c.X + 0.12938729312040294193*c.Y +
-		0.98439472938948227499*c.Z)
+	return hash3(math.Float64bits(c.X), math.Float64bits(c.Y), math.Float64bits(c.Z))
+}
+
+func hash3(x, y, z uint64) uint64 {
+	const prime1 = 0x9e3779b185ebca87 // golden ratio
+	const prime2 = 0xc2b2ae3d27d4eb4f
+	const prime3 = 0x165667b19e3779f9
+
+	h := x*prime1 ^ y*prime2 ^ z*prime3
+	h ^= h >> 33
+	h *= 0xff51afd7ed558ccd
+	h ^= h >> 33
+	h *= 0xc4ceb9fe1a85ec53
+	h ^= h >> 33
+	return h
 }

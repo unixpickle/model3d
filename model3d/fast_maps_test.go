@@ -25,7 +25,7 @@ func TestCoordMap(t *testing.T) {
 				delete(baseline, k)
 
 				cm.Delete(k)
-				if val, ok := cm.Load(NewCoord3DRandNorm()); ok || val != nil {
+				if val, ok := cm.Load(k); ok || val != nil {
 					t.Fatalf("deletion did not work, got (%v, %v)", val, ok)
 				}
 			} else {

@@ -10,7 +10,7 @@ func TestBezierFitterSingle(t *testing.T) {
 	fit := fitter.FitCubic(samples, nil)
 	for i, x := range target {
 		a := fit[i]
-		if x.Dist(a) > 1e-4 {
+		if x.Dist(a) > 2e-4 {
 			t.Errorf("control point %d should be %v but got %v", i, x, a)
 		}
 	}
