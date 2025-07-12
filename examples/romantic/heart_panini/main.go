@@ -140,7 +140,7 @@ func CreateBreadSlice() model3d.Solid {
 
 func CreateTomatoes() model3d.Solid {
 	outline := HeartOutline()
-	outlineSolid := model2d.NewColliderSolid(model2d.MeshToCollider(outline))
+	outlineSolid := outline.Solid()
 
 	getArea := func(solid model2d.Solid) float64 {
 		return model2d.MarchingSquaresSearch(solid, 0.05, 8).Area()

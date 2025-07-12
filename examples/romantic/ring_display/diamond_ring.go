@@ -14,7 +14,7 @@ func DiamondRing() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	diamondMesh = diamondMesh.Scale(0.08 / (diamondMesh.Max().X - diamondMesh.Min().X))
 	diamondMesh = diamondMesh.Rotate(model3d.Y(1), -math.Pi/2)
 	diamondMesh = diamondMesh.Translate(diamondMesh.Min().Mid(diamondMesh.Max()).Scale(-1))
-	diamond := model3d.NewColliderSolid(model3d.MeshToCollider(diamondMesh))
+	diamond := diamondMesh.Solid()
 
 	rounding := 0.01
 	thickness := 0.08 - rounding

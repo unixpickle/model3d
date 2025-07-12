@@ -34,7 +34,7 @@ func PenguinBody() (obj model3d.Solid, colors []any) {
 
 func PenguinTorso() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	profile := PenguinProfile()
-	shape := model3d.RevolveSolid(model2d.NewColliderSolid(model2d.MeshToCollider(profile)),
+	shape := model3d.RevolveSolid(profile.Solid(),
 		model3d.Z(1))
 
 	// Squeeze to make it less radially symmetric.

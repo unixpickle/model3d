@@ -23,7 +23,7 @@ func main() {
 func BaseSolid() model3d.Solid {
 	text := model2d.MustReadBitmap("text.png", nil).FlipX().Mesh().SmoothSq(30)
 	text = text.Scale(1.0 / 256.0).Translate(model2d.XY(-2, -2))
-	textSolid := model2d.NewColliderSolid(model2d.MeshToCollider(text))
+	textSolid := text.Solid()
 	return model3d.JoinedSolid{
 		model3d.NewRect(model3d.XYZ(-2, -2, -0.1), model3d.XYZ(2, 2, 0)),
 		model3d.ProfileSolid(textSolid, 0, 0.1),

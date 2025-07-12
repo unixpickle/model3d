@@ -20,7 +20,7 @@ func MarbleHexagonLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	hexMesh := model2d.NewMeshPolar(func(theta float64) float64 {
 		return 1.0
 	}, 6)
-	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(hexMesh))
+	solid2d := hexMesh.Solid()
 	solid3d := model3d.ProfileSolid(solid2d, 0.0, HexThickness)
 
 	streaks := CreateMarbleStreaks()

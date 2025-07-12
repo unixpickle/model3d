@@ -524,3 +524,8 @@ func uniqueVertices(face *Segment, f func(Coord)) {
 	}
 
 }
+
+// Create a solid for the mesh, assuming the mesh represents a valid solid.
+func (m *Mesh) Solid() Solid {
+	return NewColliderSolid(MeshToCollider(m))
+}

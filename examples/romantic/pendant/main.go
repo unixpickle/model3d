@@ -152,7 +152,7 @@ func RawPendantSolid(f *Flags) model3d.Solid {
 
 	image = InsetShape(image, f.Rounding)
 	engravingSolid := model3d.ProfileSolid(
-		model2d.NewColliderSolid(model2d.MeshToCollider(engraving)),
+		engraving.Solid(),
 		f.Thickness/2-f.EngravingDepth,
 		f.Thickness/2+1e-5,
 	)

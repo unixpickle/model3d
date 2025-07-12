@@ -105,7 +105,7 @@ func LoadLabels() (solidOut model2d.Solid, centers []float64) {
 	}
 
 	return model2d.ForceSolidBounds(
-		model2d.NewColliderSolid(model2d.MeshToCollider(fullMesh)),
+		fullMesh.Solid(),
 		model2d.Coord{},
 		model2d.XY(curX, maxHeight),
 	), centers
@@ -117,7 +117,7 @@ func LoadHeart() model2d.Solid {
 	min, max := mesh.Min(), mesh.Max()
 	mesh = mesh.Scale(HeartWidth / (max.X - min.X))
 	mesh = mesh.Translate(mesh.Min().Scale(-1))
-	return model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
+	return mesh.Solid()
 }
 
 func GraphSqueeze(heights []float64) *toolbox3d.SmartSqueeze {

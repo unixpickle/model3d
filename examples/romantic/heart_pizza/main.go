@@ -64,7 +64,7 @@ func GetHeartRim() model3d.Solid {
 
 func GetPizzaBase() model3d.Solid {
 	outline := GetHeartOutline()
-	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(outline))
+	solid2d := outline.Solid()
 	solid3d := model3d.ProfileSolid(solid2d, -CrustRadius, CheeseHeight)
 	return solid3d
 }

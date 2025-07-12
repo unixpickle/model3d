@@ -31,7 +31,7 @@ func CherrySolid() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	)
 	profile := model2d.CurveMesh(curve, 100)
 	profile.AddMesh(profile.MapCoords(model2d.XY(-1, 1).Mul))
-	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(profile))
+	solid2d := profile.Solid()
 	center := CreamHeight + CupHeight
 	solid := model3d.CheckedFuncSolid(
 		model3d.XYZ(-CherryRadius, -CherryRadius, center-CherryRadius),

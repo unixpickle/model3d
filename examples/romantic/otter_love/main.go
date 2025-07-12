@@ -98,7 +98,7 @@ func ReadHeadlines(otterY float64) [2]model3d.Solid {
 		} else {
 			m = m.Translate(model2d.Y(-m.Max().Y - TextSpace))
 		}
-		solid := model2d.NewColliderSolid(model2d.MeshToCollider(m))
+		solid := m.Solid()
 		result[i] = model3d.ProfileSolid(solid, 0, TextHeight)
 	}
 	return result

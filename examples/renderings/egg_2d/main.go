@@ -14,7 +14,7 @@ func main() {
 	}, 300)
 	circle := &model2d.Circle{Radius: 0.3}
 	objs := []any{
-		model2d.NewColliderSolid(model2d.MeshToCollider(egg)),
+		egg.Solid(),
 		circle,
 	}
 	model2d.RasterizeColor("egg.png", objs, []color.Color{

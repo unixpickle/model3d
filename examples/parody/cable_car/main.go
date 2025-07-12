@@ -298,7 +298,7 @@ func ArchSidesText() model3d.Solid {
 	textMesh = textMesh.Scale(math.Min((maxX-minX)/size.X, (maxZ-minZ)/size.Y))
 	center2d := model2d.XY((minX+maxX)/2, (minZ+maxZ)/2)
 	textMesh = textMesh.Center().Translate(center2d)
-	var solid2d model2d.Solid = model2d.NewColliderSolid(model2d.MeshToCollider(textMesh))
+	var solid2d model2d.Solid = textMesh.Solid()
 	var res model3d.JoinedSolid
 	for _, y := range []float64{-1.5 + ArchPanelThickness/2, 1.5 - ArchPanelThickness/2} {
 		profile := model3d.ProfileSolid(solid2d, y-ArchPanelThickness/2, y+ArchPanelThickness/2)

@@ -104,8 +104,8 @@ func createStaticScene() (model3d.PointSDF, render3d.AreaLight, render3d.Object)
 	lightObject := render3d.NewMeshAreaLight(lightMesh, render3d.NewColor(LightBrightness))
 
 	fullObject := model3d.JoinedSolid{
-		model3d.NewColliderSolid(model3d.MeshToCollider(roomMesh)),
-		model3d.NewColliderSolid(model3d.MeshToCollider(lightMesh)),
+		roomMesh.Solid(),
+		lightMesh.Solid(),
 	}
 	fullMesh := model3d.MarchingCubesSearch(fullObject, 0.1, 8)
 	fullSDF := model3d.MeshToSDF(fullMesh)

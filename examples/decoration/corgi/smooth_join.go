@@ -51,5 +51,5 @@ func SmoothJoin(constraint float64, solids ...model3d.Solid) model3d.Solid {
 		},
 	}
 	mesh = smoother.Smooth(mesh)
-	return model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
+	return mesh.Solid()
 }

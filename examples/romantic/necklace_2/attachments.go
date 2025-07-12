@@ -33,7 +33,7 @@ func Attachment(name string) model3d.Solid {
 			model3d.NewColliderSolidHollow(collider3d, ImageAttachmentCornerRounding),
 		}
 		if engraving != nil {
-			engraving2d := model2d.NewColliderSolid(model2d.MeshToCollider(engraving))
+			engraving2d := engraving.Solid()
 			engraving3d := model3d.ProfileSolid(
 				engraving2d,
 				ImageAttachmentThickness/2-ImageAttachmentEngravingDepth,
@@ -109,7 +109,7 @@ func heartAttachment() model3d.Solid {
 		})
 	}
 	mesh = mesh.Scale(0.4 / 7.0)
-	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(mesh))
+	solid2d := mesh.Solid()
 	sdf2d := model2d.MeshToSDF(mesh)
 	spheres := toolbox3d.NewHeightMap(solid2d.Min(), solid2d.Max(), 1024)
 	spheres.AddSpheresSDF(sdf2d, 2000, 1e-5, 0.08)

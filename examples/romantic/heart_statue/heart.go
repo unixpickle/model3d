@@ -22,7 +22,7 @@ func CreateHeart() model3d.Solid {
 		Iterations: 50,
 	}
 	mesh = smoother.Smooth(mesh)
-	return model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
+	return mesh.Solid()
 }
 
 func createRoughHeart() model3d.Solid {

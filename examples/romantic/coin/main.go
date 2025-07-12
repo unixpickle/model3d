@@ -155,7 +155,7 @@ func ReadTemplateIntoMesh(filename string, msResolution float64, smoothIters int
 
 	// Re-mesh this to be constrained to a circle.
 	solid := model2d.IntersectedSolid{
-		model2d.NewColliderSolid(model2d.MeshToCollider(m)),
+		m.Solid(),
 		&model2d.Circle{Radius: radius},
 	}
 	return model2d.MarchingSquaresSearch(solid, radius*msResolution, 8)

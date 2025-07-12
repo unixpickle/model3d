@@ -31,7 +31,7 @@ func HexRoughLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	hexMesh := model2d.NewMeshPolar(func(theta float64) float64 {
 		return HexRoughLayerRadius
 	}, 6)
-	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(hexMesh))
+	solid2d := hexMesh.Solid()
 	solid3d := model3d.ProfileSolid(solid2d, 0.0, HexThickness)
 	solid := MakeRoughShape(solid3d)
 	return solid, toolbox3d.ConstantCoordColorFunc(GoldDripColor)
@@ -44,7 +44,7 @@ func MakeRoughShape(shape model3d.Solid) model3d.Solid {
 		return c.Add(normals.Value(c).Scale(rand.NormFloat64() * RoughRoundLayerNoise))
 	})
 	mesh = model3d.LoopSubdivision(mesh, 1)
-	solid := model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
+	solid := mesh.Solid()
 	min := solid.Min()
 	min.Z = shape.Min().Z
 	return model3d.ForceSolidBounds(solid, min, solid.Max())

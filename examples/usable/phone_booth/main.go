@@ -206,7 +206,7 @@ func TelephoneTextSolid(a *Args, headingHeight float64) model3d.Solid {
 	img = img.Scale(scale)
 	img = img.Translate(img.Min().Mid(img.Max()).Scale(-1))
 	img = img.Translate(model2d.Y(a.Height - headingHeight*0.7))
-	solid2d := model2d.NewColliderSolid(model2d.MeshToCollider(img))
+	solid2d := img.Solid()
 	solid := model3d.RotateSolid(
 		model3d.ProfileSolid(solid2d, a.SideLength/2-a.TextInset, a.SideLength/2+1e-5),
 		model3d.X(1),

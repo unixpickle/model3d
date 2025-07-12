@@ -22,7 +22,7 @@ const (
 func CreateStarSolid() model3d.Solid {
 	baseMesh := CreateStarMesh()
 	return model3d.JoinedSolid{
-		model3d.NewColliderSolid(model3d.MeshToCollider(baseMesh)),
+		baseMesh.Solid(),
 		CreateHolder(model3d.X(StarPointRadius - StarHolderOffset)),
 		&model3d.Torus{
 			Axis:        model3d.Z(1),

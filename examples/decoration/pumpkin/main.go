@@ -121,7 +121,7 @@ func NewEtchSolid() *EtchSolid {
 	scale := model2d.XY(1/float64(bmp.Width), 1/float64(bmp.Height))
 	mesh := bmp.Mesh().SmoothSq(50).MapCoords(scale.Mul)
 	return &EtchSolid{
-		Solid:  model2d.NewColliderSolid(model2d.MeshToCollider(mesh)),
+		Solid:  mesh.Solid(),
 		Radius: 1.6,
 		Height: 1.5,
 	}
