@@ -2,7 +2,10 @@
 
 package model3d
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 // A Bounder is an object contained in an axis-aligned
 // bounding box.
@@ -40,6 +43,12 @@ func BoundsValid(b Bounder) bool {
 		return false
 	}
 	return true
+}
+
+func validateBounds(b Bounder) {
+	if !BoundsValid(b) {
+		panic(fmt.Sprintf("invalid bounds: min=%#v max=%#v", b.Min(), b.Max()))
+	}
 }
 
 // BoundsUnion computes the bounds of one or more bounder.

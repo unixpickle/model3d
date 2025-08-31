@@ -163,9 +163,7 @@ func (d *DualContouring) MeshInterior() (*Mesh, []Coord3D) {
 }
 
 func (d *DualContouring) mesh(interior *[]Coord3D) *Mesh {
-	if !BoundsValid(d.S.Solid) {
-		panic("invalid bounds for solid")
-	}
+	validateBounds(d.S.Solid)
 	s := d.S.Solid
 	layout := newDcCubeLayout(s.Min(), s.Max(), d.Delta, d.NoJitter, d.BufferSize)
 	if len(layout.Zs) < 3 {

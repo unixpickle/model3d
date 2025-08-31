@@ -12,9 +12,7 @@ import (
 // MarchingCubes turns a Solid into a surface mesh using a
 // corrected marching cubes algorithm.
 func MarchingCubes(s Solid, delta float64) *Mesh {
-	if !BoundsValid(s) {
-		panic("invalid bounds for solid")
-	}
+	validateBounds(s)
 
 	table := mcLookupTable()
 	spacer := newSquareSpacer(s, delta)
@@ -83,9 +81,7 @@ func MarchingCubesConj(s Solid, delta float64, iters int, xforms ...Transform) *
 // However, it should never fail to report collisions,
 // since this could cause triangles to be missed.
 func MarchingCubesFilter(s Solid, f func(*Rect) bool, delta float64) *Mesh {
-	if !BoundsValid(s) {
-		panic("invalid bounds for solid")
-	}
+	validateBounds(s)
 
 	table := mcLookupTable()
 	spacer := newSquareSpacer(s, delta)

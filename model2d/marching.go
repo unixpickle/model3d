@@ -16,9 +16,7 @@ import (
 // MarchingSquares turns a Solid into a mesh using a 2D
 // version of the marching cubes algorithm.
 func MarchingSquares(s Solid, delta float64) *Mesh {
-	if !BoundsValid(s) {
-		panic("invalid bounds for solid")
-	}
+	validateBounds(s)
 	table := msLookupTable()
 
 	spacer := newSquareSpacer(s, delta)
@@ -116,9 +114,7 @@ func MarchingSquaresASCII(s Solid, delta float64) string {
 // However, it should never fail to report collisions,
 // since this could cause segments to be missed.
 func MarchingSquaresFilter(s Solid, f func(*Rect) bool, delta float64) *Mesh {
-	if !BoundsValid(s) {
-		panic("invalid bounds for solid")
-	}
+	validateBounds(s)
 
 	table := msLookupTable()
 	spacer := newSquareSpacer(s, delta)
