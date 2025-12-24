@@ -511,3 +511,20 @@ func Write3MF(w io.Writer, unit fileformats.ThreeMFUnit, tris []*Triangle) error
 	}
 	return fileformats.Write3MFMesh(w, unit, coords, im.Triangles)
 }
+
+// Write3MFMulti encodes multiple meshes as parts in a 3MF file.
+func Write3MFMulti(w io.Writer, unit fileformats.ThreeMFUnit, allMeshes [][]*Triangle) error {
+	var allCoords [][][3]float64
+	var allIndices [][][3]int
+
+	for _, mesh := range allMeshes {
+		im := newIndexMesh(NewMeshTriangles(mesh))
+		coords := make([][3]float64, len(im.Coords))
+		for i, c := range im.Coords {
+			coords[i] = c.Array()
+		}
+		allCoords = append(allCoords, coords)
+		allIndices = append(allIndices, im.Triangles)
+	}
+	return fileformats.Write3MFMeshMulti(w, unit, allCoords, allIndices)
+}

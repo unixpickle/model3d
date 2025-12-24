@@ -26,20 +26,78 @@ const (
 // triangles which index into this vertex list starting at
 // 0 for the first vertex.
 func Write3MFMesh(w io.Writer, unit ThreeMFUnit, vertices [][3]float64, triangles [][3]int) (err error) {
+	return Write3MFMeshMulti(w, unit, [][][3]float64{vertices}, [][][3]int{triangles})
+}
+
+// Write3MFMesh encodes multiple meshes into a 3MF file.
+//
+// Each mesh is passed as a collection of vertices, and
+// triangles which index into this vertex list starting at
+// 0 for the first vertex.
+func Write3MFMeshMulti(w io.Writer, unit ThreeMFUnit, allVertices [][][3]float64, allTriangles [][][3]int) (err error) {
 	defer essentials.AddCtxTo("write 3MF file", &err)
-	vertexElems := make([]threeMFVertex, len(vertices))
-	triangleElems := make([]threeMFTriangle, len(triangles))
-	for i, v := range vertices {
-		vertexElems[i].X = strconv.FormatFloat(v[0], 'f', 32, 64)
-		vertexElems[i].Y = strconv.FormatFloat(v[1], 'f', 32, 64)
-		vertexElems[i].Z = strconv.FormatFloat(v[2], 'f', 32, 64)
+
+	if len(allVertices) != len(allTriangles) {
+		return essentials.AddCtx("mismatched allVertices/allTriangles lengths", io.ErrUnexpectedEOF)
 	}
-	for i, t := range triangles {
-		triangleElems[i].V1 = strconv.Itoa(t[0])
-		triangleElems[i].V2 = strconv.Itoa(t[1])
-		triangleElems[i].V3 = strconv.Itoa(t[2])
+	if len(allVertices) == 0 {
+		return essentials.AddCtx("no meshes provided", io.ErrUnexpectedEOF)
 	}
+
+	var objects []threeMFObject
+	var components []threeMFComponent
+
+	for partIdx, vertices := range allVertices {
+		triangles := allTriangles[partIdx]
+
+		vertexElems := make([]threeMFVertex, len(vertices))
+		triangleElems := make([]threeMFTriangle, len(triangles))
+
+		for i, v := range vertices {
+			vertexElems[i].X = strconv.FormatFloat(v[0], 'f', 32, 64)
+			vertexElems[i].Y = strconv.FormatFloat(v[1], 'f', 32, 64)
+			vertexElems[i].Z = strconv.FormatFloat(v[2], 'f', 32, 64)
+		}
+		for i, t := range triangles {
+			triangleElems[i].V1 = strconv.Itoa(t[0])
+			triangleElems[i].V2 = strconv.Itoa(t[1])
+			triangleElems[i].V3 = strconv.Itoa(t[2])
+		}
+
+		id := strconv.Itoa(partIdx + 1)
+
+		mesh := threeMFMesh{
+			Vertices:  vertexElems,
+			Triangles: triangleElems,
+		}
+
+		objects = append(objects, threeMFObject{
+			ID:   id,
+			Type: "model",
+			Mesh: &mesh,
+		})
+
+		components = append(components, threeMFComponent{
+			ObjectID:  id,
+			Transform: threeMFIdentityTransform,
+		})
+	}
+
+	// Add a composite "assembly" object that references all part objects.
+	compositeID := strconv.Itoa(len(allVertices) + 2)
+	objects = append(objects, threeMFObject{
+		ID:   compositeID,
+		Type: "model",
+		Components: &threeMFComponents{
+			Component: components,
+		},
+	})
+
+	// Build ONLY the composite, so slicers treat it as one item with multiple parts.
+	items := []threeMFItem{{ObjectID: compositeID}}
+
 	zipWriter := zip.NewWriter(w)
+
 	modelWriter, err := zipWriter.Create("3D/3dmodel.model")
 	if err != nil {
 		return err
@@ -49,29 +107,20 @@ func Write3MFMesh(w io.Writer, unit ThreeMFUnit, vertices [][3]float64, triangle
 	}
 	enc := xml.NewEncoder(modelWriter)
 	enc.Indent("", "  ")
+
 	err = enc.Encode(threeMFModel{
-		Unit:    string(unit),
-		XmlLang: "en-US",
-		Xmlns:   "http://schemas.microsoft.com/3dmanufacturing/core/2015/02",
-		Resources: []threeMFObject{
-			{
-				ID:   "1",
-				Type: "model",
-				Mesh: threeMFMesh{
-					Vertices:  vertexElems,
-					Triangles: triangleElems,
-				},
-			},
-		},
+		Unit:      string(unit),
+		XmlLang:   "en-US",
+		Xmlns:     "http://schemas.microsoft.com/3dmanufacturing/core/2015/02",
+		Resources: objects,
 		Build: threeMFBuild{
-			Item: []threeMFItem{
-				{ObjectID: "1"},
-			},
+			Item: items,
 		},
 	})
 	if err != nil {
 		return err
 	}
+
 	relsWriter, err := zipWriter.Create("_rels/.rels")
 	if err != nil {
 		return err
@@ -92,6 +141,7 @@ func Write3MFMesh(w io.Writer, unit ThreeMFUnit, vertices [][3]float64, triangle
 	if err != nil {
 		return err
 	}
+
 	typesWriter, err := zipWriter.Create("[Content_Types].xml")
 	if err != nil {
 		return err
@@ -113,6 +163,7 @@ func Write3MFMesh(w io.Writer, unit ThreeMFUnit, vertices [][3]float64, triangle
 	if err != nil {
 		return err
 	}
+
 	return zipWriter.Close()
 }
 
@@ -126,10 +177,23 @@ type threeMFModel struct {
 }
 
 type threeMFObject struct {
-	ID   string      `xml:"id,attr"`
-	Type string      `xml:"type,attr"`
-	Mesh threeMFMesh `xml:"mesh"`
+	ID   string `xml:"id,attr"`
+	Type string `xml:"type,attr"`
+
+	Mesh       *threeMFMesh       `xml:"mesh,omitempty"`
+	Components *threeMFComponents `xml:"components,omitempty"`
 }
+
+type threeMFComponents struct {
+	Component []threeMFComponent `xml:"component"`
+}
+
+type threeMFComponent struct {
+	ObjectID  string `xml:"objectid,attr"`
+	Transform string `xml:"transform,attr,omitempty"`
+}
+
+const threeMFIdentityTransform = "1 0 0 0 1 0 0 0 1 0 0 0"
 
 type threeMFMesh struct {
 	Vertices  []threeMFVertex   `xml:"vertices>vertex"`
