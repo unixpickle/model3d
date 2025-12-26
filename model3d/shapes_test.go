@@ -312,7 +312,12 @@ func TestConeSliceSDF(t *testing.T) {
 		numStops := int(math.Ceil(2 * math.Pi * math.Max(cone.R1, cone.R2) / epsilon))
 		mesh := NewMeshConeSlice(cone.P1, cone.P2, cone.R1, cone.R2, numStops)
 		testMeshSDF(t, cone, mesh, epsilon)
-		testPointSDFConsistency(t, cone, cone.P1.Add(cone.P1.Sub(cone.P2)))
+		testPointSDFConsistency(
+			t,
+			cone,
+			cone.P1.Add(cone.P1.Sub(cone.P2)),
+			cone.P2.Add(cone.P2.Sub(cone.P1)),
+		)
 
 		b1, b2 := cone.P2.Sub(cone.P1).OrthoBasis()
 		midR := (cone.R1 + cone.R2) / 2
@@ -328,6 +333,7 @@ func TestConeSliceSDF(t *testing.T) {
 			midPoint.Add(b1.Scale(midR*0.2)),
 			midPoint.Add(b2.Scale(midR*0.2)),
 			cone.P1.Add(cone.P1.Sub(cone.P2)),
+			cone.P2.Add(cone.P2.Sub(cone.P1)),
 		)
 	}
 }
