@@ -318,6 +318,38 @@ func NewMeshCone(tip, base Coord3D, radius float64, numStops int) *Mesh {
 	return res
 }
 
+// NewMeshConeSlice creates a 3D mesh representing a cone slice.
+//
+// This is done by discretizing the end circles into
+// numStops segments and attaching triangles across them.
+func NewMeshConeSlice(p1, p2 Coord3D, r1, r2 float64, numStops int) *Mesh {
+	z := p2.Sub(p1).Normalize()
+	x, y := z.OrthoBasis()
+
+	ringPoint := func(i int, p Coord3D, r float64) Coord3D {
+		i = i % numStops
+		theta := float64(i) * math.Pi * 2 / float64(numStops)
+		offset := x.Scale(math.Cos(theta)).Add(y.Scale(math.Sin(theta)))
+		return p.Add(offset.Scale(r))
+	}
+
+	res := NewMesh()
+	for i := 0; i < numStops; i++ {
+		ring1Point1 := ringPoint(i, p1, r1)
+		ring1Point2 := ringPoint(i+1, p1, r1)
+		ring2Point1 := ringPoint(i, p2, r2)
+		ring2Point2 := ringPoint(i+1, p2, r2)
+
+		res.Add(&Triangle{ring1Point1, ring1Point2, p1})
+		res.Add(&Triangle{ring2Point2, ring2Point1, p2})
+
+		res.Add(&Triangle{ring1Point2, ring1Point1, ring2Point1})
+		res.Add(&Triangle{ring2Point1, ring2Point2, ring1Point2})
+	}
+
+	return res
+}
+
 // NewMeshIcosahedron creates a regular icosahedron.
 //
 // The resulting icosahedron is oriented such that two
