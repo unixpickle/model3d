@@ -31,15 +31,12 @@ func main() {
 
 	screwPosHeight := args.GrooveCount * args.GrooveSize
 	maxRad := args.Radius + args.Thickness
-	rodBody := model3d.CheckedFuncSolid(
-		model3d.XYZ(-maxRad, -maxRad, 0),
-		model3d.XYZ(maxRad, maxRad, args.Height-screwPosHeight),
-		func(c model3d.Coord3D) bool {
-			frac := (args.Height - screwPosHeight - c.Z) / (args.Height - screwPosHeight)
-			r := frac*args.Thickness + args.Radius
-			return c.XY().Norm() < r
-		},
-	)
+	rodBody := &model3d.ConeSlice{
+		P1: model3d.Z(0),
+		P2: model3d.Z(args.Height - screwPosHeight),
+		R1: args.Radius + args.Thickness,
+		R2: args.Radius,
+	}
 
 	posScrew := &toolbox3d.ScrewSolid{
 		P1:         model3d.Z(args.Height - screwPosHeight - 1e-5),
