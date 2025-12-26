@@ -1034,6 +1034,292 @@ func (c *Cone) MetaballDistBound(d float64) float64 {
 	return d
 }
 
+// A ConeSlice is a 3D cone slice, eminating from a point towards the
+// center of a base, where the base has a given radius.
+type ConeSlice struct {
+	P1 Coord3D
+	P2 Coord3D
+	R1 float64
+	R2 float64
+}
+
+// Min gets the minimum point of the bounding box.
+func (c *ConeSlice) Min() Coord3D {
+	axis := c.P2.Sub(c.P1)
+	d := Coord3D{
+		circleAxisBound(0, axis, -1),
+		circleAxisBound(1, axis, -1),
+		circleAxisBound(2, axis, -1),
+	}
+	min1 := d.Scale(c.R1).Add(c.P1)
+	min2 := d.Scale(c.R2).Add(c.P2)
+	return min1.Min(min2)
+}
+
+// Max gets the maximum point of the bounding box.
+func (c *ConeSlice) Max() Coord3D {
+	axis := c.P2.Sub(c.P1)
+	d := Coord3D{
+		circleAxisBound(0, axis, 1),
+		circleAxisBound(1, axis, 1),
+		circleAxisBound(2, axis, 1),
+	}
+	max1 := d.Scale(c.R1).Add(c.P1)
+	max2 := d.Scale(c.R2).Add(c.P2)
+	return max1.Max(max2)
+}
+
+// Contains checks if p is inside the cone slice.
+func (c *ConeSlice) Contains(p Coord3D) bool {
+	diff := c.P2.Sub(c.P1)
+	direction := diff.Normalize()
+	frac := p.Sub(c.P1).Dot(direction)
+	radiusFrac := 1 - frac/diff.Norm()
+	if radiusFrac < 0 || radiusFrac > 1 {
+		return false
+	}
+	projection := c.P1.Add(direction.Scale(frac))
+	r := c.R1*radiusFrac + c.R2*(1-radiusFrac)
+	return projection.Dist(p) <= r
+}
+
+// FirstRayCollision gets the first ray collision with the
+// cone slice, if one occurs.
+func (c *ConeSlice) FirstRayCollision(r *Ray) (RayCollision, bool) {
+	var res RayCollision
+	var ok bool
+	c.RayCollisions(r, func(rc RayCollision) {
+		if !ok || rc.Scale < res.Scale {
+			res = rc
+			ok = true
+		}
+	})
+	return res, ok
+}
+
+// RayCollisions calls f (if non-nil) with every ray
+// collision.
+//
+// It returns the total number of collisions.
+func (c *ConeSlice) RayCollisions(r *Ray, f func(RayCollision)) int {
+	// This implementation was completely AI-generated.
+
+	n := 0
+
+	axisVec := c.P2.Sub(c.P1)
+	h := axisVec.Norm()
+	if h == 0 {
+		// Degenerate (no length). Your Contains() would also divide by h,
+		// so this is likely invalid geometry.
+		return 0
+	}
+
+	axis := axisVec.Scale(1 / h) // unit axis from P1 -> P2
+	b1, b2 := axis.OrthoBasis()
+
+	// Ray in coordinates relative to P1
+	o := r.Origin.Sub(c.P1)
+	d := r.Direction
+
+	// Squared distance to axis: x(t)^2 + y(t)^2 in the (b1,b2) plane.
+	x := numerical.Polynomial{b1.Dot(o), b1.Dot(d)}
+	y := numerical.Polynomial{b2.Dot(o), b2.Dot(d)}
+	distSq := x.Mul(x).Add(y.Mul(y))
+
+	// z(t) along the axis (relative to P1)
+	z0 := axis.Dot(o)
+	z1 := axis.Dot(d)
+
+	// Radius varies linearly with z:
+	// r(z) = R1 + (R2-R1) * z / h  => dr/dz = slope
+	slope := (c.R2 - c.R1) / h
+	radius := numerical.Polynomial{c.R1 + slope*z0, slope * z1}
+	radiusSq := radius.Mul(radius)
+
+	// Solve distSq - radiusSq == 0 for the lateral surface.
+	surfaceEq := distSq.Add(radiusSq.Scale(-1))
+	surfaceEq.IterRealRoots(func(t float64) bool {
+		if t >= 0 {
+			p := o.Add(d.Scale(t)) // hitpoint relative to P1
+			z := axis.Dot(p)       // axial coordinate
+
+			if z >= 0 && z <= h {
+				if f != nil {
+					// Outward normal from implicit surface:
+					// F = (x^2+y^2) - r(z)^2; grad(F) ∝ (perp - r*dr/dz * axis)
+					// On the surface, perp has length r, so direction ∝ (perpDir - slope*axis).
+					perp := p.Sub(axis.Scale(z)) // component perpendicular to axis
+					perpDir := safeNormal(perp, b1, axis)
+					normal := perpDir.Sub(axis.Scale(slope)).Normalize()
+
+					f(RayCollision{
+						Scale:  t,
+						Normal: normal,
+						Extra:  c,
+					})
+				}
+				n++
+			}
+		}
+		return true
+	})
+
+	// End caps:
+	// At P1, the interior extends in +axis, so outward normal is -axis.
+	// At P2, outward normal is +axis.
+	//
+	// Only treat as a planar disk if the radius is > 0. If radius == 0, that "cap"
+	// degenerates to an apex point which is already part of the lateral surface.
+	if c.R1 > 0 {
+		coll, ok := castCircle(axis.Scale(-1), c.P1, c.R1, r)
+		if ok {
+			n++
+			if f != nil {
+				coll.Extra = c
+				f(coll)
+			}
+		}
+	}
+
+	if c.R2 > 0 {
+		coll, ok := castCircle(axis, c.P2, c.R2, r)
+		if ok {
+			n++
+			if f != nil {
+				coll.Extra = c
+				f(coll)
+			}
+		}
+	}
+
+	return n
+}
+
+// SphereCollision checks if the surface of c collides
+// with a solid sphere centered at c with radius r.
+func (c *ConeSlice) SphereCollision(center Coord3D, r float64) bool {
+	return math.Abs(c.SDF(center)) <= r
+}
+
+// SDF determines the minimum distance from a point to the
+// surface of the cone slice.
+func (c *ConeSlice) SDF(coord Coord3D) float64 {
+	return c.genericSDF(coord, nil, nil)
+}
+
+// PointSDF is like SDF, but also returns the closest point
+// on the surface of the cone slice.
+func (c *ConeSlice) PointSDF(coord Coord3D) (Coord3D, float64) {
+	var point Coord3D
+	dist := c.genericSDF(coord, nil, &point)
+	return point, dist
+}
+
+// NormalSDF is like SDF, but also returns the normal on
+// the surface of the cone slice at the closest point to coord.
+func (c *ConeSlice) NormalSDF(coord Coord3D) (Coord3D, float64) {
+	var normal Coord3D
+	dist := c.genericSDF(coord, &normal, nil)
+	return normal, dist
+}
+
+func (c *ConeSlice) genericSDF(p Coord3D, normalOut, pointOut *Coord3D) float64 {
+	// This implementation was completely AI-generated.
+
+	dist := math.Inf(1)
+
+	axisVec := c.P2.Sub(c.P1)
+	h := axisVec.Norm()
+	if h == 0 {
+		// Degenerate slice (no axis). Avoid div-by-zero.
+		// If you ever expect this case, pick whatever behavior you want here.
+		// A reasonable fallback is treating it like a sphere of max radius:
+		r := math.Max(c.R1, c.R2)
+		d := p.Dist(c.P1) - r
+		if normalOut != nil {
+			// outward from center
+			n := p.Sub(c.P1)
+			if n.Norm() == 0 {
+				*normalOut = Coord3D{1, 0, 0}
+			} else {
+				*normalOut = n.Normalize()
+			}
+		}
+		if pointOut != nil {
+			// closest point on that fallback sphere
+			dir := p.Sub(c.P1)
+			if dir.Norm() == 0 {
+				*pointOut = c.P1.Add(Coord3D{r, 0, 0})
+			} else {
+				*pointOut = c.P1.Add(dir.Normalize().Scale(r))
+			}
+		}
+		if d <= 0 {
+			// inside -> positive by your convention
+			return -d
+		}
+		return -d
+	}
+
+	axis := axisVec.Scale(1 / h) // unit axis from P1 -> P2
+	slope := (c.R2 - c.R1) / h   // dr/dz along axis
+
+	// --- Caps (disks) ---
+	// Outward normal at P1 cap points backward along the axis.
+	if c.R1 > 0 {
+		filledCircleDist(p, c.P1, axis.Scale(-1), c.R1, &dist, normalOut, pointOut)
+	}
+	// Outward normal at P2 cap points forward along the axis.
+	if c.R2 > 0 {
+		filledCircleDist(p, c.P2, axis, c.R2, &dist, normalOut, pointOut)
+	}
+
+	// --- Lateral surface ---
+	// Choose the radial direction u in the plane orthogonal to axis,
+	// based on p's offset from the axis (with a safe fallback).
+	fallback, _ := axis.OrthoBasis()
+	u := safeNormal(p.Sub(c.P1), fallback, axis) // unit radial direction (perp to axis)
+
+	// In that radial slice, the lateral surface is the segment between
+	// the two circle edges along u.
+	edge1 := c.P1.Add(u.Scale(c.R1))
+	edge2 := c.P2.Add(u.Scale(c.R2))
+	edgeSeg := NewSegment(edge1, edge2)
+
+	edgeDist := edgeSeg.Dist(p)
+	if edgeDist < dist {
+		dist = edgeDist
+		if normalOut != nil {
+			// Correct outward normal for the frustum side:
+			// n ∝ u - axis*slope
+			*normalOut = u.Sub(axis.Scale(slope)).Normalize()
+		}
+		if pointOut != nil {
+			*pointOut = edgeSeg.Closest(p)
+		}
+	}
+
+	// Sign: positive inside, negative outside (matching your cone code).
+	if c.Contains(p) {
+		return dist
+	}
+	return -dist
+}
+
+// MetaballField returns positive values outside of the
+// surface, and these values increase linearly with
+// distance to the surface.
+func (c *ConeSlice) MetaballField(coord Coord3D) float64 {
+	return -c.SDF(coord)
+}
+
+// MetaballDistBound returns d always, since the metaball
+// implemented by MetaballField() is defined in terms of
+// standard Euclidean coordinates.
+func (c *ConeSlice) MetaballDistBound(d float64) float64 {
+	return d
+}
+
 // A Torus is a 3D primitive that represents a torus.
 //
 // The torus is defined by revolving a sphere of radius

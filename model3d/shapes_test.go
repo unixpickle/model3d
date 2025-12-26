@@ -62,6 +62,17 @@ func TestConeBounds(t *testing.T) {
 	}
 }
 
+func TestConeSliceBounds(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		testSolidBounds(t, &ConeSlice{
+			P1: NewCoord3DRandNorm(),
+			P2: NewCoord3DRandNorm(),
+			R1: math.Abs(rand.NormFloat64()),
+			R2: math.Abs(rand.NormFloat64()),
+		})
+	}
+}
+
 func TestTorusBounds(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		testSolidBounds(t, &Torus{
@@ -117,6 +128,25 @@ func TestConeContainment(t *testing.T) {
 	}
 	for c, expected := range testPoints {
 		actual := cone.Contains(c)
+		if actual != expected {
+			t.Errorf("coord %v: expected %v but got %v", c, expected, actual)
+		}
+	}
+}
+
+func TestConeSliceContainment(t *testing.T) {
+	coneSlice := &ConeSlice{P1: Z(0), P2: Z(2), R1: 0.5, R2: 0.1}
+	testPoints := map[Coord3D]bool{
+		Z(1):             true,
+		Z(1.999):         true,
+		XZ(0.12, 1.999):  false,
+		XZ(0.1, 1.999):   true,
+		XZ(0.2, 1):       true,
+		XZ(0.25, 1):      true,
+		XZ(0.49, 0.0001): true,
+	}
+	for c, expected := range testPoints {
+		actual := coneSlice.Contains(c)
 		if actual != expected {
 			t.Errorf("coord %v: expected %v but got %v", c, expected, actual)
 		}
@@ -259,6 +289,45 @@ func TestConeSDF(t *testing.T) {
 			cone.Tip.Mid(cone.Base).Add(b1.Scale(cone.Radius*0.2)),
 			cone.Tip.Mid(cone.Base).Add(b2.Scale(cone.Radius*0.2)),
 			cone.Base.Add(cone.Base.Sub(cone.Tip)),
+		)
+	}
+}
+
+func TestConeSliceSDF(t *testing.T) {
+	rand.Seed(0)
+	for i := 0; i < 10; i++ {
+		p1 := NewCoord3DRandUnit()
+		p2 := NewCoord3DRandUnit()
+		if p1.Dist(p2) < 0.1 {
+			i--
+			continue
+		}
+		cone := &ConeSlice{
+			P1: p1,
+			P2: p2,
+			R1: math.Abs(rand.NormFloat64()) + 0.1,
+			R2: math.Abs(rand.NormFloat64()) + 0.01,
+		}
+		epsilon := 0.04
+		numStops := int(math.Ceil(2 * math.Pi * math.Max(cone.R1, cone.R2) / epsilon))
+		mesh := NewMeshConeSlice(cone.P1, cone.P2, cone.R1, cone.R2, numStops)
+		testMeshSDF(t, cone, mesh, epsilon)
+		testPointSDFConsistency(t, cone, cone.P1.Add(cone.P1.Sub(cone.P2)))
+
+		b1, b2 := cone.P2.Sub(cone.P1).OrthoBasis()
+		midR := (cone.R1 + cone.R2) / 2
+		midPoint := cone.P2.Mid(cone.P1)
+		testNormalSDFConsistency(
+			t,
+			cone,
+			false,
+			midPoint.Add(b1.Scale(midR*0.51)),
+			midPoint.Add(b2.Scale(midR*0.51)),
+			midPoint.Add(b1.Scale(midR*0.49)),
+			midPoint.Add(b2.Scale(midR*0.49)),
+			midPoint.Add(b1.Scale(midR*0.2)),
+			midPoint.Add(b2.Scale(midR*0.2)),
+			cone.P1.Add(cone.P1.Sub(cone.P2)),
 		)
 	}
 }

@@ -33,6 +33,11 @@ func TestNewMeshCone(t *testing.T) {
 	MustValidateMesh(t, mesh, true)
 }
 
+func TestNewMeshConeSlice(t *testing.T) {
+	mesh := NewMeshConeSlice(XYZ(-0.3, -0.4, -0.2), XYZ(0.4, 0.35, 0.19), 0.7, 0.3, 20)
+	MustValidateMesh(t, mesh, true)
+}
+
 func TestNewMeshTorus(t *testing.T) {
 	mesh := NewMeshTorus(XYZ(-0.3, -0.4, -0.2), XYZ(0.4, 0.35, 0.19), 0.3, 0.7, 20, 20)
 	MustValidateMesh(t, mesh, true)
