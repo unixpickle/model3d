@@ -62,6 +62,7 @@ func main() {
 		model3d.JoinedSolid{negScrew, negHole},
 	)
 	mesh := model3d.DualContour(fullSolid, args.Delta, true, false)
+	mesh = mesh.EliminateCoplanar(1e-5)
 	mesh.SaveGroupedSTL("rod.stl")
 
 	paddleCylHeight := (args.GrooveCount + 1) * args.GrooveSize
