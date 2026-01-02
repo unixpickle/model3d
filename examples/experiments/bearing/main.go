@@ -10,18 +10,15 @@ import (
 )
 
 type Args struct {
-	TopBottomSpace     float64 `default:"1" help:"Space at top and bottom of rollers."`
-	TopBottomThickness float64 `default:"4"`
-	RollerHeight       float64 `default:"20" help:"Height of the bearing cylinders."`
-	RollerRadius       float64 `default:"7"`
-	RollerInset        float64 `default:"0.5"`
-	RollerCutoutInset  float64 `default:"0.5"`
-	RollerPinRadius    float64 `default:"4"`
-	RollerPinSpace     float64 `default:"0.4"`
-	OuterRadius        float64 `default:"30"`
-	PinFactor          float64 `default:"0.8" help:"Ratio of pins to maximum allowable"`
-	PinPegSlack        float64 `default:"0.2" help:"Extra space around pin negatives"`
-	Delta              float64 `default:"0.5" help:"Meshification delta"`
+	Thickness           float64 `default:"10" help:"thickness of the entire bearing"`
+	OuterRadius         float64 `default:"30" help:"Total radius of bearing"`
+	InnerRadius         float64 `default:"15" help:"Radius at which cylinders are placed."`
+	RollerLargerRadius  float64 `default:"4"`
+	RollerSmallerRadius float64 `default:"2.5"`
+	RollerInOutHeight   float64 `default:"4"`
+	RollerSpaceFrac     float64 `default:"0.3"`
+	RollerGap           float64 `default:"0.2"`
+	Delta               float64 `default:"0.25" help:"Meshification delta"`
 }
 
 func main() {
@@ -29,99 +26,85 @@ func main() {
 	toolbox3d.AddFlags(&args, nil)
 	flag.Parse()
 
-	pinCount := int(args.PinFactor * 2 * math.Pi * args.OuterRadius / (2 * args.RollerRadius))
-	pinCenter := func(i int) model2d.Coord {
-		spacing := 2 * math.Pi / float64(pinCount)
+	rollerCount := int(2 * math.Pi * args.InnerRadius / (2 * args.RollerLargerRadius * (1 + args.RollerSpaceFrac)))
+	rollerCenter := func(i int) model2d.Coord {
+		spacing := 2 * math.Pi / float64(rollerCount)
 		x := math.Cos(spacing * float64(i))
 		y := math.Sin(spacing * float64(i))
-		return model2d.XY(x, y).Scale(args.OuterRadius)
+		return model2d.XY(x, y).Scale(args.InnerRadius)
 	}
 
-	totalHeight := args.TopBottomThickness*2 + args.TopBottomSpace*2 + args.RollerHeight
-
-	var rollers model3d.JoinedSolid
-	var pins model3d.JoinedSolid
-	var pinsNegative model3d.JoinedSolid
-	for i := 0; i < pinCount; i++ {
-		center := pinCenter(i)
-		pins = append(pins, model3d.StackSolids(
-			&model3d.Cylinder{
-				P1:     model3d.XY(center.X, center.Y),
-				P2:     model3d.XYZ(center.X, center.Y, totalHeight-args.TopBottomThickness),
-				Radius: args.RollerPinRadius,
-			},
-			&model3d.ConeSlice{
-				P1: model3d.XYZ(center.X, center.Y, totalHeight-args.TopBottomThickness),
-				P2: model3d.XYZ(center.X, center.Y, totalHeight),
-				R1: args.RollerPinRadius,
-				R2: args.RollerPinRadius - args.PinPegSlack,
-			},
-		))
-		pinsNegative = append(pinsNegative, &model3d.Cylinder{
-			P1:     model3d.XY(center.X, center.Y),
-			P2:     model3d.XYZ(center.X, center.Y, totalHeight),
-			Radius: args.RollerPinRadius,
-		})
-
-		rollerOuterCyl := &model3d.Cylinder{
-			P1:     model3d.XYZ(center.X, center.Y, args.TopBottomThickness+args.TopBottomSpace),
-			P2:     model3d.XYZ(center.X, center.Y, args.TopBottomThickness+args.TopBottomSpace+args.RollerHeight),
-			Radius: args.RollerRadius,
-		}
-		rollerOuter := model3d.CheckedFuncSolid(
-			rollerOuterCyl.Min(),
-			rollerOuterCyl.Max(),
-			func(c model3d.Coord3D) bool {
-				midZ := (rollerOuterCyl.P1.Z + rollerOuterCyl.P2.Z) / 2
-				halfHeight := math.Abs(rollerOuterCyl.P1.Z-rollerOuterCyl.P2.Z) / 2
-				inset := args.RollerInset * (1 - math.Abs(c.Z-midZ)/halfHeight)
-				return c.XY().Dist(rollerOuterCyl.P1.XY()) < rollerOuterCyl.Radius-inset
-			},
-		)
-
-		rollerCutoutCyl := &model3d.Cylinder{
-			P1:     model3d.XYZ(center.X, center.Y, args.TopBottomThickness+args.TopBottomSpace),
-			P2:     model3d.XYZ(center.X, center.Y, args.TopBottomThickness+args.TopBottomSpace+args.RollerHeight),
-			Radius: args.RollerPinRadius + args.RollerPinSpace,
-		}
-		rollerCutout := model3d.CheckedFuncSolid(
-			rollerCutoutCyl.Min().AddScalar(-args.RollerCutoutInset),
-			rollerCutoutCyl.Max().AddScalar(args.RollerCutoutInset),
-			func(c model3d.Coord3D) bool {
-				midPoint := (rollerCutoutCyl.P2.Z + rollerCutoutCyl.P1.Z) / 2
-				fracFromMiddle := math.Abs(c.Z-midPoint) / (midPoint - rollerCutoutCyl.P1.Z)
-				r := rollerCutoutCyl.Radius + args.RollerCutoutInset*(1-fracFromMiddle)
-				return c.XY().Dist(rollerCutoutCyl.P1.XY()) <= r
-			},
-		)
-		rollers = append(rollers, model3d.Subtract(
-			rollerOuter,
-			rollerCutout,
-		))
-	}
-
-	topOrBottom := model3d.Subtract(
+	outerBody := model3d.Subtract(
 		&model3d.Cylinder{
-			P1:     model3d.Z(0),
-			P2:     model3d.Z(args.TopBottomThickness),
-			Radius: args.OuterRadius + args.RollerRadius,
+			P2:     model3d.Z(args.Thickness),
+			Radius: args.OuterRadius,
 		},
-		&model3d.Cylinder{
-			P1:     model3d.Z(0),
-			P2:     model3d.Z(args.TopBottomThickness),
-			Radius: args.OuterRadius - args.RollerRadius,
-		},
+		model3d.Subtract(
+			model3d.StackSolids(
+				&model3d.ConeSlice{
+					P2: model3d.Z(args.RollerInOutHeight),
+					R1: args.InnerRadius + args.RollerLargerRadius + args.RollerGap,
+					R2: args.InnerRadius + args.RollerSmallerRadius + args.RollerGap,
+				},
+				&model3d.Cylinder{
+					P2:     model3d.Z(args.Thickness - args.RollerInOutHeight*2),
+					Radius: args.InnerRadius + args.RollerSmallerRadius + args.RollerGap,
+				},
+				&model3d.ConeSlice{
+					P2: model3d.Z(args.RollerInOutHeight),
+					R1: args.InnerRadius + args.RollerSmallerRadius + args.RollerGap,
+					R2: args.InnerRadius + args.RollerLargerRadius + args.RollerGap,
+				},
+			),
+			model3d.StackSolids(
+				&model3d.ConeSlice{
+					P2: model3d.Z(args.RollerInOutHeight),
+					R1: args.InnerRadius - args.RollerLargerRadius - args.RollerGap,
+					R2: args.InnerRadius - args.RollerSmallerRadius - args.RollerGap,
+				},
+				&model3d.Cylinder{
+					P2:     model3d.Z(args.Thickness - args.RollerInOutHeight*2),
+					Radius: args.InnerRadius - args.RollerSmallerRadius - args.RollerGap,
+				},
+				&model3d.ConeSlice{
+					P2: model3d.Z(args.RollerInOutHeight),
+					R1: args.InnerRadius - args.RollerSmallerRadius - args.RollerGap,
+					R2: args.InnerRadius - args.RollerLargerRadius - args.RollerGap,
+				},
+			),
+		),
 	)
 
-	mesh := model3d.DualContour(rollers, args.Delta, true, false)
-	mesh = mesh.EliminateCoplanar(1e-5)
-	mesh.SaveGroupedSTL("rollers.stl")
+	var rollers model3d.JoinedSolid
+	for i := 0; i < rollerCount; i++ {
+		center := rollerCenter(i)
+		rollers = append(rollers, model3d.StackSolids(
+			&model3d.ConeSlice{
+				P1: model3d.XYZ(center.X, center.Y, 0),
+				P2: model3d.XYZ(center.X, center.Y, args.RollerInOutHeight),
+				R1: args.RollerLargerRadius,
+				R2: args.RollerSmallerRadius,
+			},
+			&model3d.Cylinder{
+				P1:     model3d.XYZ(center.X, center.Y, 0),
+				P2:     model3d.XYZ(center.X, center.Y, args.Thickness-args.RollerInOutHeight*2),
+				Radius: args.RollerSmallerRadius,
+			},
+			&model3d.ConeSlice{
+				P1: model3d.XYZ(center.X, center.Y, 0),
+				P2: model3d.XYZ(center.X, center.Y, args.RollerInOutHeight),
+				R1: args.RollerSmallerRadius,
+				R2: args.RollerLargerRadius,
+			},
+		))
+	}
 
-	mesh = model3d.DualContour(model3d.JoinedSolid{topOrBottom, pins}, args.Delta, true, false)
-	mesh = mesh.EliminateCoplanar(1e-5)
-	mesh.SaveGroupedSTL("bottom.stl")
+	rollerMesh := model3d.DualContour(rollers, args.Delta, true, false)
+	rollerMesh = rollerMesh.EliminateCoplanar(1e-5)
 
-	mesh = model3d.DualContour(model3d.Subtract(topOrBottom, pins), args.Delta, true, false)
-	mesh = mesh.EliminateCoplanar(1e-5)
-	mesh.SaveGroupedSTL("top.stl")
+	bodyMesh := model3d.DualContour(outerBody, args.Delta, true, false)
+	bodyMesh = bodyMesh.EliminateCoplanar(1e-5)
+
+	bodyMesh.AddMesh(rollerMesh)
+	bodyMesh.SaveGroupedSTL("bearing.stl")
 }
