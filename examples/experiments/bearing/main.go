@@ -26,7 +26,7 @@ func main() {
 	toolbox3d.AddFlags(&args, nil)
 	flag.Parse()
 
-	rollerCount := int(2 * math.Pi * args.InnerRadius / (2 * args.RollerLargerRadius * (1 + args.RollerSpaceFrac)))
+	rollerCount := int(2 * math.Pi * args.InnerRadius / (2 * math.Max(args.RollerLargerRadius, args.RollerSmallerRadius) * (1 + args.RollerSpaceFrac)))
 	rollerCenter := func(i int) model2d.Coord {
 		spacing := 2 * math.Pi / float64(rollerCount)
 		x := math.Cos(spacing * float64(i))
