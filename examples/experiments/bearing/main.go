@@ -11,12 +11,12 @@ import (
 
 type Args struct {
 	Thickness           float64 `default:"10" help:"thickness of the entire bearing"`
-	OuterRadius         float64 `default:"30" help:"Total radius of bearing"`
-	InnerRadius         float64 `default:"15" help:"Radius at which cylinders are placed."`
-	RollerLargerRadius  float64 `default:"4"`
-	RollerSmallerRadius float64 `default:"2.5"`
+	OuterRadius         float64 `default:"40" help:"Total radius of bearing"`
+	InnerRadius         float64 `default:"20" help:"Radius at which cylinders are placed."`
+	RollerLargerRadius  float64 `default:"8"`
+	RollerSmallerRadius float64 `default:"4"`
 	RollerInOutHeight   float64 `default:"4"`
-	RollerSpaceFrac     float64 `default:"0.3"`
+	RollerSpaceFrac     float64 `default:"0.1"`
 	RollerGap           float64 `default:"0.2"`
 	Delta               float64 `default:"0.25" help:"Meshification delta"`
 }
