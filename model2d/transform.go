@@ -266,7 +266,9 @@ func (t *transformedCollider) Max() Coord {
 
 func (t *transformedCollider) RayCollisions(r *Ray, f func(RayCollision)) int {
 	return t.c.RayCollisions(t.innerRay(r), func(rc RayCollision) {
-		f(t.outerCollision(rc))
+		if f != nil {
+			f(t.outerCollision(rc))
+		}
 	})
 }
 
