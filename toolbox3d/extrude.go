@@ -13,6 +13,19 @@ type InsetFunc interface {
 	MinInset() float64
 }
 
+// A ConstInsetFunc is an InsetFunc that applies a constant inset/outset.
+type ConstInsetFunc struct {
+	InsetValue float64
+}
+
+func (c *ConstInsetFunc) Inset(minZ, maxZ, z float64) float64 {
+	return c.InsetValue
+}
+
+func (c *ConstInsetFunc) MinInset() float64 {
+	return c.InsetValue
+}
+
 // FilletInsetFunc is an InsetFunc for rounded fillets.
 // This can be used for the Extrude() API.
 type FilletInsetFunc struct {
@@ -53,6 +66,37 @@ func (f *FilletInsetFunc) insetAtZFrac(r, frac float64) float64 {
 		x := math.Max(0, math.Min(1, frac)) - 1
 		return r * (1 - math.Sqrt(1-x*x))
 	}
+}
+
+type insetFuncSum struct {
+	minInset float64
+	fns      []InsetFunc
+}
+
+// InsetFuncSum creates a new InsetFunc that is the sum of other InsetFuncs.
+func InsetFuncSum(fns ...InsetFunc) InsetFunc {
+	minInset := 0.0
+	if len(fns) > 0 {
+		minInset = fns[0].MinInset()
+		for i := 1; i < len(fns); i++ {
+			if m := fns[i].MinInset(); m < minInset {
+				minInset = m
+			}
+		}
+	}
+	return &insetFuncSum{minInset: minInset, fns: fns}
+}
+
+func (i *insetFuncSum) Inset(minZ, maxZ, z float64) float64 {
+	result := 0.0
+	for _, f := range i.fns {
+		result += f.Inset(minZ, maxZ, z)
+	}
+	return result
+}
+
+func (i *insetFuncSum) MinInset() float64 {
+	return i.minInset
 }
 
 // Extrude turns a 2D shape into a 3D shape by extending it along the Z axis.
