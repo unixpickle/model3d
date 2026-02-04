@@ -47,7 +47,7 @@ func main() {
 
 func VaseSolid() Solid3 {
 	return MakeSolid3(
-		XYZ(-MaxRadius, -MaxRadius, Z),
+		XYZ(-MaxRadius, -MaxRadius, 0),
 		XYZ(MaxRadius, MaxRadius, Height),
 		func(c C3) bool {
 			maxRadius := RadiusFunc(c.Z)
