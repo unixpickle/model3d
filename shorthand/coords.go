@@ -20,5 +20,5 @@ func XY(x, y float64) C2 {
 }
 
 func Z(z float64) C3 {
-  return model3d.Z(z)
+	return model3d.Z(z)
 }

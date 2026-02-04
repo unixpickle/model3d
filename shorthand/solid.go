@@ -33,5 +33,5 @@ func Join3(s ...Solid3) model3d.JoinedSolid {
 }
 
 func Stack(s ...Solid3) model3d.StackedSolid {
-  return model3d.StackedSolid(s)
+	return model3d.StackedSolid(s)
 }

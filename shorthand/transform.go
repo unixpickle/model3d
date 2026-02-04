@@ -35,8 +35,8 @@ func Transform3[T Transformer3](t model3d.DistTransform, x T) T {
 		out = model3d.TransformCollider(t, x)
 	case model3d.SDF:
 		out = model3d.TransformSDF(t, x)
-  case toolbox3d.CoordColorFunc:
-    out = x.Transform(t)
+	case toolbox3d.CoordColorFunc:
+		out = x.Transform(t)
 	default:
 		panic(fmt.Sprintf("unknown type passed to Transform3: %T", x))
 	}
