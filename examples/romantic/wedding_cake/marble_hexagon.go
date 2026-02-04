@@ -5,7 +5,7 @@ import (
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
-	"github.com/unixpickle/model3d/render3d"
+	. "github.com/unixpickle/model3d/shorthand"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -14,9 +14,9 @@ const (
 	GoldDripThickness = 0.035
 )
 
-var GoldDripColor = render3d.NewColorRGB(1.0, 0.73, 0.04)
+var GoldDripColor = RGB(1.0, 0.73, 0.04)
 
-func MarbleHexagonLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
+func MarbleHexagonLayer() (Solid3, toolbox3d.CoordColorFunc) {
 	hexMesh := model2d.NewMeshPolar(func(theta float64) float64 {
 		return 1.0
 	}, 6)
@@ -27,9 +27,9 @@ func MarbleHexagonLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 
 	dripColl := model3d.MeshToCollider(GoldDripMesh())
 	drip := model3d.NewColliderSolidHollow(dripColl, GoldDripThickness)
-	rotDrip := model3d.RotateSolid(drip, model3d.Z(1), math.Pi)
+	rotDrip := Rotate3(drip, Z(1), math.Pi)
 
-	return model3d.JoinedSolid{solid3d, drip, rotDrip}, func(c model3d.Coord3D) render3d.Color {
+	return Join3(solid3d, drip, rotDrip), func(c C3) Color {
 		if drip.Contains(c) || rotDrip.Contains(c) {
 			return GoldDripColor
 		}
@@ -37,7 +37,7 @@ func MarbleHexagonLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 		for _, s := range streaks {
 			maxStreak = math.Max(maxStreak, s.Evaluate(c))
 		}
-		return render3d.NewColor(1.0).AddScalar(-maxStreak * 0.5)
+		return Gray(1.0).AddScalar(-maxStreak * 0.5)
 	}
 }
 
@@ -56,13 +56,13 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    3.0,
 			Darkness: 0.28,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.05),
-				model2d.XY(1.0, 0.05),
+				XY(0.0, 0.05),
+				XY(1.0, 0.05),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.5, 0.3),
-				model2d.XY(1.0, -0.3),
+				XY(0.0, 0.0),
+				XY(0.5, 0.3),
+				XY(1.0, -0.3),
 			},
 		},
 		{
@@ -70,14 +70,14 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    2.0,
 			Darkness: 0.34,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.02),
-				model2d.XY(1.0, 0.08),
+				XY(0.0, 0.02),
+				XY(1.0, 0.08),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.25, 0.1),
-				model2d.XY(0.6, -0.3),
-				model2d.XY(1.0, -0.1),
+				XY(0.0, 0.0),
+				XY(0.25, 0.1),
+				XY(0.6, -0.3),
+				XY(1.0, -0.1),
 			},
 		},
 		{
@@ -85,16 +85,16 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    2.0,
 			Darkness: 0.25,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.05),
-				model2d.XY(0.25, 0.04),
-				model2d.XY(1.0, 0.045),
+				XY(0.0, 0.05),
+				XY(0.25, 0.04),
+				XY(1.0, 0.045),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.2, 0.1),
-				model2d.XY(0.5, -0.1),
-				model2d.XY(0.7, -0.25),
-				model2d.XY(1.0, -0.3),
+				XY(0.0, 0.0),
+				XY(0.2, 0.1),
+				XY(0.5, -0.1),
+				XY(0.7, -0.25),
+				XY(1.0, -0.3),
 			},
 		},
 		{
@@ -102,14 +102,14 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    3.0,
 			Darkness: 0.15,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.08),
-				model2d.XY(1.0, 0.05),
+				XY(0.0, 0.08),
+				XY(1.0, 0.05),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.3, 0.1),
-				model2d.XY(0.6, -0.1),
-				model2d.XY(1.0, 0.2),
+				XY(0.0, 0.0),
+				XY(0.3, 0.1),
+				XY(0.6, -0.1),
+				XY(1.0, 0.2),
 			},
 		},
 		{
@@ -117,15 +117,15 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    3.0,
 			Darkness: 0.3,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.08),
-				model2d.XY(0.8, 0.05),
-				model2d.XY(1.0, 0.05),
+				XY(0.0, 0.08),
+				XY(0.8, 0.05),
+				XY(1.0, 0.05),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.3, -0.2),
-				model2d.XY(0.6, -0.4),
-				model2d.XY(1.0, -0.5),
+				XY(0.0, 0.0),
+				XY(0.3, -0.2),
+				XY(0.6, -0.4),
+				XY(1.0, -0.5),
 			},
 		},
 		{
@@ -133,15 +133,15 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    2.0,
 			Darkness: 0.4,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.08),
-				model2d.XY(0.5, 0.09),
-				model2d.XY(1.0, 0.05),
+				XY(0.0, 0.08),
+				XY(0.5, 0.09),
+				XY(1.0, 0.05),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.3, 0.1),
-				model2d.XY(0.6, -0.1),
-				model2d.XY(1.0, 0.2),
+				XY(0.0, 0.0),
+				XY(0.3, 0.1),
+				XY(0.6, -0.1),
+				XY(1.0, 0.2),
 			},
 		},
 		{
@@ -149,15 +149,15 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    2.0,
 			Darkness: 0.2,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.1),
-				model2d.XY(0.5, 0.11),
-				model2d.XY(1.0, 0.08),
+				XY(0.0, 0.1),
+				XY(0.5, 0.11),
+				XY(1.0, 0.08),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.2, 0.1),
-				model2d.XY(0.5, -0.2),
-				model2d.XY(1.0, -0.3),
+				XY(0.0, 0.0),
+				XY(0.2, 0.1),
+				XY(0.5, -0.2),
+				XY(1.0, -0.3),
 			},
 		},
 		{
@@ -165,13 +165,13 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    2.0,
 			Darkness: 0.2,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.1),
-				model2d.XY(1.0, 0.08),
+				XY(0.0, 0.1),
+				XY(1.0, 0.08),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.5, 0.05),
-				model2d.XY(1.0, 0.2),
+				XY(0.0, 0.0),
+				XY(0.5, 0.05),
+				XY(1.0, 0.2),
 			},
 		},
 		{
@@ -179,21 +179,21 @@ func CreateMarbleStreaks() []*MarbleStreak {
 			Power:    2.5,
 			Darkness: 0.2,
 			Thickness: model2d.BezierCurve{
-				model2d.XY(0.0, 0.05),
-				model2d.XY(0.5, 0.06),
-				model2d.XY(1.0, 0.06),
+				XY(0.0, 0.05),
+				XY(0.5, 0.06),
+				XY(1.0, 0.06),
 			},
 			Curve: model2d.BezierCurve{
-				model2d.XY(0.0, 0.0),
-				model2d.XY(0.5, 0.05),
-				model2d.XY(1.0, -0.2),
+				XY(0.0, 0.0),
+				XY(0.5, 0.05),
+				XY(1.0, -0.2),
 			},
 		},
 	}
 }
 
-func (m *MarbleStreak) Evaluate(c model3d.Coord3D) float64 {
-	xAxis := model3d.XYZ(-math.Sin(m.Theta), math.Cos(m.Theta), 0)
+func (m *MarbleStreak) Evaluate(c C3) float64 {
+	xAxis := XYZ(-math.Sin(m.Theta), math.Cos(m.Theta), 0)
 	xDist := c.Dot(xAxis)
 	zFrac := math.Max(0.0, math.Min(1.0, c.Z/HexThickness))
 	offset := m.Curve.EvalX(zFrac)
@@ -211,35 +211,35 @@ func GoldDripMesh() *model3d.Mesh {
 	}, 6)
 	topHexCollider := model2d.MeshToCollider(topHexMesh)
 	radiusForTheta := func(theta float64) float64 {
-		d := model2d.XY(math.Cos(theta), math.Sin(theta))
+		d := XY(math.Cos(theta), math.Sin(theta))
 		rc, _ := topHexCollider.FirstRayCollision(&model2d.Ray{
 			Origin:    model2d.Origin,
 			Direction: d,
 		})
 		return rc.Scale
 	}
-	upperPoint := func(theta, radius float64) model3d.Coord3D {
-		return model3d.XYZ(math.Cos(theta)*radius, math.Sin(theta)*radius, HexThickness)
+	upperPoint := func(theta, radius float64) C3 {
+		return XYZ(math.Cos(theta)*radius, math.Sin(theta)*radius, HexThickness)
 	}
 
 	theta0 := 0.7
 	theta1 := 1.9
 
 	topShape := model2d.BezierCurve{
-		model2d.XY(theta0, radiusForTheta(theta0)),
-		model2d.XY(theta0, radiusForTheta(theta0)-0.2),
-		model2d.XY(theta0*0.7+theta1*0.3, radiusForTheta(theta0)-0.5),
-		model2d.XY(theta0*0.2+theta1*0.8, radiusForTheta(theta0)-0.3),
-		model2d.XY(theta1, radiusForTheta(theta1)-0.2),
-		model2d.XY(theta1, radiusForTheta(theta1)),
+		XY(theta0, radiusForTheta(theta0)),
+		XY(theta0, radiusForTheta(theta0)-0.2),
+		XY(theta0*0.7+theta1*0.3, radiusForTheta(theta0)-0.5),
+		XY(theta0*0.2+theta1*0.8, radiusForTheta(theta0)-0.3),
+		XY(theta1, radiusForTheta(theta1)-0.2),
+		XY(theta1, radiusForTheta(theta1)),
 	}
 	bottomShape := model2d.BezierCurve{
-		model2d.XY(theta0, 0.0),
-		model2d.XY(theta0, 0.4),
-		model2d.XY(theta1*0.6+theta0*0.4, -0.2),
-		model2d.XY(theta1*0.2+theta0*0.8, -0.3),
-		model2d.XY(theta1, 0.6),
-		model2d.XY(theta1, 0.0),
+		XY(theta0, 0.0),
+		XY(theta0, 0.4),
+		XY(theta1*0.6+theta0*0.4, -0.2),
+		XY(theta1*0.2+theta0*0.8, -0.3),
+		XY(theta1, 0.6),
+		XY(theta1, 0.0),
 	}
 	_ = bottomShape
 
@@ -259,9 +259,9 @@ func GoldDripMesh() *model3d.Mesh {
 		)
 
 		p0 := upperPoint(theta, r0)
-		p1 := p0.Add(model3d.Z(-bottomShape.EvalX(theta)))
+		p1 := p0.Add(Z(-bottomShape.EvalX(theta)))
 		p3 := upperPoint(next, r3)
-		p2 := p3.Add(model3d.Z(-bottomShape.EvalX(next)))
+		p2 := p3.Add(Z(-bottomShape.EvalX(next)))
 		mesh.AddQuad(p0, p1, p2, p3)
 	}
 
@@ -280,7 +280,7 @@ func GoldDripMesh() *model3d.Mesh {
 		theta := dropInfo[0]*(theta1-theta0) + theta0
 		length := dropInfo[1]
 		p1 := upperPoint(theta, radiusForTheta(theta))
-		p2 := p1.Add(model3d.Z(-length))
+		p2 := p1.Add(Z(-length))
 		mesh.Add(&model3d.Triangle{p1, p2, p2})
 	}
 

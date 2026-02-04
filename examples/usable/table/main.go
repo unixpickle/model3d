@@ -7,6 +7,7 @@ import (
 
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	. "github.com/unixpickle/model3d/shorthand"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -64,96 +65,97 @@ func main() {
 
 	if _, err := os.Stat("infill_cube.stl"); os.IsNotExist(err) {
 		log.Println("Creating infill cube for filling in top screws...")
-		mesh := model3d.NewMeshRect(model3d.Coord3D{}, model3d.Coord3D{
-			X: FootRadius * 2,
-			Y: FootRadius * 2,
-			Z: ScrewLength + ScrewRadius,
-		})
+		mesh := model3d.NewMeshRect(Origin3, XYZ(
+			FootRadius*2,
+			FootRadius*2,
+			ScrewLength+ScrewRadius,
+		))
 		mesh.SaveGroupedSTL("infill_cube.stl")
 	}
 }
 
-func StandSolid() model3d.Solid {
-	topCenter := model3d.Z(StandRadius)
-	var corners [3]model3d.Coord3D
+func StandSolid() Solid3 {
+	topCenter := Z(StandRadius)
+	var corners [3]C3
 	for i := range corners {
-		corners[i] = model3d.Coord3D{
-			X: StandRadius * math.Cos(float64(i)*math.Pi*2/3),
-			Y: StandRadius * math.Sin(float64(i)*math.Pi*2/3),
-		}
+		corners[i] = XYZ(
+			StandRadius*math.Cos(float64(i)*math.Pi*2/3),
+			StandRadius*math.Sin(float64(i)*math.Pi*2/3),
+			0,
+		)
 	}
-	return model3d.JoinedSolid{
-		&model3d.SubtractedSolid{
-			Positive: model3d.JoinedSolid{
-				&model3d.Sphere{
-					Center: topCenter,
-					Radius: FootRadius,
-				},
-				&model3d.Cylinder{
-					P1:     topCenter,
-					P2:     corners[0],
-					Radius: PoleThickness,
-				},
-				&model3d.Cylinder{
-					P1:     topCenter,
-					P2:     corners[1],
-					Radius: PoleThickness,
-				},
-				&model3d.Cylinder{
-					P1:     topCenter,
-					P2:     corners[2],
-					Radius: PoleThickness,
-				},
-				&model3d.Sphere{
-					Center: corners[0],
-					Radius: FootRadius,
-				},
-				&model3d.Sphere{
-					Center: corners[1],
-					Radius: FootRadius,
-				},
-				&model3d.Sphere{
-					Center: corners[2],
-					Radius: FootRadius,
-				},
-			},
-			Negative: model3d.JoinedSolid{
-				&model3d.Rect{
-					MinVal: model3d.XYZ(-StandRadius*2, -StandRadius*2, StandRadius),
-					MaxVal: model3d.XYZ(StandRadius*2, StandRadius*2, StandRadius*2),
-				},
-				&model3d.Rect{
-					MinVal: model3d.XYZ(-StandRadius*2, -StandRadius*2, -StandRadius),
-					MaxVal: model3d.XYZ(StandRadius*2, StandRadius*2, 0),
-				},
-			},
-		},
+	return Join3(
+		Sub3(
+			Join3(
+				Sphere(
+					topCenter,
+					FootRadius,
+				),
+				Cylinder(
+					topCenter,
+					corners[0],
+					PoleThickness,
+				),
+				Cylinder(
+					topCenter,
+					corners[1],
+					PoleThickness,
+				),
+				Cylinder(
+					topCenter,
+					corners[2],
+					PoleThickness,
+				),
+				Sphere(
+					corners[0],
+					FootRadius,
+				),
+				Sphere(
+					corners[1],
+					FootRadius,
+				),
+				Sphere(
+					corners[2],
+					FootRadius,
+				),
+			),
+			Join3(
+				Rect3(
+					XYZ(-StandRadius*2, -StandRadius*2, StandRadius),
+					XYZ(StandRadius*2, StandRadius*2, StandRadius*2),
+				),
+				Rect3(
+					XYZ(-StandRadius*2, -StandRadius*2, -StandRadius),
+					XYZ(StandRadius*2, StandRadius*2, 0),
+				),
+			),
+		),
 		&toolbox3d.ScrewSolid{
 			P1:         topCenter,
-			P2:         topCenter.Add(model3d.Z(ScrewLength)),
+			P2:         topCenter.Add(Z(ScrewLength)),
 			GrooveSize: ScrewGrooves,
 			Radius:     ScrewRadius - ScrewSlack,
 		},
-	}
+	)
 }
 
-func ConeStandSolid() model3d.Solid {
-	return model3d.JoinedSolid{
+func ConeStandSolid() Solid3 {
+	return Join3(
 		ConeSolid(),
 		&toolbox3d.ScrewSolid{
-			P1:         model3d.Z(StandRadius),
-			P2:         model3d.Coord3D{Z: StandRadius + ScrewLength},
+			P1:         Z(StandRadius),
+			P2:         Z(StandRadius + ScrewLength),
 			GrooveSize: ScrewGrooves,
 			Radius:     ScrewRadius - ScrewSlack,
 		},
-	}
+	)
 }
 
-func ConeSolid() model3d.Solid {
-	return model3d.CheckedFuncSolid(
-		model3d.XY(-StandRadius, -StandRadius),
-		model3d.XYZ(StandRadius, StandRadius, StandRadius),
-		func(c model3d.Coord3D) bool {
+func ConeSolid() Solid3 {
+	return MakeSolid3(
+		XYZ(-StandRadius, -StandRadius, 0),
+		XYZ(StandRadius, StandRadius, StandRadius),
+		func(c C3) bool {
 			radiusAtZ := StandRadius - c.Z
 			radiusAtZInner := radiusAtZ - ConeThickness
 			rad := c.XY().Norm()
@@ -166,55 +168,53 @@ func ConeSolid() model3d.Solid {
 	)
 }
 
-func LegSolid() model3d.Solid {
-	return &model3d.SubtractedSolid{
-		Positive: model3d.JoinedSolid{
-			&model3d.Cylinder{
-				P2:     model3d.Z(LegLength),
-				Radius: PoleThickness,
+func LegSolid() Solid3 {
+	return Sub3(
+		Join3(
+			Cylinder(Origin3, Z(LegLength), PoleThickness),
+			&toolbox3d.Ramp{
+				Solid: &model3d.Cylinder{
+					P2:     Z(FootRadius),
+					Radius: FootRadius,
+				},
+				P1: Z(FootRadius),
 			},
 			&toolbox3d.Ramp{
 				Solid: &model3d.Cylinder{
-					P2:     model3d.Z(FootRadius),
+					P1:     Z(LegLength - FootRadius),
+					P2:     Z(LegLength),
 					Radius: FootRadius,
 				},
-				P1: model3d.Z(FootRadius),
-			},
-			&toolbox3d.Ramp{
-				Solid: &model3d.Cylinder{
-					P1:     model3d.Coord3D{Z: LegLength - FootRadius},
-					P2:     model3d.Z(LegLength),
-					Radius: FootRadius,
-				},
-				P1: model3d.Coord3D{Z: LegLength - FootRadius},
-				P2: model3d.Z(LegLength),
+				P1: Z(LegLength - FootRadius),
+				P2: Z(LegLength),
 			},
 			&toolbox3d.ScrewSolid{
-				P1:         model3d.Z(LegLength),
-				P2:         model3d.Coord3D{Z: LegLength + ScrewLength},
+				P1:         Z(LegLength),
+				P2:         Z(LegLength + ScrewLength),
 				Radius:     ScrewRadius - ScrewSlack,
 				GrooveSize: ScrewGrooves,
 			},
-		},
-		Negative: &toolbox3d.ScrewSolid{
-			P2:         model3d.Coord3D{Z: ScrewLength + ScrewRadius + ScrewSlack},
+		),
+		&toolbox3d.ScrewSolid{
+			P2:         Z(ScrewLength + ScrewRadius + ScrewSlack),
 			Radius:     ScrewRadius,
 			GrooveSize: ScrewGrooves,
 			Pointed:    true,
 		},
-	}
+	)
 }
 
-func TopSolid() model3d.Solid {
-	return &model3d.SubtractedSolid{
-		Positive: &model3d.Cylinder{
-			P2:     model3d.Z(ScrewLength),
-			Radius: TopRadius,
-		},
-		Negative: &toolbox3d.ScrewSolid{
-			P2:         model3d.Z(ScrewLength),
+func TopSolid() Solid3 {
+	return Sub3(
+		Cylinder(
+			Origin3,
+			Z(ScrewLength),
+			TopRadius,
+		),
+		&toolbox3d.ScrewSolid{
+			P2:         Z(ScrewLength),
 			Radius:     ScrewRadius,
 			GrooveSize: ScrewGrooves,
 		},
-	}
+	)
 }

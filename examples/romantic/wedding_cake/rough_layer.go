@@ -5,6 +5,7 @@ import (
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
+	. "github.com/unixpickle/model3d/shorthand"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -17,17 +18,17 @@ const (
 	HexRoughLayerRadius      = 2.0
 )
 
-func RoughRoundLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
-	cyl := &model3d.Cylinder{
-		P1:     model3d.Origin,
-		P2:     model3d.Z(RoughRoundLayerThickness),
-		Radius: RoughRoundLayerRadius,
-	}
+func RoughRoundLayer() (Solid3, toolbox3d.CoordColorFunc) {
+	cyl := Cylinder(
+		Origin3,
+		Z(RoughRoundLayerThickness),
+		RoughRoundLayerRadius,
+	)
 	solid := MakeRoughShape(cyl)
 	return solid, toolbox3d.ConstantCoordColorFunc(GoldDripColor)
 }
 
-func HexRoughLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
+func HexRoughLayer() (Solid3, toolbox3d.CoordColorFunc) {
 	hexMesh := model2d.NewMeshPolar(func(theta float64) float64 {
 		return HexRoughLayerRadius
 	}, 6)
@@ -37,10 +38,10 @@ func HexRoughLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 	return solid, toolbox3d.ConstantCoordColorFunc(GoldDripColor)
 }
 
-func MakeRoughShape(shape model3d.Solid) model3d.Solid {
+func MakeRoughShape(shape Solid3) Solid3 {
 	mesh := model3d.MarchingCubesSearch(shape, RoundRoughLayerGridSize, 8)
 	normals := mesh.VertexNormals()
-	mesh = mesh.MapCoords(func(c model3d.Coord3D) model3d.Coord3D {
+	mesh = mesh.MapCoords(func(c C3) C3 {
 		return c.Add(normals.Value(c).Scale(rand.NormFloat64() * RoughRoundLayerNoise))
 	})
 	mesh = model3d.LoopSubdivision(mesh, 1)

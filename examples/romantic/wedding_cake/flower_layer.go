@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/unixpickle/model3d/model3d"
-	"github.com/unixpickle/model3d/render3d"
+	. "github.com/unixpickle/model3d/shorthand"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -14,7 +14,7 @@ const (
 	FlowerLayerFlowerDepth = 0.03
 )
 
-func FlowerLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
+func FlowerLayer() (Solid3, toolbox3d.CoordColorFunc) {
 	numFlowers := math.Floor(2 * math.Pi * FlowerLayerRadius / FlowerLayerThickness)
 	flowerTheta := math.Pi * 2 / numFlowers
 	flowerMesh := model3d.NewMesh()
@@ -33,20 +33,20 @@ func FlowerLayer() (model3d.Solid, toolbox3d.CoordColorFunc) {
 				x2 := offset + flowerTheta/2 + r2*math.Cos(t2)
 				y2 := FlowerLayerRadius * (flowerTheta/2 + r2*math.Sin(t2))
 
-				p1 := model3d.XYZ(math.Cos(x1)*FlowerLayerRadius, math.Sin(x1)*FlowerLayerRadius, y1)
-				p2 := model3d.XYZ(math.Cos(x2)*FlowerLayerRadius, math.Sin(x2)*FlowerLayerRadius, y2)
+				p1 := XYZ(math.Cos(x1)*FlowerLayerRadius, math.Sin(x1)*FlowerLayerRadius, y1)
+				p2 := XYZ(math.Cos(x2)*FlowerLayerRadius, math.Sin(x2)*FlowerLayerRadius, y2)
 				flowerMesh.Add(&model3d.Triangle{p1, p2, p2})
 			}
 		}
 	}
 
-	solid := model3d.JoinedSolid{
-		&model3d.Cylinder{
-			P1:     model3d.Origin,
-			P2:     model3d.Z(FlowerLayerThickness),
-			Radius: FlowerLayerRadius,
-		},
+	solid := Join3(
+		Cylinder(
+			Origin3,
+			Z(FlowerLayerThickness),
+			FlowerLayerRadius,
+		),
 		model3d.NewColliderSolidHollow(model3d.MeshToCollider(flowerMesh), FlowerLayerFlowerDepth),
-	}
-	return solid, toolbox3d.ConstantCoordColorFunc(render3d.NewColor(1.0))
+	)
+	return solid, toolbox3d.ConstantCoordColorFunc(Gray(1.0))
 }

@@ -7,13 +7,13 @@ import (
 
 	"github.com/unixpickle/model3d/model2d"
 	"github.com/unixpickle/model3d/model3d"
-	"github.com/unixpickle/model3d/render3d"
+	. "github.com/unixpickle/model3d/shorthand"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
-var LetterColor = render3d.NewColorRGB(0x0A/255.0, 0xBA/255.0, 0xB5/255.0)
+var LetterColor = RGB(0x0A/255.0, 0xBA/255.0, 0xB5/255.0)
 
-func LetterCircle(bottomLayer model3d.Solid) (model3d.Solid, toolbox3d.CoordColorFunc) {
+func LetterCircle(bottomLayer Solid3) (Solid3, toolbox3d.CoordColorFunc) {
 	text := "Happy 1st"
 	theta := 0.0
 	var solids model3d.JoinedSolid
@@ -29,7 +29,7 @@ func LetterCircle(bottomLayer model3d.Solid) (model3d.Solid, toolbox3d.CoordColo
 		coll2d := model2d.MeshToCollider(mesh2d)
 		coll3d := model3d.ProfileCollider(coll2d, 0, 0.1)
 
-		instantiate := func(radius, translateZ float64) model3d.Solid {
+		instantiate := func(radius, translateZ float64) Solid3 {
 			return model3d.RotateSolid(
 				model3d.TranslateSolid(
 					model3d.RotateSolid(
@@ -39,7 +39,7 @@ func LetterCircle(bottomLayer model3d.Solid) (model3d.Solid, toolbox3d.CoordColo
 					),
 					model3d.YZ(bottomLayer.Max().Y+radius, translateZ),
 				),
-				model3d.Z(1),
+				Z(1),
 				theta,
 			)
 		}
