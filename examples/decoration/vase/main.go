@@ -6,6 +6,7 @@ import (
 
 	"github.com/unixpickle/model3d/model3d"
 	"github.com/unixpickle/model3d/render3d"
+	. "github.com/unixpickle/model3d/shorthand"
 	"github.com/unixpickle/model3d/toolbox3d"
 )
 
@@ -44,11 +45,11 @@ func main() {
 	render3d.SaveRandomGrid("rendering.png", mesh, 3, 3, 300, nil)
 }
 
-func VaseSolid() model3d.Solid {
-	return model3d.CheckedFuncSolid(
-		model3d.XY(-MaxRadius, -MaxRadius),
-		model3d.XYZ(MaxRadius, MaxRadius, Height),
-		func(c model3d.Coord3D) bool {
+func VaseSolid() Solid3 {
+	return MakeSolid3(
+		XYZ(-MaxRadius, -MaxRadius, Z),
+		XYZ(MaxRadius, MaxRadius, Height),
+		func(c C3) bool {
 			maxRadius := RadiusFunc(c.Z)
 
 			c2d := c.XY()
