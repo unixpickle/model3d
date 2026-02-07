@@ -6,7 +6,7 @@ import (
 )
 
 func Cylinder(p1, p2 C3, r float64) *model3d.Cylinder {
-	return &model3d.Cylinder{P1: p2, P2: p2, Radius: r}
+	return &model3d.Cylinder{P1: p1, P2: p2, Radius: r}
 }
 
 func Sphere(c C3, r float64) *model3d.Sphere {
