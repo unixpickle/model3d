@@ -3,6 +3,7 @@ package model3d
 import (
 	"math"
 	"sort"
+	"sync"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/numerical"
@@ -165,30 +166,42 @@ func (d *DualContouring) MeshInterior() (*Mesh, []Coord3D) {
 func (d *DualContouring) mesh(interior *[]Coord3D) *Mesh {
 	validateBounds(d.S.Solid)
 	s := d.S.Solid
-	layout := newDcCubeLayout(s.Min(), s.Max(), d.Delta, d.NoJitter, d.BufferSize)
-	if len(layout.Zs) < 3 {
-		panic("invalid number of z values")
-	}
 
-	mesh := NewMesh()
+	// Even with Clip = false, if Repair = true we might need to
+	// clip some vertices to prevent identical vertices in separate cubes.
+	mustClipMap := NewCoordMap[struct{}]()
 	for {
-		d.populateCorners(layout)
-		d.populateEdges(layout, interior)
-		d.populateCubes(layout)
-		d.appendMesh(layout, mesh)
-		if layout.Remaining() == 0 {
-			break
+		oldMustClipCount := mustClipMap.Len()
+		layout := newDcCubeLayout(s.Min(), s.Max(), d.Delta, d.NoJitter, d.BufferSize)
+		if len(layout.Zs) < 3 {
+			panic("invalid number of z values")
 		}
-		layout.Shift()
-	}
+		mesh := NewMesh()
+		usedCoords := NewCoordToNumber[int]()
+		for {
+			d.populateCorners(layout)
+			d.populateEdges(layout, interior)
+			d.populateCubes(layout, mustClipMap, usedCoords)
+			d.appendMesh(layout, mesh)
+			if layout.Remaining() == 0 {
+				break
+			}
+			layout.Shift()
+		}
 
-	if d.Repair {
-		orig := d.repairSingularEdges(mesh, layout)
-		d.repairSingularVertices(mesh, layout, orig)
-		mesh.clearVertexToFace()
-	}
+		if mustClipMap.Len() > oldMustClipCount {
+			// Retry with more coordinates clipped
+			continue
+		}
 
-	return mesh
+		if d.Repair {
+			orig := d.repairSingularEdges(mesh, layout)
+			d.repairSingularVertices(mesh, layout, orig)
+			mesh.clearVertexToFace()
+		}
+
+		return mesh
+	}
 }
 
 func (d *DualContouring) populateCorners(layout *dcCubeLayout) {
@@ -231,7 +244,12 @@ func (d *DualContouring) populateEdges(layout *dcCubeLayout, interior *[]Coord3D
 	})
 }
 
-func (d *DualContouring) populateCubes(layout *dcCubeLayout) {
+func (d *DualContouring) populateCubes(
+	layout *dcCubeLayout,
+	mustClipCoords *CoordMap[struct{}],
+	usedCoords *CoordToNumber[int],
+) {
+	var usedLock sync.Mutex
 	essentials.ConcurrentMap(d.MaxGos, len(layout.Cubes), func(i int) {
 		cube := layout.Cube(dcCubeIdx(i))
 		if cube.Populated {
@@ -272,19 +290,32 @@ func (d *DualContouring) populateCubes(layout *dcCubeLayout) {
 		solution := numerical.LeastSquaresReg3(matA, matB, d.L2Penalty, d.singularValueEpsilon())
 		p := NewCoord3DArray(solution).Add(massPoint)
 		if d.Clip {
-			minPoint, maxPoint := layout.CubeMinMax(dcCubeIdx(i))
-			margin := d.CubeMargin
-			if margin == 0 {
-				margin = DefaultDualContouringCubeMargin
+			p = d.clipCube(layout, p, dcCubeIdx(i))
+		} else if d.Repair {
+			usedLock.Lock()
+			if _, ok := mustClipCoords.Load(p); ok {
+				p = d.clipCube(layout, p, dcCubeIdx(i))
 			}
-			margin = margin * d.Delta
-			minPoint = minPoint.AddScalar(margin)
-			maxPoint = maxPoint.AddScalar(-margin)
-			p = p.Max(minPoint).Min(maxPoint)
+			if usedCoords.Add(p, 1) > 1 {
+				mustClipCoords.Store(p, struct{}{})
+			}
+			usedLock.Unlock()
 		}
-
 		cube.VertexPosition = p
 	})
+}
+
+func (d *DualContouring) clipCube(layout *dcCubeLayout, p Coord3D, i dcCubeIdx) Coord3D {
+	minPoint, maxPoint := layout.CubeMinMax(i)
+	margin := d.CubeMargin
+	if margin == 0 {
+		margin = DefaultDualContouringCubeMargin
+	}
+	margin = margin * d.Delta
+	minPoint = minPoint.AddScalar(margin)
+	maxPoint = maxPoint.AddScalar(-margin)
+	p = p.Max(minPoint).Min(maxPoint)
+	return p
 }
 
 func (d *DualContouring) appendMesh(layout *dcCubeLayout, mesh *Mesh) {

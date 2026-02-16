@@ -5,6 +5,8 @@ import (
 	"math"
 	"math/rand"
 	"testing"
+
+	"github.com/unixpickle/model3d/model2d"
 )
 
 func TestDualContouringBasic(t *testing.T) {
@@ -146,6 +148,115 @@ func TestDualContouringSingular(t *testing.T) {
 			t.Error("mesh is incorrectly oriented")
 		}
 	})
+}
+
+func TestDualContouringDuplicateVertices(t *testing.T) {
+	blanketTassel := func() Solid {
+		outsetPart := CheckedFuncSolid(
+			XYZ(-5, 0, -3),
+			XYZ(5, 5, 3),
+			func(c Coord3D) bool {
+				r := c.Mul(XZ(1, 2.0)).Norm()
+				actualR := 1.2 * math.Sqrt(c.Y) / math.Sqrt(5)
+				return r < actualR
+			},
+		)
+		connector := &Sphere{Radius: 1}
+		return JoinedSolid{outsetPart, connector}
+	}
+	solid := func() Solid {
+		joined := JoinedSolid{
+			TranslateSolid(
+				RotateSolid(
+					blanketTassel(),
+					Z(1),
+					-math.Pi/4,
+				),
+				XY(10, 10),
+			),
+			TranslateSolid(
+				RotateSolid(
+					blanketTassel(),
+					Z(1),
+					math.Pi/4,
+				),
+				XY(-10, 10),
+			),
+			TranslateSolid(
+				RotateSolid(
+					blanketTassel(),
+					Z(1),
+					math.Pi+math.Pi/4,
+				),
+				XY(10, -10),
+			),
+			TranslateSolid(
+				RotateSolid(
+					blanketTassel(),
+					Z(1),
+					math.Pi-math.Pi/4,
+				),
+				XY(-10, -10),
+			),
+		}
+		baseSolid := joined.Optimize()
+		distorted := CheckedFuncSolid(
+			baseSolid.Min(),
+			baseSolid.Max().Add(Z(3)),
+			func(c Coord3D) bool {
+				diagDot := c.XY().Dot(model2d.XY(0.3, 0.5)) - 7
+				displaceScale := 0.5 * (c.XY().Dot(model2d.XY(-0.5, 0.7)) + 30) / 35
+				displacement := math.Exp(-math.Pow(diagDot, 2))
+				c.Z -= displacement * displaceScale
+
+				diagDot = c.XY().Dot(model2d.XY(0.5, 0.2)) + 7
+				displaceScale = (c.XY().Dot(model2d.XY(0.5, -0.7)) + 30) / 35
+				displacement = math.Exp(-math.Pow(diagDot, 2))
+				c.Z -= displacement * displaceScale
+
+				return baseSolid.Contains(c)
+			},
+		)
+
+		coarseMesh := MarchingCubesSearch(distorted, 0.1, 4)
+		coarseCollider := MeshToCollider(coarseMesh)
+		bottomFillIn := CheckedFuncSolid(
+			coarseMesh.Min().Sub(Z(0.1)),
+			coarseMesh.Max(),
+			func(c Coord3D) bool {
+				ray := &Ray{Origin: XYZ(c.X, c.Y, -10), Direction: Z(1)}
+				rc, ok := coarseCollider.FirstRayCollision(ray)
+				return ok && ray.Origin.Add(ray.Direction.Scale(rc.Scale)).Z >= c.Z-0.1
+			},
+		)
+
+		outlineSolid := model2d.CheckedFuncSolid(
+			coarseCollider.Min().XY(),
+			coarseCollider.Max().XY(),
+			func(c model2d.Coord) bool {
+				ray := &Ray{Origin: XYZ(c.X, c.Y, -10), Direction: Z(1)}
+				_, ok := coarseCollider.FirstRayCollision(ray)
+				return ok
+			},
+		)
+		outlineMesh := model2d.MarchingSquaresSearch(outlineSolid, 0.1, 8)
+		outset := model2d.NewColliderSolidInset(model2d.MeshToCollider(outlineMesh), -1)
+		outlineProfile := ProfileSolid(outset, bottomFillIn.Min().Z, bottomFillIn.Min().Z+1)
+
+		fullSolid := JoinedSolid{distorted, bottomFillIn, outlineProfile}
+
+		return ScaleSolid(fullSolid, 4)
+	}
+	mesh, _ := DualContourInterior(solid(), 0.5, true, false)
+	if mesh.NeedsRepair() {
+		t.Error("mesh has singular edges")
+	}
+	if len(mesh.SingularVertices()) > 0 {
+		t.Error("mesh has singular vertices")
+	}
+	if !mesh.Orientable() || len(mesh.InconsistentEdges()) > 0 {
+		t.Error("mesh is incorrectly oriented")
+	}
 }
 
 func BenchmarkDualContouring(b *testing.B) {
