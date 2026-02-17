@@ -96,14 +96,14 @@ func testPolytopeMesh(t *testing.T, c ConvexPolytope) {
 }
 
 func BenchmarkPolytope(b *testing.B) {
-	rand.Seed(1337)
+	rng := rand.New(rand.NewSource(1337))
 
 	polytope := ConvexPolytope{}
 	for i := 0; i < 100; i++ {
-		normal := NewCoord3DRandUnit()
+		normal := NewCoord3DRandUnit(rng)
 		polytope = append(polytope, &LinearConstraint{
 			Normal: normal,
-			Max:    rand.Float64() + 0.1,
+			Max:    rng.Float64() + 0.1,
 		})
 	}
 

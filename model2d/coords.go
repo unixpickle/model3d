@@ -15,18 +15,31 @@ type Coord struct {
 
 // NewCoordRandNorm creates a random Coord with normally
 // distributed components.
-func NewCoordRandNorm() Coord {
-	return Coord{
-		X: rand.NormFloat64(),
-		Y: rand.NormFloat64(),
+func NewCoordRandNorm(rng ...*rand.Rand) Coord {
+	if len(rng) != 0 && len(rng) != 1 {
+		panic("unexpected RNG count")
+	}
+	if len(rng) == 0 {
+		return Coord{
+			X: rand.NormFloat64(),
+			Y: rand.NormFloat64(),
+		}
+	} else {
+		return Coord{
+			X: rng[0].NormFloat64(),
+			Y: rng[0].NormFloat64(),
+		}
 	}
 }
 
 // NewCoordRandUnit creates a random Coord with magnitude
 // 1.
-func NewCoordRandUnit() Coord {
+func NewCoordRandUnit(rng ...*rand.Rand) Coord {
+	if len(rng) != 0 && len(rng) != 1 {
+		panic("unexpected RNG count")
+	}
 	for {
-		res := NewCoordRandNorm()
+		res := NewCoordRandNorm(rng...)
 		norm := res.Norm()
 		// Edge case to avoid numerical issues.
 		if norm > 1e-8 {
@@ -37,17 +50,27 @@ func NewCoordRandUnit() Coord {
 
 // NewCoordRandUniform creates a random Coord with
 // uniformly random coordinates in [0, 1).
-func NewCoordRandUniform() Coord {
-	return Coord{
-		X: rand.Float64(),
-		Y: rand.Float64(),
+func NewCoordRandUniform(rng ...*rand.Rand) Coord {
+	if len(rng) != 0 && len(rng) != 1 {
+		panic("unexpected RNG count")
+	}
+	if len(rng) == 0 {
+		return Coord{
+			X: rand.Float64(),
+			Y: rand.Float64(),
+		}
+	} else {
+		return Coord{
+			X: rng[0].Float64(),
+			Y: rng[0].Float64(),
+		}
 	}
 }
 
 // NewCoordRandBounds creates a random Coord uniformly
 // inside the given rectangular boundary.
-func NewCoordRandBounds(min, max Coord) Coord {
-	c := NewCoordRandUniform()
+func NewCoordRandBounds(min, max Coord, rng ...*rand.Rand) Coord {
+	c := NewCoordRandUniform(rng...)
 	return c.Mul(max.Sub(min)).Add(min)
 }
 

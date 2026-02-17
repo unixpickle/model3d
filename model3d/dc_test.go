@@ -126,10 +126,10 @@ func TestDualContouringSingular(t *testing.T) {
 		runTransform(t, Rotation(XYZ(1.0, 2.0, 3.0).Normalize(), 123.0))
 	})
 	t.Run("Random", func(t *testing.T) {
-		rand.Seed(1337)
+		rng := rand.New(rand.NewSource(1337))
 		dc := &DualContouring{
 			S: SolidSurfaceEstimator{
-				Solid: randomSolid{},
+				Solid: randomSolid{rng: rng},
 			},
 			Delta: 0.04,
 			// Both of these are necessary to guarantee

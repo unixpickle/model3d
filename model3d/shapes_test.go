@@ -258,10 +258,10 @@ func TestCapsuleSDF(t *testing.T) {
 }
 
 func TestConeSDF(t *testing.T) {
-	rand.Seed(0)
+	rng := rand.New(rand.NewSource(0))
 	for i := 0; i < 10; i++ {
-		p1 := NewCoord3DRandUnit()
-		p2 := NewCoord3DRandUnit()
+		p1 := NewCoord3DRandUnit(rng)
+		p2 := NewCoord3DRandUnit(rng)
 		if p1.Dist(p2) < 0.1 {
 			i--
 			continue
@@ -269,7 +269,7 @@ func TestConeSDF(t *testing.T) {
 		cone := &Cone{
 			Base:   p1,
 			Tip:    p2,
-			Radius: math.Abs(rand.NormFloat64()) + 0.1,
+			Radius: math.Abs(rng.NormFloat64()) + 0.1,
 		}
 		epsilon := 0.04
 		numStops := int(math.Ceil(2 * math.Pi * cone.Radius / epsilon))
@@ -294,10 +294,10 @@ func TestConeSDF(t *testing.T) {
 }
 
 func TestConeSliceSDF(t *testing.T) {
-	rand.Seed(0)
+	rng := rand.New(rand.NewSource(0))
 	for i := 0; i < 10; i++ {
-		p1 := NewCoord3DRandUnit()
-		p2 := NewCoord3DRandUnit()
+		p1 := NewCoord3DRandUnit(rng)
+		p2 := NewCoord3DRandUnit(rng)
 		if p1.Dist(p2) < 0.1 {
 			i--
 			continue
@@ -305,8 +305,8 @@ func TestConeSliceSDF(t *testing.T) {
 		cone := &ConeSlice{
 			P1: p1,
 			P2: p2,
-			R1: math.Abs(rand.NormFloat64()) + 0.1,
-			R2: math.Abs(rand.NormFloat64()) + 0.01,
+			R1: math.Abs(rng.NormFloat64()) + 0.1,
+			R2: math.Abs(rng.NormFloat64()) + 0.01,
 		}
 		epsilon := 0.04
 		numStops := int(math.Ceil(2 * math.Pi * math.Max(cone.R1, cone.R2) / epsilon))

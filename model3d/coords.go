@@ -49,26 +49,26 @@ type Coord2D = model2d.Coord
 
 // NewCoord2DRandNorm creates a random Coord2D with
 // normally distributed components.
-func NewCoord2DRandNorm() Coord2D {
-	return model2d.NewCoordRandNorm()
+func NewCoord2DRandNorm(rng ...*rand.Rand) Coord2D {
+	return model2d.NewCoordRandNorm(rng...)
 }
 
 // NewCoord2DRandUnit creates a random Coord2D with
 // magnitude 1.
-func NewCoord2DRandUnit() Coord2D {
-	return model2d.NewCoordRandUnit()
+func NewCoord2DRandUnit(rng ...*rand.Rand) Coord2D {
+	return model2d.NewCoordRandUnit(rng...)
 }
 
 // NewCoord2DRandUniform creates a random Coord2D with
 // uniformly random coordinates in [0, 1).
-func NewCoord2DRandUniform() Coord2D {
-	return model2d.NewCoordRandUniform()
+func NewCoord2DRandUniform(rng ...*rand.Rand) Coord2D {
+	return model2d.NewCoordRandUniform(rng...)
 }
 
 // NewCoord2DRandBounds creates a random Coord2D uniformly
 // inside the given rectangular boundary.
-func NewCoord2DRandBounds(min, max Coord2D) Coord2D {
-	return model2d.NewCoordRandBounds(min, max)
+func NewCoord2DRandBounds(min, max Coord2D, rng ...*rand.Rand) Coord2D {
+	return model2d.NewCoordRandBounds(min, max, rng...)
 }
 
 // NewCoord2DPolar converts polar coordinates to a
@@ -92,19 +92,30 @@ func NewCoord3DArray(a [3]float64) Coord3D {
 
 // NewCoord3DRandNorm creates a random Coord3D with
 // normally distributed components.
-func NewCoord3DRandNorm() Coord3D {
-	return Coord3D{
-		X: rand.NormFloat64(),
-		Y: rand.NormFloat64(),
-		Z: rand.NormFloat64(),
+func NewCoord3DRandNorm(rng ...*rand.Rand) Coord3D {
+	if len(rng) != 0 && len(rng) != 1 {
+		panic("unexpected RNG count")
+	}
+	if len(rng) == 0 {
+		return Coord3D{
+			X: rand.NormFloat64(),
+			Y: rand.NormFloat64(),
+			Z: rand.NormFloat64(),
+		}
+	} else {
+		return Coord3D{
+			X: rng[0].NormFloat64(),
+			Y: rng[0].NormFloat64(),
+			Z: rng[0].NormFloat64(),
+		}
 	}
 }
 
 // NewCoord3DRandUnit creates a random Coord3D with
 // magnitude 1.
-func NewCoord3DRandUnit() Coord3D {
+func NewCoord3DRandUnit(rng ...*rand.Rand) Coord3D {
 	for {
-		res := NewCoord3DRandNorm()
+		res := NewCoord3DRandNorm(rng...)
 		norm := res.Norm()
 		// Edge case to avoid numerical issues.
 		if norm > 1e-8 {
@@ -115,18 +126,29 @@ func NewCoord3DRandUnit() Coord3D {
 
 // NewCoord3DRandUniform creates a random Coord3D with
 // uniformly random coordinates in [0, 1).
-func NewCoord3DRandUniform() Coord3D {
-	return Coord3D{
-		X: rand.Float64(),
-		Y: rand.Float64(),
-		Z: rand.Float64(),
+func NewCoord3DRandUniform(rng ...*rand.Rand) Coord3D {
+	if len(rng) != 0 && len(rng) != 1 {
+		panic("unexpected RNG count")
+	}
+	if len(rng) == 0 {
+		return Coord3D{
+			X: rand.Float64(),
+			Y: rand.Float64(),
+			Z: rand.Float64(),
+		}
+	} else {
+		return Coord3D{
+			X: rng[0].Float64(),
+			Y: rng[0].Float64(),
+			Z: rng[0].Float64(),
+		}
 	}
 }
 
 // NewCoord3DRandBounds creates a random Coord3D uniformly
 // inside the given rectangular boundary.
-func NewCoord3DRandBounds(min, max Coord3D) Coord3D {
-	c := NewCoord3DRandUniform()
+func NewCoord3DRandBounds(min, max Coord3D, rng ...*rand.Rand) Coord3D {
+	c := NewCoord3DRandUniform(rng...)
 	return c.Mul(max.Sub(min)).Add(min)
 }
 

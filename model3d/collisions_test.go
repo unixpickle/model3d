@@ -168,8 +168,10 @@ func TestMeshShapeCollisions(t *testing.T) {
 }
 
 func TestSolidCollider(t *testing.T) {
-	// Prevent test non-determinism
+	// SolidCollider uses package-level rand internally for
+	// normal estimation.
 	rand.Seed(0)
+	rng := rand.New(rand.NewSource(0))
 
 	// Create a non-trivial, non-convex solid.
 	solid := JoinedSolid{
@@ -220,9 +222,9 @@ func TestSolidCollider(t *testing.T) {
 
 	for i := 0; i < 10000; i++ {
 		ray := &Ray{
-			Origin: NewCoord3DRandNorm().Scale(0.5),
+			Origin: NewCoord3DRandNorm(rng).Scale(0.5),
 			// Explicitly test non-unit directions.
-			Direction: NewCoord3DRandNorm(),
+			Direction: NewCoord3DRandNorm(rng),
 		}
 
 		if i == 0 {

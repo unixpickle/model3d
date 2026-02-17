@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"math"
+	"math/rand"
 	"testing"
 
 	"github.com/unixpickle/model3d/model2d"
@@ -53,7 +54,8 @@ func TestMeshToPlaneGraphs(t *testing.T) {
 		testGenericShape(t, NewMeshTorus(Origin, Z(1), 0.1, 0.5, 10, 30))
 	})
 	t.Run("Random", func(t *testing.T) {
-		testGenericShape(t, MarchingCubesSearch(randomSolid{}, 0.05, 8))
+		rng := rand.New(rand.NewSource(1337))
+		testGenericShape(t, MarchingCubesSearch(randomSolid{rng: rng}, 0.05, 8))
 	})
 }
 

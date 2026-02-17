@@ -10,14 +10,15 @@ import (
 )
 
 func TestHeigthMapInterp(t *testing.T) {
-	rand.Seed(0)
-	hm := createRandomizedHeightMap()
+	rng := rand.New(rand.NewSource(0))
+	hm := createRandomizedHeightMap(rng)
 	for i := 0; i < 1000; i++ {
 		c1 := model2d.NewCoordRandBounds(
 			hm.Min.Sub(model2d.XY(0.05, 0.05)),
 			hm.Max.Add(model2d.XY(0.05, 0.05)),
+			rng,
 		)
-		c2 := c1.Add(model2d.NewCoordRandUniform().Scale(1e-6))
+		c2 := c1.Add(model2d.NewCoordRandUniform(rng).Scale(1e-6))
 		h1 := math.Sqrt(hm.HeightSquaredAt(c1))
 		h2 := math.Sqrt(hm.HeightSquaredAt(c2))
 		if math.Abs(h1-h2) > 1e-4 {
@@ -27,10 +28,10 @@ func TestHeigthMapInterp(t *testing.T) {
 }
 
 func TestHeightMapAdd(t *testing.T) {
-	rand.Seed(0)
-	h1 := createRandomizedHeightMap()
+	rng := rand.New(rand.NewSource(0))
+	h1 := createRandomizedHeightMap(rng)
 	h2 := h1.Copy()
-	hAdd := createRandomizedHeightMap()
+	hAdd := createRandomizedHeightMap(rng)
 
 	h1.AddHeightMap(hAdd)
 	hAdd.Min = hAdd.Min.Add(model2d.XY(1e-8, -1e-8))
@@ -46,7 +47,7 @@ func TestHeightMapAdd(t *testing.T) {
 }
 
 func TestHeightMapAddSphere(t *testing.T) {
-	rand.Seed(0)
+	rng := rand.New(rand.NewSource(0))
 	h := NewHeightMap(model2d.XY(-1, -1), model2d.XY(1, 1), 1000)
 	h.AddSphere(model2d.XY(0.1, 0.1), 0.3)
 
@@ -55,7 +56,7 @@ func TestHeightMapAddSphere(t *testing.T) {
 	actualSDF := model3d.MeshToSDF(actualMesh)
 
 	for i := 0; i < 1000; i++ {
-		coord := model3d.NewCoord3DRandNorm()
+		coord := model3d.NewCoord3DRandNorm(rng)
 		actual := actualSDF.SDF(coord)
 		expected := expectedSDF.SDF(coord)
 		if math.Abs(actual-expected) > 0.01 {
@@ -66,12 +67,12 @@ func TestHeightMapAddSphere(t *testing.T) {
 }
 
 func TestHeightMapMesh(t *testing.T) {
-	rand.Seed(0)
+	rng := rand.New(rand.NewSource(0))
 	h := NewHeightMap(model2d.XY(-1, -1), model2d.XY(1, 1), 100)
 	for i := 0; i < h.Rows; i++ {
 		for j := 0; j < h.Cols; j++ {
-			if rand.Intn(2) == 0 {
-				h.Data[j+i*h.Cols] = rand.Float64() * 2
+			if rng.Intn(2) == 0 {
+				h.Data[j+i*h.Cols] = rng.Float64() * 2
 			}
 		}
 	}
@@ -96,11 +97,11 @@ func TestHeightMapMesh(t *testing.T) {
 	})
 }
 
-func createRandomizedHeightMap() *HeightMap {
+func createRandomizedHeightMap(rng *rand.Rand) *HeightMap {
 	result := NewHeightMap(model2d.XY(0.1, 0.2), model2d.XY(0.3, 0.7), 1000)
-	for i := 0; i < rand.Intn(100)+10; i++ {
-		center := model2d.NewCoordRandBounds(result.Min, result.Max)
-		result.AddSphere(center, rand.Float64()*0.05)
+	for i := 0; i < rng.Intn(100)+10; i++ {
+		center := model2d.NewCoordRandBounds(result.Min, result.Max, rng)
+		result.AddSphere(center, rng.Float64()*0.05)
 	}
 	return result
 }

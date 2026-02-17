@@ -26,12 +26,13 @@ func TestMarchingCubesDeterminism(t *testing.T) {
 func TestMarchingCubesRandom(t *testing.T) {
 	for _, name := range []string{"Normal", "Search"} {
 		t.Run(name, func(t *testing.T) {
+			rng := rand.New(rand.NewSource(1337))
 			for i := 0; i < 30; i++ {
 				var mesh *Mesh
 				if name == "Normal" {
-					mesh = MarchingCubes(randomSolid{}, 0.1)
+					mesh = MarchingCubes(randomSolid{rng: rng}, 0.1)
 				} else {
-					mesh = MarchingCubesSearch(randomSolid{}, 0.1, 2)
+					mesh = MarchingCubesSearch(randomSolid{rng: rng}, 0.1, 2)
 				}
 				MustValidateMesh(t, mesh, true)
 			}
@@ -140,7 +141,9 @@ func BenchmarkMarchingCubesFilter(b *testing.B) {
 	runBench(b, 0)
 }
 
-type randomSolid struct{}
+type randomSolid struct {
+	rng *rand.Rand
+}
 
 func (r randomSolid) Min() Coord3D {
 	return Coord3D{}
@@ -151,5 +154,8 @@ func (r randomSolid) Max() Coord3D {
 }
 
 func (r randomSolid) Contains(c Coord3D) bool {
-	return InBounds(r, c) && rand.Intn(4) == 0
+	if r.rng == nil {
+		panic("missing rng")
+	}
+	return InBounds(r, c) && r.rng.Intn(4) == 0
 }
