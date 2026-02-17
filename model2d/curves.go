@@ -357,6 +357,171 @@ func (b BezierCurve) cubicLength(tol float64, maxSplits int) float64 {
 	return b1.cubicLength(tol/2, maxSplits-1) + b2.cubicLength(tol/2, maxSplits-1)
 }
 
+// An ArcCurve implements an elliptical arc in the style of SVG.
+type ArcCurve struct {
+	radii    Coord
+	start    Coord
+	end      Coord
+	rotation float64
+	largeArc bool
+	sweep    bool
+
+	cosRotation, sinRotation float64
+	center                   Coord
+	startTheta               float64
+	endTheta                 float64
+}
+
+// NewArcCurve creates a curve and precomputes its geometry.
+func NewArcCurve(radii, start, end Coord, rotation float64, largeArc, sweep bool) *ArcCurve {
+	result := &ArcCurve{
+		radii:    radii.Abs(),
+		start:    start,
+		end:      end,
+		rotation: rotation,
+		largeArc: largeArc,
+		sweep:    sweep,
+
+		cosRotation: math.Cos(rotation),
+		sinRotation: math.Sin(rotation),
+	}
+	result.center, result.startTheta, result.endTheta = result.calculate()
+	return result
+}
+
+// det computes a 2D determinant based on two rows.
+func det(a, b Coord) float64 { return a.X*b.Y - a.Y*b.X }
+
+// angleBetween returns a signed angle from u to v in (-pi, pi]
+func angleBetween(u, v Coord) float64 {
+	return math.Atan2(det(u, v), u.Dot(v))
+}
+
+func (a *ArcCurve) calculate() (center Coord, startTheta, endTheta float64) {
+	// Implements SVG arc conversion (endpoint -> center parameterization).
+	// Rotation is assumed to be in radians.
+	x1, y1 := a.start.X, a.start.Y
+	x2, y2 := a.end.X, a.end.Y
+
+	rx := a.radii.X
+	ry := a.radii.Y
+
+	// Degenerate: treat as point/line; Eval() will handle.
+	if (x1 == x2 && y1 == y2) || rx == 0 || ry == 0 {
+		return XY((x1+x2)*0.5, (y1+y2)*0.5), 0, 0
+	}
+
+	cphi := a.cosRotation
+	sphi := a.sinRotation
+
+	// Step 1: compute (x1', y1')
+	dx := (x1 - x2) * 0.5
+	dy := (y1 - y2) * 0.5
+	x1p := cphi*dx + sphi*dy
+	y1p := -sphi*dx + cphi*dy
+
+	// Step 2: correct radii if too small
+	lam := x1p*x1p/(rx*rx) + y1p*y1p/(ry*ry)
+	if lam > 1 {
+		s := math.Sqrt(lam)
+		rx *= s
+		ry *= s
+	}
+
+	// Step 3: compute center in the prime coordinates (cx', cy')
+	// sign = +1 or -1 based on flags
+	sign := 1.0
+	if a.largeArc == a.sweep {
+		sign = -1.0
+	}
+
+	rx2 := rx * rx
+	ry2 := ry * ry
+	x1p2 := x1p * x1p
+	y1p2 := y1p * y1p
+
+	num := rx2*ry2 - rx2*y1p2 - ry2*x1p2
+	den := rx2*y1p2 + ry2*x1p2
+
+	// Numeric guard: if slightly negative due to floating error, clamp to 0.
+	if den == 0 {
+		// Shouldn’t happen unless start/end are pathological; fall back.
+		return XY((x1+x2)*0.5, (y1+y2)*0.5), 0, 0
+	}
+	factor := num / den
+	if factor < 0 {
+		factor = 0
+	}
+	coef := sign * math.Sqrt(factor)
+
+	cxp := coef * (rx * y1p / ry)
+	cyp := coef * (-ry * x1p / rx)
+
+	// Step 4: transform center back to original coordinates
+	mid := XY((x1+x2)*0.5, (y1+y2)*0.5)
+	center = XY(
+		cphi*cxp-sphi*cyp+mid.X,
+		sphi*cxp+cphi*cyp+mid.Y,
+	)
+
+	// Step 5: compute angles
+	// v1 = ((x1' - cx')/rx, (y1' - cy')/ry)
+	// v2 = ((x2' - cx')/rx, (y2' - cy')/ry) but x2'=-x1', y2'=-y1'
+	v1 := XY((x1p-cxp)/rx, (y1p-cyp)/ry)
+	v2 := XY((-x1p-cxp)/rx, (-y1p-cyp)/ry)
+
+	startTheta = angleBetween(Coord{1, 0}, v1)
+	delta := angleBetween(v1, v2)
+
+	// Step 6: adjust delta based on sweep flag to get the correct arc
+	if !a.sweep && delta > 0 {
+		delta -= 2 * math.Pi
+	} else if a.sweep && delta < 0 {
+		delta += 2 * math.Pi
+	}
+
+	endTheta = startTheta + delta
+	return center, startTheta, endTheta
+}
+
+func (a *ArcCurve) Eval(t float64) Coord {
+	// t in [0,1], evaluate from start (t=0) to end (t=1)
+	if t <= 0 {
+		return a.start
+	}
+	if t >= 1 {
+		return a.end
+	}
+
+	rx := a.radii.X
+	ry := a.radii.Y
+
+	// Degenerate behaviors (SVG-like):
+	// - If radii are zero, it's a straight line.
+	// - If start==end, it's a single point.
+	if rx == 0 || ry == 0 || (a.start.X == a.end.X && a.start.Y == a.end.Y) {
+		return a.start.Add(a.end.Sub(a.start).Scale(t))
+	}
+
+	center, th0, th1 := a.calculate()
+	dth := th1 - th0
+	theta := th0 + dth*t
+
+	cphi := a.cosRotation
+	sphi := a.sinRotation
+
+	// SVG center parameterization:
+	// x = cx + cosφ*rx*cosθ - sinφ*ry*sinθ
+	// y = cy + sinφ*rx*cosθ + cosφ*ry*sinθ
+	ct := math.Cos(theta)
+	st := math.Sin(theta)
+
+	return Coord{
+		X: center.X + cphi*rx*ct - sphi*ry*st,
+		Y: center.Y + sphi*rx*ct + cphi*ry*st,
+	}
+}
+
 // FuncCurve is a Curve defined as a single function.
 type FuncCurve func(t float64) Coord
 

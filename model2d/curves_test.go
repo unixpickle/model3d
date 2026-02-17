@@ -66,6 +66,33 @@ func TestBezierEval(t *testing.T) {
 	}
 }
 
+func TestArcCurve(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		radii := NewCoordRandUniform().AddScalar(0.1)
+		theta1 := rand.Float64() * math.Pi * 2
+		theta2 := rand.Float64() * math.Pi * 2
+		center := NewCoordRandUniform()
+		sweep := theta2 > theta1
+		largeArc := math.Abs(theta2-theta1) > math.Pi
+		rotation := rand.Float64() * math.Pi * 2
+
+		pOnCurve := func(t float64) Coord {
+			theta := theta1*(1-t) + theta2*t
+			base := XY(math.Cos(theta), math.Sin(theta)).Mul(radii)
+			return center.Add(Rotation(rotation).Apply(base))
+		}
+
+		arc := NewArcCurve(radii, pOnCurve(0), pOnCurve(1), rotation, largeArc, sweep)
+		for x := 0.0; x <= 1.0; x += 0.01 {
+			actual := arc.Eval(x)
+			expected := pOnCurve(x)
+			if actual.Dist(expected) > 0.0001 {
+				t.Fatalf("point at theta %f should be %v but got %v", x, expected, actual)
+			}
+		}
+	}
+}
+
 func evalSimpleRecursive(b BezierCurve, t float64) Coord {
 	if len(b) < 2 {
 		panic("need at least two points")
