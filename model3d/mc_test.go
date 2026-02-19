@@ -31,9 +31,9 @@ func TestMarchingCubesRandom(t *testing.T) {
 			for i := 0; i < 30; i++ {
 				var mesh *Mesh
 				if name == "Normal" {
-					mesh = MarchingCubes(randomSolid{rng: rng}, 0.1)
+					mesh = MarchingCubes(&randomSolid{rng: rng}, 0.1)
 				} else {
-					mesh = MarchingCubesSearch(randomSolid{rng: rng}, 0.1, 2)
+					mesh = MarchingCubesSearch(&randomSolid{rng: rng}, 0.1, 2)
 				}
 				MustValidateMesh(t, mesh, true)
 			}
@@ -147,15 +147,15 @@ type randomSolid struct {
 	rng  *rand.Rand
 }
 
-func (r randomSolid) Min() Coord3D {
+func (r *randomSolid) Min() Coord3D {
 	return Coord3D{}
 }
 
-func (r randomSolid) Max() Coord3D {
+func (r *randomSolid) Max() Coord3D {
 	return XYZ(1, 1, 1)
 }
 
-func (r randomSolid) Contains(c Coord3D) bool {
+func (r *randomSolid) Contains(c Coord3D) bool {
 	if r.rng == nil {
 		panic("missing rng")
 	}

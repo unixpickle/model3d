@@ -55,7 +55,7 @@ func TestMeshToPlaneGraphs(t *testing.T) {
 	})
 	t.Run("Random", func(t *testing.T) {
 		rng := rand.New(rand.NewSource(1337))
-		testGenericShape(t, MarchingCubesSearch(randomSolid{rng: rng}, 0.05, 8))
+		testGenericShape(t, MarchingCubesSearch(&randomSolid{rng: rng}, 0.05, 8))
 	})
 }
 
