@@ -7,13 +7,73 @@ import "math"
 // surface.
 type MetaballFalloffFunc func(r float64) float64
 
+// InversePowerMetaballFalloffFunc creates a falloff
+// function of the form 1/r^power for r>0.
+//
+// For r<=0, the returned function always produces +Inf.
+//
+// power must be strictly positive.
+func InversePowerMetaballFalloffFunc(power float64) MetaballFalloffFunc {
+    if power <= 0 {
+        panic("power must be positive")
+    }
+    return func(r float64) float64 {
+        if r <= 0 {
+            return math.Inf(1)
+        }
+        return math.Pow(r, -power)
+    }
+}
+
+var (
+    linearMetaballFalloffFunc = InversePowerMetaballFalloffFunc(1)
+    quadraticMetaballFalloffFunc = InversePowerMetaballFalloffFunc(2)
+    cubicMetaballFalloffFunc = InversePowerMetaballFalloffFunc(3)
+    quarticMetaballFalloffFunc = InversePowerMetaballFalloffFunc(4)
+    quinticMetaballFalloffFunc = InversePowerMetaballFalloffFunc(5)
+)
+
+// LinearMetaballFalloffFunc implements 1/r falloff.
+func LinearMetaballFalloffFunc(r float64) float64 {
+    return linearMetaballFalloffFunc(r)
+}
+
+// QuadraticMetaballFalloffFunc implements 1/r^2 falloff.
+func QuadraticMetaballFalloffFunc(r float64) float64 {
+    return quadraticMetaballFalloffFunc(r)
+}
+
+// CubicMetaballFalloffFunc implements 1/r^3 falloff.
+func CubicMetaballFalloffFunc(r float64) float64 {
+    return cubicMetaballFalloffFunc(r)
+}
+
 // QuarticMetaballFalloffFunc implements 1/r^4 falloff.
 func QuarticMetaballFalloffFunc(r float64) float64 {
+    return quarticMetaballFalloffFunc(r)
+}
+
+// QuinticMetaballFalloffFunc implements 1/r^5 falloff.
+func QuinticMetaballFalloffFunc(r float64) float64 {
+    return quinticMetaballFalloffFunc(r)
+}
+
+// ExponentialMetaballFalloffFunc implements exp(-r)
+// falloff for r>0 and clamps to 1 for r<=0.
+func ExponentialMetaballFalloffFunc(r float64) float64 {
     if r <= 0 {
-        return math.Inf(1)
+        return 1
     }
-    r2 := r*r
-    return 1/(r2*r2)
+    return math.Exp(-r)
+}
+
+// GaussianMetaballFalloffFunc implements exp(-r^2)
+// falloff for r>0 and clamps to 1 for r<=0.
+func GaussianMetaballFalloffFunc(r float64) float64 {
+    if r <= 0 {
+        return 1
+    }
+    return math.Exp(-r * r)
 }
 
 // A Metaball implements a field f(c) where values greater
