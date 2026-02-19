@@ -2,6 +2,7 @@ package model3d
 
 import (
 	"math/rand"
+	"sync"
 	"testing"
 )
 
@@ -142,7 +143,8 @@ func BenchmarkMarchingCubesFilter(b *testing.B) {
 }
 
 type randomSolid struct {
-	rng *rand.Rand
+	lock sync.Mutex
+	rng  *rand.Rand
 }
 
 func (r randomSolid) Min() Coord3D {
@@ -157,5 +159,11 @@ func (r randomSolid) Contains(c Coord3D) bool {
 	if r.rng == nil {
 		panic("missing rng")
 	}
-	return InBounds(r, c) && r.rng.Intn(4) == 0
+	if InBounds(r, c) {
+		r.lock.Lock()
+		flag := r.rng.Intn(4) == 0
+		r.lock.Unlock()
+		return flag
+	}
+	return false
 }
