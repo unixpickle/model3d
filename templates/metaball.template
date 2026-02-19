@@ -68,7 +68,13 @@ type Metaball interface {
 // value of the metaball's field that is contained within
 // the solid.
 func MetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, m ...Metaball) Solid {
-    if len(m) == 0 {
+    return SignedMetaballSolid(f, radiusThreshold, m, nil)
+}
+
+// SignedMetaballSolid is like MetaballSolid but with
+// support for negative metaballs.
+func SignedMetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, pos, neg []Metaball) Solid {
+    if len(pos) == 0 {
         return NewRect(Origin, Origin)
     }
     if f == nil {
@@ -77,8 +83,8 @@ func MetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, m ...Metaball
 
     threshold := f(radiusThreshold)
 
-    min, max := m[0].Min(), m[0].Max()
-    for _, mb := range m[1:] {
+    min, max := pos[0].Min(), pos[0].Max()
+    for _, mb := range pos[1:] {
         min, max = min.Min(mb.Min()), max.Max(mb.Max())
     }
 
@@ -92,7 +98,7 @@ func MetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, m ...Metaball
     // values).
     valueForOutset := func(x float64) float64 {
         var sum float64
-        for _, mb := range m {
+        for _, mb := range pos {
             sum += f(mb.MetaballDistBound(x))
         }
         return sum
@@ -127,8 +133,11 @@ func MetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, m ...Metaball
         max.AddScalar(maxOutset),
         func(c {{.coordType}}) bool {
             var sum float64
-            for _, mb := range m {
+            for _, mb := range pos {
                 sum += f(mb.MetaballField(c))
+            }
+            for _, mb := range neg {
+                sum -= f(mb.MetaballField(c))
             }
             return sum > threshold
         },
