@@ -90,7 +90,7 @@ func WyvillMetaballFalloffFunc(d float64) MetaballFalloffFunc {
 	d2 := d * d
 	return func(r float64) float64 {
 		if r <= 0 {
-			return 1
+			return math.Inf(1)
 		}
 		if r >= d {
 			return 0
