@@ -76,6 +76,29 @@ func GaussianMetaballFalloffFunc(r float64) float64 {
     return math.Exp(-r * r)
 }
 
+// WyvillMetaballFalloffFunc creates a compact-support
+// falloff based on (1-(r/d)^2)^2 for 0<=r<d.
+//
+// The returned falloff is 0 for r>=d.
+// d must be strictly positive.
+func WyvillMetaballFalloffFunc(d float64) MetaballFalloffFunc {
+    if d <= 0 {
+        panic("d must be positive")
+    }
+    d2 := d * d
+    return func(r float64) float64 {
+        if r <= 0 {
+            return 1
+        }
+        if r >= d {
+            return 0
+        }
+        ratio2 := (r * r) / d2
+        value := 1 - ratio2
+        return value * value
+    }
+}
+
 // A Metaball implements a field f(c) where values greater
 // than zero indicate points "outside" of some shape, and
 // larger values indicate points "further" away.
@@ -143,10 +166,7 @@ func SignedMetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, pos, ne
 
     threshold := f(radiusThreshold)
 
-    min, max := pos[0].Min(), pos[0].Max()
-    for _, mb := range pos[1:] {
-        min, max = min.Min(mb.Min()), max.Max(mb.Max())
-    }
+    min, max := BoundsUnion(pos)
 
     // We need to figure out how much to expand the
     // bounding box to ensure that all points will have
