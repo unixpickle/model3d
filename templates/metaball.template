@@ -157,16 +157,44 @@ func MetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, m ...Metaball
 // SignedMetaballSolid is like MetaballSolid but with
 // support for negative metaballs.
 func SignedMetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, pos, neg []Metaball) Solid {
-    if len(pos) == 0 {
-        return NewRect(Origin, Origin)
+    balls := append(append([]Metaball{}, pos...), neg...)
+    weights := make([]float64, len(balls))
+    for i := range balls {
+        if i < len(pos) {
+            weights[i] = 1
+        } else {
+            weights[i] = -1
+        }
+    }
+    return WeightedMetaballSolid(f, radiusThreshold, balls, weights)
+}
+
+// WeightedMetaballSolid is like MetaballSolid but with
+// separate coefficients for each metaball.
+func WeightedMetaballSolid(
+    f MetaballFalloffFunc,
+    radiusThreshold float64,
+    balls []Metaball,
+    weights []float64,
+) Solid {
+    if len(balls) != len(weights) {
+        panic("number of balls must match number of weights")
     }
     if f == nil {
         f = QuarticMetaballFalloffFunc
     }
-
     threshold := f(radiusThreshold)
 
-    min, max := BoundsUnion(pos)
+    posBalls := make([]Metaball, 0, len(balls))
+    for i, mb := range balls {
+        if weights[i] > 0 {
+            posBalls = append(posBalls, mb)
+        }
+    }
+    if len(posBalls) == 0 {
+        return NewRect(Origin, Origin)
+    }
+    min, max := BoundsUnion(posBalls)
 
     // We need to figure out how much to expand the
     // bounding box to ensure that all points will have
@@ -178,8 +206,10 @@ func SignedMetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, pos, ne
     // values).
     valueForOutset := func(x float64) float64 {
         var sum float64
-        for _, mb := range pos {
-            sum += f(mb.MetaballDistBound(x))
+        for i, mb := range balls {
+            if weights[i] > 0 {
+                sum += weights[i] * f(mb.MetaballDistBound(x))
+            }
         }
         return sum
     }
@@ -213,11 +243,8 @@ func SignedMetaballSolid(f MetaballFalloffFunc, radiusThreshold float64, pos, ne
         max.AddScalar(maxOutset),
         func(c {{.coordType}}) bool {
             var sum float64
-            for _, mb := range pos {
-                sum += f(mb.MetaballField(c))
-            }
-            for _, mb := range neg {
-                sum -= f(mb.MetaballField(c))
+            for i, mb := range balls {
+                sum += weights[i] * f(mb.MetaballField(c))
             }
             return sum > threshold
         },
