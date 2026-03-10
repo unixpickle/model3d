@@ -229,6 +229,11 @@ func (c Coord) Reflect(c1 Coord) Coord {
 	return c1.Add(n.Scale(-2 * n.Dot(c1))).Scale(-1)
 }
 
+// Atan2 computes atan2(y, x).
+func (c Coord) Atan2() float64 {
+	return math.Atan2(c.Y, c.X)
+}
+
 // Array gets an array of x and y.
 func (c Coord) Array() [2]float64 {
 	return [2]float64{c.X, c.Y}
