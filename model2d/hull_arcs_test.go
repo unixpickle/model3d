@@ -137,7 +137,13 @@ func TestArcHullSDF(t *testing.T) {
 			circles[i] = circle
 		}
 
-		arcHull := NewArcHull(circles)
+		// Compile-time assertion that SDF is correctly implemented.
+		type TotalSDF interface {
+			PointSDF
+			NormalSDF
+		}
+
+		var arcHull TotalSDF = NewArcHull(circles)
 		meshSDF := MeshToSDF(approximateArcHull(circles, pointsPerCircle))
 
 		for i := 0; i < samplesPerTrial; i++ {
