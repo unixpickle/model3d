@@ -102,6 +102,68 @@ func TestArcHullFindAtStartCenterAngle(t *testing.T) {
 	}
 }
 
+func TestArcHullSDF(t *testing.T) {
+	const (
+		numTrials       = 100
+		minCircles      = 3
+		maxCircles      = 15
+		pointsPerCircle = 100
+		samplesPerTrial = 10000
+		minCircleRadius = 0.1
+		maxRadiusJitter = 1.5
+		maxPoints       = 5
+	)
+
+	rng := rand.New(rand.NewSource(1337))
+	for trial := 0; trial < numTrials; trial++ {
+		numCircles := rng.Intn(maxCircles-minCircles+1) + minCircles
+		numPoints := rng.Intn(maxPoints)
+
+		circles := make([]*Circle, numCircles+numPoints)
+
+		for i := 0; i < numCircles; i++ {
+			circle := &Circle{
+				Center: NewCoordRandNorm(rng),
+				Radius: minCircleRadius + rng.Float64()*maxRadiusJitter,
+			}
+			circles[i] = circle
+		}
+
+		for i := numCircles; i < numCircles+numPoints; i++ {
+			circle := &Circle{
+				Center: NewCoordRandNorm(rng),
+				Radius: 0,
+			}
+			circles[i] = circle
+		}
+
+		arcHull := NewArcHull(circles)
+		meshSDF := MeshToSDF(approximateArcHull(circles, pointsPerCircle))
+
+		for i := 0; i < samplesPerTrial; i++ {
+			boundsMin := arcHull.Min().AddScalar(-0.1)
+			boundsMax := arcHull.Max().AddScalar(0.1)
+			sample := NewCoordRandBounds(boundsMin, boundsMax)
+			actualSDFValue := arcHull.SDF(sample)
+			meshSDFValue := meshSDF.SDF(sample)
+			if math.Abs(actualSDFValue-meshSDFValue) > 0.001 {
+				t.Fatalf("invalid SDF at point: expected %f but got %f",
+					meshSDFValue, actualSDFValue)
+			}
+
+			// Test the behavior of normals by extending outward
+			// from the surface and making sure the new SDF is
+			// consistent.
+			actualPoint, _ := arcHull.PointSDF(sample)
+			actualNormal, _ := arcHull.NormalSDF(sample)
+			outsetSDF := arcHull.SDF(actualPoint.Add(actualNormal.Scale(0.1)))
+			if math.Abs(outsetSDF+0.1) > 0.0001 {
+				t.Fatalf("walking normal did not produce reasonable distance: got %f", outsetSDF)
+			}
+		}
+	}
+}
+
 func TestArcHullContainsMatchesConvexHullMesh(t *testing.T) {
 	const (
 		numTrials       = 100
