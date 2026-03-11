@@ -31,10 +31,6 @@ func (a *ArcHullArc) ContainsTheta(theta float64) bool {
 func (a *ArcHullArc) WithinCircle(c *Circle) (Coord, bool) {
 	const eps = 1e-8
 
-	containsPoint := func(p Coord) bool {
-		return p.Dist(c.Center) <= c.Radius+eps
-	}
-
 	pointTheta := func(p Coord) float64 {
 		diff := p.Sub(a.Center)
 		return diff.Atan2()
@@ -51,7 +47,7 @@ func (a *ArcHullArc) WithinCircle(c *Circle) (Coord, bool) {
 				return
 			}
 		}
-		if !containsPoint(p) {
+		if !c.Contains(p) {
 			return
 		}
 		dist := p.Dist(c.Center)
@@ -68,14 +64,14 @@ func (a *ArcHullArc) WithinCircle(c *Circle) (Coord, bool) {
 
 	// Test the arc point closest to c.Center, if that angle lies on the arc.
 	if a.Radius == 0 {
-		if containsPoint(a.Center) {
+		if c.Contains(a.Center) {
 			return a.Center, true
 		}
 		return Origin, false
 	}
 	closestTheta := c.Center.Sub(a.Center).Atan2()
 	if a.ContainsTheta(closestTheta) {
-		closestPoint := a.Center.Add(XY(math.Cos(closestTheta), math.Sin(closestTheta)).Scale(a.Radius))
+		closestPoint := a.Center.Add(NewCoordPolar(closestTheta, a.Radius))
 		tryPoint(closestPoint, false)
 	}
 
@@ -128,6 +124,40 @@ func (a *ArcHullArc) RayCollisions(r *Ray, f func(rc RayCollision)) (count int) 
 	return
 }
 
+// CircleCollision returns true if any point on the arc
+// is within the distance r of the coordinate c.
+func (a *ArcHullArc) CircleCollision(c Coord, r float64) bool {
+	cp := a.Closest(c)
+	return cp.Dist(c) <= r
+}
+
+// Closest finds the point on the arc closest to c.
+func (a *ArcHullArc) Closest(c Coord) Coord {
+	if c == a.Center {
+		return a.StartCoord()
+	}
+	minDist := math.Inf(1)
+	minPoint := Origin
+	checkPoint := func(p Coord) {
+		d := p.Dist(c)
+		if d < minDist {
+			minDist = d
+			minPoint = p
+		}
+	}
+	checkPoint(a.StartCoord())
+	checkPoint(a.EndCoord())
+
+	tangents := []float64{c.Sub(a.Center).Atan2(), a.Center.Sub(c).Atan2()}
+	for _, theta := range tangents {
+		if a.ContainsTheta(theta) {
+			checkPoint(a.Center.Add(NewCoordPolar(theta, a.Radius)))
+		}
+	}
+
+	return minPoint
+}
+
 func (a *ArcHullArc) Compare(a1 *ArcHullArc) int {
 	if a.End < a1.End {
 		return 1
@@ -175,11 +205,19 @@ type ArcHull struct {
 	// Some point within the hull.
 	StartCenter Coord
 
+	min Coord
+	max Coord
+
 	Tree *splaytree.Tree[*ArcHullArc]
 }
 
 func NewArcHull(circles []*Circle) *ArcHull {
-	hull := &ArcHull{Tree: &splaytree.Tree[*ArcHullArc]{}}
+	boundsMin, boundsMax := BoundsUnion(circles)
+	hull := &ArcHull{
+		Tree: &splaytree.Tree[*ArcHullArc]{},
+		min:  boundsMin,
+		max:  boundsMax,
+	}
 	if len(circles) == 0 {
 		return hull
 	}
@@ -301,6 +339,39 @@ func (a *ArcHull) addNextOrderedCircle(c *Circle) {
 		Start:  finalCounterClockwiseAngle,
 		End:    finalClockwiseAngle,
 	})
+}
+
+// Min gets the bounding box minimum of the hull.
+func (a *ArcHull) Min() Coord {
+	return a.min
+}
+
+// Max gets the bounding box maximum of the hull.
+func (a *ArcHull) Max() Coord {
+	return a.max
+}
+
+func (a *ArcHullArc) iterPoints(n int) func(func(Coord) bool) {
+	return func(fn func(Coord) bool) {
+		if a.Radius == 0 || a.Start == a.End {
+			// Avoid creating duplicate coords from walks on zero-radius arcs.
+			fn(NewCoordPolar(a.Start, a.Radius))
+			return
+		}
+
+		totalSize := a.Start - a.End
+		if totalSize < 0 {
+			totalSize = (a.Start + math.Pi*2 - a.End)
+		}
+		for t := 0; t < n; t++ {
+			frac := float64(t) / float64(n-1)
+			theta := a.Start - frac*totalSize
+			p := a.Center.Add(NewCoordPolar(theta, a.Radius))
+			if !fn(p) {
+				return
+			}
+		}
+	}
 }
 
 // Contains checks if a point is contained inside or exactly on the edge
@@ -562,6 +633,85 @@ func (a *ArcHull) RayCollisions(r *Ray, f func(RayCollision)) (count int) {
 	return
 }
 
+// CircleCollision checks if a solid circle touches any
+// part of the hull's surface.
+func (a *ArcHull) CircleCollision(c Coord, radius float64) bool {
+	return math.Abs(a.SDF(c)) <= radius
+}
+
+// SDF gets the signed distance to the surface of the hull.
+func (a *ArcHull) SDF(c Coord) float64 {
+	return a.genericSDF(c, nil, nil)
+}
+
+// PointSDF gets the nearest point on the surface of the
+// hull and the corresponding SDF.
+func (a *ArcHull) PointSDF(c Coord) (Coord, float64) {
+	var p Coord
+	res := a.genericSDF(c, nil, &p)
+	return p, res
+}
+
+// NormalSDF gets the signed distance to the hull and the
+// normal at the closest point on the surface.
+func (a *ArcHull) NormalSDF(c Coord) (Coord, float64) {
+	var n Coord
+	res := a.genericSDF(c, &n, nil)
+	return n, res
+}
+
+func (a *ArcHull) genericSDF(c Coord, normalOut, pointOut *Coord) float64 {
+	closestDist := math.Inf(1)
+
+	runSeg := func(prev, cur *ArcHullArc) {
+		seg := Segment{prev.EndCoord(), cur.StartCoord()}
+		p := seg.Closest(c)
+		d := p.Dist(c)
+		if d < closestDist {
+			closestDist = d
+			if pointOut != nil {
+				*pointOut = p
+			}
+			if normalOut != nil {
+				*normalOut = seg.Normal()
+			}
+		}
+	}
+	var first *ArcHullArc
+	var prev *ArcHullArc
+	a.Tree.Iterate(func(a *ArcHullArc) bool {
+		if first == nil {
+			first = a
+		} else {
+			// Draw a segment from the previous arc to this one.
+			runSeg(prev, a)
+		}
+		if a.Radius > 0 {
+			p := a.Closest(c)
+			d := p.Dist(c)
+			if d < closestDist {
+				closestDist = d
+				if pointOut != nil {
+					*pointOut = p
+				}
+				if normalOut != nil {
+					*normalOut = p.Sub(a.Center).Normalize()
+				}
+			}
+		}
+		prev = a
+		return true
+	})
+	if first != prev {
+		// Draw a segment from the last to the first arc
+		runSeg(prev, first)
+	}
+	if !a.Contains(c) {
+		closestDist = -closestDist
+	}
+	return closestDist
+}
+
 // Mesh creates a mesh by walking the hull, creating segPerArc
 // points for each arc.
 func (a *ArcHull) Mesh(segPerArc int) *Mesh {
@@ -579,23 +729,10 @@ func (a *ArcHull) Mesh(segPerArc int) *Mesh {
 		prevPoint = c
 	}
 	a.Tree.Iterate(func(h *ArcHullArc) bool {
-		// Avoid creating duplicate points.
-		if h.Radius == 0 || h.Start == h.End {
-			// Avoid creating duplicate coords from walks on zero-radius arcs.
-			h.Center.Add(NewCoordPolar(h.Start, h.Radius))
+		h.iterPoints(segPerArc)(func(c Coord) bool {
+			addPoint(c)
 			return true
-		}
-
-		totalSize := h.Start - h.End
-		if totalSize < 0 {
-			totalSize = (h.Start + math.Pi*2 - h.End)
-		}
-		for t := 0; t < segPerArc; t++ {
-			frac := float64(t) / float64(segPerArc-1)
-			theta := h.Start - frac*totalSize
-			p := h.Center.Add(NewCoordPolar(theta, h.Radius))
-			addPoint(p)
-		}
+		})
 		return true
 	})
 	addPoint(firstPoint)

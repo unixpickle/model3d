@@ -8,7 +8,38 @@ import (
 	"github.com/unixpickle/splaytree"
 )
 
-func TestConvexHullTouchAngles(t *testing.T) {
+func TestArcHullArcCircleCollision(t *testing.T) {
+	rng := rand.New(rand.NewSource(0))
+	for trial := 0; trial < 100; trial++ {
+		start := rng.Float64()*(math.Pi*2) - math.Pi
+		end := rng.Float64()*(math.Pi*2) - math.Pi
+		arc := &ArcHullArc{
+			Circle: Circle{Center: NewCoordRandNorm(rng), Radius: rng.Float64() + 0.1},
+			Start:  start,
+			End:    end,
+		}
+
+		for i := 0; i < 10; i++ {
+			p := NewCoordRandNorm(rng)
+			closestDist := math.Inf(1)
+			arc.iterPoints(1000)(func(c Coord) bool {
+				d := c.Dist(p)
+				if d < closestDist {
+					closestDist = d
+				}
+				return true
+			})
+			if arc.CircleCollision(p, math.Max(closestDist-0.001, 0)) {
+				t.Fatal("found incorrect collision")
+			}
+			if !arc.CircleCollision(p, closestDist+1e-5) {
+				t.Fatal("missing correct collision")
+			}
+		}
+	}
+}
+
+func TestArcHullTouchAngles(t *testing.T) {
 	c1 := &Circle{Radius: 0.5, Center: Y(1)}
 	c2 := &Circle{Radius: 1, Center: Y(-1)}
 	start, end, ok := convexHullTouchAngles(c1, c2)
