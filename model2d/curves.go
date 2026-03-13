@@ -123,6 +123,9 @@ func SmoothBezier(start1, c1, c2, end1 Coord, ctrlEnds ...Coord) JoinedCurve {
 // For t outside of [0, 1], the first or last curve is
 // used.
 func (j JoinedCurve) Eval(t float64) Coord {
+	if t == 1 {
+		return j[len(j)-1].Eval(1)
+	}
 	curveIdx := int(t * float64(len(j)))
 	if curveIdx == len(j) {
 		curveIdx--
@@ -133,29 +136,29 @@ func (j JoinedCurve) Eval(t float64) Coord {
 	return j[curveIdx].Eval(subT)
 }
 
-// A WeightedJoinedCurve combines Curves into a single curve.
+// A JoinedArcLenCurve combines Curves into a single curve.
 // Each curve should end where the next curve begins.
 //
 // Unlike JoinedCurve, this does not evenly divide the range of
 // t between sub-curves, but rather allocates a sub-range of t
 // proportional to the arc length of each curve.
-type WeightedJoinedCurve struct {
+type JoinedArcLenCurve struct {
 	cumuLengths []float64
 	totalLength float64
 	curves      []ArcLenCurve
 }
 
-// NewWeightedJoinedCurve joins the curves.
-func NewWeightedJoinedCurve[T ArcLenCurve](curves []T) *WeightedJoinedCurve {
+// NewJoinedArcLenCurve joins the curves.
+func NewJoinedArcLenCurve[T ArcLenCurve](curves []T) *JoinedArcLenCurve {
 	lengths := make([]float64, len(curves))
 	cs := make([]ArcLenCurve, len(curves))
 	total := 0.0
 	for i, c := range curves {
-		lengths[i] = total
 		total += c.ArcLen()
+		lengths[i] = total
 		cs[i] = c
 	}
-	return &WeightedJoinedCurve{
+	return &JoinedArcLenCurve{
 		cumuLengths: lengths,
 		totalLength: total,
 		curves:      cs,
@@ -163,24 +166,31 @@ func NewWeightedJoinedCurve[T ArcLenCurve](curves []T) *WeightedJoinedCurve {
 }
 
 // Eval evaluates the joint curve.
-func (e *WeightedJoinedCurve) Eval(t float64) Coord {
+func (e *JoinedArcLenCurve) Eval(t float64) Coord {
+	if t == 1 {
+		// Make sure to return the endpoint exactly without rounding issues,
+		// to ensure meshes created from the curve are manifold.
+		return e.curves[len(e.curves)-1].Eval(1)
+	} else if t == 0 {
+		return e.curves[0].Eval(0)
+	}
 	lenValue := t * e.totalLength
-	found := sort.SearchFloat64s(e.cumuLengths, t*e.totalLength)
+	found := sort.SearchFloat64s(e.cumuLengths, lenValue)
 	if found == len(e.curves) {
 		found = len(e.curves) - 1
 	}
-	endLen := e.totalLength
-	if found+1 != len(e.curves) {
-		endLen = e.cumuLengths[found+1]
+	endLen := e.cumuLengths[found]
+	startLen := 0.0
+	if found > 0 {
+		startLen = e.cumuLengths[found-1]
 	}
-	startLen := e.cumuLengths[found]
 	curveLen := endLen - startLen
 	frac := math.Max(0, math.Min(1, (lenValue-startLen)/curveLen))
 	return e.curves[found].Eval(frac)
 }
 
 // ArcLen returns the total arc length of all subcurves.
-func (e *WeightedJoinedCurve) ArcLen() float64 {
+func (e *JoinedArcLenCurve) ArcLen() float64 {
 	return e.totalLength
 }
 

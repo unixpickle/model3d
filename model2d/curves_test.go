@@ -314,6 +314,89 @@ func TestJoinedCurveEval(t *testing.T) {
 	}
 }
 
+func TestJoinedArcLenCurveEval(t *testing.T) {
+	curves := []BezierCurve{
+		{XY(0, 0), XY(1, 0)},
+		{XY(1, 0), XY(1, 2)},
+		{XY(1, 2), XY(4, 2)},
+	}
+	curve := NewJoinedArcLenCurve(curves)
+	actualExpected := [][2]Coord{
+		{curve.Eval(0.0), curves[0].Eval(0.0)},
+		{curve.Eval(0.1), curves[0].Eval(0.6)},
+		{curve.Eval(0.3), curves[1].Eval(0.4)},
+		{curve.Eval(0.6), curves[2].Eval(0.2)},
+		{curve.Eval(1.0), curves[2].Eval(1.0)},
+	}
+	for i, pair := range actualExpected {
+		if d := pair[0].Dist(pair[1]); math.IsNaN(d) || d > 1e-8 {
+			t.Errorf("case %d: expected %v but got %v", i, pair[1], pair[0])
+		}
+	}
+}
+
+func TestJoinedArcLenCurveMeshSDF(t *testing.T) {
+	curves := []BezierCurve{
+		{
+			XY(0, -1.1),
+			XY(0.1, -1.8),
+			XY(1.0, -1.4),
+			XY(1.5, -0.4),
+		},
+		{
+			XY(1.5, -0.4),
+			XY(2.0, 0.4),
+			XY(1.7, 1.2),
+			XY(0.6, 1.7),
+		},
+		{
+			XY(0.6, 1.7),
+			XY(-0.2, 1.9),
+			XY(-1.2, 1.5),
+			XY(-1.6, 0.4),
+		},
+		{
+			XY(-1.6, 0.4),
+			XY(-1.9, -0.3),
+			XY(-0.8, -1.3),
+			XY(0, -1.1),
+		},
+	}
+
+	joinedCurve := JoinedCurve{
+		curves[0],
+		curves[1],
+		curves[2],
+		curves[3],
+	}
+	weightedCurve := NewJoinedArcLenCurve(curves)
+
+	const numSegments = 800
+	joinedMesh := CurveMesh(joinedCurve, numSegments)
+	weightedMesh := CurveMesh(weightedCurve, numSegments)
+	MustValidateMesh(t, joinedMesh, false)
+	MustValidateMesh(t, weightedMesh, false)
+
+	joinedSDF := MeshToSDF(joinedMesh)
+	weightedSDF := MeshToSDF(weightedMesh)
+
+	min := joinedMesh.Min().Min(weightedMesh.Min())
+	max := joinedMesh.Max().Max(weightedMesh.Max())
+	padding := max.Sub(min).Scale(0.15)
+	sampleMin := min.Sub(padding)
+	sampleMax := max.Add(padding)
+
+	rng := rand.New(rand.NewSource(1337))
+	for i := 0; i < 1000; i++ {
+		coord := NewCoordRandBounds(sampleMin, sampleMax, rng)
+		joinedDist := joinedSDF.SDF(coord)
+		weightedDist := weightedSDF.SDF(coord)
+		if math.Abs(joinedDist-weightedDist) > 0.025 {
+			t.Fatalf("point %v: joined SDF=%f weighted SDF=%f", coord, joinedDist, weightedDist)
+		}
+	}
+}
+
 func TestCurveTranspose(t *testing.T) {
 	c1 := BezierCurve{
 		Coord{X: 4, Y: 4},
