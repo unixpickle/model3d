@@ -35,6 +35,13 @@ type Curve interface {
 	Eval(t float64) Coord
 }
 
+// An ArcLenCurve is a curve with an ArcLen() method to get the
+// approximate length of the curve.
+type ArcLenCurve interface {
+	Curve
+	ArcLen() float64
+}
+
 // CurveEvalX finds the y value that occurs at the given x
 // value, assuming that the curve is monotonic in x.
 //
@@ -124,6 +131,57 @@ func (j JoinedCurve) Eval(t float64) Coord {
 	}
 	subT := t*float64(len(j)) - float64(curveIdx)
 	return j[curveIdx].Eval(subT)
+}
+
+// A WeightedJoinedCurve combines Curves into a single curve.
+// Each curve should end where the next curve begins.
+//
+// Unlike JoinedCurve, this does not evenly divide the range of
+// t between sub-curves, but rather allocates a sub-range of t
+// proportional to the arc length of each curve.
+type WeightedJoinedCurve struct {
+	cumuLengths []float64
+	totalLength float64
+	curves      []ArcLenCurve
+}
+
+// NewWeightedJoinedCurve joins the curves.
+func NewWeightedJoinedCurve[T ArcLenCurve](curves []T) *WeightedJoinedCurve {
+	lengths := make([]float64, len(curves))
+	cs := make([]ArcLenCurve, len(curves))
+	total := 0.0
+	for i, c := range curves {
+		lengths[i] = total
+		total += c.ArcLen()
+		cs[i] = c
+	}
+	return &WeightedJoinedCurve{
+		cumuLengths: lengths,
+		totalLength: total,
+		curves:      cs,
+	}
+}
+
+// Eval evaluates the joint curve.
+func (e *WeightedJoinedCurve) Eval(t float64) Coord {
+	lenValue := t * e.totalLength
+	found := sort.SearchFloat64s(e.cumuLengths, t*e.totalLength)
+	if found == len(e.curves) {
+		found = len(e.curves) - 1
+	}
+	endLen := e.totalLength
+	if found+1 != len(e.curves) {
+		endLen = e.cumuLengths[found+1]
+	}
+	startLen := e.cumuLengths[found]
+	curveLen := endLen - startLen
+	frac := math.Max(0, math.Min(1, (lenValue-startLen)/curveLen))
+	return e.curves[found].Eval(frac)
+}
+
+// ArcLen returns the total arc length of all subcurves.
+func (e *WeightedJoinedCurve) ArcLen() float64 {
+	return e.totalLength
 }
 
 // BezierCurve implements an arbitrarily high-dimensional
@@ -265,7 +323,13 @@ func (b BezierCurve) Polynomials() [2]numerical.Polynomial {
 	}
 }
 
-// Length approximates the arclength of the curve within
+// ArcLen computes the arc length with a default tolerance.
+// For more control, see Length().
+func (b BezierCurve) ArcLen() float64 {
+	return b.Length(1e-8, 0)
+}
+
+// Length approximates the arc length of the curve within
 // the given margin of error.
 //
 // If maxSplits is specified, it determines the maximum
@@ -522,6 +586,62 @@ func (a *ArcCurve) Eval(t float64) Coord {
 	}
 }
 
+// ArcLen approximates the length of the arc, returning an
+// exact value when the radii match.
+func (a *ArcCurve) ArcLen() float64 {
+	rx := a.radii.X
+	ry := a.radii.Y
+
+	// Degenerate cases match Eval()
+	if rx == 0 || ry == 0 || (a.start.X == a.end.X && a.start.Y == a.end.Y) {
+		return a.end.Sub(a.start).Norm()
+	}
+
+	th0 := a.startTheta
+	th1 := a.endTheta
+	dth := th1 - th0
+
+	if dth == 0 {
+		return 0
+	}
+
+	// Integrand for arc length
+	f := func(theta float64) float64 {
+		s := math.Sin(theta)
+		c := math.Cos(theta)
+		return math.Sqrt(rx*rx*s*s + ry*ry*c*c)
+	}
+
+	// 5-point Gauss-Legendre quadrature on [-1,1]
+	nodes := []float64{
+		0.0,
+		-0.5384693101056831,
+		0.5384693101056831,
+		-0.9061798459386640,
+		0.9061798459386640,
+	}
+
+	weights := []float64{
+		0.5688888888888889,
+		0.4786286704993665,
+		0.4786286704993665,
+		0.2369268850561891,
+		0.2369268850561891,
+	}
+
+	// Map from [-1,1] to [th0, th1]
+	mid := 0.5 * (th0 + th1)
+	half := 0.5 * (th1 - th0)
+
+	sum := 0.0
+	for i := range nodes {
+		theta := mid + half*nodes[i]
+		sum += weights[i] * f(theta)
+	}
+
+	return half * sum
+}
+
 // FuncCurve is a Curve defined as a single function.
 type FuncCurve func(t float64) Coord
 
@@ -604,6 +724,11 @@ func (s *SegmentCurve) Eval(t float64) Coord {
 	offset := l - s.lengths[idx]
 	offsetFrac := offset / seg.Length()
 	return seg[0].Add(seg[1].Sub(seg[0]).Scale(offsetFrac))
+}
+
+// ArcLen returns the total segment length.
+func (s *SegmentCurve) ArcLen() float64 {
+	return s.totalLength
 }
 
 // CacheScalarFunc creates a scalar function that is
