@@ -622,34 +622,47 @@ func (a *ArcCurve) ArcLen() float64 {
 		return math.Sqrt(rx*rx*s*s + ry*ry*c*c)
 	}
 
-	// 5-point Gauss-Legendre quadrature on [-1,1]
-	nodes := []float64{
-		0.0,
-		-0.5384693101056831,
-		0.5384693101056831,
-		-0.9061798459386640,
-		0.9061798459386640,
+	// 16-point Gauss-Legendre quadrature on [-1,1], applied piecewise
+	// over the arc to improve accuracy for long, eccentric ellipses.
+	weightsAndXs := [16][2]float64{
+		{0.0271524594117541, -0.9894009349916499},
+		{0.0622535239386479, -0.9445750230732326},
+		{0.0951585116824928, -0.8656312023878318},
+		{0.1246289712555339, -0.7554044083550030},
+		{0.1495959888165767, -0.6178762444026438},
+		{0.1691565193950025, -0.4580167776572274},
+		{0.1826034150449236, -0.2816035507792589},
+		{0.1894506104550685, -0.0950125098376374},
+		{0.1894506104550685, 0.0950125098376374},
+		{0.1826034150449236, 0.2816035507792589},
+		{0.1691565193950025, 0.4580167776572274},
+		{0.1495959888165767, 0.6178762444026438},
+		{0.1246289712555339, 0.7554044083550030},
+		{0.0951585116824928, 0.8656312023878318},
+		{0.0622535239386479, 0.9445750230732326},
+		{0.0271524594117541, 0.9894009349916499},
 	}
 
-	weights := []float64{
-		0.5688888888888889,
-		0.4786286704993665,
-		0.4786286704993665,
-		0.2369268850561891,
-		0.2369268850561891,
+	numIntervals := int(math.Ceil(math.Abs(dth) / (math.Pi / 4)))
+	if numIntervals < 1 {
+		numIntervals = 1
 	}
 
-	// Map from [-1,1] to [th0, th1]
-	mid := 0.5 * (th0 + th1)
-	half := 0.5 * (th1 - th0)
-
-	sum := 0.0
-	for i := range nodes {
-		theta := mid + half*nodes[i]
-		sum += weights[i] * f(theta)
+	total := 0.0
+	for i := 0; i < numIntervals; i++ {
+		intervalStart := th0 + dth*float64(i)/float64(numIntervals)
+		intervalEnd := th0 + dth*float64(i+1)/float64(numIntervals)
+		mid := 0.5 * (intervalStart + intervalEnd)
+		half := 0.5 * (intervalEnd - intervalStart)
+		sum := 0.0
+		for _, pair := range weightsAndXs {
+			theta := mid + half*pair[1]
+			sum += pair[0] * f(theta)
+		}
+		total += math.Abs(half) * sum
 	}
 
-	return half * sum
+	return total
 }
 
 // FuncCurve is a Curve defined as a single function.

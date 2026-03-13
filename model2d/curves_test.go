@@ -93,6 +93,103 @@ func TestArcCurve(t *testing.T) {
 	}
 }
 
+func TestArcCurveArcLen(t *testing.T) {
+	arcLengthApprox := func(c Curve, n int) float64 {
+		var length float64
+		last := c.Eval(0)
+		for i := 1; i <= n; i++ {
+			next := c.Eval(float64(i) / float64(n))
+			length += next.Dist(last)
+			last = next
+		}
+		return length
+	}
+
+	pointOnEllipse := func(center, radii Coord, rotation, theta float64) Coord {
+		base := XY(math.Cos(theta), math.Sin(theta)).Mul(radii)
+		return center.Add(Rotation(rotation).Apply(base))
+	}
+
+	testCases := []struct {
+		name      string
+		arc       *ArcCurve
+		tolerance float64
+	}{
+		{
+			name: "CircularQuarterArc",
+			arc: func() *ArcCurve {
+				center := XY(1.2, -0.7)
+				radii := XY(2.0, 2.0)
+				rotation := 0.0
+				theta1 := 0.2
+				theta2 := theta1 + math.Pi/2
+				return NewArcCurve(
+					radii,
+					pointOnEllipse(center, radii, rotation, theta1),
+					pointOnEllipse(center, radii, rotation, theta2),
+					rotation,
+					false,
+					true,
+				)
+			}(),
+			tolerance: 1e-4,
+		},
+		{
+			name: "RotatedEllipseSmallArc",
+			arc: func() *ArcCurve {
+				center := XY(-0.3, 0.8)
+				radii := XY(2.5, 1.25)
+				rotation := 0.7
+				theta1 := 0.4
+				theta2 := 2.2
+				return NewArcCurve(
+					radii,
+					pointOnEllipse(center, radii, rotation, theta1),
+					pointOnEllipse(center, radii, rotation, theta2),
+					rotation,
+					false,
+					true,
+				)
+			}(),
+			tolerance: 2e-4,
+		},
+		{
+			name: "RotatedEllipseLargeArc",
+			arc: func() *ArcCurve {
+				center := XY(0.6, -1.1)
+				radii := XY(1.4, 2.8)
+				rotation := -0.45
+				theta1 := 1.1
+				theta2 := theta1 - 1.45*math.Pi
+				return NewArcCurve(
+					radii,
+					pointOnEllipse(center, radii, rotation, theta1),
+					pointOnEllipse(center, radii, rotation, theta2),
+					rotation,
+					true,
+					false,
+				)
+			}(),
+			tolerance: 3e-4,
+		},
+		{
+			name:      "DegenerateLine",
+			arc:       NewArcCurve(XY(0, 2), XY(-1.2, 0.4), XY(2.3, -0.7), 1.2, false, true),
+			tolerance: 1e-8,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			expected := arcLengthApprox(tc.arc, 1000)
+			actual := tc.arc.ArcLen()
+			if math.Abs(actual-expected) > tc.tolerance {
+				t.Fatalf("expected length %f but got %f", expected, actual)
+			}
+		})
+	}
+}
+
 func evalSimpleRecursive(b BezierCurve, t float64) Coord {
 	if len(b) < 2 {
 		panic("need at least two points")
