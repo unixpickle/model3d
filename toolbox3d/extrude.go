@@ -68,6 +68,46 @@ func (f *FilletInsetFunc) insetAtZFrac(r, frac float64) float64 {
 	}
 }
 
+// ChamferInsetFunc is an InsetFunc for linear chamfers.
+// This can be used for the Extrude() API.
+type ChamferInsetFunc struct {
+	// Chamfer depth at the minZ part of the shape.
+	BottomRadius float64
+
+	// Chamfer depth at the maxZ part of the shape.
+	TopRadius float64
+
+	// If true, extend the solid outwards instead of inwards.
+	// This is useful for cutouts.
+	Outwards bool
+}
+
+func (c *ChamferInsetFunc) MinInset() float64 {
+	if c.Outwards {
+		return -(math.Max(c.BottomRadius, c.TopRadius))
+	} else {
+		return 0
+	}
+}
+
+func (c *ChamferInsetFunc) Inset(minZ, maxZ, z float64) float64 {
+	if z-minZ < c.BottomRadius {
+		return c.insetAtZFrac(c.BottomRadius, (z-minZ)/c.BottomRadius)
+	} else if maxZ-z < c.TopRadius {
+		return c.insetAtZFrac(c.TopRadius, (maxZ-z)/c.TopRadius)
+	} else {
+		return 0
+	}
+}
+
+func (c *ChamferInsetFunc) insetAtZFrac(r, frac float64) float64 {
+	if c.Outwards {
+		return r * (math.Max(0, math.Min(1, frac)) - 1)
+	} else {
+		return r * (1 - math.Max(0, math.Min(1, frac)))
+	}
+}
+
 type insetFuncSum struct {
 	minInset float64
 	fns      []InsetFunc
