@@ -39,6 +39,20 @@ func NewMatrix3Rotation(axis Coord3D, angle float64) *Matrix3 {
 	return basis.Mul(rotation).Mul(basis.Transpose())
 }
 
+// NewMatrix3Outer computes an outer product.
+func NewMatrix3Outer(v Coord3D) *Matrix3 {
+	return &Matrix3{
+		v.X * v.X, v.X * v.Y, v.X * v.Z,
+		v.Y * v.X, v.Y * v.Y, v.Y * v.Z,
+		v.Z * v.X, v.Z * v.Y, v.Z * v.Z,
+	}
+}
+
+// NewMatrix3Identity creates an identity matrix.
+func NewMatrix3Identity() *Matrix3 {
+	return &Matrix3{1, 0, 0, 0, 1, 0, 0, 0, 1}
+}
+
 // Det computes the determinant of the matrix.
 func (m *Matrix3) Det() float64 {
 	return m[0]*(m[4]*m[8]-m[5]*m[7]) - m[1]*(m[3]*m[8]-m[5]*m[6]) + m[2]*(m[3]*m[7]-m[4]*m[6])

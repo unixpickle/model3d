@@ -73,7 +73,11 @@ func (s *Scale) Apply(c Coord) Coord {
 }
 
 func (s *Scale) ApplyBounds(min Coord, max Coord) (Coord, Coord) {
-	return min.Scale(s.Scale), max.Scale(s.Scale)
+	if s.Scale < 0 {
+		return max.Scale(s.Scale), min.Scale(s.Scale)
+	} else {
+		return min.Scale(s.Scale), max.Scale(s.Scale)
+	}
 }
 
 func (s *Scale) Inverse() Transform {
@@ -160,6 +164,20 @@ func Rotation(theta float64) DistTransform {
 	return &orthoMatrix2Transform{
 		Matrix2Transform{
 			Matrix: NewMatrix2Rotation(theta),
+		},
+	}
+}
+
+// Mirror creates a transformation that flips the space
+// along the given axis.
+func Mirror(axis Coord) DistTransform {
+	dir := axis.Normalize()
+	term := NewMatrix2Outer(dir)
+	term.Scale(-2)
+	mat := NewMatrix2Identity().Add(term)
+	return &orthoMatrix2Transform{
+		Matrix2Transform{
+			Matrix: mat,
 		},
 	}
 }

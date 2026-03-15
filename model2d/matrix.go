@@ -25,6 +25,19 @@ func NewMatrix2Rotation(theta float64) *Matrix2 {
 	return &Matrix2{cos, -sin, sin, cos}
 }
 
+// NewMatrix2Outer computes an outer product.
+func NewMatrix2Outer(v Coord) *Matrix2 {
+	return &Matrix2{
+		v.X * v.X, v.X * v.Y,
+		v.Y * v.X, v.Y * v.Y,
+	}
+}
+
+// NewMatrix2Identity creates an identity matrix.
+func NewMatrix2Identity() *Matrix2 {
+	return &Matrix2{1, 0, 0, 1}
+}
+
 // Det computes the determinant of the matrix.
 func (m *Matrix2) Det() float64 {
 	return m[0]*m[3] - m[1]*m[2]
