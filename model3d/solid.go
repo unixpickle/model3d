@@ -505,6 +505,26 @@ func RevolveSolid(solid model2d.Solid, axis Coord3D) Solid {
 	)
 }
 
+// RevolveSDF revolves an SDF around the Z axis, where the
+// x-axis of the 2D SDF becomes the radius axis of the
+// revolved shape and the y-axis becomes the z-axis.
+//
+// The union of the left and right sides of the 2D shape is
+// used to build the result.
+func RevolveSDF(s model2d.SDF) model3d.SDF {
+	min2 := s.Min()
+	max2 := s.Max()
+	rMax := math.Max(math.Abs(min2.X), math.Abs(max2.X))
+	min := model3d.XYZ(-rMax, -rMax, min2.Y)
+	max := model3d.XYZ(rMax, rMax, max2.Y)
+	return model3d.FuncSDF(min, max, func(c model3d.Coord3D) float64 {
+		r := math.Hypot(c.X, c.Y)
+		dPos := s.SDF(model2d.XY(r, c.Z))
+		dNeg := s.SDF(model2d.XY(-r, c.Z))
+		return math.Max(dPos, dNeg)
+	})
+}
+
 // A SolidMux computes many solid values in parallel and
 // returns a bitmap of containment for each solid.
 //
