@@ -417,3 +417,46 @@ func (p *profilePointSDF) PointSDF(c {{.coordType}}) ({{.coordType}}, float64) {
 	}
 }
 {{end}}
+
+// JoinSDFs takes a union of SDFs using the maximum SDF value.
+//
+// Note that the result may no longer be a truly valid distance
+// function.
+func JoinSDFs(sdfs []SDF) SDF {
+	min, max := BoundsUnion(sdfs)
+	return FuncSDF(min, max, func(c {{.coordType}}) float64 {
+		val := sdfs[0].SDF(c)
+		for _, s := range sdfs[1:] {
+			val = math.Max(val, s.SDF(c))
+		}
+		return val
+	})
+}
+
+// IntersectSDFS takes an intersection of SDFs using the
+// minimum SDF value.
+//
+// Note that the result may no longer be a truly valid distance
+// function.
+func IntersectSDFs(sdfs []SDF) SDF {
+	min, max := BoundsIntersection(sdfs)
+	return FuncSDF(min, max, func(c {{.coordType}}) float64 {
+		val := sdfs[0].SDF(c)
+		for _, s := range sdfs[1:] {
+			val = math.Min(val, s.SDF(c))
+		}
+		return val
+	})
+}
+
+// SubtractSDF subtracts b from a using min(a, -b).
+//
+// Note that the result may no longer be a truly valid distance
+// function.
+func SubtractSDF(a, b SDF) SDF {
+	min := a.Min()
+	max := a.Max()
+	return FuncSDF(min, max, func(c {{.coordType}}) float64 {
+		return math.Min(a.SDF(c), -b.SDF(c))
+	})
+}

@@ -61,3 +61,14 @@ func BoundsUnion[B Bounder](bs []B) (min Coord3D, max Coord3D) {
 	}
 	return
 }
+
+// BoundsIntersection computes the intersection of bounders.
+func BoundsIntersection[B Bounder](bs []B) (min, max Coord3D) {
+	min = bs[0].Min()
+	max = bs[0].Max()
+	for _, b := range bs[1:] {
+		min = min.Max(b.Min())
+		max = max.Min(b.Max())
+	}
+	return min.Min(max), max
+}
