@@ -524,19 +524,77 @@ func RevolveSolid(solid model2d.Solid, axis Coord3D) Solid {
 	)
 }
 
+func normalizeAngleRadians(a float64) float64 {
+	a = math.Mod(a, 2*math.Pi)
+	if a < 0 {
+		a += 2*math.Pi
+	}
+	return a
+}
+
+func angleDistanceCCW(from, to float64) float64 {
+	return normalizeAngleRadians(to - from)
+}
+
+func angleDistanceCW(from, to float64) float64 {
+	return normalizeAngleRadians(from - to)
+}
+
+// RevolveSolidRange revolves the solid around the Z axis
+// with a start angle and a total number of radians.
+func RevolveSolidRange(s model2d.Solid, angleRad float64, startRad float64) (Solid, error) {
+	min2 := s.Min()
+	max2 := s.Max()
+	rMax := math.Max(math.Abs(min2.X), math.Abs(max2.X))
+	min := XYZ(-rMax, -rMax, min2.Y)
+	max := XYZ(rMax, rMax, max2.Y)
+
+	angle := angleRad
+	start := normalizeAngleRadians(startRad)
+	full := math.Abs(angle) >= 2*math.Pi-1e-9
+
+	return CheckedFuncSolid(min, max, func(c Coord3D) bool {
+		r := math.Hypot(c.X, c.Y)
+		if !full {
+			theta := math.Atan2(c.Y, c.X)
+			if angle >= 0 {
+				delta := angleDistanceCCW(start, theta)
+				if delta > angle+1e-9 {
+					return false
+				}
+			} else {
+				delta := angleDistanceCW(start, theta)
+				if delta > -angle+1e-9 {
+					return false
+				}
+			}
+		}
+		for _, neg := range []bool{false, true} {
+			x := r
+			if neg {
+				x = -x
+			}
+			if s.Contains(model2d.XY(x, c.Z)) {
+				return true
+			}
+		}
+		return false
+	}), nil
+}
+
 // RevolveSDF revolves an SDF around the Z axis, where the
 // x-axis of the 2D SDF becomes the radius axis of the
 // revolved shape and the y-axis becomes the z-axis.
 //
 // The union of the left and right sides of the 2D shape is
 // used to build the result.
-func RevolveSDF(s model2d.SDF) model3d.SDF {
+func RevolveSDF(s model2d.SDF) SDF {
 	min2 := s.Min()
 	max2 := s.Max()
 	rMax := math.Max(math.Abs(min2.X), math.Abs(max2.X))
-	min := model3d.XYZ(-rMax, -rMax, min2.Y)
-	max := model3d.XYZ(rMax, rMax, max2.Y)
-	return model3d.FuncSDF(min, max, func(c model3d.Coord3D) float64 {
+	min := XYZ(-rMax, -rMax, min2.Y)
+	max := XYZ(rMax, rMax, max2.Y)
+	return FuncSDF(min, max, func(c Coord3D) float64 {
 		r := math.Hypot(c.X, c.Y)
 		dPos := s.SDF(model2d.XY(r, c.Z))
 		dNeg := s.SDF(model2d.XY(-r, c.Z))
