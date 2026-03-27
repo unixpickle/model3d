@@ -165,6 +165,11 @@ func NewJoinedArcLenCurve[T ArcLenCurve](curves []T) *JoinedArcLenCurve {
 	}
 }
 
+// Subcurves returns the curves that were joined.
+func (e *JoinedArcLenCurve) Subcurves() []ArcLenCurve {
+	return e.curves
+}
+
 // Eval evaluates the joint curve.
 func (e *JoinedArcLenCurve) Eval(t float64) Coord {
 	if t == 1 {
