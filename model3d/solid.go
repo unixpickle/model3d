@@ -227,6 +227,12 @@ func (s StackedSolid) Contains(c Coord3D) bool {
 	return false
 }
 
+// ClipSolid constrains the solid to the given bounds, with support for
+// plus or minus infinity.
+func ClipSolid(s Solid, min, max Coord3D) Solid {
+	return IntersectedSolid{s, NewRect(min, max)}
+}
+
 // A ColliderSolid is a Solid that uses a Collider to
 // check if points are in the solid.
 //

@@ -1,6 +1,9 @@
 package model3d
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestJoinedSolidOptimize(t *testing.T) {
 	js := JoinedSolid{}
@@ -25,6 +28,27 @@ func TestJoinedSolidOptimize(t *testing.T) {
 		expected := js.Contains(c)
 		if actual != expected {
 			t.Errorf("expected contains %v but got %v", expected, actual)
+		}
+	}
+}
+
+func TestClipSolid(t *testing.T) {
+	clipped := ClipSolid(
+		&Sphere{Radius: 1},
+		XYZ(0.2, math.Inf(-1), math.Inf(-1)),
+		Ones(math.Inf(1)),
+	)
+	expected := IntersectedSolid{
+		&Sphere{Radius: 1},
+		NewRect(XYZ(0.2, -2, -2), XYZ(3, 2, 2)),
+	}
+	if clipped.Min().Dist(expected.Min()) > 1e-5 || clipped.Max().Dist(expected.Max()) > 1e-5 {
+		t.Fatal("invalid bounds")
+	}
+	for i := 0; i < 1000; i++ {
+		c := NewCoord3DRandNorm()
+		if clipped.Contains(c) != expected.Contains(c) {
+			t.Fatal("unexpected containment")
 		}
 	}
 }

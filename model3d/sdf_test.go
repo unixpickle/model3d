@@ -121,6 +121,36 @@ func TestProfilePointSDF(t *testing.T) {
 	}
 }
 
+func TestInsetSDF(t *testing.T) {
+	inset := InsetSDF(&Sphere{Radius: 10}, 1)
+	baseline := &Sphere{Radius: 9}
+	checkSDFsClose(t, inset, baseline)
+}
+
+func TestClipSDF(t *testing.T) {
+	clipped := ClipSDF(
+		&Sphere{Radius: 1},
+		XYZ(0.2, math.Inf(-1), math.Inf(-1)),
+		Ones(math.Inf(1)),
+	)
+	expected := IntersectSDFs([]SDF{
+		&Sphere{Radius: 1},
+		NewRect(XYZ(0.2, -2, -2), XYZ(3, 2, 2)),
+	})
+	checkSDFsClose(t, clipped, expected)
+}
+
+func checkSDFsClose(t *testing.T, actual, expected SDF) {
+	for i := 0; i < 1000; i++ {
+		c := NewCoord3DRandBounds(expected.Min(), expected.Max())
+		actualSDF := actual.SDF(c)
+		expectedSDF := expected.SDF(c)
+		if math.Abs(actualSDF-expectedSDF) > 1e-5 {
+			t.Fatalf("expected %f but got %f", expectedSDF, actualSDF)
+		}
+	}
+}
+
 func BenchmarkMeshSDFs(b *testing.B) {
 	solid := sdfTestingSolid()
 	mesh := MarchingCubesSearch(solid, 0.02, 8)

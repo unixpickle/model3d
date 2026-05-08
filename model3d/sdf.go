@@ -458,3 +458,17 @@ func SubtractSDF(a, b SDF) SDF {
 		return math.Min(a.SDF(c), -b.SDF(c))
 	})
 }
+
+// InsetSDF adds a delta to the SDF values.
+func InsetSDF(s SDF, delta float64) SDF {
+	min, max := InsetBounds(s.Min(), s.Max(), delta)
+	return FuncSDF(min, max, func(c Coord3D) float64 {
+		return s.SDF(c) - delta
+	})
+}
+
+// ClipSDF constrains the SDF to the given bounds, with support for
+// plus or minus infinity.
+func ClipSDF(s SDF, min, max Coord3D) SDF {
+	return IntersectSDFs([]SDF{s, NewRect(min, max)})
+}

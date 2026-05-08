@@ -69,3 +69,23 @@ func BoundsIntersection[B Bounder](bs []B) (min, max Coord) {
 	}
 	return min.Min(max), max
 }
+
+// InsetBounds adds a delta to the min and subtracts it from the max,
+// handling collapsed volumes by falling back to a midpoint.
+func InsetBounds(min, max Coord, delta float64) (Coord, Coord) {
+	min = min.AddScalar(delta)
+	max = max.AddScalar(-delta)
+	return averageDegenerateBounds(min, max)
+}
+
+func averageDegenerateBounds(min, max Coord) (Coord, Coord) {
+	if min.X > max.X {
+		mid := (min.X + max.X) / 2
+		min.X, max.X = mid, mid
+	}
+	if min.Y > max.Y {
+		mid := (min.Y + max.Y) / 2
+		min.Y, max.Y = mid, mid
+	}
+	return min, max
+}

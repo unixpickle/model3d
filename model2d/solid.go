@@ -159,6 +159,12 @@ func (i IntersectedSolid) Contains(c Coord) bool {
 	return true
 }
 
+// ClipSolid constrains the solid to the given bounds, with support for
+// plus or minus infinity.
+func ClipSolid(s Solid, min, max Coord) Solid {
+	return IntersectedSolid{s, NewRect(min, max)}
+}
+
 // A ColliderSolid is a Solid that uses a Collider to
 // check if points are in the solid.
 //
