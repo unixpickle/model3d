@@ -246,7 +246,7 @@ func (q *qefDecimator) mergeQEFAndHeap(pair Segment, newV Coord3D) {
 			pairs.Delete(v)
 
 			newPair := NewSegment(newV, other)
-			q.Heap.Remove(newPair)
+			q.Heap.Remove(NewSegment(v, other))
 			newPairs[newPair] = struct{}{}
 			return true
 		})
