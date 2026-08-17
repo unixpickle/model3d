@@ -43,7 +43,6 @@ func TestDecimateQEFSphere(t *testing.T) {
 			return 1.0
 		}, 50)
 		QEFDecimate(m, 100, nil)
-		m.SaveGroupedSTL("/Users/alex/Desktop/sphere.stl")
 		if m.NumTriangles() > 100 {
 			t.Fatalf("expected <=100 triangles but got %d", m.NumTriangles())
 		}

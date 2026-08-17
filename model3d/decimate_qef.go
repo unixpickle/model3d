@@ -147,7 +147,12 @@ func (q *qefDecimator) mergeInMesh(pair Segment, newV Coord3D) bool {
 		if newT[0] == newT[1] || newT[0] == newT[2] || newT[1] == newT[2] {
 			continue
 		}
-		if newT.Normal().Dot(t.Normal()) < q.Options.MinNormalDotProduct {
+		normDot := newT.Normal().Dot(t.Normal())
+		if math.IsNaN(normDot) || math.IsInf(normDot, 0) {
+			// Singular triangle.
+			return false
+		}
+		if normDot < q.Options.MinNormalDotProduct {
 			// Normal flip
 			return false
 		}
