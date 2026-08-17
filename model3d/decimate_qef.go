@@ -118,7 +118,7 @@ func (q *qefDecimator) Step() bool {
 }
 
 func (q *qefDecimator) mergeInMesh(pair Segment, newV Coord3D) bool {
-	if len(q.Mesh.Find(newV)) > 0 {
+	if newV != pair[0] && newV != pair[1] && len(q.Mesh.Find(newV)) > 0 {
 		// No existing points can be used.
 		return false
 	}
