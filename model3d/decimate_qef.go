@@ -10,6 +10,7 @@ const (
 	QEFDecimatorDefaultMinDet = 1e-8
 )
 
+// QEFDecimatorOptions stores configuration for QEFDecimate().
 type QEFDecimatorOptions struct {
 	// MinDet is the minimum determinant of a 3x3 matrix
 	// before it is assumed singular.
@@ -43,58 +44,69 @@ func (q *QEFDecimatorOptions) minDet() float64 {
 //
 // The mesh is decimated until the minimum number of triangles is
 // reached, or no more simplification can be performed.
-func QEFDecimate(m *Mesh, minTris int, options *QEFDecimatorOptions) {
+//
+// The input mesh must be manifold. Otherwise, results are undefined.
+func QEFDecimate(m *Mesh, minTris int, options *QEFDecimatorOptions) *Mesh {
 	if options == nil {
 		options = &QEFDecimatorOptions{}
 	}
 	dec := newQEFDecimator(m, *options)
-	for m.NumTriangles() > minTris {
+	for dec.NumTris > minTris {
 		if !dec.Step() {
 			break
 		}
 	}
+	return dec.Mesh.Mesh()
 }
 
 type qefDecimator struct {
-	Mesh  *Mesh
-	QEFs  *CoordMap[numerical.QEF4]
+	Mesh    *ptrMesh
+	PtrMap  ptrCoordMap
+	NumTris int
+
+	QEFs  map[*ptrCoord]numerical.QEF4
 	Heap  *qefHeap
-	Pairs *CoordMap[*CoordMap[struct{}]]
+	Pairs map[*ptrCoord]map[*ptrCoord]struct{}
 
 	// Configuration flags
 	Options QEFDecimatorOptions
 }
 
-func newQEFDecimator(m *Mesh, options QEFDecimatorOptions) *qefDecimator {
+func newQEFDecimator(mesh *Mesh, options QEFDecimatorOptions) *qefDecimator {
+	m, ptrMap := ptrMeshAndMapping(mesh)
 	res := &qefDecimator{
 		Mesh:    m,
-		QEFs:    NewCoordMap[numerical.QEF4](),
+		PtrMap:  ptrMap,
+		NumTris: mesh.NumTriangles(),
+		QEFs:    map[*ptrCoord]numerical.QEF4{},
 		Heap:    newQEFHeap(),
-		Pairs:   NewCoordMap[*CoordMap[struct{}]](),
+		Pairs:   map[*ptrCoord]map[*ptrCoord]struct{}{},
 		Options: options,
 	}
 
-	allPairs := map[Segment]struct{}{}
-	for _, v := range m.VertexSlice() {
-		tris := m.Find(v)
+	allPairs := map[ptrSegment]struct{}{}
+	ptrMap.Range(func(c Coord3D, pc *ptrCoord) bool {
+		tris := pc.Triangles
 		qef := numerical.QEF4{}
 		if options.TikhonovRegularization > 0 {
-			qef = *numerical.NewQEF4Dist(v.Array()).Scale(options.TikhonovRegularization)
+			qef = *numerical.NewQEF4Dist(c.Array()).Scale(options.TikhonovRegularization)
 		}
 		for _, tri := range tris {
-			normal := tri.Normal()
-			bias := -normal.Dot(tri[0])
+			rawTri := tri.Triangle()
+			normal := rawTri.Normal()
+			bias := -normal.Dot(rawTri[0])
 			qef = *qef.Add(
 				numerical.NewQEF4Outer(numerical.Vec4{normal.X, normal.Y, normal.Z, bias}),
 			)
-			for _, v1 := range tri {
-				if v != v1 {
-					allPairs[NewSegment(v, v1)] = struct{}{}
+			for _, v1 := range tri.Coords {
+				if pc != v1 {
+					allPairs[newPtrSegment(pc, v1)] = struct{}{}
 				}
 			}
 		}
-		res.QEFs.Store(v, qef)
-	}
+		res.QEFs[pc] = qef
+		return true
+	})
 
 	for pair := range allPairs {
 		res.addPair(pair)
@@ -109,106 +121,117 @@ func (q *qefDecimator) Step() bool {
 		if !ok {
 			return false
 		}
-		if !q.mergeInMesh(pair, solution.Point) {
+		newVPtr := q.mergeInMesh(pair, solution.Point)
+		if newVPtr == nil {
 			continue
 		}
-		q.mergeQEFAndHeap(pair, solution.Point)
+		q.mergeQEFAndHeap(pair, newVPtr)
 		return true
 	}
 }
 
-func (q *qefDecimator) mergeInMesh(pair Segment, newV Coord3D) bool {
-	if newV != pair[0] && newV != pair[1] && len(q.Mesh.Find(newV)) > 0 {
-		// No existing points can be used.
-		return false
+func (q *qefDecimator) mergeInMesh(pair ptrSegment, newV Coord3D) *ptrCoord {
+	if newV != pair[0].Coord3D && newV != pair[1].Coord3D {
+		if existingC, ok := q.PtrMap.Load(newV); ok && len(existingC.Triangles) > 0 {
+			// No existing points can be used.
+			return nil
+		}
 	}
 	if !q.vertexLinkCondition(pair) || !q.noDuplicateTris(pair) {
 		// Do not allow non-manifold results.
-		return false
+		return nil
 	}
+	newVPtr := q.PtrMap.Coord(newV)
 
-	affected := map[*Triangle]struct{}{}
+	affected := map[*ptrTriangle]struct{}{}
 	for _, v := range pair {
-		for _, t := range q.Mesh.Find(v) {
+		for _, t := range v.Triangles {
 			affected[t] = struct{}{}
 		}
 	}
 
-	var newTris []*Triangle
+	addTris := []*ptrTriangle{}
 	for t := range affected {
-		newT := &Triangle{t[0], t[1], t[2]}
-		for i, c := range t {
-			if c == pair[0] {
-				newT[i] = newV
-			} else if c == pair[1] {
-				newT[i] = newV
+		newVs := [3]*ptrCoord{t.Coords[0], t.Coords[1], t.Coords[2]}
+		for i, c := range t.Coords {
+			if c == pair[0] || c == pair[1] {
+				newVs[i] = newVPtr
 			}
 		}
-		if newT[0] == newT[1] || newT[0] == newT[2] || newT[1] == newT[2] {
+		if newVs[0] == newVs[1] || newVs[0] == newVs[2] || newVs[1] == newVs[2] {
 			continue
 		}
-		normDot := newT.Normal().Dot(t.Normal())
+		pt := &ptrTriangle{Coords: newVs}
+		normDot := pt.Triangle().Normal().Dot(t.Triangle().Normal())
 		if math.IsNaN(normDot) || math.IsInf(normDot, 0) {
 			// Singular triangle.
-			return false
+			return nil
 		}
 		if normDot < q.Options.MinNormalDotProduct {
 			// Normal flip
-			return false
+			return nil
 		}
-		newTris = append(newTris, newT)
+		addTris = append(addTris, pt)
 	}
 
 	for t := range affected {
+		t.RemoveCoords()
 		q.Mesh.Remove(t)
-	}
-	for _, t := range newTris {
-		q.Mesh.Add(t)
+		q.NumTris -= 1
 	}
 
-	return true
+	for _, t := range addTris {
+		t.AddCoords()
+		q.Mesh.Add(t)
+		q.NumTris += 1
+	}
+
+	return newVPtr
 }
 
-func (q *qefDecimator) vertexLinkCondition(pair Segment) bool {
-	neighborCounts := NewCoordToNumber[int]()
+func (q *qefDecimator) vertexLinkCondition(pair ptrSegment) bool {
+	neighborCounts := map[*ptrCoord]int{}
 	for _, v := range pair {
-		adjacentSet := NewCoordMap[struct{}]()
-		for _, n := range q.Mesh.Find(v) {
-			for _, c := range n {
+		adjacentSet := map[*ptrCoord]struct{}{}
+		for _, n := range v.Triangles {
+			for _, c := range n.Coords {
 				if c != v {
-					adjacentSet.Store(c, struct{}{})
+					adjacentSet[c] = struct{}{}
 				}
 			}
 		}
-		adjacentSet.KeyRange(func(c Coord3D) bool {
-			neighborCounts.Add(c, 1)
-			return true
-		})
+		for c := range adjacentSet {
+			neighborCounts[c] += 1
+		}
 	}
 	var twiceCount int
-	neighborCounts.ValueRange(func(n int) bool {
+	for _, n := range neighborCounts {
 		if n == 2 {
 			twiceCount += 1
 		}
-		return true
-	})
+	}
 	// Exactly two neighbors should be counted twice, since
 	// there should be exactly two indicent triangles, and
 	// no other common points.
 	return twiceCount == 2
 }
 
-func (q *qefDecimator) noDuplicateTris(pair Segment) bool {
-	newTriCounts := map[Segment]int{}
+func (q *qefDecimator) noDuplicateTris(pair ptrSegment) bool {
+	newTriCounts := map[ptrSegment]int{}
 	for i, v := range pair {
 		otherV := pair[1-i]
-		for _, tri := range q.Mesh.Find(v) {
-			seg := tri.otherSegment(v)
-			if seg[0] == otherV || seg[1] == otherV {
+		for _, tri := range v.Triangles {
+			v1, v2 := tri.Coords[0], tri.Coords[1]
+			if v1 == v {
+				v1 = tri.Coords[2]
+			} else if v2 == v {
+				v2 = tri.Coords[2]
+			}
+			if v1 == otherV || v2 == otherV {
 				// This triangle would be collapsed.
 				continue
 			}
-			newTriCounts[seg] += 1
+			newTriCounts[newPtrSegment(v1, v2)] += 1
 		}
 	}
 	for _, n := range newTriCounts {
@@ -219,42 +242,37 @@ func (q *qefDecimator) noDuplicateTris(pair Segment) bool {
 	return true
 }
 
-func (q *qefDecimator) mergeQEFAndHeap(pair Segment, newV Coord3D) {
-	if _, ok := q.QEFs.Load(newV); ok {
-		panic("cannot merge into a vertex that already exists")
-	}
-
+func (q *qefDecimator) mergeQEFAndHeap(pair ptrSegment, newV *ptrCoord) {
 	newQEF := numerical.QEF4{}
 	for _, v := range pair {
-		qef, ok := q.QEFs.Load(v)
+		qef, ok := q.QEFs[v]
 		if !ok {
 			panic("no QEF for vertex")
 		}
-		q.QEFs.Delete(v)
+		delete(q.QEFs, v)
 		newQEF = *newQEF.Add(&qef)
 	}
-	q.QEFs.Store(newV, newQEF)
+	q.QEFs[newV] = newQEF
 
-	newPairs := map[Segment]struct{}{}
+	newPairs := map[ptrSegment]struct{}{}
 	for _, v := range pair {
-		pairs, ok := q.Pairs.Load(v)
+		pairs, ok := q.Pairs[v]
 		if !ok {
 			panic("pairs must exist if we are working on one of them")
 		}
-		q.Pairs.Delete(v)
-		pairs.KeyRange(func(other Coord3D) bool {
+		delete(q.Pairs, v)
+		for other := range pairs {
 			if other == pair[0] || other == pair[1] {
 				// This is the pair we are currently merging
-				return true
+				continue
 			}
-			pairs, _ := q.Pairs.Load(other)
-			pairs.Delete(v)
+			pairs, _ := q.Pairs[other]
+			delete(pairs, v)
 
-			newPair := NewSegment(newV, other)
-			q.Heap.Remove(NewSegment(v, other))
+			newPair := newPtrSegment(newV, other)
+			q.Heap.Remove(newPtrSegment(v, other))
 			newPairs[newPair] = struct{}{}
-			return true
-		})
+		}
 	}
 
 	for newPair := range newPairs {
@@ -262,28 +280,28 @@ func (q *qefDecimator) mergeQEFAndHeap(pair Segment, newV Coord3D) {
 	}
 }
 
-func (q *qefDecimator) addPair(pair Segment) {
-	qef1, _ := q.QEFs.Load(pair[0])
-	qef2, _ := q.QEFs.Load(pair[1])
+func (q *qefDecimator) addPair(pair ptrSegment) {
+	qef1, _ := q.QEFs[pair[0]]
+	qef2, _ := q.QEFs[pair[1]]
 	qef := qef1.Add(&qef2)
 	solution := q.solve(qef, pair[0], pair[1])
 	q.Heap.Add(pair, solution)
 	for i, v := range pair {
-		m, ok := q.Pairs.Load(v)
+		m, ok := q.Pairs[v]
 		if !ok {
-			m = NewCoordMap[struct{}]()
-			q.Pairs.Store(v, m)
+			m = map[*ptrCoord]struct{}{}
+			q.Pairs[v] = m
 		}
-		m.Store(pair[1-i], struct{}{})
+		m[pair[1-i]] = struct{}{}
 	}
 }
 
-func (q *qefDecimator) solve(qef *numerical.QEF4, v1, v2 Coord3D) qefSolution {
+func (q *qefDecimator) solve(qef *numerical.QEF4, v1, v2 *ptrCoord) qefSolution {
 	solutionV3, det := qef.Minimize()
 	if det < q.Options.minDet() {
 		bestCost := math.Inf(1)
 		bestSolution := Origin
-		for i, s := range []Coord3D{v1, v2, v1.Mid(v2)} {
+		for i, s := range []Coord3D{v1.Coord3D, v2.Coord3D, v1.Coord3D.Mid(v2.Coord3D)} {
 			cost := qef.Eval(s.Array())
 			if i == 0 || cost < bestCost {
 				bestCost = cost
@@ -306,21 +324,21 @@ type qefSolution struct {
 
 type qefHeapEntry struct {
 	qefSolution
-	Pair Segment
+	Pair ptrSegment
 }
 
 type qefHeap struct {
 	entries []qefHeapEntry
-	idxs    map[Segment]int
+	idxs    map[ptrSegment]int
 }
 
 func newQEFHeap() *qefHeap {
 	return &qefHeap{
-		idxs: map[Segment]int{},
+		idxs: map[ptrSegment]int{},
 	}
 }
 
-func (q *qefHeap) Add(pair Segment, solution qefSolution) {
+func (q *qefHeap) Add(pair ptrSegment, solution qefSolution) {
 	if _, ok := q.idxs[pair]; ok {
 		panic("cannot re-add an existing pair")
 	}
@@ -329,7 +347,7 @@ func (q *qefHeap) Add(pair Segment, solution qefSolution) {
 	q.percolateUp(len(q.entries) - 1)
 }
 
-func (q *qefHeap) Remove(pair Segment) bool {
+func (q *qefHeap) Remove(pair ptrSegment) bool {
 	idx, ok := q.idxs[pair]
 	if !ok {
 		return false
@@ -359,9 +377,9 @@ func (q *qefHeap) removeIdx(idx int) {
 	q.percolateDown(idx)
 }
 
-func (q *qefHeap) Pop() (Segment, qefSolution, bool) {
+func (q *qefHeap) Pop() (ptrSegment, qefSolution, bool) {
 	if len(q.entries) == 0 {
-		return Segment{}, qefSolution{}, false
+		return ptrSegment{}, qefSolution{}, false
 	}
 	res := q.entries[0]
 	q.removeIdx(0)

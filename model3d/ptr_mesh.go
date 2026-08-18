@@ -14,12 +14,17 @@ func newPtrMesh() *ptrMesh {
 
 // newPtrMeshMesh creates a ptrMesh from a Mesh.
 func newPtrMeshMesh(m *Mesh) *ptrMesh {
+	res, _ := ptrMeshAndMapping(m)
+	return res
+}
+
+func ptrMeshAndMapping(m *Mesh) (*ptrMesh, ptrCoordMap) {
 	mapping := newPtrCoordMap()
 	res := newPtrMesh()
 	m.Iterate(func(t *Triangle) {
 		res.Add(mapping.Triangle(t))
 	})
-	return res
+	return res, mapping
 }
 
 // Add adds a triangle to the mesh.
@@ -95,20 +100,22 @@ func (p *ptrMesh) IterateCoords(f func(c *ptrCoord)) {
 // A ptrCoordMap stores pointers for Coord3D points.
 // It can be used to convert points from a regular mesh
 // into pointers for a ptrMesh.
-type ptrCoordMap map[Coord3D]*ptrCoord
+type ptrCoordMap struct {
+	*CoordMap[*ptrCoord]
+}
 
 // newPtrCoordMap creates an empty coordinate map.
 func newPtrCoordMap() ptrCoordMap {
-	return ptrCoordMap{}
+	return ptrCoordMap{CoordMap: NewCoordMap[*ptrCoord]()}
 }
 
 // Coord gets or creates a new pointer coordinate.
-func (p ptrCoordMap) Coord(c Coord3D) *ptrCoord {
-	if ptrC, ok := p[c]; ok {
+func (p *ptrCoordMap) Coord(c Coord3D) *ptrCoord {
+	if ptrC, ok := p.Load(c); ok {
 		return ptrC
 	} else {
 		ptrC = &ptrCoord{Coord3D: c, Triangles: make([]*ptrTriangle, 0, 1)}
-		p[c] = ptrC
+		p.Store(c, ptrC)
 		return ptrC
 	}
 }

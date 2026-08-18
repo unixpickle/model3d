@@ -31,18 +31,15 @@ func TestDecimateQEFMinimal(t *testing.T) {
 		t.Fatal("invalid initial mesh")
 	}
 
-	QEFDecimate(m, 0, nil)
+	m = QEFDecimate(m, 0, nil)
 	if len(m.faces) != 4 {
 		t.Error("invalid reduction")
 	}
 }
 
-func TestDecimateQEFSphere(t *testing.T) {
+func testDecimateQEFMesh(t *testing.T, startMesh *Mesh) {
 	for j := 0; j < 30; j++ {
-		m := NewMeshPolar(func(g GeoCoord) float64 {
-			return 1.0
-		}, 50)
-		QEFDecimate(m, 100, nil)
+		m := QEFDecimate(startMesh, 100, nil)
 		if m.NumTriangles() > 100 {
 			t.Fatalf("expected <=100 triangles but got %d", m.NumTriangles())
 		}
@@ -55,17 +52,25 @@ func TestDecimateQEFSphere(t *testing.T) {
 		if len(m.TriangleSlice()) == 0 {
 			t.Error("no triangles")
 		}
-		if m.SelfIntersections() == 0 {
-			if _, n := m.RepairNormals(1e-8); n != 0 {
-				t.Error("bad normals")
-			}
+		if !m.Orientable() {
+			t.Error("bad normals")
 		}
 	}
 }
 
+func TestDecimateQEFSphere(t *testing.T) {
+	testDecimateQEFMesh(t, NewMeshPolar(func(g GeoCoord) float64 {
+		return 1.0
+	}, 50))
+}
+
+func TestDecimateQEFCube(t *testing.T) {
+	testDecimateQEFMesh(t, MarchingCubesSearch(NewRect(Origin, Ones(1)), 0.1, 4))
+}
+
 func TestDecimateQEFRandom(t *testing.T) {
 	m := MarchingCubesSearch(&randomSolid{rng: rand.New(rand.NewSource(0))}, 0.05, 4)
-	QEFDecimate(m, 1, nil)
+	m = QEFDecimate(m, 1, nil)
 	if m.NeedsRepair() {
 		t.Error("needs repair")
 	}
@@ -74,5 +79,15 @@ func TestDecimateQEFRandom(t *testing.T) {
 	}
 	if len(m.TriangleSlice()) == 0 {
 		t.Error("no triangles")
+	}
+}
+
+func BenchmarkDecimateQEF(b *testing.B) {
+	m := NewMeshPolar(func(g GeoCoord) float64 {
+		return 1.0
+	}, 50)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		QEFDecimate(m, 100, nil)
 	}
 }
