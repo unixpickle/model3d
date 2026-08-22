@@ -18,7 +18,7 @@ func newPtrMeshMesh(m *Mesh) *ptrMesh {
 	return res
 }
 
-func ptrMeshAndMapping(m *Mesh) (*ptrMesh, ptrCoordMap) {
+func ptrMeshAndMapping(m *Mesh) (*ptrMesh, *ptrCoordMap) {
 	mapping := newPtrCoordMap()
 	res := newPtrMesh()
 	m.Iterate(func(t *Triangle) {
@@ -102,11 +102,13 @@ func (p *ptrMesh) IterateCoords(f func(c *ptrCoord)) {
 // into pointers for a ptrMesh.
 type ptrCoordMap struct {
 	*CoordMap[*ptrCoord]
+
+	freePool []*ptrCoord
 }
 
 // newPtrCoordMap creates an empty coordinate map.
-func newPtrCoordMap() ptrCoordMap {
-	return ptrCoordMap{CoordMap: NewCoordMap[*ptrCoord]()}
+func newPtrCoordMap() *ptrCoordMap {
+	return &ptrCoordMap{CoordMap: NewCoordMap[*ptrCoord]()}
 }
 
 // Coord gets or creates a new pointer coordinate.
@@ -114,7 +116,13 @@ func (p *ptrCoordMap) Coord(c Coord3D) *ptrCoord {
 	if ptrC, ok := p.Load(c); ok {
 		return ptrC
 	} else {
-		ptrC = &ptrCoord{Coord3D: c, Triangles: make([]*ptrTriangle, 0, 1)}
+		if len(p.freePool) > 0 {
+			ptrC = p.freePool[len(p.freePool)-1]
+			p.freePool = p.freePool[:len(p.freePool)-1]
+			ptrC.Coord3D = c
+		} else {
+			ptrC = &ptrCoord{Coord3D: c, Triangles: make([]*ptrTriangle, 0, 1)}
+		}
 		p.Store(c, ptrC)
 		return ptrC
 	}
@@ -122,7 +130,7 @@ func (p *ptrCoordMap) Coord(c Coord3D) *ptrCoord {
 
 // Triangle converts a triangle into a ptrTriangle using
 // the pointers in the map.
-func (p ptrCoordMap) Triangle(rawTriangle *Triangle) *ptrTriangle {
+func (p *ptrCoordMap) Triangle(rawTriangle *Triangle) *ptrTriangle {
 	t := &ptrTriangle{}
 	for i, c := range rawTriangle {
 		ptrC := p.Coord(c)
@@ -130,6 +138,18 @@ func (p ptrCoordMap) Triangle(rawTriangle *Triangle) *ptrTriangle {
 		t.Coords[i] = ptrC
 	}
 	return t
+}
+
+// ReturnToPool removes the mapping for the coord and adds its memory
+// to a free pool that can be reused by future Coord() calls.
+//
+// The coord must already have no triangles associated with it.
+func (p *ptrCoordMap) ReturnToPool(c *ptrCoord) {
+	if len(c.Triangles) > 0 {
+		panic("cannot return a used ptrCoord to the free pool")
+	}
+	p.Delete(c.Coord3D)
+	p.freePool = append(p.freePool, c)
 }
 
 type ptrCoord struct {
